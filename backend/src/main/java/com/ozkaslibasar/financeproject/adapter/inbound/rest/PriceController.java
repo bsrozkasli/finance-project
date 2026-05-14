@@ -5,7 +5,8 @@ import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,10 +22,9 @@ public class PriceController {
 
     @GetMapping("/{symbol}/latest")
     @Cacheable(value = "latestPriceCache", key = "#symbol")
-    public ResponseEntity<PriceResponseDto> getLatestPrice(@PathVariable String symbol) {
+    public PriceResponseDto getLatestPrice(@PathVariable String symbol) {
         return priceRepositoryPort.findLatestByAssetId(symbol)
                 .map(mapper::toPriceResponseDto)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Price not found"));
     }
 }
