@@ -2,80 +2,49 @@ spring:
   application:
     name: finance-project
 
-  # ── Datasource ──────────────────────────────────────────────
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:financedb}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:financedb}
     username: ${DB_USERNAME:finance_user}
-    password: ${DB_PASSWORD:changeme}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
       connection-timeout: 30000
 
-  # ── JPA / Hibernate ─────────────────────────────────────────
   jpa:
     hibernate:
-      ddl-auto: update          # use 'validate' in production
+      ddl-auto: update
     show-sql: false
     open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-        default_schema: public
 
-  # ── Redis ────────────────────────────────────────────────────
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       timeout: 2000ms
 
-  # ── Cache ────────────────────────────────────────────────────
   cache:
     type: redis
     redis:
-      time-to-live: 60000       # 60-second TTL for summary endpoint (Phase 4)
+      time-to-live: 60000
 
-# ── OpenFeign ─────────────────────────────────────────────────
+server:
+  port: 8080
+
+fmp:
+  api:
+    key: ${FMP_API_KEY}
+    url: https://financialmodelingprep.com/stable
+
 feign:
   client:
     config:
       default:
         logger-level: BASIC
-        connect-timeout: 5000
-        read-timeout: 10000
-  # Enable Spring Cloud Circuit Breaker integration for Feign
   circuitbreaker:
     enabled: true
-
-# ── Resilience4j ──────────────────────────────────────────────
-resilience4j:
-  ratelimiter:
-    instances:
-      fmpApi:
-        # FMP free tier: 250 req/day → ≈ 5 req/min is safe
-        limit-for-period: 5
-        limit-refresh-period: 1s
-        timeout-duration: 5s
-  circuitbreaker:
-    instances:
-      fmpApi:
-        sliding-window-size: 10
-        failure-rate-threshold: 50
-        wait-duration-in-open-state: 30s
-
-# ── Actuator ──────────────────────────────────────────────────
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: always
-
-# ── Server ────────────────────────────────────────────────────
-server:
-  port: 8080

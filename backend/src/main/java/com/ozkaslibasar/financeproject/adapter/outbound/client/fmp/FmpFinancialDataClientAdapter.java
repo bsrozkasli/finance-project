@@ -1,7 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.client.fmp;
 
 import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.dto.FmpAssetProfileDto;
-import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.dto.FmpHistoricalPriceResponseDto;
+import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.dto.FmpHistoricalPriceDto;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.mapper.FmpClientMapper;
 import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
@@ -17,7 +17,14 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Adapter implementing {@link FinancialDataClientPort} using the FMP OpenFeign Client.
+ * Adapter implementing {@link FinancialDataClientPort} using the FMP stable API via OpenFeign.
+ *
+ * <p>Uses:
+ * <ul>
+ *   <li>GET /stable/search-symbol for asset metadata</li>
+ *   <li>GET /stable/historical-price-eod/full for OHLCV price history</li>
+ * </ul>
+ * </p>
  */
 @Component
 @RequiredArgsConstructor
@@ -33,15 +40,15 @@ public class FmpFinancialDataClientAdapter implements FinancialDataClientPort {
     @Override
     public List<PriceHistory> fetchPriceHistory(String symbol) {
         try {
-            FmpHistoricalPriceResponseDto response = fmpClient.getHistoricalPrices(symbol, apiKey);
-            if (response == null || response.getHistorical() == null) {
+            log.info("Fetching price history for {} from FMP stable API", symbol);
+            List<FmpHistoricalPriceDto> response = fmpClient.getHistoricalPrices(symbol, apiKey);
+            if (response == null || response.isEmpty()) {
+                log.warn("FMP returned empty price history for symbol: {}", symbol);
                 return Collections.emptyList();
             }
-
-            return response.getHistorical().stream()
+            return response.stream()
                     .map(dto -> mapper.toDomain(dto, symbol))
                     .collect(Collectors.toList());
-
         } catch (Exception e) {
             log.error("Failed to fetch price history for symbol {}: {}", symbol, e.getMessage());
             return Collections.emptyList();
@@ -51,13 +58,19 @@ public class FmpFinancialDataClientAdapter implements FinancialDataClientPort {
     @Override
     public Optional<Asset> fetchAssetInfo(String symbol) {
         try {
-            List<FmpAssetProfileDto> response = fmpClient.getAssetProfile(symbol, apiKey);
+            log.info("Fetching asset info for {} from FMP stable search-symbol API", symbol);
+            List<FmpAssetProfileDto> response = fmpClient.searchSymbol(symbol, 1, apiKey);
             if (response == null || response.isEmpty()) {
+                log.warn("FMP returned no results for symbol: {}", symbol);
                 return Optional.empty();
             }
-            return Optional.of(mapper.toDomain(response.get(0)));
+            // The search may return partial matches; take only if symbol matches exactly
+            return response.stream()
+                    .filter(dto -> symbol.equalsIgnoreCase(dto.getSymbol()))
+                    .findFirst()
+                    .map(mapper::toDomain);
         } catch (Exception e) {
-            log.error("Failed to fetch asset profile for symbol {}: {}", symbol, e.getMessage());
+            log.error("Failed to fetch asset info for symbol {}: {}", symbol, e.getMessage());
             return Optional.empty();
         }
     }

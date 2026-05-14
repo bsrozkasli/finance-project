@@ -12,28 +12,35 @@ import org.mapstruct.Named;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface FmpClientMapper {
 
-    @Mapping(target = "name", source = "companyName")
-    @Mapping(target = "type", source = "etf", qualifiedByName = "mapEtfToAssetType")
+    /**
+     * Maps the stable /search-symbol response to our domain Asset.
+     * 'name' field is used directly (was 'companyName' in old v3 profile endpoint).
+     * AssetType is derived from the exchange name since the stable API has no isEtf flag.
+     */
+    @Mapping(target = "name", source = "name")
+    @Mapping(target = "type", source = "exchangeFullName", qualifiedByName = "mapExchangeToAssetType")
     Asset toDomain(FmpAssetProfileDto dto);
 
     @Mapping(target = "assetId", source = "assetId")
     @Mapping(target = "timestamp", source = "dto.date", qualifiedByName = "mapDateStringToInstant")
     PriceHistory toDomain(FmpHistoricalPriceDto dto, String assetId);
 
-    @Named("mapEtfToAssetType")
-    default AssetType mapEtfToAssetType(boolean isEtf) {
-        return isEtf ? AssetType.ETF : AssetType.STOCK;
+    @Named("mapExchangeToAssetType")
+    default AssetType mapExchangeToAssetType(String exchangeFullName) {
+        if (exchangeFullName == null) return AssetType.STOCK;
+        String upper = exchangeFullName.toUpperCase();
+        if (upper.contains("ETF")) return AssetType.ETF;
+        return AssetType.STOCK;
     }
 
     @Named("mapDateStringToInstant")
     default java.time.Instant mapDateStringToInstant(String dateStr) {
         if (dateStr == null) return null;
-        // FMP date format is typically "YYYY-MM-DD"
+        // FMP stable date format is "YYYY-MM-DD"
         return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
                 .atStartOfDay(ZoneOffset.UTC)
                 .toInstant();
