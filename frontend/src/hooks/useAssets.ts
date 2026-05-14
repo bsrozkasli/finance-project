@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Asset } from '../api/types';
-import { fetchAssets } from '../api/client';
+import type { Asset } from '../api/types';
+import { fetchAssets, addAssetBatch } from '../api/client';
 
 export const useAssets = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -24,5 +24,24 @@ export const useAssets = () => {
     loadAssets();
   }, []);
 
-  return { assets, loading, error };
+  const addAssets = async (symbols: string[]) => {
+    try {
+      setLoading(true);
+      const newAssets = await addAssetBatch(symbols);
+      setAssets((prev) => {
+        // avoid duplicates
+        const existingSymbols = new Set(prev.map(a => a.symbol));
+        const filteredNew = newAssets.filter(a => !existingSymbols.has(a.symbol));
+        return [...prev, ...filteredNew];
+      });
+      setError(null);
+    } catch (err: any) {
+      setError(err.message || 'Failed to add assets');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { assets, loading, error, addAssets };
 };

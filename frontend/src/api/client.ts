@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Asset, PriceHistory } from './types';
+import type { Asset, PriceHistory } from './types';
 
 const apiClient = axios.create({
   baseURL: 'http://localhost:8080/api/v1',
@@ -10,6 +10,11 @@ const apiClient = axios.create({
 
 export const fetchAssets = async (): Promise<Asset[]> => {
   const response = await apiClient.get<Asset[]>('/assets');
+  return response.data;
+};
+
+export const addAssetBatch = async (symbols: string[]): Promise<Asset[]> => {
+  const response = await apiClient.post<Asset[]>('/assets/batch', { symbols });
   return response.data;
 };
 
