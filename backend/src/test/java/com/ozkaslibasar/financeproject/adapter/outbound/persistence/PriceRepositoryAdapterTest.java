@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,6 +28,7 @@ class PriceRepositoryAdapterTest {
     void shouldSaveAndFindLatestPrice() {
         // Arrange
         Instant now = Instant.now();
+        LocalDateTime nowUtc = LocalDateTime.ofInstant(now, ZoneOffset.UTC);
         PriceHistory p1 = new PriceHistory("TSLA", BigDecimal.valueOf(100), BigDecimal.valueOf(105), BigDecimal.valueOf(110), BigDecimal.valueOf(90), BigDecimal.valueOf(1000), now.minusSeconds(86400));
         PriceHistory p2 = new PriceHistory("TSLA", BigDecimal.valueOf(105), BigDecimal.valueOf(102), BigDecimal.valueOf(108), BigDecimal.valueOf(100), BigDecimal.valueOf(2000), now);
 
@@ -36,7 +39,7 @@ class PriceRepositoryAdapterTest {
 
         // Assert
         assertThat(latest).isPresent();
-        assertThat(latest.get().timestamp()).isEqualTo(now);
+        assertThat(latest.get().timestamp()).isEqualTo(nowUtc);
         assertThat(latest.get().close()).isEqualByComparingTo(BigDecimal.valueOf(102));
     }
 }
