@@ -10,7 +10,7 @@ import org.mapstruct.Mapping;
 import org.mapstruct.Named;
 
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Mapper(componentModel = "spring")
@@ -25,8 +25,8 @@ public interface FmpClientMapper {
     @Mapping(target = "type", source = "exchangeFullName", qualifiedByName = "mapExchangeToAssetType")
     Asset toDomain(FmpAssetProfileDto dto);
 
-    @Mapping(target = "assetId", source = "assetId")
-    @Mapping(target = "timestamp", source = "dto.date", qualifiedByName = "mapDateStringToInstant")
+    @Mapping(target = "symbol", source = "assetId")
+    @Mapping(target = "timestamp", source = "dto.date", qualifiedByName = "mapDateStringToLocalDateTime")
     PriceHistory toDomain(FmpHistoricalPriceDto dto, String assetId);
 
     @Named("mapExchangeToAssetType")
@@ -37,12 +37,11 @@ public interface FmpClientMapper {
         return AssetType.STOCK;
     }
 
-    @Named("mapDateStringToInstant")
-    default java.time.Instant mapDateStringToInstant(String dateStr) {
+    @Named("mapDateStringToLocalDateTime")
+    default LocalDateTime mapDateStringToLocalDateTime(String dateStr) {
         if (dateStr == null) return null;
         // FMP stable date format is "YYYY-MM-DD"
         return LocalDate.parse(dateStr, DateTimeFormatter.ISO_LOCAL_DATE)
-                .atStartOfDay(ZoneOffset.UTC)
-                .toInstant();
+                .atStartOfDay();
     }
 }
