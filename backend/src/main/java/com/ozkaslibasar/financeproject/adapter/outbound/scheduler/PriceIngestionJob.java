@@ -7,9 +7,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Scheduled job to orchestrate daily price ingestion.
+ * Scheduled job to orchestrate periodic price ingestion.
  *
- * <p>Strictly delegates to the domain service without any business logic inside the scheduled method.</p>
+ * <p>Strictly delegates to the domain service without any business logic inside
+ * the scheduled methods.</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -20,12 +21,22 @@ public class PriceIngestionJob {
 
     /**
      * Executes the ingestion process once per day at midnight.
-     * <p>Alternatively, could use a fixed rate if desired.</p>
      */
-    @Scheduled(cron = "0 0 0 * * ?") // Every day at midnight
+    @Scheduled(cron = "0 0 0 * * ?")
     public void ingestDailyPrices() {
         log.info("Starting daily price ingestion job.");
         priceIngestionUseCase.ingestAll();
         log.info("Finished daily price ingestion job.");
+    }
+
+    /**
+     * Executes the ingestion process once per hour (at minute 0) for near-real-time
+     * updates of intraday price data.
+     */
+    @Scheduled(cron = "0 0 * * * ?")
+    public void ingestHourlyPrices() {
+        log.info("Starting hourly price ingestion job.");
+        priceIngestionUseCase.ingestAll();
+        log.info("Finished hourly price ingestion job.");
     }
 }

@@ -14,8 +14,8 @@ export const useAssets = () => {
         const data = await fetchAssets();
         setAssets(data);
         setError(null);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch assets');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch assets');
       } finally {
         setLoading(false);
       }
@@ -35,8 +35,8 @@ export const useAssets = () => {
         return [...prev, ...filteredNew];
       });
       setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Failed to add assets');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to add assets');
       throw err;
     } finally {
       setLoading(false);
