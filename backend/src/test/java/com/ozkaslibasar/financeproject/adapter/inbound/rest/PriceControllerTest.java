@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
+import com.ozkaslibasar.financeproject.adapter.outbound.client.dataservice.DataServicePriceAdapter;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import org.junit.jupiter.api.Test;
@@ -30,6 +31,9 @@ class PriceControllerTest {
 
     @MockitoBean
     private PriceRepositoryPort priceRepositoryPort;
+
+    @MockitoBean
+    private DataServicePriceAdapter dataServicePriceAdapter;
 
     @Test
     void shouldReturnLatestPriceWhenFound() throws Exception {

@@ -1,6 +1,5 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.client.fmp;
 
-import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.junit5.WireMockTest;
 import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
@@ -29,33 +28,34 @@ class FmpFinancialDataClientAdapterTest {
 
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("fmp.api.url", () -> "http://localhost:8089/api/v3");
+        // Point the Feign client at the WireMock server — no extra path prefix so that
+        // the @GetMapping paths on FmpClient resolve correctly.
+        registry.add("fmp.api.url", () -> "http://localhost:8089");
         registry.add("FMP_API_KEY", () -> "test-api-key");
     }
 
     @Test
     void shouldFetchAssetInfoSuccessfully() {
-        // Arrange
         String symbol = "AAPL";
+        // FMP stable /search-symbol returns a flat JSON array of profile objects.
         String jsonResponse = "[{" +
                 "\"symbol\": \"AAPL\"," +
-                "\"companyName\": \"Apple Inc.\"," +
-                "\"exchangeShortName\": \"NASDAQ\"," +
-                "\"industry\": \"Consumer Electronics\"," +
-                "\"isEtf\": false," +
-                "\"isActivelyTrading\": true" +
+                "\"name\": \"Apple Inc.\"," +
+                "\"currency\": \"USD\"," +
+                "\"exchangeFullName\": \"NASDAQ Global Select\"," +
+                "\"exchange\": \"NASDAQ\"" +
                 "}]";
 
-        stubFor(get(urlPathEqualTo("/api/v3/profile/" + symbol))
+        stubFor(get(urlPathEqualTo("/search-symbol"))
+                .withQueryParam("query", equalTo(symbol))
+                .withQueryParam("limit", equalTo("1"))
                 .withQueryParam("apikey", equalTo("test-api-key"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody(jsonResponse)));
 
-        // Act
         Optional<Asset> assetOpt = clientAdapter.fetchAssetInfo(symbol);
 
-        // Assert
         assertThat(assetOpt).isPresent();
         assertThat(assetOpt.get().symbol()).isEqualTo("AAPL");
         assertThat(assetOpt.get().name()).isEqualTo("Apple Inc.");
@@ -64,32 +64,26 @@ class FmpFinancialDataClientAdapterTest {
 
     @Test
     void shouldFetchPriceHistorySuccessfully() {
-        // Arrange
         String symbol = "MSFT";
-        String jsonResponse = "{" +
-                "\"symbol\": \"MSFT\"," +
-                "\"historical\": [" +
-                "  {" +
-                "    \"date\": \"2023-10-01\"," +
-                "    \"open\": 315.5," +
-                "    \"high\": 320.0," +
-                "    \"low\": 310.0," +
-                "    \"close\": 318.0," +
-                "    \"volume\": 1000000" +
-                "  }" +
-                "]" +
-                "}";
+        // FMP stable /historical-price-eod/full returns a flat JSON array of OHLCV objects.
+        String jsonResponse = "[{" +
+                "\"date\": \"2023-10-01\"," +
+                "\"open\": 315.5," +
+                "\"high\": 320.0," +
+                "\"low\": 310.0," +
+                "\"close\": 318.0," +
+                "\"volume\": 1000000" +
+                "}]";
 
-        stubFor(get(urlPathEqualTo("/api/v3/historical-price-full/" + symbol))
+        stubFor(get(urlPathEqualTo("/historical-price-eod/full"))
+                .withQueryParam("symbol", equalTo(symbol))
                 .withQueryParam("apikey", equalTo("test-api-key"))
                 .willReturn(aResponse()
                         .withHeader("Content-Type", "application/json")
                         .withBody(jsonResponse)));
 
-        // Act
         List<PriceHistory> prices = clientAdapter.fetchPriceHistory(symbol);
 
-        // Assert
         assertThat(prices).hasSize(1);
         PriceHistory price = prices.get(0);
         assertThat(price.assetId()).isEqualTo("MSFT");

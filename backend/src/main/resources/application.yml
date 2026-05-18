@@ -41,6 +41,10 @@ fmp:
     key: ${FMP_API_KEY}
     url: https://financialmodelingprep.com/stable
 
+# FastAPI data-service base URL (yfinance proxy)
+data-service:
+  base-url: ${DATA_SERVICE_URL:http://localhost:8000}
+
 feign:
   client:
     config:

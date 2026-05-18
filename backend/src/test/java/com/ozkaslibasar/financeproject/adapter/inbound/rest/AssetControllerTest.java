@@ -4,6 +4,8 @@ import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
 import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataClientPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -30,6 +32,12 @@ class AssetControllerTest {
 
     @MockitoBean
     private AssetRepositoryPort assetRepositoryPort;
+
+    @MockitoBean
+    private FinancialDataClientPort financialDataClientPort;
+
+    @MockitoBean
+    private PriceRepositoryPort priceRepositoryPort;
 
     @Test
     void shouldReturnAllAssets() throws Exception {

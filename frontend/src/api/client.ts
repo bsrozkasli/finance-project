@@ -22,3 +22,15 @@ export const fetchAssetPrice = async (symbol: string): Promise<PriceHistory> => 
   const response = await apiClient.get<PriceHistory>(`/prices/${symbol}/latest`);
   return response.data;
 };
+
+export const fetchPriceHistory = async (
+  symbol: string,
+  interval: string = '1d',
+  range: string = '1mo'
+): Promise<PriceHistory[]> => {
+  const response = await apiClient.get<PriceHistory[]>(
+    `/prices/${symbol}/history`,
+    { params: { interval, range } }
+  );
+  return response.data;
+};
