@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { createChart, ColorType } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
 import { useAssetPrice } from '../hooks/useAssetPrice';
 import { formatCurrency, formatVolume, formatDate } from '../utils/formatters';
 
@@ -33,7 +33,7 @@ export const ChartOverlay = ({ symbol, onClose }: ChartOverlayProps) => {
       },
     });
 
-    const candlestickSeries = chart.addCandlestickSeries({
+    const candlestickSeries = chart.addSeries(CandlestickSeries, {
       upColor: '#10b981',
       downColor: '#ef4444',
       borderVisible: false,

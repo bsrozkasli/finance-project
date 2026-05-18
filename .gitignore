@@ -34,6 +34,8 @@ build/
 
 ### Environment — NEVER commit real secrets ###
 .env
+backend/.env
+frontend/.env
 
 ### Frontend ###
 frontend/node_modules/

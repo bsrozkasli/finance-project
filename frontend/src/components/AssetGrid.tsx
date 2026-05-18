@@ -1,4 +1,4 @@
-import { Asset } from '../api/types';
+import type { Asset } from '../api/types';
 
 interface AssetGridProps {
   assets: Asset[];

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { PriceHistory } from '../api/types';
+import type { PriceHistory } from '../api/types';
 import { fetchAssetPrice } from '../api/client';
 
 export const useAssetPrice = (symbol: string | null) => {
