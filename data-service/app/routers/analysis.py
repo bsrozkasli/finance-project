@@ -12,8 +12,10 @@ from app.models.analysis import (
     LlmInsightRequest,
     LlmInsightResponse,
     FullAnalysisResponse,
+    PatternDetectionResponse,
 )
 from app.services.technical_analysis_service import TechnicalAnalysisService
+from app.services.pattern_detection_service import PatternDetectionService
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1", tags=["analysis"])
@@ -171,4 +173,66 @@ async def get_full_analysis(symbol: str) -> FullAnalysisResponse:
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Full analysis failed: {str(e)}")
+
+
+@router.get("/patterns/{symbol}", response_model=PatternDetectionResponse)
+def get_patterns(
+    symbol: str,
+    interval: str = Query("1d"),
+    range: str = Query("3mo"),
+    include_llm_context: bool = Query(False),
+) -> PatternDetectionResponse:
+    """
+    Detect classical price patterns from historical OHLCV data.
+    
+    Optionally queries the LLM service for a 2-sentence context if include_llm_context is true.
+    
+    Args:
+        symbol: Trading symbol (e.g., 'AAPL')
+        interval: Candlestick interval (e.g., '1d', '1h', default='1d')
+        range: Historical data range (e.g., '3mo', '1y', default='3mo')
+        include_llm_context: Whether to include LLM-generated context (default=False)
+        
+    Returns:
+        PatternDetectionResponse with detected patterns and dominant pattern
+    """
+    history = _load_history(symbol, interval, range)
+    
+    # Extract OHLCV columns
+    closes = history["Close"].values
+    highs = history["High"].values
+    lows = history["Low"].values
+    
+    # Get LLM context if requested
+    llm_context = None
+    if include_llm_context and settings.ANTHROPIC_API_KEY:
+        try:
+            from app.services.llm_insight_service import LlmInsightService
+            import asyncio
+            
+            async def get_llm_insight():
+                insight_request = LlmInsightRequest(
+                    symbol=symbol,
+                    include_technical=False,
+                    include_sentiment=False,
+                    scenario="Provide a brief 2-sentence market context for pattern analysis.",
+                )
+                return await LlmInsightService.generate_insight(insight_request)
+            
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            result = loop.run_until_complete(get_llm_insight())
+            loop.close()
+            llm_context = result.insight if result else None
+        except Exception:
+            pass
+    
+    return PatternDetectionService.detect(
+        symbol=symbol,
+        interval=interval,
+        closes=closes,
+        highs=highs,
+        lows=lows,
+        llm_context=llm_context,
+    )
 

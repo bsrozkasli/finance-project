@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 from typing import Optional
+from enum import Enum
 
 
 class TechnicalIndicators(BaseModel):
@@ -72,3 +73,39 @@ class FullAnalysisResponse(BaseModel):
     sentiment: Optional[SentimentAnalysisResponse] = None
     llm_insight: Optional[LlmInsightResponse] = None
     generated_at: datetime
+
+
+class PatternType(str, Enum):
+    DOUBLE_BOTTOM = "DOUBLE_BOTTOM"
+    DOUBLE_TOP = "DOUBLE_TOP"
+    HEAD_AND_SHOULDERS = "HEAD_AND_SHOULDERS"
+    INV_HEAD_AND_SHOULDERS = "INV_HEAD_AND_SHOULDERS"
+    SUPPORT_BOUNCE = "SUPPORT_BOUNCE"
+    RESISTANCE_REJECT = "RESISTANCE_REJECT"
+    GOLDEN_CROSS = "GOLDEN_CROSS"
+    DEATH_CROSS = "DEATH_CROSS"
+
+
+class PatternDirection(str, Enum):
+    BULLISH = "BULLISH"
+    BEARISH = "BEARISH"
+    NEUTRAL = "NEUTRAL"
+
+
+class DetectedPattern(BaseModel):
+    pattern_type: PatternType
+    direction: PatternDirection
+    confidence: float = Field(ge=0.0, le=1.0)
+    start_index: int
+    end_index: int
+    description: str
+    price_target: Optional[float] = None
+
+
+class PatternDetectionResponse(BaseModel):
+    symbol: str
+    interval: str
+    patterns: list[DetectedPattern]
+    dominant_pattern: Optional[DetectedPattern] = None
+    llm_context: Optional[str] = None
+    detected_at: datetime
