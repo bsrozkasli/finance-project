@@ -5,7 +5,10 @@ import pandas as pd
 import yfinance as yf
 from fastapi import FastAPI, Query
 
+from app.routers.analysis import router as analysis_router
+
 app = FastAPI(title="Price Data Service", version="1.0.0")
+app.include_router(analysis_router)
 
 
 def _to_utc_z(value: object) -> str:
