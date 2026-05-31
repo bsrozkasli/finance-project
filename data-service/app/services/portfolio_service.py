@@ -282,6 +282,8 @@ class PortfolioService:
         weight_bounds: tuple[float, float],
     ) -> dict[str, float]:
         volatilities = np.sqrt(np.diag(cov.values))
+        if np.any(volatilities <= 0):
+            raise ValueError("Volatility must be positive to compute risk parity weights")
         inv_vol = 1 / volatilities
         raw_weights = pd.Series(inv_vol, index=cov.columns)
         normalized = raw_weights / raw_weights.sum()
@@ -313,7 +315,11 @@ class PortfolioService:
             if remaining < 0:
                 remaining = 0.0
             if free.any():
-                bounded[free] = bounded[free] / bounded[free].sum() * remaining
+                free_total = bounded[free].sum()
+                if free_total > 0:
+                    bounded[free] = bounded[free] / free_total * remaining
+                else:
+                    bounded[free] = 0.0
             else:
                 break
 
