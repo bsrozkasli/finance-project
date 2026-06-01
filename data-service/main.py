@@ -57,3 +57,7 @@ def get_prices(
         )
 
     return result
+
+from app.routers.portfolio import router as portfolio_router
+
+app.include_router(portfolio_router)

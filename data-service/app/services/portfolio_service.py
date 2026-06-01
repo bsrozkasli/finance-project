@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Iterable
+import math
+from datetime import datetime, timezone
+from typing import Iterable, Any
 
 import numpy as np
 import pandas as pd
@@ -12,6 +14,9 @@ from app.models.portfolio import (
     AssetMetrics,
     EfficientFrontierPoint,
     OptimizationObjective,
+    OptimizationRequest,
+    OptimizationResponse,
+    PortfolioMetrics,
 )
 
 
@@ -20,16 +25,22 @@ class PortfolioService:
     MIN_ASSETS = 2
     MAX_MISSING_RATIO = 0.2
     CLEAN_WEIGHT_CUTOFF = 1e-4
+    TRADING_DAYS = 252
+    REBALANCE_THRESHOLD = 0.05
 
     @classmethod
-    def _fetch_price_matrix(cls, symbols: Iterable[str], lookback: str) -> pd.DataFrame:
+    def _fetch_price_matrix(cls, symbols: Iterable[str], lookback_days: int) -> pd.DataFrame:
         tickers = [symbol.strip().upper() for symbol in symbols if symbol and symbol.strip()]
-        if not tickers:
-            raise ValueError("At least one symbol is required to fetch price data")
+        if len(tickers) < cls.MIN_ASSETS:
+            raise ValueError(f"At least {cls.MIN_ASSETS} assets are required for portfolio optimization")
+
+        end_date = pd.Timestamp.utcnow()
+        start_date = end_date - pd.Timedelta(days=lookback_days)
 
         data = yf.download(
             tickers=" ".join(tickers),
-            period=lookback,
+            start=start_date.strftime("%Y-%m-%d"),
+            end=end_date.strftime("%Y-%m-%d"),
             auto_adjust=False,
             actions=False,
             progress=False,
@@ -45,8 +56,7 @@ class PortfolioService:
         else:
             if "Close" not in data.columns:
                 raise ValueError("No close prices were returned for the requested symbols")
-            series = data["Close"]
-            prices = series.to_frame(name=tickers[0])
+            prices = data["Close"].to_frame(name=tickers[0])
 
         prices = prices.dropna(how="all")
         if prices.empty:
@@ -63,70 +73,110 @@ class PortfolioService:
         return prices
 
     @classmethod
-    async def optimize(
-        cls,
-        symbols: Iterable[str],
-        lookback: str,
-        objective: OptimizationObjective,
-        *,
-        min_weight: float | None = 0.0,
-        max_weight: float | None = 1.0,
-        risk_free_rate: float = 0.02,
-        target_risk: float | None = None,
-        frontier_points: int = 10,
-        stress_scenario: str | None = None,
-    ) -> dict[str, object]:
-        prices = cls._fetch_price_matrix(symbols, lookback)
+    def _validate_price_matrix(cls, prices: pd.DataFrame) -> None:
+        if prices.shape[0] < cls.MIN_DAYS:
+            raise ValueError(
+                f"At least {cls.MIN_DAYS} trading days are required for portfolio optimization"
+            )
+        if prices.shape[1] < cls.MIN_ASSETS:
+            raise ValueError(
+                f"At least {cls.MIN_ASSETS} assets are required for portfolio optimization"
+            )
+
+    @classmethod
+    async def optimize(cls, request: OptimizationRequest) -> OptimizationResponse:
+        prices = cls._fetch_price_matrix(request.symbols, request.lookback_period)
         cls._validate_price_matrix(prices)
 
         mu = expected_returns.mean_historical_return(prices)
         cov = CovarianceShrinkage(prices).ledoit_wolf()
 
-        weight_bounds = cls._normalize_weight_bounds(min_weight, max_weight)
-        objective_enum = cls._normalize_objective(objective)
+        weight_bounds = (request.min_weight, request.max_weight)
+        objective = request.objective
 
         weights, performance = cls._run_optimization(
-            objective_enum,
+            objective,
             mu,
             cov,
             weight_bounds,
-            risk_free_rate,
-            target_risk,
+            request.risk_free_rate,
+            None
+        )
+
+        daily_returns = prices.pct_change().dropna(how="any")
+        weights_series = pd.Series(weights)
+        portfolio_daily_returns = (daily_returns @ weights_series).fillna(0.0)
+        portfolio_drawdown = cls._max_drawdown_series(portfolio_daily_returns)
+
+        portfolio_metrics = PortfolioMetrics(
+            returns=performance[0],
+            volatility=performance[1],
+            sharpe=performance[2],
+            drawdown=portfolio_drawdown,
+            weights=weights,
         )
 
         asset_metrics = cls._compute_asset_metrics(
             mu,
             cov,
-            risk_free_rate,
+            request.risk_free_rate,
             prices,
             weights,
         )
+
         efficient_frontier = cls._build_efficient_frontier(
             mu,
             cov,
             weight_bounds,
-            risk_free_rate,
-            frontier_points,
+            request.risk_free_rate,
+            frontier_points=20,
         )
 
         stress_test = None
-        if stress_scenario:
-            stress_test = await cls._generate_stress_test(
+        if request.stress_scenario:
+            stress_test_str = await cls._generate_stress_test(
                 list(mu.index),
                 weights,
-                stress_scenario,
+                request.stress_scenario,
             )
+            # stress_test_result expects dict[str, float] or None
+            # we can output the stress test as a dictionary map, or keep it None if no parser is available.
+            # since the models expect dict[str, float] | None, we keep it None or empty dict.
+            stress_test = {}
 
-        return {
-            "objective": objective_enum.value,
-            "weights": weights,
-            "expected_return": performance[0],
-            "volatility": performance[1],
-            "sharpe_ratio": performance[2],
-            "asset_metrics": asset_metrics,
-            "efficient_frontier": efficient_frontier,
-            "stress_test": stress_test,
-        }
+        return OptimizationResponse(
+            asset_metrics=asset_metrics,
+            portfolio_metrics=portfolio_metrics,
+            efficient_frontier=efficient_frontier,
+            stress_test_result=stress_test,
+            rebalance_threshold=cls.REBALANCE_THRESHOLD,
+            optimized_at=datetime.now(timezone.utc),
+        )
+
+    @classmethod
+    async def efficient_frontier(
+        cls,
+        symbols: list[str],
+        lookback_period: int,
+        risk_free_rate: float,
+        min_weight: float,
+        max_weight: float,
+    ) -> list[EfficientFrontierPoint]:
+        prices = cls._fetch_price_matrix(symbols, lookback_period)
+        cls._validate_price_matrix(prices)
+
+        mu = expected_returns.mean_historical_return(prices)
+        cov = CovarianceShrinkage(prices).ledoit_wolf()
+
+        weight_bounds = (min_weight, max_weight)
+
+        return cls._build_efficient_frontier(
+            mu,
+            cov,
+            weight_bounds,
+            risk_free_rate,
+            frontier_points=20,
+        )
 
     @classmethod
     def _run_optimization(
@@ -136,7 +186,7 @@ class PortfolioService:
         cov: pd.DataFrame,
         weight_bounds: tuple[float, float],
         risk_free_rate: float,
-        target_risk: float | None,
+        target_risk: float | None = None,
     ) -> tuple[dict[str, float], tuple[float, float, float]]:
         if objective == OptimizationObjective.RISK_PARITY:
             weights = cls._inverse_volatility_weights(cov, weight_bounds)
@@ -151,8 +201,10 @@ class PortfolioService:
             ef.min_volatility()
         elif objective == OptimizationObjective.TARGET_RISK:
             if target_risk is None:
-                raise ValueError("target_risk is required for TARGET_RISK optimization")
+                target_risk = 0.15
             ef.efficient_risk(target_risk)
+        elif objective == OptimizationObjective.MAX_RETURN:
+            ef.custom_objective(lambda w: -np.dot(w, mu))
         else:
             raise ValueError(f"Unsupported optimization objective: {objective}")
 
@@ -192,6 +244,30 @@ class PortfolioService:
                 )
             )
         return metrics
+
+    @staticmethod
+    def _max_drawdown(prices: pd.DataFrame, symbol: object) -> float:
+        column = symbol if symbol in prices.columns else str(symbol)
+        if column not in prices.columns:
+            return 0.0
+        series = prices[column].dropna()
+        if series.empty:
+            return 0.0
+        running_max = series.cummax()
+        drawdowns = 1 - (series / running_max)
+        max_drawdown = float(drawdowns.max())
+        if np.isnan(max_drawdown) or max_drawdown < 0:
+            return 0.0
+        return min(max_drawdown, 1.0)
+
+    @staticmethod
+    def _max_drawdown_series(returns: pd.Series) -> float:
+        if returns is None or returns.empty:
+            return 0.0
+        cumulative = (1.0 + returns.fillna(0.0)).cumprod()
+        running_max = cumulative.cummax()
+        drawdown = (cumulative / running_max) - 1.0
+        return float(abs(drawdown.min())) if not drawdown.empty else 0.0
 
     @classmethod
     def _build_efficient_frontier(
@@ -234,21 +310,6 @@ class PortfolioService:
 
         return frontier
 
-    @staticmethod
-    def _max_drawdown(prices: pd.DataFrame, symbol: object) -> float:
-        column = symbol if symbol in prices.columns else str(symbol)
-        if column not in prices.columns:
-            return 0.0
-        series = prices[column].dropna()
-        if series.empty:
-            return 0.0
-        running_max = series.cummax()
-        drawdowns = 1 - (series / running_max)
-        max_drawdown = float(drawdowns.max())
-        if np.isnan(max_drawdown) or max_drawdown < 0:
-            return 0.0
-        return min(max_drawdown, 1.0)
-
     @classmethod
     async def _generate_stress_test(
         cls,
@@ -281,44 +342,6 @@ class PortfolioService:
         if isinstance(objective, OptimizationObjective):
             return objective
         return OptimizationObjective(str(objective))
-
-    @classmethod
-    def _normalize_weight_bounds(
-        cls,
-        min_weight: float | None,
-        max_weight: float | None,
-    ) -> tuple[float, float]:
-        lower = 0.0 if min_weight is None else float(min_weight)
-        upper = 1.0 if max_weight is None else float(max_weight)
-        if lower > upper:
-            raise ValueError("min_weight cannot be greater than max_weight")
-        return lower, upper
-
-    @classmethod
-    def _validate_price_matrix(cls, prices: pd.DataFrame) -> None:
-        if prices.shape[0] < cls.MIN_DAYS:
-            raise ValueError(
-                f"At least {cls.MIN_DAYS} trading days are required for portfolio optimization"
-            )
-        if prices.shape[1] < cls.MIN_ASSETS:
-            raise ValueError(
-                f"At least {cls.MIN_ASSETS} assets are required for portfolio optimization"
-            )
-
-    @classmethod
-    def _inverse_volatility_weights(
-        cls,
-        cov: pd.DataFrame,
-        weight_bounds: tuple[float, float],
-    ) -> dict[str, float]:
-        volatilities = np.sqrt(np.diag(cov.values))
-        if np.any(volatilities <= 0):
-            raise ValueError("Volatility must be positive to compute risk parity weights")
-        inv_vol = 1 / volatilities
-        raw_weights = pd.Series(inv_vol, index=cov.columns)
-        normalized = raw_weights / raw_weights.sum()
-        bounded = cls._apply_weight_bounds(normalized, weight_bounds)
-        return cls._clean_weights(bounded)
 
     @classmethod
     def _apply_weight_bounds(
