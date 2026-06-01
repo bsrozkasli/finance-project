@@ -204,7 +204,8 @@ class PortfolioService:
                 target_risk = 0.15
             ef.efficient_risk(target_risk)
         elif objective == OptimizationObjective.MAX_RETURN:
-            ef.custom_objective(lambda w: -np.dot(w, mu))
+            import cvxpy as cp
+            ef.convex_objective(lambda w: -cp.sum(cp.multiply(w, mu.values)))
         else:
             raise ValueError(f"Unsupported optimization objective: {objective}")
 

@@ -42,7 +42,7 @@ def synthetic_prices(symbols: list[str]) -> pd.DataFrame:
 
 @pytest.fixture
 def mock_price_matrix(monkeypatch, synthetic_prices: pd.DataFrame):
-    async def _mock_fetch_price_matrix(cls, symbols, lookback_period):
+    def _mock_fetch_price_matrix(cls, symbols, lookback_period):
         return synthetic_prices[symbols]
 
     monkeypatch.setattr(PortfolioService, "_fetch_price_matrix", classmethod(_mock_fetch_price_matrix))
@@ -112,10 +112,9 @@ async def test_rebalance_check_endpoint_flags_sell_when_current_weight_exceeds_t
 
 
 @pytest.mark.smoke
-@pytest.mark.asyncio
-async def test_fetch_price_matrix_smoke_real_yfinance_call():
+def test_fetch_price_matrix_smoke_real_yfinance_call():
     try:
-        prices = await PortfolioService._fetch_price_matrix(["AAPL", "MSFT"], lookback_period=45)
+        prices = PortfolioService._fetch_price_matrix(["AAPL", "MSFT"], lookback_period=45)
     except Exception as exc:
         pytest.skip(f"Real yfinance smoke call unavailable: {exc}")
 
