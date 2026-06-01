@@ -94,7 +94,13 @@ class PortfolioService:
             target_risk,
         )
 
-        asset_metrics = cls._compute_asset_metrics(mu, cov, risk_free_rate)
+        asset_metrics = cls._compute_asset_metrics(
+            mu,
+            cov,
+            risk_free_rate,
+            prices,
+            weights,
+        )
         efficient_frontier = cls._build_efficient_frontier(
             mu,
             cov,
@@ -160,21 +166,29 @@ class PortfolioService:
         mu: pd.Series,
         cov: pd.DataFrame,
         risk_free_rate: float,
+        prices: pd.DataFrame,
+        weights: dict[str, float],
     ) -> list[AssetMetrics]:
         volatilities = np.sqrt(np.diag(cov.values))
         metrics: list[AssetMetrics] = []
         for idx, symbol in enumerate(mu.index):
             expected_return = float(mu.iloc[idx])
             volatility = float(volatilities[idx])
-            sharpe_ratio = None
+            sharpe_ratio = 0.0
             if volatility > 0:
                 sharpe_ratio = (expected_return - risk_free_rate) / volatility
+            drawdown = cls._max_drawdown(prices, symbol)
+            weight = float(weights.get(str(symbol), 0.0))
             metrics.append(
                 AssetMetrics(
                     symbol=str(symbol),
+                    returns=expected_return,
                     expected_return=expected_return,
                     volatility=volatility,
+                    sharpe=sharpe_ratio,
                     sharpe_ratio=sharpe_ratio,
+                    drawdown=drawdown,
+                    weight=weight,
                 )
             )
         return metrics
@@ -210,6 +224,7 @@ class PortfolioService:
                         target_return=float(target),
                         expected_return=performance[0],
                         volatility=performance[1],
+                        sharpe=performance[2],
                         sharpe_ratio=performance[2],
                         weights=weights,
                     )
@@ -218,6 +233,21 @@ class PortfolioService:
                 continue
 
         return frontier
+
+    @staticmethod
+    def _max_drawdown(prices: pd.DataFrame, symbol: object) -> float:
+        column = symbol if symbol in prices.columns else str(symbol)
+        if column not in prices.columns:
+            return 0.0
+        series = prices[column].dropna()
+        if series.empty:
+            return 0.0
+        running_max = series.cummax()
+        drawdowns = 1 - (series / running_max)
+        max_drawdown = float(drawdowns.max())
+        if np.isnan(max_drawdown) or max_drawdown < 0:
+            return 0.0
+        return min(max_drawdown, 1.0)
 
     @classmethod
     async def _generate_stress_test(
