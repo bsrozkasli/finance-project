@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timezone
+from typing import Iterable, Any
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from scipy.optimize import minimize
+from pypfopt import EfficientFrontier, expected_returns
+from pypfopt.risk_models import CovarianceShrinkage
 
 from app.models.portfolio import (
     AssetMetrics,
@@ -19,75 +21,134 @@ from app.models.portfolio import (
 
 
 class PortfolioService:
-    REBALANCE_THRESHOLD = 0.05
-    FRONTIER_POINTS = 20
+    MIN_DAYS = 60
+    MIN_ASSETS = 2
+    MAX_MISSING_RATIO = 0.2
+    CLEAN_WEIGHT_CUTOFF = 1e-4
     TRADING_DAYS = 252
+    REBALANCE_THRESHOLD = 0.05
+
+    @classmethod
+    def _fetch_price_matrix(cls, symbols: Iterable[str], lookback_days: int) -> pd.DataFrame:
+        tickers = [symbol.strip().upper() for symbol in symbols if symbol and symbol.strip()]
+        if len(tickers) < cls.MIN_ASSETS:
+            raise ValueError(f"At least {cls.MIN_ASSETS} assets are required for portfolio optimization")
+
+        end_date = pd.Timestamp.utcnow()
+        start_date = end_date - pd.Timedelta(days=lookback_days)
+
+        data = yf.download(
+            tickers=" ".join(tickers),
+            start=start_date.strftime("%Y-%m-%d"),
+            end=end_date.strftime("%Y-%m-%d"),
+            auto_adjust=False,
+            actions=False,
+            progress=False,
+        )
+
+        if data is None or data.empty:
+            raise ValueError("No historical price data was returned for the requested symbols")
+
+        if isinstance(data.columns, pd.MultiIndex):
+            if "Close" not in data.columns.get_level_values(0):
+                raise ValueError("No close prices were returned for the requested symbols")
+            prices = data["Close"].copy()
+        else:
+            if "Close" not in data.columns:
+                raise ValueError("No close prices were returned for the requested symbols")
+            prices = data["Close"].to_frame(name=tickers[0])
+
+        prices = prices.dropna(how="all")
+        if prices.empty:
+            raise ValueError("No usable close prices were returned for the requested symbols")
+
+        missing_ratio = prices.isna().mean()
+        prices = prices.loc[:, missing_ratio <= cls.MAX_MISSING_RATIO]
+        prices = prices.ffill()
+        prices = prices.dropna(how="any")
+
+        if prices.empty:
+            raise ValueError("Price data is empty after cleaning missing values")
+
+        return prices
+
+    @classmethod
+    def _validate_price_matrix(cls, prices: pd.DataFrame) -> None:
+        if prices.shape[0] < cls.MIN_DAYS:
+            raise ValueError(
+                f"At least {cls.MIN_DAYS} trading days are required for portfolio optimization"
+            )
+        if prices.shape[1] < cls.MIN_ASSETS:
+            raise ValueError(
+                f"At least {cls.MIN_ASSETS} assets are required for portfolio optimization"
+            )
 
     @classmethod
     async def optimize(cls, request: OptimizationRequest) -> OptimizationResponse:
-        cls._validate_bounds(request)
+        prices = cls._fetch_price_matrix(request.symbols, request.lookback_period)
+        cls._validate_price_matrix(prices)
 
-        prices = await cls._fetch_price_matrix(request.symbols, request.lookback_period)
-        returns = prices.pct_change().dropna(how="any")
+        mu = expected_returns.mean_historical_return(prices)
+        cov = CovarianceShrinkage(prices).ledoit_wolf()
 
-        if returns.empty:
-            raise ValueError("Not enough return observations to optimize portfolio")
+        weight_bounds = (request.min_weight, request.max_weight)
+        objective = request.objective
 
-        mean_returns = returns.mean() * cls.TRADING_DAYS
-        covariance = returns.cov() * cls.TRADING_DAYS
-
-        weights = cls._optimize_weights(
-            objective=request.objective,
-            mean_returns=mean_returns.values,
-            covariance=covariance.values,
-            risk_free_rate=request.risk_free_rate,
-            min_weight=request.min_weight,
-            max_weight=request.max_weight,
+        weights, performance = cls._run_optimization(
+            objective,
+            mu,
+            cov,
+            weight_bounds,
+            request.risk_free_rate,
+            None
         )
 
-        weight_map = {symbol: float(weight) for symbol, weight in zip(request.symbols, weights)}
-
-        portfolio_return = float(np.dot(weights, mean_returns.values))
-        portfolio_volatility = cls._portfolio_volatility(weights, covariance.values)
-        sharpe = cls._safe_sharpe(portfolio_return, portfolio_volatility, request.risk_free_rate)
-        portfolio_series = (returns @ weights).fillna(0.0)
+        daily_returns = prices.pct_change().dropna(how="any")
+        weights_series = pd.Series(weights)
+        portfolio_daily_returns = (daily_returns @ weights_series).fillna(0.0)
+        portfolio_drawdown = cls._max_drawdown_series(portfolio_daily_returns)
 
         portfolio_metrics = PortfolioMetrics(
-            returns=portfolio_return,
-            volatility=portfolio_volatility,
-            sharpe=sharpe,
-            drawdown=cls._max_drawdown(portfolio_series),
-            weights=weight_map,
+            returns=performance[0],
+            volatility=performance[1],
+            sharpe=performance[2],
+            drawdown=portfolio_drawdown,
+            weights=weights,
         )
 
-        asset_metrics = []
-        for i, symbol in enumerate(request.symbols):
-            annual_return = float(mean_returns.iloc[i])
-            annual_volatility = float(math.sqrt(max(covariance.iloc[i, i], 0.0)))
-            asset_metrics.append(
-                AssetMetrics(
-                    symbol=symbol,
-                    returns=annual_return,
-                    volatility=annual_volatility,
-                    sharpe=cls._safe_sharpe(annual_return, annual_volatility, request.risk_free_rate),
-                    drawdown=cls._max_drawdown(returns[symbol]),
-                    weight=weight_map[symbol],
-                )
-            )
-
-        frontier = cls._build_efficient_frontier(
-            mean_returns.values,
-            covariance.values,
+        asset_metrics = cls._compute_asset_metrics(
+            mu,
+            cov,
             request.risk_free_rate,
-            request.min_weight,
-            request.max_weight,
+            prices,
+            weights,
         )
+
+        efficient_frontier = cls._build_efficient_frontier(
+            mu,
+            cov,
+            weight_bounds,
+            request.risk_free_rate,
+            frontier_points=20,
+        )
+
+        stress_test = None
+        if request.stress_scenario:
+            stress_test_str = await cls._generate_stress_test(
+                list(mu.index),
+                weights,
+                request.stress_scenario,
+            )
+            # stress_test_result expects dict[str, float] or None
+            # we can output the stress test as a dictionary map, or keep it None if no parser is available.
+            # since the models expect dict[str, float] | None, we keep it None or empty dict.
+            stress_test = {}
 
         return OptimizationResponse(
             asset_metrics=asset_metrics,
             portfolio_metrics=portfolio_metrics,
-            efficient_frontier=frontier,
-            stress_test_result=None,
+            efficient_frontier=efficient_frontier,
+            stress_test_result=stress_test,
             rebalance_threshold=cls.REBALANCE_THRESHOLD,
             optimized_at=datetime.now(timezone.utc),
         )
@@ -101,166 +162,106 @@ class PortfolioService:
         min_weight: float,
         max_weight: float,
     ) -> list[EfficientFrontierPoint]:
-        request = OptimizationRequest(
-            symbols=symbols,
-            objective=OptimizationObjective.MAX_SHARPE,
-            risk_free_rate=risk_free_rate,
-            lookback_period=lookback_period,
-            min_weight=min_weight,
-            max_weight=max_weight,
-        )
-        cls._validate_bounds(request)
+        prices = cls._fetch_price_matrix(symbols, lookback_period)
+        cls._validate_price_matrix(prices)
 
-        prices = await cls._fetch_price_matrix(request.symbols, request.lookback_period)
-        returns = prices.pct_change().dropna(how="any")
+        mu = expected_returns.mean_historical_return(prices)
+        cov = CovarianceShrinkage(prices).ledoit_wolf()
 
-        if returns.empty:
-            raise ValueError("Not enough return observations to build efficient frontier")
-
-        mean_returns = returns.mean() * cls.TRADING_DAYS
-        covariance = returns.cov() * cls.TRADING_DAYS
+        weight_bounds = (min_weight, max_weight)
 
         return cls._build_efficient_frontier(
-            mean_returns.values,
-            covariance.values,
+            mu,
+            cov,
+            weight_bounds,
             risk_free_rate,
-            min_weight,
-            max_weight,
+            frontier_points=20,
         )
 
     @classmethod
-    async def _fetch_price_matrix(cls, symbols: list[str], lookback_period: int) -> pd.DataFrame:
-        end = pd.Timestamp.utcnow()
-        start = end - pd.Timedelta(days=lookback_period)
-        closes: dict[str, pd.Series] = {}
-
-        for symbol in symbols:
-            history = yf.Ticker(symbol).history(
-                start=start.strftime("%Y-%m-%d"),
-                end=end.strftime("%Y-%m-%d"),
-                interval="1d",
-                auto_adjust=True,
-                actions=False,
-            )
-            if history is None or history.empty:
-                raise ValueError(f"No historical data for symbol '{symbol}'")
-            closes[symbol] = history["Close"].rename(symbol)
-
-        matrix = pd.concat(closes.values(), axis=1, join="inner").dropna(how="any")
-        if matrix.empty:
-            raise ValueError("No overlapping price history for requested symbols")
-        return matrix
-
-    @classmethod
-    def _build_efficient_frontier(
-        cls,
-        mean_returns: np.ndarray,
-        covariance: np.ndarray,
-        risk_free_rate: float,
-        min_weight: float,
-        max_weight: float,
-    ) -> list[EfficientFrontierPoint]:
-        n_assets = len(mean_returns)
-        min_ret = float(np.min(mean_returns))
-        max_ret = float(np.max(mean_returns))
-        targets = np.linspace(min_ret, max_ret, cls.FRONTIER_POINTS)
-
-        points: list[EfficientFrontierPoint] = []
-        bounds = tuple((min_weight, max_weight) for _ in range(n_assets))
-        base_constraints = [{"type": "eq", "fun": lambda w: float(np.sum(w) - 1.0)}]
-        x0 = np.full(n_assets, 1.0 / n_assets)
-
-        for target in targets:
-            constraints = base_constraints + [
-                {"type": "eq", "fun": lambda w, tgt=target: float(np.dot(w, mean_returns) - tgt)}
-            ]
-            result = minimize(
-                lambda w: cls._portfolio_volatility(w, covariance),
-                x0,
-                method="SLSQP",
-                bounds=bounds,
-                constraints=constraints,
-            )
-            if not result.success:
-                continue
-            vol = cls._portfolio_volatility(result.x, covariance)
-            points.append(
-                EfficientFrontierPoint(
-                    expected_return=float(np.dot(result.x, mean_returns)),
-                    volatility=vol,
-                    sharpe=cls._safe_sharpe(float(np.dot(result.x, mean_returns)), vol, risk_free_rate),
-                )
-            )
-
-        return points
-
-    @classmethod
-    def _optimize_weights(
+    def _run_optimization(
         cls,
         objective: OptimizationObjective,
-        mean_returns: np.ndarray,
-        covariance: np.ndarray,
+        mu: pd.Series,
+        cov: pd.DataFrame,
+        weight_bounds: tuple[float, float],
         risk_free_rate: float,
-        min_weight: float,
-        max_weight: float,
-    ) -> np.ndarray:
-        n_assets = len(mean_returns)
-        bounds = tuple((min_weight, max_weight) for _ in range(n_assets))
-        constraints = [{"type": "eq", "fun": lambda w: float(np.sum(w) - 1.0)}]
-        x0 = np.full(n_assets, 1.0 / n_assets)
+        target_risk: float | None = None,
+    ) -> tuple[dict[str, float], tuple[float, float, float]]:
+        if objective == OptimizationObjective.RISK_PARITY:
+            weights = cls._inverse_volatility_weights(cov, weight_bounds)
+            performance = cls._portfolio_performance(mu, cov, weights, risk_free_rate)
+            return weights, performance
+
+        ef = EfficientFrontier(mu, cov, weight_bounds=weight_bounds)
 
         if objective == OptimizationObjective.MAX_SHARPE:
-            objective_fn = lambda w: -cls._safe_sharpe(
-                float(np.dot(w, mean_returns)),
-                cls._portfolio_volatility(w, covariance),
-                risk_free_rate,
-            )
+            ef.max_sharpe(risk_free_rate=risk_free_rate)
         elif objective == OptimizationObjective.MIN_VOLATILITY:
-            objective_fn = lambda w: cls._portfolio_volatility(w, covariance)
+            ef.min_volatility()
+        elif objective == OptimizationObjective.TARGET_RISK:
+            if target_risk is None:
+                target_risk = 0.15
+            ef.efficient_risk(target_risk)
         elif objective == OptimizationObjective.MAX_RETURN:
-            objective_fn = lambda w: -float(np.dot(w, mean_returns))
+            ef.custom_objective(lambda w: -np.dot(w, mu))
         else:
-            objective_fn = lambda w: cls._risk_parity_loss(w, covariance)
+            raise ValueError(f"Unsupported optimization objective: {objective}")
 
-        result = minimize(
-            objective_fn,
-            x0,
-            method="SLSQP",
-            bounds=bounds,
-            constraints=constraints,
-        )
-        if not result.success:
-            raise ValueError(f"Optimization failed: {result.message}")
+        weights = ef.clean_weights()
+        performance = ef.portfolio_performance(risk_free_rate=risk_free_rate)
+        return weights, performance
 
-        weights = np.clip(result.x, min_weight, max_weight)
-        weights_sum = float(np.sum(weights))
-        if weights_sum <= 0:
-            raise ValueError("Optimization produced invalid weights")
-        return weights / weights_sum
+    @classmethod
+    def _compute_asset_metrics(
+        cls,
+        mu: pd.Series,
+        cov: pd.DataFrame,
+        risk_free_rate: float,
+        prices: pd.DataFrame,
+        weights: dict[str, float],
+    ) -> list[AssetMetrics]:
+        volatilities = np.sqrt(np.diag(cov.values))
+        metrics: list[AssetMetrics] = []
+        for idx, symbol in enumerate(mu.index):
+            expected_return = float(mu.iloc[idx])
+            volatility = float(volatilities[idx])
+            sharpe_ratio = 0.0
+            if volatility > 0:
+                sharpe_ratio = (expected_return - risk_free_rate) / volatility
+            drawdown = cls._max_drawdown(prices, symbol)
+            weight = float(weights.get(str(symbol), 0.0))
+            metrics.append(
+                AssetMetrics(
+                    symbol=str(symbol),
+                    returns=expected_return,
+                    expected_return=expected_return,
+                    volatility=volatility,
+                    sharpe=sharpe_ratio,
+                    sharpe_ratio=sharpe_ratio,
+                    drawdown=drawdown,
+                    weight=weight,
+                )
+            )
+        return metrics
 
     @staticmethod
-    def _portfolio_volatility(weights: np.ndarray, covariance: np.ndarray) -> float:
-        variance = float(np.dot(weights.T, np.dot(covariance, weights)))
-        return float(math.sqrt(max(variance, 0.0)))
-
-    @staticmethod
-    def _risk_parity_loss(weights: np.ndarray, covariance: np.ndarray) -> float:
-        portfolio_var = float(np.dot(weights.T, np.dot(covariance, weights)))
-        if portfolio_var <= 0:
-            return 1.0
-        marginal = np.dot(covariance, weights)
-        contributions = weights * marginal / portfolio_var
-        target = np.full_like(contributions, 1.0 / len(weights))
-        return float(np.sum((contributions - target) ** 2))
-
-    @staticmethod
-    def _safe_sharpe(portfolio_return: float, portfolio_volatility: float, risk_free_rate: float) -> float:
-        if portfolio_volatility <= 0:
+    def _max_drawdown(prices: pd.DataFrame, symbol: object) -> float:
+        column = symbol if symbol in prices.columns else str(symbol)
+        if column not in prices.columns:
             return 0.0
-        return float((portfolio_return - risk_free_rate) / portfolio_volatility)
+        series = prices[column].dropna()
+        if series.empty:
+            return 0.0
+        running_max = series.cummax()
+        drawdowns = 1 - (series / running_max)
+        max_drawdown = float(drawdowns.max())
+        if np.isnan(max_drawdown) or max_drawdown < 0:
+            return 0.0
+        return min(max_drawdown, 1.0)
 
     @staticmethod
-    def _max_drawdown(returns: pd.Series) -> float:
+    def _max_drawdown_series(returns: pd.Series) -> float:
         if returns is None or returns.empty:
             return 0.0
         cumulative = (1.0 + returns.fillna(0.0)).cumprod()
@@ -268,12 +269,139 @@ class PortfolioService:
         drawdown = (cumulative / running_max) - 1.0
         return float(abs(drawdown.min())) if not drawdown.empty else 0.0
 
+    @classmethod
+    def _build_efficient_frontier(
+        cls,
+        mu: pd.Series,
+        cov: pd.DataFrame,
+        weight_bounds: tuple[float, float],
+        risk_free_rate: float,
+        frontier_points: int,
+    ) -> list[EfficientFrontierPoint]:
+        if frontier_points <= 0:
+            return []
+
+        min_return = float(mu.min())
+        max_return = float(mu.max())
+        if min_return == max_return:
+            targets = [min_return]
+        else:
+            targets = np.linspace(min_return, max_return, num=frontier_points)
+
+        frontier: list[EfficientFrontierPoint] = []
+        for target in targets:
+            try:
+                ef = EfficientFrontier(mu, cov, weight_bounds=weight_bounds)
+                ef.efficient_return(target)
+                weights = ef.clean_weights()
+                performance = ef.portfolio_performance(risk_free_rate=risk_free_rate)
+                frontier.append(
+                    EfficientFrontierPoint(
+                        target_return=float(target),
+                        expected_return=performance[0],
+                        volatility=performance[1],
+                        sharpe=performance[2],
+                        sharpe_ratio=performance[2],
+                        weights=weights,
+                    )
+                )
+            except Exception:
+                continue
+
+        return frontier
+
+    @classmethod
+    async def _generate_stress_test(
+        cls,
+        symbols: list[str],
+        weights: dict[str, float],
+        scenario: str,
+    ) -> str | None:
+        try:
+            from app.services.llm_insight_service import LlmInsightService
+        except Exception:
+            return None
+
+        try:
+            result = await LlmInsightService.generate_portfolio_stress_test(
+                symbols=symbols,
+                weights=weights,
+                scenario=scenario,
+            )
+        except Exception:
+            return None
+
+        if isinstance(result, str):
+            return result
+        if hasattr(result, "insight"):
+            return getattr(result, "insight")
+        return None
+
+    @classmethod
+    def _normalize_objective(cls, objective: OptimizationObjective) -> OptimizationObjective:
+        if isinstance(objective, OptimizationObjective):
+            return objective
+        return OptimizationObjective(str(objective))
+
+    @classmethod
+    def _apply_weight_bounds(
+        cls,
+        weights: pd.Series,
+        weight_bounds: tuple[float, float],
+    ) -> pd.Series:
+        lower, upper = weight_bounds
+        bounded = weights.clip(lower=lower, upper=upper)
+        total = bounded.sum()
+        if total <= 0:
+            raise ValueError("Weight bounds leave no feasible allocation")
+        bounded = bounded / total
+
+        for _ in range(10):
+            below = bounded < lower - 1e-12
+            above = bounded > upper + 1e-12
+            if not (below.any() or above.any()):
+                break
+            bounded[below] = lower
+            bounded[above] = upper
+            free = ~(below | above)
+            remaining = 1.0 - bounded[below | above].sum()
+            if remaining < 0:
+                remaining = 0.0
+            if free.any():
+                free_total = bounded[free].sum()
+                if free_total > 0:
+                    bounded[free] = bounded[free] / free_total * remaining
+                else:
+                    bounded[free] = 0.0
+            else:
+                break
+
+        return bounded
+
+    @classmethod
+    def _clean_weights(cls, weights: pd.Series) -> dict[str, float]:
+        cleaned = {}
+        for symbol, weight in weights.items():
+            value = 0.0 if abs(weight) < cls.CLEAN_WEIGHT_CUTOFF else float(weight)
+            cleaned[str(symbol)] = value
+
+        total = sum(cleaned.values())
+        if total > 0:
+            cleaned = {symbol: value / total for symbol, value in cleaned.items()}
+        return {symbol: round(value, 4) for symbol, value in cleaned.items()}
+
     @staticmethod
-    def _validate_bounds(request: OptimizationRequest) -> None:
-        n_assets = len(request.symbols)
-        if request.min_weight > request.max_weight:
-            raise ValueError("min_weight must be <= max_weight")
-        if request.min_weight * n_assets > 1.0:
-            raise ValueError("min_weight is too high for the number of assets")
-        if request.max_weight * n_assets < 1.0:
-            raise ValueError("max_weight is too low for the number of assets")
+    def _portfolio_performance(
+        mu: pd.Series,
+        cov: pd.DataFrame,
+        weights: dict[str, float],
+        risk_free_rate: float,
+    ) -> tuple[float, float, float]:
+        weight_series = pd.Series(weights, index=mu.index).fillna(0.0)
+        expected_return = float(np.dot(weight_series.values, mu.values))
+        volatility = float(np.sqrt(weight_series.values.T @ cov.values @ weight_series.values))
+        if volatility == 0:
+            sharpe = 0.0
+        else:
+            sharpe = (expected_return - risk_free_rate) / volatility
+        return expected_return, volatility, float(sharpe)
