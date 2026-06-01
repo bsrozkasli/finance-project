@@ -1,42 +1,32 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.scheduler;
 
-import com.ozkaslibasar.financeproject.domain.service.PriceIngestionUseCase;
+import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Scheduled job to orchestrate periodic price ingestion.
+ * Scheduled adapter triggering the daily price ingestion via Yahoo Finance.
  *
- * <p>Strictly delegates to the domain service without any business logic inside
- * the scheduled methods.</p>
+ * <p>Per CONTRIBUTING.md, {@code @Scheduled} method bodies must contain
+ * only a single service call — no business logic permitted here.</p>
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class PriceIngestionJob {
 
-    private final PriceIngestionUseCase priceIngestionUseCase;
+    private final PriceIngestionService priceIngestionService;
 
     /**
-     * Executes the ingestion process once per day at midnight.
+     * Triggers daily OHLCV ingestion for all registered assets at midnight UTC.
+     *
+     * <p>Uses the default interval ({@code 1d}) and range ({@code 1y}) defined
+     * in {@link PriceIngestionService}.</p>
      */
     @Scheduled(cron = "0 0 0 * * ?")
     public void ingestDailyPrices() {
-        log.info("Starting daily price ingestion job.");
-        priceIngestionUseCase.ingestAll();
-        log.info("Finished daily price ingestion job.");
-    }
-
-    /**
-     * Executes the ingestion process once per hour (at minute 0) for near-real-time
-     * updates of intraday price data.
-     */
-    @Scheduled(cron = "0 0 * * * ?")
-    public void ingestHourlyPrices() {
-        log.info("Starting hourly price ingestion job.");
-        priceIngestionUseCase.ingestAll();
-        log.info("Finished hourly price ingestion job.");
+        priceIngestionService.ingestAll();
     }
 }

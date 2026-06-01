@@ -7,14 +7,19 @@ import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.dto.FmpHistoricalPriceDto;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.dto.FmpAssetProfileDto;
+import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.dto.FmpIncomeStatementDto;
+import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.dto.FmpBalanceSheetDto;
 
 import java.util.List;
 
 /**
  * OpenFeign Client for Financial Modeling Prep (FMP) stable API.
  *
- * <p>The legacy v3 endpoints (/api/v3/profile, /api/v3/historical-price-full) were
- * deprecated by FMP on August 31, 2025. These methods use the current "stable" API.</p>
+ * <p>The legacy v3 endpoints were deprecated by FMP on August 31, 2025.
+ * All methods here use the current "/stable" API.</p>
+ *
+ * <p>All FMP calls are protected by {@code @RateLimiter(name = "fmpApi")} (250 req/day)
+ * and {@code @CircuitBreaker(name = "fmpApi")} per CONTRIBUTING.md requirements.</p>
  */
 @FeignClient(name = "fmpClient", url = "${fmp.api.url:https://financialmodelingprep.com/stable}")
 public interface FmpClient {
@@ -40,6 +45,38 @@ public interface FmpClient {
     @CircuitBreaker(name = "fmpApi")
     List<FmpAssetProfileDto> searchSymbol(
             @RequestParam("query") String symbol,
+            @RequestParam("limit") int limit,
+            @RequestParam("apikey") String apiKey
+    );
+
+    /**
+     * GET /stable/income-statement?symbol={symbol}&period={period}&limit={limit}&apikey={apiKey}
+     *
+     * @param period {@code "annual"} or {@code "quarter"}
+     * @param limit  number of periods to return (e.g. 20 for ~5 years quarterly)
+     */
+    @GetMapping("/income-statement")
+    @RateLimiter(name = "fmpApi")
+    @CircuitBreaker(name = "fmpApi")
+    List<FmpIncomeStatementDto> getIncomeStatements(
+            @RequestParam("symbol") String symbol,
+            @RequestParam("period") String period,
+            @RequestParam("limit") int limit,
+            @RequestParam("apikey") String apiKey
+    );
+
+    /**
+     * GET /stable/balance-sheet-statement?symbol={symbol}&period={period}&limit={limit}&apikey={apiKey}
+     *
+     * @param period {@code "annual"} or {@code "quarter"}
+     * @param limit  number of periods to return
+     */
+    @GetMapping("/balance-sheet-statement")
+    @RateLimiter(name = "fmpApi")
+    @CircuitBreaker(name = "fmpApi")
+    List<FmpBalanceSheetDto> getBalanceSheets(
+            @RequestParam("symbol") String symbol,
+            @RequestParam("period") String period,
             @RequestParam("limit") int limit,
             @RequestParam("apikey") String apiKey
     );
