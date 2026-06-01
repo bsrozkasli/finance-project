@@ -100,8 +100,8 @@ def get_sentiment_analysis(symbol: str) -> SentimentAnalysisResponse:
 
 @router.post("/insight", response_model=LlmInsightResponse)
 async def generate_insight(request: LlmInsightRequest) -> LlmInsightResponse:
-    if not settings.ANTHROPIC_API_KEY:
-        raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY is not configured")
+    if not settings.AZURE_OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="AZURE_OPENAI_API_KEY is not configured")
     
     try:
         from app.services.llm_insight_service import LlmInsightService
@@ -150,9 +150,9 @@ async def get_full_analysis(symbol: str) -> FullAnalysisResponse:
                 "indicators": technical_result.indicators.model_dump(),
             }
         
-        # Generate LLM insight if Anthropic key is available
+        # Generate LLM insight if Azure OpenAI key is available
         llm_insight = None
-        if settings.ANTHROPIC_API_KEY:
+        if settings.AZURE_OPENAI_API_KEY:
             try:
                 from app.services.llm_insight_service import LlmInsightService
                 insight_request = LlmInsightRequest(
@@ -205,7 +205,7 @@ def get_patterns(
     
     # Get LLM context if requested
     llm_context = None
-    if include_llm_context and settings.ANTHROPIC_API_KEY:
+    if include_llm_context and settings.AZURE_OPENAI_API_KEY:
         try:
             from app.services.llm_insight_service import LlmInsightService
             import asyncio
