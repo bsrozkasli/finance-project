@@ -38,6 +38,8 @@ services:
       context: ./data-service
     ports:
       - "8000:8000"
+    env_file:
+      - .env
     networks:
       - app-network
     restart: unless-stopped
