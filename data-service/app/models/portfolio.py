@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, validator
 class OptimizationObjective(str, Enum):
     MAX_SHARPE = "MAX_SHARPE"
     MIN_VOLATILITY = "MIN_VOLATILITY"
+    TARGET_RISK = "TARGET_RISK"
     MAX_RETURN = "MAX_RETURN"
     RISK_PARITY = "RISK_PARITY"
 
@@ -34,8 +35,12 @@ class OptimizationRequest(BaseModel):
 class AssetMetrics(BaseModel):
     symbol: str
     returns: float
-    volatility: float = Field(ge=0.0)
+    expected_return: float | None = Field(
+        default=None, description="Annualized expected return"
+    )
+    volatility: float = Field(ge=0.0, description="Annualized volatility")
     sharpe: float
+    sharpe_ratio: float | None = Field(default=None, description="Sharpe ratio")
     drawdown: float = Field(ge=0.0, le=1.0)
     weight: float = Field(ge=0.0, le=1.0)
 
@@ -58,6 +63,9 @@ class EfficientFrontierPoint(BaseModel):
     expected_return: float
     volatility: float = Field(ge=0.0)
     sharpe: float
+    target_return: float | None = None
+    sharpe_ratio: float | None = None
+    weights: dict[str, float] | None = None
 
 
 class OptimizationResponse(BaseModel):
