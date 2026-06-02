@@ -1,28 +1,204 @@
 @import "tailwindcss";
 
-/* ── Design tokens ───────────────────────────────────────────── */
+/* ── Design Tokens ──────────────────────────────────────────────── */
 @theme {
-  --color-bg-primary: #0f1117;
-  --color-bg-secondary: #1a1d2e;
-  --color-bg-card: #1e2235;
-  --color-accent: #6366f1;
-  --color-accent-light: #818cf8;
-  --color-success: #10b981;
-  --color-danger: #ef4444;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
+  /* Core palette */
+  --color-bg-base:       #080b10;
+  --color-bg-primary:    #0d1117;
+  --color-bg-secondary:  #111827;
+  --color-bg-card:       #161d2a;
+  --color-bg-hover:      #1c2535;
+  --color-bg-selected:   #1a2540;
+  --color-border:        rgba(255, 255, 255, 0.06);
+  --color-border-subtle: rgba(255, 255, 255, 0.03);
+
+  /* Accent — indigo/violet */
+  --color-accent:        #6366f1;
+  --color-accent-light:  #818cf8;
+  --color-accent-dim:    rgba(99, 102, 241, 0.15);
+
+  /* Status */
+  --color-bull:          #00d4a0;
+  --color-bull-dim:      rgba(0, 212, 160, 0.15);
+  --color-bear:          #ff4d6d;
+  --color-bear-dim:      rgba(255, 77, 109, 0.15);
+  --color-success:       #00d4a0;
+  --color-danger:        #ff4d6d;
+  --color-warning:       #f59e0b;
+
+  /* Text */
+  --color-text-primary:   #e2e8f0;
+  --color-text-secondary: #64748b;
+  --color-text-muted:     #334155;
+
+  /* Terminal layout dimensions */
+  --terminal-top-h:      52px;
+  --terminal-nav-w:      52px;
+  --terminal-right-w:    340px;
+
+  /* Typography */
   --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* ── Base ────────────────────────────────────────────────────── */
+/* ── Reset & Base ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
 html, body, #root {
-  min-height: 100vh;
-  background-color: var(--color-bg-primary);
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--color-bg-base);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-*::-webkit-scrollbar { width: 6px; }
-*::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
-*::-webkit-scrollbar-thumb { background: var(--color-accent); border-radius: 3px; }
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+*::-webkit-scrollbar       { width: 4px; height: 4px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* ── Animations ─────────────────────────────────────────────────── */
+@keyframes pulse-live {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.85); }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes flash-bull {
+  0%   { background-color: var(--color-bull-dim); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-bear {
+  0%   { background-color: var(--color-bear-dim); }
+  100% { background-color: transparent; }
+}
+
+/* ── Utility classes ────────────────────────────────────────────── */
+.font-mono { font-family: var(--font-mono); }
+
+.live-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-bull);
+  animation: pulse-live 1.8s ease-in-out infinite;
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 0%,
+    rgba(255,255,255,0.08) 50%,
+    rgba(255,255,255,0.04) 100%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 4px;
+}
+
+.animate-fade-in { animation: fade-in 0.25s ease-out both; }
+
+/* ── Terminal Layout ────────────────────────────────────────────── */
+.terminal-root {
+  display: grid;
+  height: 100vh;
+  width: 100vw;
+  grid-template-rows: var(--terminal-top-h) 1fr;
+  grid-template-columns: var(--terminal-nav-w) 1fr var(--terminal-right-w);
+  grid-template-areas:
+    "topbar topbar topbar"
+    "leftnav main rightpanel";
+  overflow: hidden;
+}
+
+.terminal-topbar   { grid-area: topbar; }
+.terminal-leftnav  { grid-area: leftnav; }
+.terminal-main     { grid-area: main; overflow: hidden; display: flex; flex-direction: column; }
+.terminal-right    { grid-area: rightpanel; overflow: hidden; display: flex; flex-direction: column; }
+
+/* ── Market Data Table ──────────────────────────────────────────── */
+.market-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.market-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-bg-primary);
+  padding: 8px 12px;
+  text-align: right;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.market-table th:first-child { text-align: left; }
+.market-table th:hover { color: var(--color-text-primary); }
+
+.market-table td {
+  padding: 0 12px;
+  height: 44px;
+  font-size: 12.5px;
+  text-align: right;
+  border-bottom: 1px solid var(--color-border-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+}
+
+.market-table td:first-child { text-align: left; }
+
+.market-row {
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.market-row:hover { background-color: var(--color-bg-hover); }
+.market-row.selected { background-color: var(--color-bg-selected); }
+.market-row.selected td:first-child {
+  border-left: 2px solid var(--color-accent);
+}
+
+/* ── Price flash animations ─────────────────────────────────────── */
+.flash-bull { animation: flash-bull 0.8s ease-out; }
+.flash-bear { animation: flash-bear 0.8s ease-out; }
+
+/* ── Nav tooltip ────────────────────────────────────────────────── */
+.nav-tooltip {
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-8px);
+  transition: opacity 0.15s, transform 0.15s;
+}
+
+.nav-item:hover .nav-tooltip {
+  opacity: 1;
+  transform: translateX(0);
+}

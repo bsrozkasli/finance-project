@@ -1,0 +1,31 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:16-alpine:///finance_test
+    username: test
+    password: test
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+# Resilience4j properties for testing Feign Client
+resilience4j:
+  ratelimiter:
+    instances:
+      fmpApi:
+        limitForPeriod: 5
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0s
+  circuitbreaker:
+    instances:
+      fmpApi:
+        registerHealthIndicator: true
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 2
+        waitDurationInOpenState: 10s
+        failureRateThreshold: 50
