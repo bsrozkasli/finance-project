@@ -6,6 +6,7 @@ import com.ozkaslibasar.financeproject.domain.model.FinancialStatement;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialStatementClientPort;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,6 +37,7 @@ public class FmpStatementClientAdapter implements FinancialStatementClientPort {
     private static final int DEFAULT_LIMIT = 20;
 
     private final FmpClient fmpClient;
+    private final MeterRegistry meterRegistry;
 
     @Value("${FMP_API_KEY:}")
     private String apiKey;
@@ -59,15 +61,19 @@ public class FmpStatementClientAdapter implements FinancialStatementClientPort {
 
             if (response == null || response.isEmpty()) {
                 log.warn("FMP returned no income statements for symbol={}", symbol);
+                meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
                 return Collections.emptyList();
             }
 
-            return response.stream()
+            List<FinancialStatement> result = response.stream()
                     .map(this::toFinancialStatement)
                     .collect(Collectors.toList());
+            meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
+            return result;
 
         } catch (Exception e) {
             log.error("Failed to fetch FMP income statements for symbol={}: {}", symbol, e.getMessage());
+            meterRegistry.counter("data.ingestion.error", "provider", "FMP").increment();
             return Collections.emptyList();
         }
     }
@@ -91,18 +97,23 @@ public class FmpStatementClientAdapter implements FinancialStatementClientPort {
 
             if (response == null || response.isEmpty()) {
                 log.warn("FMP returned no balance sheets for symbol={}", symbol);
+                meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
                 return Collections.emptyList();
             }
 
-            return response.stream()
+            List<FinancialStatement> result = response.stream()
                     .map(this::toFinancialStatement)
                     .collect(Collectors.toList());
+            meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
+            return result;
 
         } catch (Exception e) {
             log.error("Failed to fetch FMP balance sheets for symbol={}: {}", symbol, e.getMessage());
+            meterRegistry.counter("data.ingestion.error", "provider", "FMP").increment();
             return Collections.emptyList();
         }
     }
+
 
     // ─── private helpers ────────────────────────────────────────────────────────
 
