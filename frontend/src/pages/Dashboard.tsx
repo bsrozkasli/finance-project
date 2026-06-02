@@ -1,63 +1,87 @@
 import { useState } from 'react';
 import { useAssets } from '../hooks/useAssets';
-import { AssetGrid } from '../components/AssetGrid';
+import { TopBar } from '../components/terminal/TopBar';
+import { LeftNav } from '../components/terminal/LeftNav';
+import { MarketGrid } from '../components/terminal/MarketGrid';
+import { RightPanel } from '../components/terminal/RightPanel';
 import { ChartOverlay } from '../components/ChartOverlay';
 import { RightSidebar } from '../components/RightSidebar';
 
 export const Dashboard = () => {
   const { assets, loading, error, addAssets } = useAssets();
-  const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [chartSymbol, setChartSymbol] = useState<string | null>(null);
+  const [manageOpen, setManageOpen] = useState(false);
 
   return (
-    <div className="min-h-screen p-8 max-w-7xl mx-auto">
-      <header className="mb-10 flex flex-col sm:flex-row items-center justify-between">
-        <div className="text-center sm:text-left">
-          <h1 className="text-4xl font-extrabold tracking-tight text-white mb-2">
-            Market <span style={{ color: 'var(--color-accent-light)' }}>Overview</span>
-          </h1>
-          <p className="text-lg text-white/50">
-            Real-time insights and premium financial data analysis.
-          </p>
-        </div>
-        <button
-          onClick={() => setIsSidebarOpen(true)}
-          className="mt-4 sm:mt-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white px-6 py-3 rounded-xl transition-all shadow-lg hover:shadow-xl font-semibold tracking-wide flex items-center gap-2"
+    <div className="terminal-root">
+      {/* Top Bar */}
+      <TopBar
+        assets={assets}
+        onSelectAsset={(sym) => setSelectedSymbol(sym)}
+        onManageAssets={() => setManageOpen(true)}
+      />
+
+      {/* Left Navigation */}
+      <LeftNav />
+
+      {/* Main Content — Market Grid */}
+      {error ? (
+        <div
+          className="terminal-main flex items-center justify-center"
+          style={{ background: 'var(--color-bg-primary)' }}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Manage Assets
-        </button>
-      </header>
-
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-8">
-          <strong>Error loading dashboard:</strong> {error}
+          <div
+            className="flex flex-col items-center gap-3 p-6 rounded-xl max-w-md text-center"
+            style={{ background: 'rgba(255,77,109,0.1)', border: '1px solid rgba(255,77,109,0.2)' }}
+          >
+            <svg width="32" height="32" fill="none" stroke="var(--color-bear)" strokeWidth="1.5" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v4M12 16h.01" strokeLinecap="round" />
+            </svg>
+            <div>
+              <div className="font-semibold mb-1" style={{ color: 'var(--color-bear)' }}>Bağlantı Hatası</div>
+              <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{error}</div>
+              <div className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
+                Backend sunucusunun çalıştığından emin olun (port 8080)
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-
-      <main>
-        <AssetGrid 
-          assets={assets} 
-          loading={loading} 
-          onSelectAsset={(symbol) => setSelectedAsset(symbol)} 
-        />
-      </main>
-
-      {selectedAsset && (
-        <ChartOverlay 
-          symbol={selectedAsset} 
-          onClose={() => setSelectedAsset(null)} 
+      ) : (
+        <MarketGrid
+          assets={assets}
+          loading={loading}
+          selectedSymbol={selectedSymbol}
+          onSelectAsset={(sym) => setSelectedSymbol(sym)}
+          onOpenChart={(sym) => setChartSymbol(sym)}
         />
       )}
 
+      {/* Right Analysis Panel */}
+      <RightPanel
+        selectedSymbol={selectedSymbol}
+        assets={assets}
+      />
+
+      {/* Chart Modal (unchanged) */}
+      {chartSymbol && (
+        <ChartOverlay
+          symbol={chartSymbol}
+          onClose={() => setChartSymbol(null)}
+        />
+      )}
+
+      {/* Manage Assets Drawer */}
       <RightSidebar
-        isOpen={isSidebarOpen}
-        onClose={() => setIsSidebarOpen(false)}
+        isOpen={manageOpen}
+        onClose={() => setManageOpen(false)}
         onAddAssets={addAssets}
         watchedAssets={assets}
-        onSelectAsset={(asset) => setSelectedAsset(asset.symbol)}
+        onSelectAsset={(asset) => {
+          setSelectedSymbol(asset.symbol);
+          setManageOpen(false);
+        }}
       />
     </div>
   );
