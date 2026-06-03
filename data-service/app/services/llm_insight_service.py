@@ -241,19 +241,42 @@ class LlmInsightService:
         symbols: list[str],
         weights: dict[str, float],
         scenario: str,
-    ) -> str:
-        # Build scenario-based portfolio stress test prompt
-        portfolio_str = ", ".join([f"{sym}: {weight*100:.2f}%" for sym, weight in weights.items()])
-        prompt = (
-            f"You are a Senior Risk Manager performing a portfolio stress test analysis.\n\n"
-            f"### Portfolio Composition:\n"
+        returns: float = 0.0,
+        volatility: float = 0.0,
+        sharpe: float = 0.0,
+        drawdown: float = 0.0,
+    ) -> dict[str, Any]:
+        import json
+        
+        portfolio_str = "\n".join([f"- {sym}: {weight*100:.2f}%" for sym, weight in weights.items()])
+        
+        system_prompt = (
+            "You are a Chief Risk Officer at a major asset management firm. You specialize in portfolio stress testing, "
+            "drawdown analysis, and tail risk scenarios. You provide rigorous, quantitative reasoning backed by historical precedent. "
+            "You never sugarcoat risks."
+        )
+
+        user_prompt = (
+            "Perform a portfolio stress test for the following allocation:\n\n"
+            "PORTFOLIO COMPOSITION:\n"
             f"{portfolio_str}\n\n"
-            f"### Stress Test Scenario Context:\n"
+            "PORTFOLIO METRICS:\n"
+            f"- Expected Annual Return: {returns * 100:.2f}%\n"
+            f"- Annual Volatility: {volatility * 100:.2f}%\n"
+            f"- Sharpe Ratio: {sharpe:.2f}\n"
+            f"- Max Drawdown (historical): {drawdown * 100:.2f}%\n\n"
+            "STRESS SCENARIO:\n"
             f"{scenario}\n\n"
-            f"Evaluate how this specific portfolio allocation is expected to perform in this scenario. "
-            f"Identify which assets carry the most vulnerability, how the diversification helps or hurts, "
-            f"and estimate qualitative risk impact (e.g. expected drawdowns, volatility surge). "
-            f"Keep your response strictly professional, actionable, and under 150 words."
+            "Analyze and respond with:\n"
+            "1. SCENARIO_SEVERITY: MILD / MODERATE / SEVERE / EXTREME\n"
+            "2. ESTIMATED_DRAWDOWN: Expected portfolio drawdown percentage in this scenario\n"
+            "3. MOST_VULNERABLE: Top 2 positions most at risk and why\n"
+            "4. NATURAL_HEDGES: Any positions that would benefit or remain stable\n"
+            "5. CORRELATION_RISK: Whether assets would converge in correlation during this scenario\n"
+            "6. RECOMMENDED_ACTIONS: 2-3 specific, actionable steps (reduce X, hedge with Y, rebalance to Z)\n"
+            "7. RECOVERY_ESTIMATE: Estimated recovery time if scenario materializes\n"
+            "8. NARRATIVE: 3-4 sentence executive summary\n\n"
+            "Respond in JSON format only with lowercase keys (scenario_severity, estimated_drawdown, most_vulnerable, natural_hedges, correlation_risk, recommended_actions, recovery_estimate, narrative)."
         )
 
         url = (
@@ -271,11 +294,11 @@ class LlmInsightService:
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a professional risk officer and mathematical finance expert."
+                    "content": system_prompt
                 },
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": user_prompt
                 }
             ],
             "max_tokens": settings.LLM_MAX_TOKENS,
@@ -286,4 +309,41 @@ class LlmInsightService:
             response = await client.post(url, json=payload, headers=headers, timeout=30.0)
             response.raise_for_status()
             response_json = response.json()
-            return response_json["choices"][0]["message"]["content"].strip()
+            content = response_json["choices"][0]["message"]["content"].strip()
+            
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
+
+        try:
+            parsed = json.loads(content)
+            # Ensure estimated_drawdown is float
+            ed = parsed.get("estimated_drawdown")
+            if isinstance(ed, str):
+                import re
+                match = re.search(r"(\d+(\.\d+)?)", ed)
+                ed = float(match.group(1)) if match else 0.0
+            
+            return {
+                "scenario_severity": str(parsed.get("scenario_severity", "UNKNOWN")).upper(),
+                "estimated_drawdown": float(ed) if ed is not None else 0.0,
+                "most_vulnerable": str(parsed.get("most_vulnerable", "N/A")),
+                "natural_hedges": str(parsed.get("natural_hedges", "N/A")),
+                "correlation_risk": str(parsed.get("correlation_risk", "N/A")),
+                "recommended_actions": str(parsed.get("recommended_actions", "N/A")),
+                "recovery_estimate": str(parsed.get("recovery_estimate", "N/A")),
+                "narrative": str(parsed.get("narrative", "N/A")),
+            }
+        except Exception:
+            return {
+                "scenario_severity": "UNKNOWN",
+                "estimated_drawdown": 0.0,
+                "most_vulnerable": "N/A",
+                "natural_hedges": "N/A",
+                "correlation_risk": "N/A",
+                "recommended_actions": "N/A",
+                "recovery_estimate": "N/A",
+                "narrative": content,
+            }
