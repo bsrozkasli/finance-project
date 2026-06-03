@@ -13,6 +13,8 @@ from app.models.analysis import (
     LlmInsightResponse,
     FullAnalysisResponse,
     PatternDetectionResponse,
+    DecisionSupportRequest,
+    DecisionSupportResponse,
 )
 from app.services.technical_analysis_service import TechnicalAnalysisService
 from app.services.pattern_detection_service import PatternDetectionService
@@ -236,3 +238,16 @@ def get_patterns(
         llm_context=llm_context,
     )
 
+
+@router.post("/decision-support", response_model=DecisionSupportResponse)
+async def get_decision_support(request: DecisionSupportRequest) -> DecisionSupportResponse:
+    if not settings.AZURE_OPENAI_API_KEY:
+        raise HTTPException(status_code=503, detail="AZURE_OPENAI_API_KEY is not configured")
+    
+    try:
+        from app.services.llm_insight_service import LlmInsightService
+        return await LlmInsightService.generate_decision_support_report(request)
+    except ImportError:
+        raise HTTPException(status_code=503, detail="LLM insight service not available")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Decision support report generation failed: {str(e)}")

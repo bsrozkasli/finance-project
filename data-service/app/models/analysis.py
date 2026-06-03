@@ -119,3 +119,31 @@ class PatternDetectionResponse(BaseModel):
     dominant_pattern: Optional[DetectedPattern] = None
     llm_context: Optional[str] = None
     detected_at: datetime
+
+
+class PortfolioContext(BaseModel):
+    current_weight: float
+    target_weight: float
+    deviation: float
+    rebalance_needed: bool
+
+
+class DecisionSupportRequest(BaseModel):
+    symbol: str
+    portfolio_context: Optional[PortfolioContext] = None
+    user_scenario: Optional[str] = None
+
+
+class DecisionSupportResponse(BaseModel):
+    symbol: str
+    executive_summary: str
+    primary_signal: str
+    conviction_level: int
+    bull_case: list[str]
+    bear_case: list[str]
+    critical_levels: dict[str, float]
+    risk_reward: str
+    time_horizon: str
+    watchlist_items: list[str]
+    full_analysis: str
+    generated_at: datetime
