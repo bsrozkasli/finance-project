@@ -1,142 +1,138 @@
+import json
 import httpx
 from datetime import datetime, timezone
-import pandas as pd
-import yfinance as yf
+import asyncio
 from typing import Optional, Any
 
 from app.config import settings
-from app.models.analysis import LlmInsightRequest, LlmInsightResponse
-from app.services.technical_analysis_service import TechnicalAnalysisService
+from app.models.analysis import LlmInsightRequest, LlmInsightResponse, DecisionSupportResponse
+
+# Import all new institutional services
+from app.services.fundamental_analysis_service import FundamentalAnalysisService
+from app.services.valuation_service import ValuationService
+from app.services.risk_analytics_service import RiskAnalyticsService
+from app.services.earnings_analysis_service import EarningsAnalysisService
+from app.services.factor_analysis_service import FactorAnalysisService
+from app.services.enhanced_sentiment_service import EnhancedSentimentService
+from app.services.composite_score_service import CompositeScoreService
 
 
 class LlmInsightService:
     @classmethod
-    async def _fetch_technical_summary(cls, symbol: str) -> Optional[dict]:
+    async def _gather_context(cls, symbol: str) -> dict[str, Any]:
+        """Fetch all data from the institutional services in parallel to build context."""
         try:
-            # Load 3 months of 1d historical data
-            ticker = yf.Ticker(symbol)
-            history = ticker.history(interval="1d", period="3mo", auto_adjust=False, actions=False)
-            if history is None or history.empty:
-                return None
+            results = await asyncio.gather(
+                asyncio.to_thread(FundamentalAnalysisService.analyze, symbol),
+                asyncio.to_thread(ValuationService.analyze, symbol),
+                asyncio.to_thread(RiskAnalyticsService.analyze, symbol),
+                EarningsAnalysisService.analyze(symbol),
+                asyncio.to_thread(FactorAnalysisService.analyze_factors, symbol),
+                asyncio.to_thread(FactorAnalysisService.analyze_institutional, symbol),
+                EnhancedSentimentService.analyze(symbol),
+                CompositeScoreService.analyze(symbol),
+                return_exceptions=True
+            )
             
-            history_reset = history.reset_index()
-            indicators = TechnicalAnalysisService.compute_indicators(history_reset)
-            
-            # Extract latest values
             return {
-                "rsi": indicators.rsi,
-                "macd": indicators.macd,
-                "macd_signal": indicators.macd_signal,
-                "macd_histogram": indicators.macd_histogram,
-                "bb_upper": indicators.bb_upper,
-                "bb_middle": indicators.bb_middle,
-                "bb_lower": indicators.bb_lower,
-                "atr": indicators.atr,
-                "sma": indicators.sma,
-                "ema": indicators.ema,
-                "last_close": float(history_reset["Close"].iloc[-1])
+                "fundamental": results[0] if not isinstance(results[0], Exception) else None,
+                "valuation": results[1] if not isinstance(results[1], Exception) else None,
+                "risk": results[2] if not isinstance(results[2], Exception) else None,
+                "earnings": results[3] if not isinstance(results[3], Exception) else None,
+                "factors": results[4] if not isinstance(results[4], Exception) else None,
+                "institutional": results[5] if not isinstance(results[5], Exception) else None,
+                "sentiment": results[6] if not isinstance(results[6], Exception) else None,
+                "composite": results[7] if not isinstance(results[7], Exception) else None,
             }
         except Exception:
-            return None
+            return {}
 
     @classmethod
-    async def _fetch_sentiment_summary(cls, symbol: str) -> Optional[dict]:
-        if not settings.FINNHUB_API_KEY:
-            return None
-        try:
-            from app.services.sentiment_service import SentimentService
-            sentiment = await SentimentService.analyze_sentiment(symbol)
-            return {
-                "score": sentiment.score,
-                "label": sentiment.label,
-                "article_count": sentiment.article_count,
-                "key_themes": sentiment.key_themes,
-                "risk_factors": sentiment.risk_factors
-            }
-        except Exception:
-            return None
+    def _build_context_prompt(cls, context: dict[str, Any]) -> str:
+        lines = []
+        
+        comp = context.get("composite")
+        if comp:
+            lines.append(f"=== COMPOSITE SCORE: {comp.overall_score}/100 | Grade: {comp.grade.value} | Rec: {comp.recommendation} ===")
+            lines.append(f"Breakdown: Fundamental {comp.breakdown.fundamental_score}, Valuation {comp.breakdown.valuation_score}, Quality {comp.breakdown.quality_score}, Growth {comp.breakdown.growth_score}, Momentum {comp.breakdown.momentum_score}, Risk {comp.breakdown.risk_score}, Sentiment {comp.breakdown.sentiment_score}\n")
+
+        fund = context.get("fundamental")
+        if fund:
+            m = fund.metrics
+            lines.append("=== FUNDAMENTAL & FINANCIAL HEALTH ===")
+            lines.append(f"ROE: {m.roe*100:.1f}%" if m.roe else "ROE: N/A")
+            lines.append(f"Operating Margin: {m.operating_margin*100:.1f}%" if m.operating_margin else "Op Margin: N/A")
+            lines.append(f"Debt/Equity: {m.debt_to_equity:.2f}" if m.debt_to_equity else "D/E: N/A")
+            lines.append(f"Revenue Growth (YoY): {m.revenue_growth*100:.1f}%" if m.revenue_growth else "Rev Growth: N/A")
+            lines.append("")
+
+        val = context.get("valuation")
+        if val:
+            m = val.metrics
+            lines.append("=== VALUATION ===")
+            lines.append(f"Grade: {m.valuation_grade.value}")
+            lines.append(f"P/E: {m.pe:.2f}" if m.pe else "P/E: N/A")
+            lines.append(f"Forward P/E: {m.forward_pe:.2f}" if m.forward_pe else "Fwd P/E: N/A")
+            lines.append(f"PEG: {m.peg:.2f}" if m.peg else "PEG: N/A")
+            lines.append(f"P/B: {m.price_to_book:.2f}" if m.price_to_book else "P/B: N/A")
+            lines.append("")
+
+        risk = context.get("risk")
+        if risk:
+            lines.append("=== RISK & VOLATILITY ===")
+            lines.append(f"Max Drawdown: {risk.max_drawdown*100:.1f}%")
+            d = risk.daily
+            if d:
+                lines.append(f"Volatility (Ann.): {d.volatility*100:.1f}%")
+                lines.append(f"Beta vs SPY: {d.beta:.2f}" if d.beta else "Beta: N/A")
+                lines.append(f"Sortino Ratio: {d.sortino_ratio:.2f}" if d.sortino_ratio else "Sortino: N/A")
+                lines.append(f"Historical 95% VaR: {d.var.historical_var_95*100:.2f}%")
+            lines.append("")
+
+        ear = context.get("earnings")
+        if ear:
+            m = ear.metrics
+            lines.append("=== EARNINGS SURPRISE ===")
+            lines.append(f"Score: {m.earnings_score}/100")
+            lines.append(f"Beat Ratio: {m.beat_ratio*100:.0f}%")
+            lines.append(f"Avg Surprise: {m.average_surprise_pct:.1f}%")
+            lines.append(f"Streak: {m.consecutive_beats} beats")
+            lines.append("")
+
+        sent = context.get("sentiment")
+        if sent:
+            lines.append("=== ENHANCED SENTIMENT ===")
+            lines.append(f"Score: {sent.sentiment_score}/100")
+            lines.append(f"News: {sent.news_label} ({sent.news_score:.2f})")
+            lines.append(f"Analyst Consensus: {sent.analyst_consensus} ({sent.analyst_score:.2f})")
+            lines.append(f"Insider Transactions: {sent.insider_summary}")
+            lines.append("")
+
+        inst = context.get("institutional")
+        if inst:
+            m = inst.scores
+            lines.append("=== INSTITUTIONAL SCORES ===")
+            lines.append(f"Piotroski F-Score: {m.piotroski_f_score}/9" if m.piotroski_f_score is not None else "Piotroski: N/A")
+            lines.append(f"Altman Z-Score: {m.altman_z_score:.2f} ({inst.interpretations.get('altman_z_score', '')})" if m.altman_z_score else "Altman Z: N/A")
+            lines.append(f"Beneish M-Score: {m.beneish_m_score:.2f} ({inst.interpretations.get('beneish_m_score', '')})" if m.beneish_m_score else "Beneish M: N/A")
+            lines.append(f"Economic Moat: {m.economic_moat}" if m.economic_moat else "Moat: N/A")
+            lines.append("")
+
+        return "\n".join(lines)
 
     @classmethod
     async def generate_insight(cls, request: LlmInsightRequest) -> LlmInsightResponse:
-        import json
         symbol = request.symbol.strip().upper()
         
-        tech_summary = None
-        if request.include_technical:
-            tech_summary = await cls._fetch_technical_summary(symbol)
-            
-        sentiment_summary = None
-        if request.include_sentiment:
-            sentiment_summary = await cls._fetch_sentiment_summary(symbol)
-            
-        data_sources = []
-        if tech_summary:
-            data_sources.append("technical")
-            rsi = tech_summary.get("rsi")
-            rsi_val = f"{rsi:.2f}" if rsi is not None else "N/A"
-            if rsi is not None:
-                rsi_interp = "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral"
-            else:
-                rsi_interp = "N/A"
-
-            macd = f"{tech_summary.get('macd'):.4f}" if tech_summary.get("macd") is not None else "N/A"
-            macd_signal = f"{tech_summary.get('macd_signal'):.4f}" if tech_summary.get("macd_signal") is not None else "N/A"
-            macd_hist = f"{tech_summary.get('macd_histogram'):.4f}" if tech_summary.get("macd_histogram") is not None else "N/A"
-
-            bb_upper = f"{tech_summary.get('bb_upper'):.2f}" if tech_summary.get("bb_upper") is not None else "N/A"
-            bb_middle = f"{tech_summary.get('bb_middle'):.2f}" if tech_summary.get("bb_middle") is not None else "N/A"
-            bb_lower = f"{tech_summary.get('bb_lower'):.2f}" if tech_summary.get("bb_lower") is not None else "N/A"
-
-            last_close = tech_summary.get("last_close", 0.0)
-            if tech_summary.get("bb_middle") and tech_summary.get("bb_middle") > 0:
-                price_vs_bb_pct = f"{((last_close - tech_summary['bb_middle']) / tech_summary['bb_middle']) * 100:.2f}"
-            else:
-                price_vs_bb_pct = "0.00"
-
-            atr = f"{tech_summary.get('atr'):.2f}" if tech_summary.get("atr") is not None else "N/A"
-            sma = f"{tech_summary.get('sma'):.2f}" if tech_summary.get("sma") is not None else "N/A"
-            ema = f"{tech_summary.get('ema'):.2f}" if tech_summary.get("ema") is not None else "N/A"
-
-            if tech_summary.get("sma") and tech_summary.get("sma") > 0:
-                price_vs_sma_pct = f"{((last_close - tech_summary['sma']) / tech_summary['sma']) * 100:.2f}"
-            else:
-                price_vs_sma_pct = "0.00"
-
-            tech_str = (
-                f"TECHNICAL DATA (1d, last 3mo):\n"
-                f"- Current price: {last_close:.2f}\n"
-                f"- RSI(14): {rsi_val} — {rsi_interp}\n"
-                f"- MACD: {macd} / Signal: {macd_signal} / Histogram: {macd_hist}\n"
-                f"- Bollinger Bands: Upper {bb_upper} / Middle {bb_middle} / Lower {bb_lower}\n"
-                f"- Current price vs BB Middle: {price_vs_bb_pct}%\n"
-                f"- ATR(14): {atr} (volatility measure)\n"
-                f"- SMA(20): {sma} / EMA(20): {ema}\n"
-                f"- Price vs SMA: {price_vs_sma_pct}%\n"
-            )
-        else:
-            tech_str = "TECHNICAL DATA: Not available.\n"
-
-        if sentiment_summary:
-            data_sources.append("sentiment")
-            score = f"{sentiment_summary.get('score', 0.0):.2f}"
-            label = sentiment_summary.get('label', 'NEUTRAL')
-            count = sentiment_summary.get('article_count', 0)
-            themes = ", ".join(sentiment_summary.get("key_themes", [])) or "None"
-            risks = ", ".join(sentiment_summary.get("risk_factors", [])) or "None"
-
-            sent_str = (
-                f"SENTIMENT DATA:\n"
-                f"- Aggregated score: {score} ({label})\n"
-                f"- Articles analyzed: {count}\n"
-                f"- Key themes: {themes}\n"
-                f"- Risk factors: {risks}\n"
-            )
-        else:
-            sent_str = "SENTIMENT DATA: Not available.\n"
+        context = await cls._gather_context(symbol)
+        context_str = cls._build_context_prompt(context)
+        
+        if not context_str.strip():
+            context_str = "Data unavailable for this symbol."
 
         scenario_section = ""
         if request.scenario:
-            scenario_section = f"SCENARIO / ADDITIONAL CONTEXT:\n{request.scenario}\n"
+            scenario_section = f"USER SCENARIO / ADDITIONAL CONTEXT:\n{request.scenario}\n"
 
         system_prompt = (
             "You are a senior quantitative analyst and portfolio manager with 20+ years of experience in equity markets. "
@@ -146,54 +142,41 @@ class LlmInsightService:
         )
 
         user_prompt = (
-            f"Analyze {symbol} based on the following data and provide a structured investment insight.\n\n"
-            f"{tech_str}\n"
-            f"{sent_str}\n"
+            f"Analyze {symbol} based on the following comprehensive institutional data and provide a structured investment insight.\n\n"
+            f"{context_str}\n"
             f"{scenario_section}\n"
             "Provide your analysis in the following structure:\n"
             "1. SIGNAL: BUY / SELL / HOLD / WATCH (one word)\n"
             "2. CONVICTION: HIGH / MEDIUM / LOW\n"
             "3. TIMEFRAME: SHORT (days) / MEDIUM (weeks) / LONG (months)\n"
-            "4. TECHNICAL_SUMMARY: 2 sentences on what the indicators collectively suggest\n"
-            "5. SENTIMENT_IMPACT: 1 sentence on how news sentiment affects the outlook\n"
-            "6. KEY_RISK: The single most important risk to monitor\n"
+            "4. TECHNICAL_SUMMARY: 2 sentences summarizing the overall setup and health\n"
+            "5. SENTIMENT_IMPACT: 1 sentence on how sentiment and insider action affects the outlook\n"
+            "6. KEY_RISK: The single most important risk to monitor based on the data\n"
             "7. KEY_OPPORTUNITY: The single most important opportunity if thesis is correct\n"
             "8. INSIGHT: 3-4 sentence professional narrative combining all factors\n\n"
             "Respond in JSON format only with keys: signal, conviction, timeframe, technical_summary, sentiment_impact, key_risk, key_opportunity, insight."
         )
 
-        url = (
-            f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/"
-            f"{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions"
-            f"?api-version={settings.AZURE_OPENAI_API_VERSION}"
-        )
-        
-        headers = {
-            "api-key": settings.AZURE_OPENAI_API_KEY,
-            "Content-Type": "application/json"
-        }
-        
+        url = f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version={settings.AZURE_OPENAI_API_VERSION}"
+        headers = {"api-key": settings.AZURE_OPENAI_API_KEY, "Content-Type": "application/json"}
         payload = {
             "messages": [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             "max_tokens": settings.LLM_MAX_TOKENS,
             "temperature": 0.3
         }
-        
+
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=30.0)
-            response.raise_for_status()
-            response_json = response.json()
-            content = response_json["choices"][0]["message"]["content"].strip()
-            
+            try:
+                response = await client.post(url, json=payload, headers=headers, timeout=30.0)
+                response.raise_for_status()
+                response_json = response.json()
+                content = response_json["choices"][0]["message"]["content"].strip()
+            except Exception as e:
+                content = "{}"
+
         if content.startswith("```json"):
             content = content[7:]
         if content.endswith("```"):
@@ -205,10 +188,10 @@ class LlmInsightService:
             signal = parsed.get("signal", "WATCH")
             conviction = parsed.get("conviction", "LOW")
             timeframe = parsed.get("timeframe", "MEDIUM")
-            technical_summary = parsed.get("technical_summary", "")
-            sentiment_impact = parsed.get("sentiment_impact", "")
-            key_risk = parsed.get("key_risk", "")
-            key_opportunity = parsed.get("key_opportunity", "")
+            technical_summary = parsed.get("technical_summary", "N/A")
+            sentiment_impact = parsed.get("sentiment_impact", "N/A")
+            key_risk = parsed.get("key_risk", "N/A")
+            key_opportunity = parsed.get("key_opportunity", "N/A")
             insight = parsed.get("insight", "")
         except Exception:
             signal = "WATCH"
@@ -219,7 +202,7 @@ class LlmInsightService:
             key_risk = "N/A"
             key_opportunity = "N/A"
             insight = content
-            
+
         return LlmInsightResponse(
             symbol=symbol,
             signal=str(signal).upper(),
@@ -230,7 +213,7 @@ class LlmInsightService:
             key_risk=str(key_risk),
             key_opportunity=str(key_opportunity),
             insight=str(insight),
-            data_sources_used=data_sources,
+            data_sources_used=["institutional", "composite"],
             model_used=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
             generated_at=datetime.now(timezone.utc)
         )
@@ -246,7 +229,6 @@ class LlmInsightService:
         sharpe: float = 0.0,
         drawdown: float = 0.0,
     ) -> dict[str, Any]:
-        import json
         
         portfolio_str = "\n".join([f"- {sym}: {weight*100:.2f}%" for sym, weight in weights.items()])
         
@@ -279,38 +261,26 @@ class LlmInsightService:
             "Respond in JSON format only with lowercase keys (scenario_severity, estimated_drawdown, most_vulnerable, natural_hedges, correlation_risk, recommended_actions, recovery_estimate, narrative)."
         )
 
-        url = (
-            f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/"
-            f"{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions"
-            f"?api-version={settings.AZURE_OPENAI_API_VERSION}"
-        )
-        
-        headers = {
-            "api-key": settings.AZURE_OPENAI_API_KEY,
-            "Content-Type": "application/json"
-        }
-        
+        url = f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version={settings.AZURE_OPENAI_API_VERSION}"
+        headers = {"api-key": settings.AZURE_OPENAI_API_KEY, "Content-Type": "application/json"}
         payload = {
             "messages": [
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
             ],
             "max_tokens": settings.LLM_MAX_TOKENS,
             "temperature": 0.3
         }
-        
+
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=30.0)
-            response.raise_for_status()
-            response_json = response.json()
-            content = response_json["choices"][0]["message"]["content"].strip()
-            
+            try:
+                response = await client.post(url, json=payload, headers=headers, timeout=30.0)
+                response.raise_for_status()
+                response_json = response.json()
+                content = response_json["choices"][0]["message"]["content"].strip()
+            except Exception as e:
+                content = "{}"
+
         if content.startswith("```json"):
             content = content[7:]
         if content.endswith("```"):
@@ -319,7 +289,6 @@ class LlmInsightService:
 
         try:
             parsed = json.loads(content)
-            # Ensure estimated_drawdown is float
             ed = parsed.get("estimated_drawdown")
             if isinstance(ed, str):
                 import re
@@ -351,146 +320,28 @@ class LlmInsightService:
     @classmethod
     async def generate_decision_support_report(
         cls,
-        request: "DecisionSupportRequest"
-    ) -> "DecisionSupportResponse":
-        import json
-        import yfinance as yf
-        import pandas_ta as ta
-        from app.services.pattern_detection_service import PatternDetectionService
-        from app.services.technical_analysis_service import TechnicalAnalysisService
-        from app.models.analysis import DecisionSupportResponse
-        from datetime import datetime, timezone
-        from app.config import settings
-        import httpx
-        
+        request: Any
+    ) -> DecisionSupportResponse:
         symbol = request.symbol.strip().upper()
         
-        # 1. Fetch 1y Data
-        ticker = yf.Ticker(symbol)
-        history = ticker.history(interval="1d", period="1y", auto_adjust=False, actions=False)
-        if history is None or history.empty:
-            raise ValueError(f"No historical data for {symbol}")
-            
-        closes = history["Close"]
-        highs = history["High"]
-        lows = history["Low"]
+        context = await cls._gather_context(symbol)
+        context_str = cls._build_context_prompt(context)
         
-        current_price = closes.iloc[-1]
-        
-        change_1d = (current_price / closes.iloc[-2] - 1) * 100 if len(closes) >= 2 else 0.0
-        change_1w = (current_price / closes.iloc[-6] - 1) * 100 if len(closes) >= 6 else 0.0
-        change_1m = (current_price / closes.iloc[-22] - 1) * 100 if len(closes) >= 22 else 0.0
-        
-        high_52w = highs.max()
-        low_52w = lows.min()
-        vs_high_pct = (current_price / high_52w - 1) * 100 if high_52w > 0 else 0.0
-        
-        # 2. Technical Indicators
-        indicators = TechnicalAnalysisService.compute_indicators(history.reset_index())
-        rsi = indicators.rsi
-        rsi_val = f"{rsi:.2f}" if rsi is not None else "N/A"
-        if rsi is not None:
-            rsi_signal = "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral"
-        else:
-            rsi_signal = "N/A"
-            
-        macd = indicators.macd
-        macd_signal = indicators.macd_signal
-        if macd is not None and macd_signal is not None:
-            macd_signal_text = f"Bullish Cross" if macd > macd_signal else "Bearish Cross"
-            macd_signal_text = f"{macd:.4f} ({macd_signal_text})"
-        else:
-            macd_signal_text = "N/A"
-            
-        ema = indicators.ema
-        sma = indicators.sma
-        if ema is not None and sma is not None:
-            trend_direction = "Bullish" if ema > sma else "Bearish"
-        else:
-            trend_direction = "N/A"
-            
-        bb_upper = indicators.bb_upper
-        bb_lower = indicators.bb_lower
-        if bb_upper is not None and bb_lower is not None and bb_upper > bb_lower:
-            bb_percentile = (current_price - bb_lower) / (bb_upper - bb_lower) * 100
-            bb_position = "Upper Half" if bb_percentile > 50 else "Lower Half"
-            bb_percentile_str = f"{bb_percentile:.1f}"
-        else:
-            bb_position = "N/A"
-            bb_percentile_str = "N/A"
-            
-        # Compute ATR Percentile natively
-        atr_series = ta.atr(highs, lows, closes, length=14)
-        if atr_series is not None and not atr_series.empty:
-            last_90_atr = atr_series.tail(90).dropna()
-            current_atr = last_90_atr.iloc[-1] if not last_90_atr.empty else 0.0
-            if not last_90_atr.empty:
-                atr_pct = (last_90_atr < current_atr).mean() * 100
-            else:
-                atr_pct = 0.0
-            atr_val = f"{current_atr:.2f}"
-            atr_percentile_str = f"{atr_pct:.0f}"
-        else:
-            atr_val = "N/A"
-            atr_percentile_str = "N/A"
-            
-        # Pattern Detection
-        pattern_res = PatternDetectionService.detect(symbol, "1d", closes.values, highs.values, lows.values)
-        if pattern_res.patterns:
-            recent_patterns = sorted(pattern_res.patterns, key=lambda p: p.end_index, reverse=True)[:3]
-            patterns_list = ", ".join([p.pattern_type.value for p in recent_patterns])
-        else:
-            patterns_list = "None detected"
-            
-        # 3. Market Sentiment
-        sentiment_summary = await cls._fetch_sentiment_summary(symbol)
-        if sentiment_summary:
-            sentiment_score = f"{sentiment_summary.get('score', 0.0):.2f}"
-            sentiment_label = sentiment_summary.get('label', 'NEUTRAL')
-            article_count = sentiment_summary.get('article_count', 0)
-            themes = sentiment_summary.get("key_themes", [])
-            headline_themes = ", ".join(themes) if themes else "None"
-            hours = settings.NEWS_LOOKBACK_HOURS
-        else:
-            sentiment_score = "0.00"
-            sentiment_label = "NEUTRAL"
-            article_count = 0
-            headline_themes = "None"
-            hours = settings.NEWS_LOOKBACK_HOURS
-            
-        # 4. Context Formatting
+        if not context_str.strip():
+            context_str = "Data unavailable for this symbol."
+
         user_prompt = f"Generate a comprehensive decision support report for {symbol}.\n\n"
+        user_prompt += f"{context_str}\n\n"
         
-        user_prompt += "=== PRICE ACTION ===\n"
-        user_prompt += f"Current: {current_price:.2f}\n"
-        user_prompt += f"Change (1D): {change_1d:.2f}%\n"
-        user_prompt += f"Change (1W): {change_1w:.2f}%\n"
-        user_prompt += f"Change (1M): {change_1m:.2f}%\n"
-        user_prompt += f"52W High: {high_52w:.2f} / Low: {low_52w:.2f}\n"
-        user_prompt += f"Current vs 52W High: {vs_high_pct:.2f}%\n\n"
-        
-        user_prompt += "=== TECHNICAL INDICATORS ===\n"
-        user_prompt += f"RSI(14): {rsi_val} → {rsi_signal}\n"
-        user_prompt += f"MACD: {macd_signal_text}\n"
-        user_prompt += f"Trend (EMA vs SMA): {trend_direction}\n"
-        user_prompt += f"Bollinger Position: {bb_position} (price at {bb_percentile_str}% of band)\n"
-        user_prompt += f"Volatility (ATR): {atr_val} ({atr_percentile_str}th percentile vs 90-day avg)\n"
-        user_prompt += f"Detected Patterns: {patterns_list}\n\n"
-        
-        user_prompt += "=== MARKET SENTIMENT ===\n"
-        user_prompt += f"News Sentiment Score: {sentiment_score}/1.0 ({sentiment_label})\n"
-        user_prompt += f"Recent Headlines Summary: {headline_themes}\n"
-        user_prompt += f"Articles Analyzed: {article_count} (last {hours}h)\n\n"
-        
-        if request.portfolio_context:
-            user_prompt += "=== PORTFOLIO CONTEXT (if applicable) ===\n"
-            user_prompt += f"Current Weight in Portfolio: {request.portfolio_context.current_weight * 100:.2f}%\n"
+        if getattr(request, 'portfolio_context', None):
+            user_prompt += "=== PORTFOLIO CONTEXT ===\n"
+            user_prompt += f"Current Weight: {request.portfolio_context.current_weight * 100:.2f}%\n"
             user_prompt += f"Target Weight: {request.portfolio_context.target_weight * 100:.2f}%\n"
             user_prompt += f"Deviation: {request.portfolio_context.deviation * 100:.2f}%\n"
             user_prompt += f"Rebalance Required: {'YES' if request.portfolio_context.rebalance_needed else 'NO'}\n\n"
             
-        if request.user_scenario:
-            user_prompt += "=== USER SCENARIO (if provided) ===\n"
+        if getattr(request, 'user_scenario', None):
+            user_prompt += "=== USER SCENARIO ===\n"
             user_prompt += f"{request.user_scenario}\n\n"
             
         user_prompt += (
@@ -500,33 +351,23 @@ class LlmInsightService:
             "3. CONVICTION_LEVEL: 1-10 scale with justification\n"
             "4. BULL_CASE: 3 bullet points supporting a positive outcome\n"
             "5. BEAR_CASE: 3 bullet points supporting a negative outcome\n"
-            "6. CRITICAL_LEVELS: key_support (price), key_resistance (price), invalidation_level (price)\n"
+            "6. CRITICAL_LEVELS: key_support (price), key_resistance (price), invalidation_level (price) - Estimate based on fundamental and risk data if technicals are not fully available.\n"
             "7. RISK_REWARD: estimated risk/reward ratio and rationale\n"
             "8. TIME_HORIZON: SHORT / MEDIUM / LONG with reasoning\n"
             "9. WATCHLIST_ITEMS: 3 specific metrics or events to monitor\n"
-            "10. FULL_ANALYSIS: 5-7 sentence detailed narrative\n\n"
-            "Respond in JSON format only. Do not add any text outside the JSON. Use lowercase keys matching the sections."
+            "10. FULL_ANALYSIS: 5-7 sentence detailed narrative analyzing the composite institutional factors\n\n"
+            "Respond in JSON format only. Use lowercase keys matching the sections."
         )
         
         system_prompt = (
             "You are an AI investment advisor integrated into a professional portfolio management system. "
-            "Your role is to synthesize technical analysis, fundamental sentiment, and market context into clear, "
+            "Your role is to synthesize quantitative models, fundamental sentiment, and market context into clear, "
             "actionable decision support reports. You are NOT providing financial advice — you are providing analytical "
-            "synthesis to support an informed investor's own decision-making process. Always present both bull and bear cases. "
-            "Always quantify uncertainty."
+            "synthesis. Always present both bull and bear cases. Always quantify uncertainty."
         )
         
-        url = (
-            f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/"
-            f"{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions"
-            f"?api-version={settings.AZURE_OPENAI_API_VERSION}"
-        )
-        
-        headers = {
-            "api-key": settings.AZURE_OPENAI_API_KEY,
-            "Content-Type": "application/json"
-        }
-        
+        url = f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions?api-version={settings.AZURE_OPENAI_API_VERSION}"
+        headers = {"api-key": settings.AZURE_OPENAI_API_KEY, "Content-Type": "application/json"}
         payload = {
             "messages": [
                 {"role": "system", "content": system_prompt},
@@ -538,11 +379,14 @@ class LlmInsightService:
         }
         
         async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=payload, headers=headers, timeout=45.0)
-            response.raise_for_status()
-            response_json = response.json()
-            content = response_json["choices"][0]["message"]["content"].strip()
-            
+            try:
+                response = await client.post(url, json=payload, headers=headers, timeout=45.0)
+                response.raise_for_status()
+                response_json = response.json()
+                content = response_json["choices"][0]["message"]["content"].strip()
+            except Exception as e:
+                content = "{}"
+
         if content.startswith("```json"):
             content = content[7:]
         if content.endswith("```"):
@@ -555,14 +399,14 @@ class LlmInsightService:
             return DecisionSupportResponse(
                 symbol=symbol,
                 executive_summary=str(parsed.get("executive_summary", "")),
-                primary_signal=str(parsed.get("primary_signal", "")),
+                primary_signal=str(parsed.get("primary_signal", "HOLD")),
                 conviction_level=int(str(parsed.get("conviction_level", "5")).split()[0]) if isinstance(parsed.get("conviction_level"), str) else int(parsed.get("conviction_level", 5)),
                 bull_case=parsed.get("bull_case", []),
                 bear_case=parsed.get("bear_case", []),
                 critical_levels={
-                    "key_support": float(cl.get("key_support", 0.0)),
-                    "key_resistance": float(cl.get("key_resistance", 0.0)),
-                    "invalidation_level": float(cl.get("invalidation_level", 0.0))
+                    "key_support": float(cl.get("key_support", 0.0)) if isinstance(cl, dict) else 0.0,
+                    "key_resistance": float(cl.get("key_resistance", 0.0)) if isinstance(cl, dict) else 0.0,
+                    "invalidation_level": float(cl.get("invalidation_level", 0.0)) if isinstance(cl, dict) else 0.0
                 },
                 risk_reward=str(parsed.get("risk_reward", "")),
                 time_horizon=str(parsed.get("time_horizon", "")),
@@ -571,10 +415,9 @@ class LlmInsightService:
                 generated_at=datetime.now(timezone.utc)
             )
         except Exception as e:
-            # Fallback response
             return DecisionSupportResponse(
                 symbol=symbol,
-                executive_summary=f"Failed to parse analysis: {str(e)}",
+                executive_summary=f"Failed to parse analysis.",
                 primary_signal="HOLD",
                 conviction_level=5,
                 bull_case=[],
