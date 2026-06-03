@@ -49,16 +49,18 @@ class LlmInsightService:
             return {
                 "score": sentiment.score,
                 "label": sentiment.label,
-                "article_count": sentiment.article_count
+                "article_count": sentiment.article_count,
+                "key_themes": sentiment.key_themes,
+                "risk_factors": sentiment.risk_factors
             }
         except Exception:
             return None
 
     @classmethod
     async def generate_insight(cls, request: LlmInsightRequest) -> LlmInsightResponse:
+        import json
         symbol = request.symbol.strip().upper()
         
-        # 1. Gather context data in parallel or sequentially
         tech_summary = None
         if request.include_technical:
             tech_summary = await cls._fetch_technical_summary(symbol)
@@ -67,41 +69,99 @@ class LlmInsightService:
         if request.include_sentiment:
             sentiment_summary = await cls._fetch_sentiment_summary(symbol)
             
-        # 2. Build the LLM prompt
-        prompt = f"Please provide a professional financial market analysis and insight for the asset: {symbol}.\n\n"
-        
         data_sources = []
         if tech_summary:
             data_sources.append("technical")
-            prompt += (
-                f"### Technical Analysis Data (Daily, 3 Months):\n"
-                f"- Latest Closing Price: {tech_summary['last_close']:.2f}\n"
-                f"- RSI (Relative Strength Index): {tech_summary['rsi']:.2f if tech_summary['rsi'] is not None else 'N/A'}\n"
-                f"- MACD: {tech_summary['macd']:.4f if tech_summary['macd'] is not None else 'N/A'} (Signal: {tech_summary['macd_signal']:.4f if tech_summary['macd_signal'] is not None else 'N/A'})\n"
-                f"- Bollinger Bands: Upper {tech_summary['bb_upper']:.2f if tech_summary['bb_upper'] is not None else 'N/A'}, Middle {tech_summary['bb_middle']:.2f if tech_summary['bb_middle'] is not None else 'N/A'}, Lower {tech_summary['bb_lower']:.2f if tech_summary['bb_lower'] is not None else 'N/A'}\n"
-                f"- ATR (Average True Range): {tech_summary['atr']:.2f if tech_summary['atr'] is not None else 'N/A'}\n"
-                f"- SMA: {tech_summary['sma']:.2f if tech_summary['sma'] is not None else 'N/A'}, EMA: {tech_summary['ema']:.2f if tech_summary['ema'] is not None else 'N/A'}\n\n"
+            rsi = tech_summary.get("rsi")
+            rsi_val = f"{rsi:.2f}" if rsi is not None else "N/A"
+            if rsi is not None:
+                rsi_interp = "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral"
+            else:
+                rsi_interp = "N/A"
+
+            macd = f"{tech_summary.get('macd'):.4f}" if tech_summary.get("macd") is not None else "N/A"
+            macd_signal = f"{tech_summary.get('macd_signal'):.4f}" if tech_summary.get("macd_signal") is not None else "N/A"
+            macd_hist = f"{tech_summary.get('macd_histogram'):.4f}" if tech_summary.get("macd_histogram") is not None else "N/A"
+
+            bb_upper = f"{tech_summary.get('bb_upper'):.2f}" if tech_summary.get("bb_upper") is not None else "N/A"
+            bb_middle = f"{tech_summary.get('bb_middle'):.2f}" if tech_summary.get("bb_middle") is not None else "N/A"
+            bb_lower = f"{tech_summary.get('bb_lower'):.2f}" if tech_summary.get("bb_lower") is not None else "N/A"
+
+            last_close = tech_summary.get("last_close", 0.0)
+            if tech_summary.get("bb_middle") and tech_summary.get("bb_middle") > 0:
+                price_vs_bb_pct = f"{((last_close - tech_summary['bb_middle']) / tech_summary['bb_middle']) * 100:.2f}"
+            else:
+                price_vs_bb_pct = "0.00"
+
+            atr = f"{tech_summary.get('atr'):.2f}" if tech_summary.get("atr") is not None else "N/A"
+            sma = f"{tech_summary.get('sma'):.2f}" if tech_summary.get("sma") is not None else "N/A"
+            ema = f"{tech_summary.get('ema'):.2f}" if tech_summary.get("ema") is not None else "N/A"
+
+            if tech_summary.get("sma") and tech_summary.get("sma") > 0:
+                price_vs_sma_pct = f"{((last_close - tech_summary['sma']) / tech_summary['sma']) * 100:.2f}"
+            else:
+                price_vs_sma_pct = "0.00"
+
+            tech_str = (
+                f"TECHNICAL DATA (1d, last 3mo):\n"
+                f"- Current price: {last_close:.2f}\n"
+                f"- RSI(14): {rsi_val} — {rsi_interp}\n"
+                f"- MACD: {macd} / Signal: {macd_signal} / Histogram: {macd_hist}\n"
+                f"- Bollinger Bands: Upper {bb_upper} / Middle {bb_middle} / Lower {bb_lower}\n"
+                f"- Current price vs BB Middle: {price_vs_bb_pct}%\n"
+                f"- ATR(14): {atr} (volatility measure)\n"
+                f"- SMA(20): {sma} / EMA(20): {ema}\n"
+                f"- Price vs SMA: {price_vs_sma_pct}%\n"
             )
-            
+        else:
+            tech_str = "TECHNICAL DATA: Not available.\n"
+
         if sentiment_summary:
             data_sources.append("sentiment")
-            prompt += (
-                f"### Market News Sentiment Data:\n"
-                f"- Aggregated Sentiment Score: {sentiment_summary['score']:.2f} (-1.0 Bearish to 1.0 Bullish)\n"
-                f"- Label: {sentiment_summary['label']}\n"
-                f"- Articles Analyzed: {sentiment_summary['article_count']}\n\n"
+            score = f"{sentiment_summary.get('score', 0.0):.2f}"
+            label = sentiment_summary.get('label', 'NEUTRAL')
+            count = sentiment_summary.get('article_count', 0)
+            themes = ", ".join(sentiment_summary.get("key_themes", [])) or "None"
+            risks = ", ".join(sentiment_summary.get("risk_factors", [])) or "None"
+
+            sent_str = (
+                f"SENTIMENT DATA:\n"
+                f"- Aggregated score: {score} ({label})\n"
+                f"- Articles analyzed: {count}\n"
+                f"- Key themes: {themes}\n"
+                f"- Risk factors: {risks}\n"
             )
-            
+        else:
+            sent_str = "SENTIMENT DATA: Not available.\n"
+
+        scenario_section = ""
         if request.scenario:
-            prompt += f"### Additional Request Scenario/Context:\n{request.scenario}\n\n"
-            
-        prompt += (
-            "Provide a concise, professional financial evaluation of this asset based on the above data. "
-            "Explain technical trends, volatile boundaries, and overall sentiment impact. "
-            "Keep the analysis to a maximum of 3-4 highly informative sentences."
+            scenario_section = f"SCENARIO / ADDITIONAL CONTEXT:\n{request.scenario}\n"
+
+        system_prompt = (
+            "You are a senior quantitative analyst and portfolio manager with 20+ years of experience in equity markets. "
+            "You provide actionable, evidence-based investment insights grounded strictly in the data provided. "
+            "You never speculate beyond the data. You always acknowledge uncertainty. "
+            "You write for a sophisticated investor who wants analysis, not reassurance."
         )
 
-        # 3. Call Azure OpenAI API
+        user_prompt = (
+            f"Analyze {symbol} based on the following data and provide a structured investment insight.\n\n"
+            f"{tech_str}\n"
+            f"{sent_str}\n"
+            f"{scenario_section}\n"
+            "Provide your analysis in the following structure:\n"
+            "1. SIGNAL: BUY / SELL / HOLD / WATCH (one word)\n"
+            "2. CONVICTION: HIGH / MEDIUM / LOW\n"
+            "3. TIMEFRAME: SHORT (days) / MEDIUM (weeks) / LONG (months)\n"
+            "4. TECHNICAL_SUMMARY: 2 sentences on what the indicators collectively suggest\n"
+            "5. SENTIMENT_IMPACT: 1 sentence on how news sentiment affects the outlook\n"
+            "6. KEY_RISK: The single most important risk to monitor\n"
+            "7. KEY_OPPORTUNITY: The single most important opportunity if thesis is correct\n"
+            "8. INSIGHT: 3-4 sentence professional narrative combining all factors\n\n"
+            "Respond in JSON format only with keys: signal, conviction, timeframe, technical_summary, sentiment_impact, key_risk, key_opportunity, insight."
+        )
+
         url = (
             f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/"
             f"{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions"
@@ -117,11 +177,11 @@ class LlmInsightService:
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are a professional financial market advisor specializing in quantitative analysis and technical indicators."
+                    "content": system_prompt
                 },
                 {
                     "role": "user",
-                    "content": prompt
+                    "content": user_prompt
                 }
             ],
             "max_tokens": settings.LLM_MAX_TOKENS,
@@ -132,11 +192,44 @@ class LlmInsightService:
             response = await client.post(url, json=payload, headers=headers, timeout=30.0)
             response.raise_for_status()
             response_json = response.json()
-            insight_text = response_json["choices"][0]["message"]["content"].strip()
+            content = response_json["choices"][0]["message"]["content"].strip()
+            
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
+
+        try:
+            parsed = json.loads(content)
+            signal = parsed.get("signal", "WATCH")
+            conviction = parsed.get("conviction", "LOW")
+            timeframe = parsed.get("timeframe", "MEDIUM")
+            technical_summary = parsed.get("technical_summary", "")
+            sentiment_impact = parsed.get("sentiment_impact", "")
+            key_risk = parsed.get("key_risk", "")
+            key_opportunity = parsed.get("key_opportunity", "")
+            insight = parsed.get("insight", "")
+        except Exception:
+            signal = "WATCH"
+            conviction = "LOW"
+            timeframe = "MEDIUM"
+            technical_summary = "N/A"
+            sentiment_impact = "N/A"
+            key_risk = "N/A"
+            key_opportunity = "N/A"
+            insight = content
             
         return LlmInsightResponse(
             symbol=symbol,
-            insight=insight_text,
+            signal=str(signal).upper(),
+            conviction=str(conviction).upper(),
+            timeframe=str(timeframe).upper(),
+            technical_summary=str(technical_summary),
+            sentiment_impact=str(sentiment_impact),
+            key_risk=str(key_risk),
+            key_opportunity=str(key_opportunity),
+            insight=str(insight),
             data_sources_used=data_sources,
             model_used=settings.AZURE_OPENAI_DEPLOYMENT_NAME,
             generated_at=datetime.now(timezone.utc)
