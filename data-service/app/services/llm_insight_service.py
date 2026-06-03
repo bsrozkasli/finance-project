@@ -45,7 +45,7 @@ class LlmInsightService:
             return None
         try:
             from app.services.sentiment_service import SentimentService
-            sentiment = SentimentService.analyze_sentiment(symbol)
+            sentiment = await SentimentService.analyze_sentiment(symbol)
             return {
                 "score": sentiment.score,
                 "label": sentiment.label,
