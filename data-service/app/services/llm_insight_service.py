@@ -347,3 +347,242 @@ class LlmInsightService:
                 "recovery_estimate": "N/A",
                 "narrative": content,
             }
+
+    @classmethod
+    async def generate_decision_support_report(
+        cls,
+        request: "DecisionSupportRequest"
+    ) -> "DecisionSupportResponse":
+        import json
+        import yfinance as yf
+        import pandas_ta as ta
+        from app.services.pattern_detection_service import PatternDetectionService
+        from app.services.technical_analysis_service import TechnicalAnalysisService
+        from app.models.analysis import DecisionSupportResponse
+        from datetime import datetime, timezone
+        from app.config import settings
+        import httpx
+        
+        symbol = request.symbol.strip().upper()
+        
+        # 1. Fetch 1y Data
+        ticker = yf.Ticker(symbol)
+        history = ticker.history(interval="1d", period="1y", auto_adjust=False, actions=False)
+        if history is None or history.empty:
+            raise ValueError(f"No historical data for {symbol}")
+            
+        closes = history["Close"]
+        highs = history["High"]
+        lows = history["Low"]
+        
+        current_price = closes.iloc[-1]
+        
+        change_1d = (current_price / closes.iloc[-2] - 1) * 100 if len(closes) >= 2 else 0.0
+        change_1w = (current_price / closes.iloc[-6] - 1) * 100 if len(closes) >= 6 else 0.0
+        change_1m = (current_price / closes.iloc[-22] - 1) * 100 if len(closes) >= 22 else 0.0
+        
+        high_52w = highs.max()
+        low_52w = lows.min()
+        vs_high_pct = (current_price / high_52w - 1) * 100 if high_52w > 0 else 0.0
+        
+        # 2. Technical Indicators
+        indicators = TechnicalAnalysisService.compute_indicators(history.reset_index())
+        rsi = indicators.rsi
+        rsi_val = f"{rsi:.2f}" if rsi is not None else "N/A"
+        if rsi is not None:
+            rsi_signal = "Overbought" if rsi > 70 else "Oversold" if rsi < 30 else "Neutral"
+        else:
+            rsi_signal = "N/A"
+            
+        macd = indicators.macd
+        macd_signal = indicators.macd_signal
+        if macd is not None and macd_signal is not None:
+            macd_signal_text = f"Bullish Cross" if macd > macd_signal else "Bearish Cross"
+            macd_signal_text = f"{macd:.4f} ({macd_signal_text})"
+        else:
+            macd_signal_text = "N/A"
+            
+        ema = indicators.ema
+        sma = indicators.sma
+        if ema is not None and sma is not None:
+            trend_direction = "Bullish" if ema > sma else "Bearish"
+        else:
+            trend_direction = "N/A"
+            
+        bb_upper = indicators.bb_upper
+        bb_lower = indicators.bb_lower
+        if bb_upper is not None and bb_lower is not None and bb_upper > bb_lower:
+            bb_percentile = (current_price - bb_lower) / (bb_upper - bb_lower) * 100
+            bb_position = "Upper Half" if bb_percentile > 50 else "Lower Half"
+            bb_percentile_str = f"{bb_percentile:.1f}"
+        else:
+            bb_position = "N/A"
+            bb_percentile_str = "N/A"
+            
+        # Compute ATR Percentile natively
+        atr_series = ta.atr(highs, lows, closes, length=14)
+        if atr_series is not None and not atr_series.empty:
+            last_90_atr = atr_series.tail(90).dropna()
+            current_atr = last_90_atr.iloc[-1] if not last_90_atr.empty else 0.0
+            if not last_90_atr.empty:
+                atr_pct = (last_90_atr < current_atr).mean() * 100
+            else:
+                atr_pct = 0.0
+            atr_val = f"{current_atr:.2f}"
+            atr_percentile_str = f"{atr_pct:.0f}"
+        else:
+            atr_val = "N/A"
+            atr_percentile_str = "N/A"
+            
+        # Pattern Detection
+        pattern_res = PatternDetectionService.detect(symbol, "1d", closes.values, highs.values, lows.values)
+        if pattern_res.patterns:
+            recent_patterns = sorted(pattern_res.patterns, key=lambda p: p.end_index, reverse=True)[:3]
+            patterns_list = ", ".join([p.pattern_type.value for p in recent_patterns])
+        else:
+            patterns_list = "None detected"
+            
+        # 3. Market Sentiment
+        sentiment_summary = await cls._fetch_sentiment_summary(symbol)
+        if sentiment_summary:
+            sentiment_score = f"{sentiment_summary.get('score', 0.0):.2f}"
+            sentiment_label = sentiment_summary.get('label', 'NEUTRAL')
+            article_count = sentiment_summary.get('article_count', 0)
+            themes = sentiment_summary.get("key_themes", [])
+            headline_themes = ", ".join(themes) if themes else "None"
+            hours = settings.NEWS_LOOKBACK_HOURS
+        else:
+            sentiment_score = "0.00"
+            sentiment_label = "NEUTRAL"
+            article_count = 0
+            headline_themes = "None"
+            hours = settings.NEWS_LOOKBACK_HOURS
+            
+        # 4. Context Formatting
+        user_prompt = f"Generate a comprehensive decision support report for {symbol}.\n\n"
+        
+        user_prompt += "=== PRICE ACTION ===\n"
+        user_prompt += f"Current: {current_price:.2f}\n"
+        user_prompt += f"Change (1D): {change_1d:.2f}%\n"
+        user_prompt += f"Change (1W): {change_1w:.2f}%\n"
+        user_prompt += f"Change (1M): {change_1m:.2f}%\n"
+        user_prompt += f"52W High: {high_52w:.2f} / Low: {low_52w:.2f}\n"
+        user_prompt += f"Current vs 52W High: {vs_high_pct:.2f}%\n\n"
+        
+        user_prompt += "=== TECHNICAL INDICATORS ===\n"
+        user_prompt += f"RSI(14): {rsi_val} → {rsi_signal}\n"
+        user_prompt += f"MACD: {macd_signal_text}\n"
+        user_prompt += f"Trend (EMA vs SMA): {trend_direction}\n"
+        user_prompt += f"Bollinger Position: {bb_position} (price at {bb_percentile_str}% of band)\n"
+        user_prompt += f"Volatility (ATR): {atr_val} ({atr_percentile_str}th percentile vs 90-day avg)\n"
+        user_prompt += f"Detected Patterns: {patterns_list}\n\n"
+        
+        user_prompt += "=== MARKET SENTIMENT ===\n"
+        user_prompt += f"News Sentiment Score: {sentiment_score}/1.0 ({sentiment_label})\n"
+        user_prompt += f"Recent Headlines Summary: {headline_themes}\n"
+        user_prompt += f"Articles Analyzed: {article_count} (last {hours}h)\n\n"
+        
+        if request.portfolio_context:
+            user_prompt += "=== PORTFOLIO CONTEXT (if applicable) ===\n"
+            user_prompt += f"Current Weight in Portfolio: {request.portfolio_context.current_weight * 100:.2f}%\n"
+            user_prompt += f"Target Weight: {request.portfolio_context.target_weight * 100:.2f}%\n"
+            user_prompt += f"Deviation: {request.portfolio_context.deviation * 100:.2f}%\n"
+            user_prompt += f"Rebalance Required: {'YES' if request.portfolio_context.rebalance_needed else 'NO'}\n\n"
+            
+        if request.user_scenario:
+            user_prompt += "=== USER SCENARIO (if provided) ===\n"
+            user_prompt += f"{request.user_scenario}\n\n"
+            
+        user_prompt += (
+            "Generate a decision support report with these sections:\n"
+            "1. EXECUTIVE_SUMMARY: 2 sentences, the most important thing to know right now\n"
+            "2. PRIMARY_SIGNAL: BUY / ACCUMULATE / HOLD / REDUCE / SELL\n"
+            "3. CONVICTION_LEVEL: 1-10 scale with justification\n"
+            "4. BULL_CASE: 3 bullet points supporting a positive outcome\n"
+            "5. BEAR_CASE: 3 bullet points supporting a negative outcome\n"
+            "6. CRITICAL_LEVELS: key_support (price), key_resistance (price), invalidation_level (price)\n"
+            "7. RISK_REWARD: estimated risk/reward ratio and rationale\n"
+            "8. TIME_HORIZON: SHORT / MEDIUM / LONG with reasoning\n"
+            "9. WATCHLIST_ITEMS: 3 specific metrics or events to monitor\n"
+            "10. FULL_ANALYSIS: 5-7 sentence detailed narrative\n\n"
+            "Respond in JSON format only. Do not add any text outside the JSON. Use lowercase keys matching the sections."
+        )
+        
+        system_prompt = (
+            "You are an AI investment advisor integrated into a professional portfolio management system. "
+            "Your role is to synthesize technical analysis, fundamental sentiment, and market context into clear, "
+            "actionable decision support reports. You are NOT providing financial advice — you are providing analytical "
+            "synthesis to support an informed investor's own decision-making process. Always present both bull and bear cases. "
+            "Always quantify uncertainty."
+        )
+        
+        url = (
+            f"{settings.AZURE_OPENAI_ENDPOINT.rstrip('/')}/openai/deployments/"
+            f"{settings.AZURE_OPENAI_DEPLOYMENT_NAME}/chat/completions"
+            f"?api-version={settings.AZURE_OPENAI_API_VERSION}"
+        )
+        
+        headers = {
+            "api-key": settings.AZURE_OPENAI_API_KEY,
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            "max_tokens": settings.LLM_MAX_TOKENS * 2,
+            "temperature": 0.3,
+            "response_format": {"type": "json_object"}
+        }
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, headers=headers, timeout=45.0)
+            response.raise_for_status()
+            response_json = response.json()
+            content = response_json["choices"][0]["message"]["content"].strip()
+            
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.endswith("```"):
+            content = content[:-3]
+        content = content.strip()
+        
+        try:
+            parsed = json.loads(content)
+            cl = parsed.get("critical_levels", {})
+            return DecisionSupportResponse(
+                symbol=symbol,
+                executive_summary=str(parsed.get("executive_summary", "")),
+                primary_signal=str(parsed.get("primary_signal", "")),
+                conviction_level=int(str(parsed.get("conviction_level", "5")).split()[0]) if isinstance(parsed.get("conviction_level"), str) else int(parsed.get("conviction_level", 5)),
+                bull_case=parsed.get("bull_case", []),
+                bear_case=parsed.get("bear_case", []),
+                critical_levels={
+                    "key_support": float(cl.get("key_support", 0.0)),
+                    "key_resistance": float(cl.get("key_resistance", 0.0)),
+                    "invalidation_level": float(cl.get("invalidation_level", 0.0))
+                },
+                risk_reward=str(parsed.get("risk_reward", "")),
+                time_horizon=str(parsed.get("time_horizon", "")),
+                watchlist_items=parsed.get("watchlist_items", []),
+                full_analysis=str(parsed.get("full_analysis", "")),
+                generated_at=datetime.now(timezone.utc)
+            )
+        except Exception as e:
+            # Fallback response
+            return DecisionSupportResponse(
+                symbol=symbol,
+                executive_summary=f"Failed to parse analysis: {str(e)}",
+                primary_signal="HOLD",
+                conviction_level=5,
+                bull_case=[],
+                bear_case=[],
+                critical_levels={"key_support": 0.0, "key_resistance": 0.0, "invalidation_level": 0.0},
+                risk_reward="N/A",
+                time_horizon="MEDIUM",
+                watchlist_items=[],
+                full_analysis=content,
+                generated_at=datetime.now(timezone.utc)
+            )
