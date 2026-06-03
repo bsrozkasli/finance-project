@@ -43,4 +43,8 @@ public class FmpIncomeStatementDto {
 
     /** May be {@code null} for some records; treated as ZERO downstream. */
     private BigDecimal operatingCashFlow;
+
+    private BigDecimal grossProfit;
+
+    private BigDecimal operatingIncome;
 }

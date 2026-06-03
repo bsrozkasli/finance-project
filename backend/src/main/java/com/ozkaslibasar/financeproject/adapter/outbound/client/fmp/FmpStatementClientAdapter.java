@@ -126,7 +126,9 @@ public class FmpStatementClientAdapter implements FinancialStatementClientPort {
                 orZero(dto.getNetIncome()),
                 BigDecimal.ZERO,   // totalAssets: filled by balance-sheet call
                 BigDecimal.ZERO,   // totalLiabilities: filled by balance-sheet call
-                orZero(dto.getOperatingCashFlow())
+                orZero(dto.getOperatingCashFlow()),
+                orZero(dto.getGrossProfit()),
+                orZero(dto.getOperatingIncome())
         );
     }
 
@@ -139,7 +141,9 @@ public class FmpStatementClientAdapter implements FinancialStatementClientPort {
                 BigDecimal.ZERO,   // netIncome: filled by income-statement call
                 orZero(dto.getTotalAssets()),
                 orZero(dto.getTotalLiabilities()),
-                BigDecimal.ZERO    // operatingCashFlow: filled by income-statement call
+                BigDecimal.ZERO,   // operatingCashFlow: filled by income-statement call
+                BigDecimal.ZERO,   // grossProfit: filled by income-statement call
+                BigDecimal.ZERO    // operatingIncome: filled by income-statement call
         );
     }
 

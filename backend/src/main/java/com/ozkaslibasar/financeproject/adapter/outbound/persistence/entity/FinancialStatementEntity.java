@@ -58,4 +58,10 @@ public class FinancialStatementEntity {
 
     @Column(name = "operating_cash_flow", nullable = false, precision = 26, scale = 4)
     private BigDecimal operatingCashFlow;
+
+    @Column(name = "gross_profit", nullable = false, precision = 26, scale = 4)
+    private BigDecimal grossProfit;
+
+    @Column(name = "operating_income", nullable = false, precision = 26, scale = 4)
+    private BigDecimal operatingIncome;
 }

@@ -27,7 +27,9 @@ public record FinancialStatement(
         BigDecimal netIncome,
         BigDecimal totalAssets,
         BigDecimal totalLiabilities,
-        BigDecimal operatingCashFlow
+        BigDecimal operatingCashFlow,
+        BigDecimal grossProfit,
+        BigDecimal operatingIncome
 ) {
 
     /**
@@ -47,6 +49,8 @@ public record FinancialStatement(
         Objects.requireNonNull(totalAssets,       "totalAssets must not be null");
         Objects.requireNonNull(totalLiabilities,  "totalLiabilities must not be null");
         Objects.requireNonNull(operatingCashFlow, "operatingCashFlow must not be null");
+        Objects.requireNonNull(grossProfit,       "grossProfit must not be null");
+        Objects.requireNonNull(operatingIncome,   "operatingIncome must not be null");
 
         if (symbol.isBlank()) {
             throw new IllegalArgumentException("symbol must not be blank");
