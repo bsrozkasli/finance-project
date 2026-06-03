@@ -47,6 +47,9 @@ class SentimentAnalysisResponse(BaseModel):
     symbol: str
     score: float
     label: str
+    key_themes: list[str] = Field(default_factory=list, max_items=3)
+    risk_factors: list[str] = Field(default_factory=list, max_items=2)
+    opportunity_factors: list[str] = Field(default_factory=list, max_items=2)
     article_count: int
     articles_analyzed: list[NewsArticle]
     calculated_at: datetime

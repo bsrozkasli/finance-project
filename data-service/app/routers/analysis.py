@@ -85,13 +85,13 @@ def get_technical_signals(
 
 
 @router.get("/sentiment/{symbol}", response_model=SentimentAnalysisResponse)
-def get_sentiment_analysis(symbol: str) -> SentimentAnalysisResponse:
+async def get_sentiment_analysis(symbol: str) -> SentimentAnalysisResponse:
     if not settings.FINNHUB_API_KEY:
         raise HTTPException(status_code=503, detail="FINNHUB_API_KEY is not configured")
     
     try:
         from app.services.sentiment_service import SentimentService
-        return SentimentService.analyze_sentiment(symbol)
+        return await SentimentService.analyze_sentiment(symbol)
     except ImportError:
         raise HTTPException(status_code=503, detail="Sentiment service not available")
     except Exception as e:
@@ -130,7 +130,7 @@ async def get_full_analysis(symbol: str) -> FullAnalysisResponse:
                 if not settings.FINNHUB_API_KEY:
                     return None
                 from app.services.sentiment_service import SentimentService
-                return SentimentService.analyze_sentiment(symbol)
+                return await SentimentService.analyze_sentiment(symbol)
             except Exception:
                 return None
         

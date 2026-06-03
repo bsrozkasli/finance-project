@@ -6,6 +6,7 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.fmp.mapper.FmpCli
 import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataClientPort;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,6 +34,7 @@ public class FmpFinancialDataClientAdapter implements FinancialDataClientPort {
 
     private final FmpClient fmpClient;
     private final FmpClientMapper mapper;
+    private final MeterRegistry meterRegistry;
 
     @Value("${FMP_API_KEY:}")
     private String apiKey;
@@ -44,13 +46,17 @@ public class FmpFinancialDataClientAdapter implements FinancialDataClientPort {
             List<FmpHistoricalPriceDto> response = fmpClient.getHistoricalPrices(symbol, apiKey);
             if (response == null || response.isEmpty()) {
                 log.warn("FMP returned empty price history for symbol: {}", symbol);
+                meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
                 return Collections.emptyList();
             }
-            return response.stream()
+            List<PriceHistory> result = response.stream()
                     .map(dto -> mapper.toDomain(dto, symbol))
                     .collect(Collectors.toList());
+            meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
+            return result;
         } catch (Exception e) {
             log.error("Failed to fetch price history for symbol {}: {}", symbol, e.getMessage());
+            meterRegistry.counter("data.ingestion.error", "provider", "FMP").increment();
             return Collections.emptyList();
         }
     }
@@ -62,15 +68,19 @@ public class FmpFinancialDataClientAdapter implements FinancialDataClientPort {
             List<FmpAssetProfileDto> response = fmpClient.searchSymbol(symbol, 1, apiKey);
             if (response == null || response.isEmpty()) {
                 log.warn("FMP returned no results for symbol: {}", symbol);
+                meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
                 return Optional.empty();
             }
             // The search may return partial matches; take only if symbol matches exactly
-            return response.stream()
+            Optional<Asset> result = response.stream()
                     .filter(dto -> symbol.equalsIgnoreCase(dto.getSymbol()))
                     .findFirst()
                     .map(mapper::toDomain);
+            meterRegistry.counter("data.ingestion.success", "provider", "FMP").increment();
+            return result;
         } catch (Exception e) {
             log.error("Failed to fetch asset info for symbol {}: {}", symbol, e.getMessage());
+            meterRegistry.counter("data.ingestion.error", "provider", "FMP").increment();
             return Optional.empty();
         }
     }

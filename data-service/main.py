@@ -59,5 +59,9 @@ def get_prices(
     return result
 
 from app.routers.portfolio import router as portfolio_router
+from prometheus_fastapi_instrumentator import Instrumentator
 
 app.include_router(portfolio_router)
+
+Instrumentator().instrument(app).expose(app)
+
