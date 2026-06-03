@@ -212,6 +212,26 @@ class PortfolioService:
         return weights, performance
 
     @classmethod
+    def _inverse_volatility_weights(
+        cls,
+        cov: pd.DataFrame,
+        weight_bounds: tuple[float, float],
+    ) -> dict[str, float]:
+        """Compute inverse-volatility (risk parity) weights.
+
+        Each asset receives a weight proportional to the inverse of its
+        volatility (diagonal of the covariance matrix).  The result is then
+        clipped to *weight_bounds* and re-normalised to sum to 1.
+        """
+        variances = np.diag(cov.values)
+        inv_vol = 1.0 / np.sqrt(variances)
+        raw_weights = inv_vol / inv_vol.sum()
+
+        weight_series = pd.Series(raw_weights, index=cov.index)
+        bounded = cls._apply_weight_bounds(weight_series, weight_bounds)
+        return cls._clean_weights(bounded)
+
+    @classmethod
     def _compute_asset_metrics(
         cls,
         mu: pd.Series,
