@@ -64,6 +64,13 @@ class LlmInsightRequest(BaseModel):
 
 class LlmInsightResponse(BaseModel):
     symbol: str
+    signal: str
+    conviction: str
+    timeframe: str
+    technical_summary: str
+    sentiment_impact: str
+    key_risk: str
+    key_opportunity: str
     insight: str
     data_sources_used: list[str]
     model_used: str
