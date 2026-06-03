@@ -134,15 +134,13 @@ class PortfolioService:
 
         stress_test = None
         if request.stress_scenario:
-            stress_test_str = await cls._generate_stress_test(
+            stress_test_result = await cls._generate_stress_test(
                 list(mu.index),
                 weights,
                 request.stress_scenario,
+                portfolio_metrics,
             )
-            # stress_test_result expects dict[str, float] or None
-            # we can output the stress test as a dictionary map, or keep it None if no parser is available.
-            # since the models expect dict[str, float] | None, we keep it None or empty dict.
-            stress_test = {}
+            stress_test = stress_test_result
 
         return OptimizationResponse(
             asset_metrics=asset_metrics,
@@ -317,7 +315,8 @@ class PortfolioService:
         symbols: list[str],
         weights: dict[str, float],
         scenario: str,
-    ) -> str | None:
+        metrics: PortfolioMetrics,
+    ) -> Any | None:
         try:
             from app.services.llm_insight_service import LlmInsightService
         except Exception:
@@ -328,14 +327,20 @@ class PortfolioService:
                 symbols=symbols,
                 weights=weights,
                 scenario=scenario,
+                returns=metrics.returns,
+                volatility=metrics.volatility,
+                sharpe=metrics.sharpe,
+                drawdown=metrics.drawdown,
             )
         except Exception:
             return None
 
-        if isinstance(result, str):
-            return result
-        if hasattr(result, "insight"):
-            return getattr(result, "insight")
+        if isinstance(result, dict):
+            from app.models.portfolio import StressTestResult
+            try:
+                return StressTestResult(**result)
+            except Exception:
+                return None
         return None
 
     @classmethod

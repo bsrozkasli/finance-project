@@ -68,11 +68,24 @@ class EfficientFrontierPoint(BaseModel):
     weights: dict[str, float] | None = None
 
 
+from typing import Any
+
+class StressTestResult(BaseModel):
+    scenario_severity: str
+    estimated_drawdown: float
+    most_vulnerable: str
+    natural_hedges: str
+    correlation_risk: str
+    recommended_actions: str
+    recovery_estimate: str
+    narrative: str
+
+
 class OptimizationResponse(BaseModel):
     asset_metrics: list[AssetMetrics]
     portfolio_metrics: PortfolioMetrics
     efficient_frontier: list[EfficientFrontierPoint] | None = None
-    stress_test_result: dict[str, float] | None = None
+    stress_test_result: StressTestResult | None = None
     rebalance_threshold: float = Field(ge=0.0, le=1.0)
     optimized_at: datetime
 
