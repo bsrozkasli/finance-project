@@ -1,6 +1,5 @@
 package com.ozkaslibasar.financeproject;
 
-import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
@@ -24,7 +23,16 @@ public class FinanceProjectApplication {
         System.setProperty("DB_PASSWORD", dotenv.get("DB_PASSWORD"));
         System.setProperty("REDIS_HOST", dotenv.get("REDIS_HOST"));
         System.setProperty("REDIS_PORT", dotenv.get("REDIS_PORT"));
-        System.setProperty("FMP_API_KEY", dotenv.get("FMP_API_KEY"));
+        // FMP_API_KEY removed — FMP integration has been fully removed.
+        if (dotenv.get("TIINGO_API_KEY") != null) {
+            System.setProperty("TIINGO_API_KEY", dotenv.get("TIINGO_API_KEY"));
+        }
+        if (dotenv.get("FINNHUB_API_KEY") != null) {
+            System.setProperty("FINNHUB_API_KEY", dotenv.get("FINNHUB_API_KEY"));
+        }
+        if (dotenv.get("DATA_SERVICE_URL") != null) {
+            System.setProperty("DATA_SERVICE_URL", dotenv.get("DATA_SERVICE_URL"));
+        }
 
         System.out.println("PROP USERNAME = " + System.getProperty("DB_USERNAME"));
         System.out.println("ENV USERNAME  = " + System.getenv("DB_USERNAME"));
@@ -38,3 +46,4 @@ public class FinanceProjectApplication {
 
 
 }
+

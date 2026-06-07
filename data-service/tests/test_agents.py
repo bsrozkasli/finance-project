@@ -99,10 +99,10 @@ def test_run_portfolio_manager_fallback_sell(mock_llm):
 
 
 def test_run_portfolio_manager_fallback_hold(mock_llm):
-    mock_llm.invoke.return_value = create_mock_response("Neither buy nor sell makes sense.", 80)
+    mock_llm.invoke.return_value = create_mock_response("Neither option makes sense, keep position.", 80)
     decision, reasoning, confidence, tokens = run_portfolio_manager(mock_llm, "AAPL", "Debate context")
     
     assert decision == "HOLD"
     assert confidence == 50
-    assert reasoning == "Neither buy nor sell makes sense."
+    assert reasoning == "Neither option makes sense, keep position."
     assert tokens == 80

@@ -1,7 +1,7 @@
 import axios from 'axios';
 import type { Asset, PriceHistory } from './types';
 
-const apiClient = axios.create({
+export const apiClient = axios.create({
   baseURL: 'http://localhost:8080/api/v1',
   headers: {
     'Content-Type': 'application/json',

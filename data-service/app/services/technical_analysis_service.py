@@ -6,6 +6,14 @@ import pandas_ta as ta
 from app.models.analysis import SentimentScore, TechnicalIndicators
 
 
+METRICS_ONLY_SYSTEM_PROMPT = (
+    "You are a financial analyst. "
+    "Use ONLY the provided pre-calculated metrics. "
+    "Never fetch external data. Never call external tools. Never recalculate metrics. "
+    "Interpret the metrics and provide concise analysis."
+)
+
+
 class TechnicalAnalysisService:
     MIN_CANDLES = 30
 

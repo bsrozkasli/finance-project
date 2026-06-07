@@ -2,26 +2,26 @@ package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.AssetResponseDto;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
+import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
+import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.AssetBatchRequestDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.web.server.ResponseStatusException;
 
-import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.AssetBatchRequestDto;
-import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataClientPort;
-import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
-import com.ozkaslibasar.financeproject.domain.model.Asset;
-import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,7 +32,7 @@ import java.util.List;
 public class AssetController {
 
     private final AssetRepositoryPort assetRepositoryPort;
-    private final FinancialDataClientPort financialDataClientPort;
+    private final PriceChartClientPort priceChartClientPort;
     private final PriceRepositoryPort priceRepositoryPort;
     private final RestMapper mapper;
 
@@ -68,11 +68,11 @@ public class AssetController {
             String symbol = rawSymbol.trim().toUpperCase();
 
             try {
-                // Try to resolve asset metadata from FMP; fall back to a minimal Asset
-                // so that symbols are always persisted regardless of API availability.
-                Asset assetToSave = financialDataClientPort.fetchAssetInfo(symbol)
+                // Resolve asset metadata from Yahoo Finance via PriceChartClientPort;
+                // fall back to a minimal STOCK asset when Yahoo has no data.
+                Asset assetToSave = priceChartClientPort.fetchAssetInfo(symbol)
                         .orElseGet(() -> {
-                            log.warn("FMP returned no info for '{}'; persisting with default STOCK type", symbol);
+                            log.warn("Yahoo returned no info for '{}'; persisting with default STOCK type", symbol);
                             return new Asset(symbol, symbol, AssetType.STOCK);
                         });
 
@@ -82,7 +82,8 @@ public class AssetController {
 
                 // Fetch initial price history; failure must not abort the whole batch
                 try {
-                    List<PriceHistory> prices = financialDataClientPort.fetchPriceHistory(symbol);
+                    List<PriceHistory> prices = priceChartClientPort.fetchPriceHistory(
+                            symbol, "1d", "1y");
                     if (!prices.isEmpty()) {
                         priceRepositoryPort.saveAll(prices);
                         log.info("Persisted {} price records for {}", prices.size(), symbol);
@@ -99,3 +100,4 @@ public class AssetController {
         return mapper.toAssetResponseDtoList(savedAssets);
     }
 }
+

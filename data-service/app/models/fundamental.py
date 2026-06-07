@@ -34,6 +34,15 @@ class FundamentalMetrics(BaseModel):
     eps_growth: Optional[float] = None
     fcf_growth: Optional[float] = None
 
+    # Raw statement fields — exposed so Java YahooStatementClientAdapter can
+    # map them into FinancialStatement domain records without a second API call.
+    revenue: Optional[float] = None
+    net_income: Optional[float] = None
+    operating_cash_flow: Optional[float] = None
+    total_assets: Optional[float] = None
+    total_liabilities: Optional[float] = None
+    total_equity: Optional[float] = None
+
 
 class FundamentalAnalysisResponse(BaseModel):
     """Response model for fundamental analysis endpoint."""

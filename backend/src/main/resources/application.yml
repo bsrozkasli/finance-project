@@ -14,7 +14,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     show-sql: false
     open-in-view: false
     properties:
@@ -23,6 +23,8 @@ spring:
         format_sql: true
 
   data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/financedb}
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
@@ -36,14 +38,12 @@ spring:
 server:
   port: 8080
 
-fmp:
-  api:
-    key: ${FMP_API_KEY}
-    url: https://financialmodelingprep.com/stable
-
-# FastAPI data-service base URL (yfinance proxy)
+# FastAPI data-service base URL (yfinance/Tiingo/Finnhub proxy)
 data-service:
   base-url: ${DATA_SERVICE_URL:http://localhost:8000}
+
+tiingo:
+  api-key: ${TIINGO_API_KEY:}
 
 finnhub:
   api-key: ${FINNHUB_API_KEY:}
@@ -58,6 +58,37 @@ feign:
         logger-level: BASIC
   circuitbreaker:
     enabled: true
+
+# Resilience4j — finnhubApi instance (30 req/s free tier limit)
+resilience4j:
+  ratelimiter:
+    instances:
+      finnhubApi:
+        limitForPeriod: 30
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+  retry:
+    instances:
+      finnhubApi:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - org.springframework.web.client.HttpClientErrorException$TooManyRequests
+          - java.net.SocketTimeoutException
+          - java.net.ConnectException
+  circuitbreaker:
+    instances:
+      finnhubApi:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 30s
+        permittedNumberOfCallsInHalfOpenState: 3
+  bulkhead:
+    instances:
+      finnhubApi:
+        maxConcurrentCalls: 10
 
 management:
   tracing:

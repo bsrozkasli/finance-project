@@ -52,15 +52,15 @@ class AgentAnalysisControllerTest {
                 .andExpect(jsonPath("$.ticker").value("AAPL"))
                 .andExpect(jsonPath("$.decision").value("BUY"))
                 .andExpect(jsonPath("$.confidence").value(85))
-                .andExpect(jsonPath("$.fundamentalSummary").value("Strong fundamentals"))
-                .andExpect(jsonPath("$.technicalSummary").value("Bullish signals"))
-                .andExpect(jsonPath("$.riskSummary").value("Low risk"))
-                .andExpect(jsonPath("$.bullCase").value("iPhone growth"))
-                .andExpect(jsonPath("$.bearCase").value("Supply chain issues"))
-                .andExpect(jsonPath("$.portfolioManagerReasoning").value("High confidence in overall growth"))
-                .andExpect(jsonPath("$.metricsUsed.pe").value(28.5))
-                .andExpect(jsonPath("$.generatedAt").value("2026-06-03T12:00:00Z"))
-                .andExpect(jsonPath("$.fromCache").value(false));
+                .andExpect(jsonPath("$.fundamental_summary").value("Strong fundamentals"))
+                .andExpect(jsonPath("$.technical_summary").value("Bullish signals"))
+                .andExpect(jsonPath("$.risk_summary").value("Low risk"))
+                .andExpect(jsonPath("$.bull_case").value("iPhone growth"))
+                .andExpect(jsonPath("$.bear_case").value("Supply chain issues"))
+                .andExpect(jsonPath("$.portfolio_manager_reasoning").value("High confidence in overall growth"))
+                .andExpect(jsonPath("$.metrics_used.pe").value(28.5))
+                .andExpect(jsonPath("$.generated_at").value("2026-06-03T12:00:00Z"))
+                .andExpect(jsonPath("$.from_cache").value(false));
     }
 
     @Test

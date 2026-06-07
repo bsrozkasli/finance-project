@@ -64,7 +64,22 @@ class FundamentalAnalysisService:
             earnings_growth=cls._compute_earnings_growth(financials),
             eps_growth=cls._compute_eps_growth(info),
             fcf_growth=cls._compute_fcf_growth(cashflow),
+            # --- Raw statement fields (for Java YahooStatementClientAdapter) ---
+            revenue=cls._get_item(financials, ["Total Revenue"]),
+            net_income=cls._get_item(financials, ["Net Income", "Net Income Common Stockholders"]),
+            operating_cash_flow=cls._get_item(
+                cashflow, ["Operating Cash Flow", "Total Cash From Operating Activities"]
+            ),
+            total_assets=cls._get_item(balance_sheet, ["Total Assets"]),
+            total_liabilities=cls._get_item(
+                balance_sheet, ["Total Liabilities Net Minority Interest", "Total Liab"]
+            ),
+            total_equity=cls._get_item(
+                balance_sheet,
+                ["Stockholders Equity", "Total Stockholder Equity", "Total Equity Gross Minority Interest"],
+            ),
         )
+
 
         fiscal_year = cls._resolve_fiscal_year(financials)
         currency = info.get("currency") if info else None
