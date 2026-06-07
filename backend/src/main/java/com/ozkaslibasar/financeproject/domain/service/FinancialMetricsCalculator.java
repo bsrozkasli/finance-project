@@ -38,7 +38,7 @@ public final class FinancialMetricsCalculator {
                     .toList();
         }
 
-        FinancialStatement latest = sorted.getFirst();
+        FinancialStatement latest = sorted.get(0);
         BigDecimal revenue = latest.revenue();
         BigDecimal netIncome = latest.netIncome();
         BigDecimal assets = latest.totalAssets();
@@ -97,7 +97,7 @@ public final class FinancialMetricsCalculator {
         if (sorted.isEmpty()) {
             return 0;
         }
-        FinancialStatement cur = sorted.getFirst();
+        FinancialStatement cur = sorted.get(0);
         if (cur.netIncome().signum() > 0) {
             score++;
         }
@@ -128,7 +128,7 @@ public final class FinancialMetricsCalculator {
         BigDecimal x1 = safeDivide(workingCapital, assets);
         BigDecimal x2 = safeDivide(netIncome, assets);
         BigDecimal x3 = safeDivide(netIncome, assets);
-        BigDecimal x4 = safeDivide(revenue, liabilities.max(BigDecimal.ONE, MC));
+        BigDecimal x4 = safeDivide(revenue, liabilities.max(BigDecimal.ONE));
         return x1.multiply(BigDecimal.valueOf(1.2), MC)
                 .add(x2.multiply(BigDecimal.valueOf(1.4), MC), MC)
                 .add(x3.multiply(BigDecimal.valueOf(3.3), MC), MC)
