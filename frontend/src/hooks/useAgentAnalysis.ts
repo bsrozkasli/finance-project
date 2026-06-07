@@ -36,12 +36,13 @@ export function useAgentAnalysis(symbol: string | null) {
     }
   }, []);
 
-  const invalidateAndRefetch = useCallback(async (ticker: string) => {
+  const invalidateAndRefetch = useCallback(async () => {
+    if (!symbol) return;
     setLoading(true);
     setError(null);
     try {
-      await apiClient.delete(`/agent-analysis/${encodeURIComponent(ticker)}/cache`);
-      await fetchAnalysis(ticker);
+      await apiClient.delete(`/agent-analysis/${encodeURIComponent(symbol)}/cache`);
+      await fetchAnalysis(symbol);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Invalidation failed';
       setError(message);
@@ -49,7 +50,7 @@ export function useAgentAnalysis(symbol: string | null) {
     } finally {
       setLoading(false);
     }
-  }, [fetchAnalysis]);
+  }, [symbol, fetchAnalysis]);
 
   useEffect(() => {
     if (!symbol) {
