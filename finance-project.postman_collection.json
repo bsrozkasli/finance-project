@@ -1,0 +1,753 @@
+{
+  "info": {
+    "_postman_id": "89dfdf87-a2f0-4fa8-a15d-1678129bdff9",
+    "name": "Finance Project APIs",
+    "description": "Collection to test all Backend and FastAPI Data Service endpoints for the Finance Project, including pricing, portfolios, technical analysis, and agent endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Backend REST APIs (Spring Boot)",
+      "item": [
+        {
+          "name": "Add Asset Batch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbols\": [\"AAPL\", \"MSFT\", \"GOOGL\", \"TSLA\"]\n}"
+            },
+            "url": {
+              "raw": "{{backend_url}}/api/v1/assets/batch",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "assets",
+                "batch"
+              ]
+            },
+            "description": "Batch persists new ticker symbols in the database, fetching metadata from Financial Modeling Prep (FMP) or falling back to a default stock model."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Assets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/assets",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "assets"
+              ]
+            },
+            "description": "Retrieves the list of all registered assets in the database."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Asset by Symbol",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/assets/AAPL",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "assets",
+                "AAPL"
+              ]
+            },
+            "description": "Retrieves information for a specific asset by its ticker symbol."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Latest Price",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/prices/AAPL/latest",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prices",
+                "AAPL",
+                "latest"
+              ]
+            },
+            "description": "Gets the latest cached/stored price details for a ticker."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Price History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/prices/AAPL/history?interval=1d&range=1mo",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prices",
+                "AAPL",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "interval",
+                  "value": "1d",
+                  "description": "Candle interval (e.g. 1h, 1d, 1wk)"
+                },
+                {
+                  "key": "range",
+                  "value": "1mo",
+                  "description": "Lookback range (e.g. 5d, 1mo, 3mo, 6mo, 1y)"
+                }
+              ]
+            },
+            "description": "Returns OHLCV history. Checks database first, falls back on FastAPI data-service to fetch and persist on demand."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Agent Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/agent-analysis/AAPL",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-analysis",
+                "AAPL"
+              ]
+            },
+            "description": "Retrieves LLM agent composite decision (BUY/SELL/HOLD, reasoning, key risk/opportunity) from database or calls FastAPI."
+          },
+          "response": []
+        },
+        {
+          "name": "Invalidate Cache for Symbol",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/agent-analysis/AAPL/cache",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-analysis",
+                "AAPL",
+                "cache"
+              ]
+            },
+            "description": "Invalidates cached agent analysis for a specific ticker."
+          },
+          "response": []
+        },
+        {
+          "name": "Invalidate All Cache",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/agent-analysis/cache",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-analysis",
+                "cache"
+              ]
+            },
+            "description": "Clears all cached agent analysis entries."
+          },
+          "response": []
+        },
+        {
+          "name": "Portfolio Optimize",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbols\": [\"AAPL\", \"MSFT\", \"GOOGL\"],\n  \"objective\": \"max_sharpe\",\n  \"risk_free_rate\": 0.02,\n  \"lookback_period\": 252,\n  \"max_weight\": 0.6,\n  \"min_weight\": 0.05\n}"
+            },
+            "url": {
+              "raw": "{{backend_url}}/api/v1/portfolio/optimize",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portfolio",
+                "optimize"
+              ]
+            },
+            "description": "Performs portfolio weight optimization (Sharpe ratio maximization or minimum variance)."
+          },
+          "response": []
+        },
+        {
+          "name": "Portfolio Rebalance Check",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_weights\": {\n    \"AAPL\": 0.4,\n    \"MSFT\": 0.4,\n    \"GOOGL\": 0.2\n  },\n  \"current_weights\": {\n    \"AAPL\": 0.3,\n    \"MSFT\": 0.5,\n    \"GOOGL\": 0.2\n  },\n  \"threshold\": 0.05\n}"
+            },
+            "url": {
+              "raw": "{{backend_url}}/api/v1/portfolio/rebalance-check",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portfolio",
+                "rebalance-check"
+              ]
+            },
+            "description": "Calculates drift between current and target portfolio allocations and recommends buy/sell/hold actions."
+          },
+          "response": []
+        },
+        {
+          "name": "Reports Test",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{backend_url}}/api/v1/reports/test",
+              "host": [
+                "{{backend_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "reports",
+                "test"
+              ]
+            },
+            "description": "Verifies reports endpoint is active."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "FastAPI Data Service APIs",
+      "item": [
+        {
+          "name": "Get Raw Prices",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/prices/AAPL?interval=1d&range=1mo",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "prices",
+                "AAPL"
+              ],
+              "query": [
+                {
+                  "key": "interval",
+                  "value": "1d"
+                },
+                {
+                  "key": "range",
+                  "value": "1mo"
+                }
+              ]
+            },
+            "description": "Direct proxy to yfinance price endpoint on the data-service."
+          },
+          "response": []
+        },
+        {
+          "name": "Technical Analysis Indicators",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/technical/AAPL?interval=1d&range=3mo",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "technical",
+                "AAPL"
+              ],
+              "query": [
+                {
+                  "key": "interval",
+                  "value": "1d"
+                },
+                {
+                  "key": "range",
+                  "value": "3mo"
+                }
+              ]
+            },
+            "description": "Computes indicators (RSI, MACD, Bollinger Bands, ATR, SMA, EMA) using pandas-ta."
+          },
+          "response": []
+        },
+        {
+          "name": "Technical Signals Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/technical/AAPL/signals?interval=1d&range=3mo",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "technical",
+                "AAPL",
+                "signals"
+              ],
+              "query": [
+                {
+                  "key": "interval",
+                  "value": "1d"
+                },
+                {
+                  "key": "range",
+                  "value": "3mo"
+                }
+              ]
+            },
+            "description": "Returns consolidated buy/sell signal based on technical indicator thresholds."
+          },
+          "response": []
+        },
+        {
+          "name": "Sentiment Analysis",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/sentiment/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "sentiment",
+                "AAPL"
+              ]
+            },
+            "description": "Gathers recent news sentiment via Finnhub API for the symbol."
+          },
+          "response": []
+        },
+        {
+          "name": "Pattern Detection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/patterns/AAPL?interval=1d&range=3mo&include_llm_context=false",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "patterns",
+                "AAPL"
+              ],
+              "query": [
+                {
+                  "key": "interval",
+                  "value": "1d"
+                },
+                {
+                  "key": "range",
+                  "value": "3mo"
+                },
+                {
+                  "key": "include_llm_context",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "Applies classical technical chart pattern identification algorithm to find Double Tops/Bottoms, Head & Shoulders, etc."
+          },
+          "response": []
+        },
+        {
+          "name": "Fundamental Research",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/research/fundamental/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "research",
+                "fundamental",
+                "AAPL"
+              ]
+            },
+            "description": "Retrieves key fundamental metrics (P/E, P/B, Debt/Equity, ROE, etc.) from yfinance/FMP."
+          },
+          "response": []
+        },
+        {
+          "name": "Valuation Research",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/research/valuation/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "research",
+                "valuation",
+                "AAPL"
+              ]
+            },
+            "description": "Runs valuation analytics (Discounted Cash Flow, DCF, Graham number, multiples)."
+          },
+          "response": []
+        },
+        {
+          "name": "Risk Research",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/research/risk/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "research",
+                "risk",
+                "AAPL"
+              ]
+            },
+            "description": "Calculates beta, standard deviation, VaR, and downside deviation metrics."
+          },
+          "response": []
+        },
+        {
+          "name": "Earnings Research",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/research/earnings/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "research",
+                "earnings",
+                "AAPL"
+              ]
+            },
+            "description": "Fetches historical quarterly earnings surprises and forecasts."
+          },
+          "response": []
+        },
+        {
+          "name": "Factors Research",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/research/factors/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "research",
+                "factors",
+                "AAPL"
+              ]
+            },
+            "description": "Performs factor analysis scoring (Value, Growth, Momentum, Quality, Size)."
+          },
+          "response": []
+        },
+        {
+          "name": "Institutional Scores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/research/institutional-scores/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "research",
+                "institutional-scores",
+                "AAPL"
+              ]
+            },
+            "description": "Scores institutional holding trends and insider activity."
+          },
+          "response": []
+        },
+        {
+          "name": "Composite Research Score",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/research/composite/AAPL",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "research",
+                "composite",
+                "AAPL"
+              ]
+            },
+            "description": "Combines fundamental, valuation, risk, factors, and technicals to produce a composite score out of 100."
+          },
+          "response": []
+        },
+        {
+          "name": "Portfolio Efficient Frontier",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/portfolio/efficient-frontier/AAPL,MSFT,GOOGL?lookback_period=252&risk_free_rate=0.02&min_weight=0.0&max_weight=1.0",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "portfolio",
+                "efficient-frontier",
+                "AAPL,MSFT,GOOGL"
+              ],
+              "query": [
+                {
+                  "key": "lookback_period",
+                  "value": "252"
+                },
+                {
+                  "key": "risk_free_rate",
+                  "value": "0.02"
+                },
+                {
+                  "key": "min_weight",
+                  "value": "0.0"
+                },
+                {
+                  "key": "max_weight",
+                  "value": "1.0"
+                }
+              ]
+            },
+            "description": "Generates data points representing the risk/return efficient frontier boundary."
+          },
+          "response": []
+        },
+        {
+          "name": "Direct LLM Agent Analysis",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticker\": \"AAPL\",\n  \"price\": 180.50,\n  \"metrics\": {\n    \"valuation\": {\n      \"pe_ratio\": 28.4,\n      \"peg_ratio\": 1.8\n    },\n    \"technicals\": {\n      \"rsi\": 55.4\n    }\n  },\n  \"sentiment\": {\n    \"finnhub_score\": 0.65\n  }\n}"
+            },
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/agent-analysis",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "agent-analysis"
+              ]
+            },
+            "description": "Submits processed metrics directly to Azure OpenAI LLM to render agent buy/sell/hold consensus."
+          },
+          "response": []
+        },
+        {
+          "name": "LLM Insight Generation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"AAPL\",\n  \"include_technical\": true,\n  \"include_sentiment\": false\n}"
+            },
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/insight",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "insight"
+              ]
+            },
+            "description": "Generates AI insight for a symbol using Azure OpenAI."
+          },
+          "response": []
+        },
+        {
+          "name": "Decision Support Report",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"symbol\": \"AAPL\",\n  \"portfolio_context\": {\n    \"current_weight\": 0.15,\n    \"target_weight\": 0.20,\n    \"deviation\": -0.05,\n    \"rebalance_needed\": true\n  },\n  \"user_scenario\": \"I want to increase AAPL allocation due to strong earnings outlook, but I am worried about the current high valuation.\"\n}"
+            },
+            "url": {
+              "raw": "{{data_service_url}}/api/v1/decision-support",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "decision-support"
+              ]
+            },
+            "description": "Generates a detailed decision support report with critical support levels, buy/sell ranges, and case analyses."
+          },
+          "response": []
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{data_service_url}}/metrics",
+              "host": [
+                "{{data_service_url}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            },
+            "description": "Exposes Prometheus metrics for data-service profiling."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "backend_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "data_service_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    }
+  ]
+}
