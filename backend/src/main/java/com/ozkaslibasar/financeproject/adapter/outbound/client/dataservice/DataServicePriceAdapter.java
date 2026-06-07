@@ -2,6 +2,7 @@ package com.ozkaslibasar.financeproject.adapter.outbound.client.dataservice;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import lombok.extern.slf4j.Slf4j;
+import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -30,11 +31,14 @@ public class DataServicePriceAdapter {
 
     private final RestTemplate restTemplate;
 
+    private final PriceNormalizationService priceNormalizationService;
+
     @Value("${data-service.base-url:http://localhost:8000}")
     private String baseUrl;
 
-    public DataServicePriceAdapter(RestTemplate restTemplate) {
+    public DataServicePriceAdapter(RestTemplate restTemplate, PriceNormalizationService priceNormalizationService) {
         this.restTemplate = restTemplate;
+        this.priceNormalizationService = priceNormalizationService;
     }
 
     /**
@@ -71,7 +75,7 @@ public class DataServicePriceAdapter {
     }
 
     private PriceHistory toPriceHistory(DataServicePriceDto dto, String symbol) {
-        Instant ts = Instant.parse(dto.getTimestamp());
+        Instant ts = priceNormalizationService.normalizeYFinanceTimestamp(dto.getTimestamp());
 
         BigDecimal close = BigDecimal.valueOf(dto.getClose());
         // Fall back to 'close' when optional OHLV fields are missing to keep the domain

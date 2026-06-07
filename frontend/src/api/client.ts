@@ -34,3 +34,26 @@ export const fetchPriceHistory = async (
   );
   return response.data;
 };
+
+export const deleteAsset = async (symbol: string): Promise<void> => {
+  await apiClient.delete(`/assets/${symbol}`);
+};
+
+// Replace 'any' with a proper type if FinnhubNewsDto structure is known in the frontend,
+// but for now an array of any or a basic interface is fine.
+export interface NewsItem {
+  id: number;
+  category: string;
+  datetime: number;
+  headline: string;
+  image: string;
+  related: string;
+  source: string;
+  summary: string;
+  url: string;
+}
+
+export const fetchNews = async (symbol: string): Promise<NewsItem[]> => {
+  const response = await apiClient.get<NewsItem[]>(`/news/${symbol}`);
+  return response.data;
+};
