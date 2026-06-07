@@ -6,12 +6,15 @@ import { MarketGrid } from '../components/terminal/MarketGrid';
 import { RightPanel } from '../components/terminal/RightPanel';
 import { ChartOverlay } from '../components/ChartOverlay';
 import { RightSidebar } from '../components/RightSidebar';
+import { NewsView } from '../components/terminal/NewsView';
+import { PortfolioView } from '../components/terminal/PortfolioView';
 
 export const Dashboard = () => {
-  const { assets, loading, error, addAssets } = useAssets();
+  const { assets, loading, error, addAssets, removeAsset } = useAssets();
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('market');
 
   return (
     <div className="terminal-root">
@@ -23,7 +26,7 @@ export const Dashboard = () => {
       />
 
       {/* Left Navigation */}
-      <LeftNav />
+      <LeftNav activeId={activeTab} onSelect={setActiveTab} />
 
       {/* Main Content — Market Grid */}
       {error ? (
@@ -48,7 +51,7 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'market' || activeTab === 'watchlist' || activeTab === 'chart' || activeTab === 'scanner' ? (
         <MarketGrid
           assets={assets}
           loading={loading}
@@ -56,7 +59,11 @@ export const Dashboard = () => {
           onSelectAsset={(sym) => setSelectedSymbol(sym)}
           onOpenChart={(sym) => setChartSymbol(sym)}
         />
-      )}
+      ) : activeTab === 'news' ? (
+        <NewsView symbol={selectedSymbol} />
+      ) : activeTab === 'portfolio' ? (
+        <PortfolioView assets={assets} />
+      ) : null}
 
       {/* Right Analysis Panel */}
       <RightPanel
@@ -77,6 +84,7 @@ export const Dashboard = () => {
         isOpen={manageOpen}
         onClose={() => setManageOpen(false)}
         onAddAssets={addAssets}
+        onRemoveAsset={removeAsset}
         watchedAssets={assets}
         onSelectAsset={(asset) => {
           setSelectedSymbol(asset.symbol);

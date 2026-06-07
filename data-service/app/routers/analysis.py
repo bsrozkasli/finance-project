@@ -4,6 +4,8 @@ import asyncio
 import pandas as pd
 import yfinance as yf
 from fastapi import APIRouter, HTTPException, Query
+import asyncio
+from functools import partial
 
 from app.models.analysis import (
     AnalysisSummaryResponse,
@@ -34,23 +36,33 @@ def _to_utc_z(value: object) -> str:
     return ts.isoformat().replace("+00:00", "Z")
 
 
-def _load_history(symbol: str, interval: str, range_value: str) -> pd.DataFrame:
-    ticker = yf.Ticker(symbol)
-    history = ticker.history(interval=interval, period=range_value, auto_adjust=False, actions=False)
+# Global semaphore to limit concurrent yfinance requests and avoid rate limits/IP bans
+yf_semaphore = asyncio.Semaphore(5)
 
-    if history is None or history.empty:
-        raise HTTPException(status_code=404, detail=f"No historical data found for symbol '{symbol}'")
+async def _load_history(symbol: str, interval: str, range_value: str) -> pd.DataFrame:
+    async with yf_semaphore:
+        loop = asyncio.get_event_loop()
+        ticker = yf.Ticker(symbol)
+        
+        # Run synchronous yfinance network call in thread pool to avoid blocking async loop
+        history = await loop.run_in_executor(
+            None, 
+            partial(ticker.history, interval=interval, period=range_value, auto_adjust=False, actions=False)
+        )
 
-    return history.reset_index()
+        if history is None or history.empty:
+            raise HTTPException(status_code=404, detail=f"No historical data found for symbol '{symbol}'")
+
+        return history.reset_index()
 
 
 @router.get("/technical/{symbol}", response_model=TechnicalAnalysisResponse)
-def get_technical_analysis(
+async def get_technical_analysis(
     symbol: str,
     interval: str = Query("1d"),
     range: str = Query("3mo"),
 ) -> TechnicalAnalysisResponse:
-    history = _load_history(symbol, interval, range)
+    history = await _load_history(symbol, interval, range)
 
     try:
         indicators = TechnicalAnalysisService.compute_indicators(history)
@@ -64,12 +76,12 @@ def get_technical_analysis(
 
 
 @router.get("/technical/{symbol}/signals", response_model=AnalysisSummaryResponse)
-def get_technical_signals(
+async def get_technical_signals(
     symbol: str,
     interval: str = Query("1d"),
     range: str = Query("3mo"),
 ) -> AnalysisSummaryResponse:
-    history = _load_history(symbol, interval, range)
+    history = await _load_history(symbol, interval, range)
 
     try:
         indicators = TechnicalAnalysisService.compute_indicators(history)
@@ -123,7 +135,7 @@ async def get_full_analysis(symbol: str) -> FullAnalysisResponse:
     try:
         async def fetch_technical():
             try:
-                return get_technical_analysis(symbol)
+                return await get_technical_analysis(symbol)
             except Exception:
                 return None
         
@@ -178,7 +190,7 @@ async def get_full_analysis(symbol: str) -> FullAnalysisResponse:
 
 
 @router.get("/patterns/{symbol}", response_model=PatternDetectionResponse)
-def get_patterns(
+async def get_patterns(
     symbol: str,
     interval: str = Query("1d"),
     range: str = Query("3mo"),
@@ -198,7 +210,7 @@ def get_patterns(
     Returns:
         PatternDetectionResponse with detected patterns and dominant pattern
     """
-    history = _load_history(symbol, interval, range)
+    history = await _load_history(symbol, interval, range)
     
     # Extract OHLCV columns
     closes = history["Close"].values

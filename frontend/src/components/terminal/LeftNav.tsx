@@ -65,7 +65,12 @@ const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-export const LeftNav = () => {
+interface LeftNavProps {
+  activeId: string;
+  onSelect: (id: string) => void;
+}
+
+export const LeftNav = ({ activeId, onSelect }: LeftNavProps) => {
   return (
     <nav
       className="terminal-leftnav flex flex-col items-center pt-2 pb-4 gap-1 border-r"
@@ -77,17 +82,18 @@ export const LeftNav = () => {
             id={`nav-${item.id}`}
             className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
             style={{
-              color: item.active ? 'var(--color-accent-light)' : 'var(--color-text-secondary)',
-              background: item.active ? 'var(--color-accent-dim)' : 'transparent',
+              color: item.id === activeId ? 'var(--color-accent-light)' : 'var(--color-text-secondary)',
+              background: item.id === activeId ? 'var(--color-accent-dim)' : 'transparent',
             }}
+            onClick={() => onSelect(item.id)}
             onMouseEnter={(e) => {
-              if (!item.active) {
+              if (item.id !== activeId) {
                 e.currentTarget.style.color = 'var(--color-text-primary)';
                 e.currentTarget.style.background = 'var(--color-bg-card)';
               }
             }}
             onMouseLeave={(e) => {
-              if (!item.active) {
+              if (item.id !== activeId) {
                 e.currentTarget.style.color = 'var(--color-text-secondary)';
                 e.currentTarget.style.background = 'transparent';
               }
