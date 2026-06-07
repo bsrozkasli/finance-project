@@ -14,7 +14,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:
@@ -45,6 +45,12 @@ fmp:
 data-service:
   base-url: ${DATA_SERVICE_URL:http://localhost:8000}
 
+finnhub:
+  api-key: ${FINNHUB_API_KEY:}
+
+agent-analysis:
+  cache-ttl-minutes: 15
+
 feign:
   client:
     config:
@@ -54,6 +60,9 @@ feign:
     enabled: true
 
 management:
+  tracing:
+    sampling:
+      probability: 1.0
   endpoints:
     web:
       exposure:
@@ -66,4 +75,4 @@ management:
   metrics:
     export:
       prometheus:
-        enabled: true
+        enabled: true
