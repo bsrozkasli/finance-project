@@ -67,7 +67,7 @@ class AgentAnalysisCacheServiceTest {
         assertThat(cached.get().ticker()).isEqualTo("AAPL");
         assertThat(cached.get().decision()).isEqualTo("BUY");
         assertThat(cached.get().confidence()).isEqualTo(85);
-        assertThat(cached.get().isFromCache()).isTrue();
+        assertThat(cached.get().fromCache()).isTrue();
     }
 
     @Test
