@@ -3,21 +3,23 @@ import { useAssets } from '../hooks/useAssets';
 import { TopBar } from '../components/terminal/TopBar';
 import { LeftNav } from '../components/terminal/LeftNav';
 import { MarketGrid } from '../components/terminal/MarketGrid';
+import { DashboardHome } from '../components/terminal/DashboardHome';
 import { RightPanel } from '../components/terminal/RightPanel';
 import { ChartOverlay } from '../components/ChartOverlay';
 import { RightSidebar } from '../components/RightSidebar';
 import { NewsView } from '../components/terminal/NewsView';
 import { PortfolioView } from '../components/terminal/PortfolioView';
+import { ReportsView } from '../components/terminal/ReportsView';
 
 export const Dashboard = () => {
   const { assets, loading, error, addAssets, removeAsset } = useAssets();
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [chartSymbol, setChartSymbol] = useState<string | null>(null);
   const [manageOpen, setManageOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<string>('market');
+  const [activeTab, setActiveTab] = useState<string>('dashboard');
 
   return (
-    <div className="terminal-root">
+    <div className={`terminal-root ${activeTab === 'dashboard' ? 'dashboard-mode' : ''}`}>
       {/* Top Bar */}
       <TopBar
         assets={assets}
@@ -51,7 +53,16 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
-      ) : activeTab === 'market' || activeTab === 'watchlist' || activeTab === 'chart' || activeTab === 'scanner' ? (
+      ) : activeTab === 'dashboard' ? (
+        <DashboardHome
+          assets={assets}
+          loading={loading}
+          selectedSymbol={selectedSymbol}
+          onSelectAsset={(sym) => setSelectedSymbol(sym)}
+          onOpenChart={(sym) => setChartSymbol(sym)}
+          onManageAssets={() => setManageOpen(true)}
+        />
+      ) : activeTab === 'workspace' || activeTab === 'watchlist' || activeTab === 'scanner' ? (
         <MarketGrid
           assets={assets}
           loading={loading}
@@ -63,13 +74,17 @@ export const Dashboard = () => {
         <NewsView symbol={selectedSymbol} />
       ) : activeTab === 'portfolio' ? (
         <PortfolioView assets={assets} />
+      ) : activeTab === 'reports' ? (
+        <ReportsView assets={assets} initialSymbol={selectedSymbol} />
       ) : null}
 
       {/* Right Analysis Panel */}
-      <RightPanel
-        selectedSymbol={selectedSymbol}
-        assets={assets}
-      />
+      {activeTab !== 'dashboard' && activeTab !== 'reports' && (
+        <RightPanel
+          selectedSymbol={selectedSymbol}
+          assets={assets}
+        />
+      )}
 
       {/* Chart Modal (unchanged) */}
       {chartSymbol && (

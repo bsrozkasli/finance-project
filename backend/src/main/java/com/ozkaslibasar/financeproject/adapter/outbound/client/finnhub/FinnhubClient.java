@@ -3,6 +3,7 @@ package com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubMetricDto;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubNewsDto;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubRecommendationDto;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import io.github.resilience4j.bulkhead.annotation.Bulkhead;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
@@ -18,6 +19,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Resilience4j-hardened HTTP client for the Finnhub REST API.
@@ -26,10 +28,10 @@ import java.util.List;
  * declared under the {@code finnhubApi} instance in {@code application.yml}:</p>
  *
  * <ul>
- *   <li>{@code @RateLimiter} — 30 requests/second (free tier global limit)</li>
- *   <li>{@code @Retry} — exponential backoff on HTTP 429 / transient errors</li>
- *   <li>{@code @CircuitBreaker} — trips after 50% failure rate over a 10-call window</li>
- *   <li>{@code @Bulkhead} — limits concurrent calls to 10</li>
+ *   <li>{@code @RateLimiter} - 30 requests/second (free tier global limit)</li>
+ *   <li>{@code @Retry} - exponential backoff on HTTP 429 / transient errors</li>
+ *   <li>{@code @CircuitBreaker} - trips after 50% failure rate over a 10-call window</li>
+ *   <li>{@code @Bulkhead} - limits concurrent calls to 10</li>
  * </ul>
  *
  * <p>Business adapters (e.g. {@link FinnhubSentimentAdapter}) must depend on
@@ -38,7 +40,7 @@ import java.util.List;
  */
 @Component
 @Slf4j
-public class FinnhubClient {
+public class FinnhubClient implements SmartReportMarketDataPort {
 
     private static final String BASE_URL = "https://finnhub.io/api/v1";
 
@@ -130,5 +132,75 @@ public class FinnhubClient {
             log.error("FinnhubClient.getMetrics failed for {}: {}", symbol, e.getMessage());
             return null;
         }
+    }
+
+    @Override
+    public Optional<CompanyMetrics> fetchCompanyMetrics(String symbol) {
+        FinnhubMetricDto dto = getMetrics(symbol);
+        if (dto == null || dto.getMetric() == null) {
+            return Optional.empty();
+        }
+        FinnhubMetricDto.Metric metric = dto.getMetric();
+        return Optional.of(new CompanyMetrics(
+                metric.getPeTtm(),
+                metric.getPbAnnual(),
+                metric.getLongTermDebtEquityAnnual(),
+                metric.getNetMarginAnnual(),
+                metric.getRoeTtm()));
+    }
+
+    /**
+     * Fetches analyst price targets for the given symbol.
+     *
+     * @param symbol ticker
+     * @return price target DTO or {@code null} on failure
+     */
+    @RateLimiter(name = "finnhubApi")
+    @Retry(name = "finnhubApi")
+    @CircuitBreaker(name = "finnhubApi")
+    @Bulkhead(name = "finnhubApi")
+    public com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubPriceTargetDto getPriceTarget(String symbol) {
+        try {
+            String encoded = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
+            String url = BASE_URL + "/stock/price-target?symbol=" + encoded + "&token=" + apiKey;
+            log.debug("FinnhubClient: GET price target for {}", symbol);
+            return restTemplate.getForObject(url, com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubPriceTargetDto.class);
+        } catch (Exception e) {
+            log.error("FinnhubClient.getPriceTarget failed for {}: {}", symbol, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Fetches peer companies (similar stocks) for the given symbol.
+     *
+     * @param symbol ticker
+     * @return list of peer symbols; empty on failure
+     */
+    @RateLimiter(name = "finnhubApi")
+    @Retry(name = "finnhubApi")
+    @CircuitBreaker(name = "finnhubApi")
+    @Bulkhead(name = "finnhubApi")
+    public List<String> getPeers(String symbol) {
+        try {
+            String encoded = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
+            String url = BASE_URL + "/stock/peers?symbol=" + encoded + "&token=" + apiKey;
+            log.debug("FinnhubClient: GET peers for {}", symbol);
+            List<String> result = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<List<String>>() {}
+            ).getBody();
+            return result != null ? result : Collections.emptyList();
+        } catch (Exception e) {
+            log.error("FinnhubClient.getPeers failed for {}: {}", symbol, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public List<String> fetchPeers(String symbol) {
+        return getPeers(symbol);
     }
 }

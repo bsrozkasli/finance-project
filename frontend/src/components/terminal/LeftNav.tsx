@@ -7,59 +7,73 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   {
-    id: 'market',
-    label: 'Piyasa Takibi',
+    id: 'dashboard',
+    label: 'Dashboard',
     active: true,
     icon: (
-      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <path d="M3 10.5L12 3l9 7.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M5 10v10h14V10" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 20v-6h6v6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
   {
-    id: 'watchlist',
-    label: 'İzleme Listeleri',
+    id: 'workspace',
+    label: 'Workplace',
     icon: (
-      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-        <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'chart',
-    label: 'Grafik Terminali',
-    icon: (
-      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <polyline points="7 16 11 10 14 14 17 9" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'news',
-    label: 'Haber Merkezi',
-    icon: (
-      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-        <path d="M4 22h16a2 2 0 002-2V4a2 2 0 00-2-2H8a2 2 0 00-2 2v16a2 2 0 01-2 2zm0 0a2 2 0 01-2-2v-9c0-1.1.9-2 2-2h2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M18 14H12M18 10h-4M18 18h-4" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    id: 'scanner',
-    label: 'Tarayıcılar',
-    icon: (
-      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
-        <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" strokeLinecap="round" />
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <rect x="3" y="4" width="18" height="16" rx="2" />
+        <path d="M7 15l3-4 3 2 4-6" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
   {
     id: 'portfolio',
-    label: 'Portföy Analizi',
+    label: 'Portfolio',
     icon: (
-      <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
         <path d="M12 20V10M18 20V4M6 20v-4" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'journal',
+    label: 'Journal',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <path d="M6 3h9l3 3v15H6z" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 12h6M9 16h4M14 3v4h4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'watchlist',
+    label: 'Watchlist',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" strokeLinecap="round" strokeLinejoin="round" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    ),
+  },
+  {
+    id: 'news',
+    label: 'News',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <path d="M4 19V5h14a2 2 0 012 2v12H4z" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M8 9h8M8 13h6M4 19a2 2 0 01-2-2v-7" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    id: 'reports',
+    label: 'AI Reports',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <path d="M12 3v3M12 18v3M4.6 5.6l2.1 2.1M17.3 16.3l2.1 2.1M3 12h3M18 12h3M4.6 18.4l2.1-2.1M17.3 7.7l2.1-2.1" strokeLinecap="round" />
+        <circle cx="12" cy="12" r="3" />
       </svg>
     ),
   },

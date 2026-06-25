@@ -3,41 +3,42 @@
 /* ── Design Tokens ──────────────────────────────────────────────── */
 @theme {
   /* Core palette */
-  --color-bg-base:       #080b10;
-  --color-bg-primary:    #0d1117;
-  --color-bg-secondary:  #111827;
-  --color-bg-card:       #161d2a;
-  --color-bg-hover:      #1c2535;
-  --color-bg-selected:   #1a2540;
-  --color-border:        rgba(255, 255, 255, 0.06);
-  --color-border-subtle: rgba(255, 255, 255, 0.03);
+  --color-bg-base:       #060e20;
+  --color-bg-primary:    #0b1326;
+  --color-bg-secondary:  #131b2e;
+  --color-bg-card:       #171f33;
+  --color-bg-hover:      #222a3d;
+  --color-bg-selected:   rgba(77, 142, 255, 0.12);
+  --color-border:        #424754;
+  --color-border-subtle: rgba(140, 144, 159, 0.22);
 
   /* Accent — indigo/violet */
-  --color-accent:        #6366f1;
-  --color-accent-light:  #818cf8;
-  --color-accent-dim:    rgba(99, 102, 241, 0.15);
+  --color-accent:        #4d8eff;
+  --color-accent-light:  #adc6ff;
+  --color-accent-dim:    rgba(77, 142, 255, 0.15);
 
   /* Status */
-  --color-bull:          #00d4a0;
-  --color-bull-dim:      rgba(0, 212, 160, 0.15);
-  --color-bear:          #ff4d6d;
-  --color-bear-dim:      rgba(255, 77, 109, 0.15);
-  --color-success:       #00d4a0;
-  --color-danger:        #ff4d6d;
+  --color-bull:          #4edea3;
+  --color-bull-dim:      rgba(78, 222, 163, 0.14);
+  --color-bear:          #ff5451;
+  --color-bear-dim:      rgba(255, 84, 81, 0.14);
+  --color-success:       #4edea3;
+  --color-danger:        #ff5451;
   --color-warning:       #f59e0b;
 
   /* Text */
-  --color-text-primary:   #e2e8f0;
-  --color-text-secondary: #64748b;
-  --color-text-muted:     #334155;
+  --color-text-primary:   #dae2fd;
+  --color-text-secondary: #c2c6d6;
+  --color-text-muted:     #8c909f;
 
   /* Terminal layout dimensions */
-  --terminal-top-h:      52px;
-  --terminal-nav-w:      52px;
+  --terminal-top-h:      64px;
+  --terminal-nav-w:      240px;
   --terminal-right-w:    340px;
 
   /* Typography */
   --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Hanken Grotesk', 'Inter', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
@@ -132,6 +133,46 @@ html, body, #root {
 .terminal-leftnav  { grid-area: leftnav; }
 .terminal-main     { grid-area: main; overflow: hidden; display: flex; flex-direction: column; }
 .terminal-right    { grid-area: rightpanel; overflow: hidden; display: flex; flex-direction: column; }
+
+.terminal-root.dashboard-mode {
+  grid-template-columns: var(--terminal-nav-w) 1fr;
+  grid-template-areas:
+    "topbar topbar"
+    "leftnav main";
+}
+@media (max-width: 1279px) {
+  .terminal-root {
+    grid-template-columns: 64px 1fr;
+    grid-template-areas:
+      "topbar topbar"
+      "leftnav main";
+  }
+
+  .terminal-right {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  html, body, #root {
+    overflow: auto;
+  }
+
+  .terminal-root {
+    min-height: 100vh;
+    height: auto;
+    grid-template-rows: auto 1fr auto;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "topbar"
+      "main"
+      "leftnav";
+  }
+
+  .terminal-main {
+    min-height: 0;
+  }
+}
 
 /* ── Market Data Table ──────────────────────────────────────────── */
 .market-table {
