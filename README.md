@@ -123,6 +123,11 @@ The systems expect a fixed deployment mapping for local development:
 
 ---
 
+## API Documentation
+
+- API Docs: http://localhost:8080/swagger-ui.html (backend ayaktayken)
+- OpenAPI spec: docs/openapi.yaml
+
 ## 🛠️ Step-by-Step Local Deployment
 
 ### 1. Configure the Environment
@@ -193,3 +198,8 @@ npm run build
 
 ## 🤝 Contribution Guidelines
 For architectural principles, code conventions, or design tokens guidelines, please read the [CONTRIBUTING.md](file:///c:/Users/basar/IdeaProjects/finance-project/CONTRIBUTING.md) and [AGENTS.md](file:///c:/Users/basar/IdeaProjects/finance-project/AGENTS.md) documents.
+
+
+## Architecture Decisions
+
+- Architecture Decisions: docs/adr/

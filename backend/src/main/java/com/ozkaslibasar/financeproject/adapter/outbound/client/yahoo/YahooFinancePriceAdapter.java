@@ -5,6 +5,7 @@ import com.ozkaslibasar.financeproject.domain.model.AssetType;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import lombok.extern.slf4j.Slf4j;
+import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -42,9 +43,11 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             "https://query1.finance.yahoo.com/v8/finance/chart";
 
     private final RestTemplate restTemplate;
+    private final MeterRegistry meterRegistry;
 
-    public YahooFinancePriceAdapter(RestTemplate restTemplate) {
+    public YahooFinancePriceAdapter(RestTemplate restTemplate, MeterRegistry meterRegistry) {
         this.restTemplate = restTemplate;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -67,10 +70,13 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             YahooChartResponseDto response =
                     restTemplate.getForObject(url, YahooChartResponseDto.class);
 
-            return parseResponse(symbol, response);
+            List<PriceHistory> parsed = parseResponse(symbol, response);
+            meterRegistry.counter("data.ingestion.success", "provider", "YFinance").increment();
+            return parsed;
 
         } catch (Exception e) {
             log.error("Failed to fetch Yahoo price history for symbol={}: {}", symbol, e.getMessage());
+            meterRegistry.counter("data.ingestion.error", "provider", "YFinance").increment();
             return Collections.emptyList();
         }
     }
@@ -95,28 +101,36 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
                     || response.getChart() == null
                     || response.getChart().getResult() == null
                     || response.getChart().getResult().isEmpty()) {
+                meterRegistry.counter("data.ingestion.success", "provider", "YFinance").increment();
                 return Optional.empty();
             }
 
             var meta = response.getChart().getResult().get(0).getMeta();
             if (meta == null) {
+                meterRegistry.counter("data.ingestion.success", "provider", "YFinance").increment();
                 return Optional.empty();
             }
 
             // Infer type from exchange name; default to STOCK
             AssetType type = inferAssetType(meta.getExchangeName());
 
-            return Optional.of(new Asset(
+            Optional<Asset> result = Optional.of(new Asset(
                     meta.getSymbol() != null ? meta.getSymbol() : symbol,
                     symbol,   // Yahoo does not return company name in the chart endpoint
                     type
             ));
+            meterRegistry.counter("data.ingestion.success", "provider", "YFinance").increment();
+            return result;
 
         } catch (Exception e) {
             log.error("Failed to fetch Yahoo asset info for symbol={}: {}", symbol, e.getMessage());
+            meterRegistry.counter("data.ingestion.error", "provider", "YFinance").increment();
             return Optional.empty();
         }
     }
+
+
+
 
     // ─── private helpers ────────────────────────────────────────────────────────
 

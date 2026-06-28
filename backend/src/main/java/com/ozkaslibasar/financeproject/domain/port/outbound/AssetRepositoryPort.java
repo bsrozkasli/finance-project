@@ -18,4 +18,6 @@ public interface AssetRepositoryPort {
      * Kept for backward compatibility with existing use cases.
      */
     List<Asset> findAll();
+    
+    void deleteBySymbol(String symbol);
 }

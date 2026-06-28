@@ -40,4 +40,9 @@ public class AssetRepositoryAdapter implements AssetRepositoryPort {
         var savedEntity = repository.save(entity);
         return mapper.toDomain(savedEntity);
     }
+
+    @Override
+    public void deleteBySymbol(String symbol) {
+        repository.deleteById(symbol);
+    }
 }

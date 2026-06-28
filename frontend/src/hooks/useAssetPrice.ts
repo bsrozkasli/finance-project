@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { PriceHistory } from '../api/types';
 import { fetchPriceHistory } from '../api/client';
+import { isMarketOpen } from '../utils/market';
 
 export const useAssetPrice = (
   symbol: string | null,
@@ -13,6 +14,7 @@ export const useAssetPrice = (
 
   useEffect(() => {
     let cancelled = false;
+    let timeoutId: number | undefined;
 
     const loadPrices = async () => {
       if (!symbol) {
@@ -38,7 +40,11 @@ export const useAssetPrice = (
           setPrices([]);
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          const intervalMs = isMarketOpen() ? 30 * 1000 : 15 * 60 * 1000;
+          timeoutId = window.setTimeout(loadPrices, intervalMs);
+        }
       }
     };
 
@@ -46,6 +52,7 @@ export const useAssetPrice = (
 
     return () => {
       cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
     };
   }, [symbol, interval, range]);
 

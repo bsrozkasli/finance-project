@@ -1,11 +1,17 @@
 package com.ozkaslibasar.financeproject.config;
 
+import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatementClientAdapter;
+import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
-import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataClientPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
+import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
-import com.ozkaslibasar.financeproject.domain.service.PriceIngestionUseCase;
+import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -14,6 +20,9 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>This allows the domain layer to remain free of Spring annotations like
  * {@code @Service}, while still participating in the application context.</p>
+ *
+ * <p>FMP-based beans have been removed. All market data is now sourced from
+ * Yahoo Finance (primary) and the local FastAPI data-service (fallback).</p>
  */
 @Configuration
 public class DomainConfig {
@@ -33,21 +42,25 @@ public class DomainConfig {
                 assetRepositoryPort, priceRepositoryPort, priceChartClientPort);
     }
 
-    /**
-     * Keeps the legacy {@link PriceIngestionUseCase} (FMP-backed) as a bean
-     * for backward compatibility with existing controllers and batch endpoints
-     * that call FMP for initial asset bootstrap.
-     *
-     * @deprecated Prefer {@link PriceIngestionService} for new use cases.
-     *             This bean will be removed once all callers migrate to Yahoo.
-     */
-    @Deprecated
     @Bean
-    public PriceIngestionUseCase priceIngestionUseCase(
-            AssetRepositoryPort    assetRepositoryPort,
-            PriceRepositoryPort    priceRepositoryPort,
-            FinancialDataClientPort financialDataClientPort) {
-        return new PriceIngestionUseCase(
-                assetRepositoryPort, priceRepositoryPort, financialDataClientPort);
+    public AgentAnalysisUseCase agentAnalysisUseCase(
+            YahooStatementClientAdapter yahooStatementClient,
+            FinancialDataPort financialDataPort,
+            PriceRepositoryPort priceRepositoryPort,
+            SentimentDataPort sentimentDataPort,
+            AgentAnalysisAiPort agentAnalysisAiPort) {
+        return new AgentAnalysisUseCase(
+                yahooStatementClient,
+                financialDataPort,
+                priceRepositoryPort,
+                sentimentDataPort,
+                agentAnalysisAiPort);
+    }
+
+    @Bean
+    public SmartReportUseCase smartReportUseCase(
+            SmartReportScorePort smartReportScorePort,
+            SmartReportMarketDataPort smartReportMarketDataPort) {
+        return new SmartReportUseCase(smartReportScorePort, smartReportMarketDataPort);
     }
 }

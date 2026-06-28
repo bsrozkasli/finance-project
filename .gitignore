@@ -36,12 +36,25 @@ build/
 .env
 backend/.env
 frontend/.env
+venv/
+data-service/.venv/
 
 ### Frontend ###
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 
+### Python / test cache ###
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
 ### Docker ###
 postgres_data/
 
+### Generated local artifacts ###
+.cache/
+*.log
+temp_scripts/raw_data.json
+data-service/.test-cache/
+data-service/pytest-cache-files-*/

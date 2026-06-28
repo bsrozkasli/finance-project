@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Asset } from '../api/types';
-import { fetchAssets, addAssetBatch } from '../api/client';
+import { fetchAssets, addAssetBatch, deleteAsset } from '../api/client';
 
 export const useAssets = () => {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -43,5 +43,19 @@ export const useAssets = () => {
     }
   };
 
-  return { assets, loading, error, addAssets };
+  const removeAsset = async (symbol: string) => {
+    try {
+      setLoading(true);
+      await deleteAsset(symbol);
+      setAssets((prev) => prev.filter(a => a.symbol !== symbol));
+      setError(null);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete asset');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return { assets, loading, error, addAssets, removeAsset };
 };
