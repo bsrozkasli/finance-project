@@ -1,5 +1,10 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.FinnhubClient;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubPriceTargetDto;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubRecommendationDto;
@@ -24,6 +29,7 @@ import java.util.List;
  * </ul>
  * </p>
  */
+@Tag(name = "Analyst Data", description = "Analyst recommendations and price targets")
 @RestController
 @RequestMapping("/api/v1/analyst")
 @RequiredArgsConstructor
@@ -36,6 +42,19 @@ public class AnalystController {
      * Returns the last 4 months of analyst recommendation trends
      * (strongBuy, buy, hold, sell, strongSell counts per period).
      */
+    @Operation(summary = "GET Analyst Data endpoint", description = "Implements the GET operation for the Analyst Data API described in SPEC.md sections 7 and 8.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful response"),
+            @ApiResponse(responseCode = "201", description = "Resource created when the endpoint creates persistent state"),
+            @ApiResponse(responseCode = "204", description = "Command completed without response body"),
+            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
+            @ApiResponse(responseCode = "404", description = "Requested resource was not found"),
+            @ApiResponse(responseCode = "409", description = "Request conflicts with existing state"),
+            @ApiResponse(responseCode = "422", description = "Business rule violation"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
+            @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
+            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
+    })
     @GetMapping("/{symbol}/recommendations")
     @Cacheable(value = "analystCache", key = "'rec:' + #symbol.toUpperCase()")
     public List<FinnhubRecommendationDto> getRecommendations(@PathVariable String symbol) {
@@ -46,6 +65,19 @@ public class AnalystController {
     /**
      * Returns the analyst price target consensus (mean, median, high, low).
      */
+    @Operation(summary = "GET Analyst Data endpoint", description = "Implements the GET operation for the Analyst Data API described in SPEC.md sections 7 and 8.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful response"),
+            @ApiResponse(responseCode = "201", description = "Resource created when the endpoint creates persistent state"),
+            @ApiResponse(responseCode = "204", description = "Command completed without response body"),
+            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
+            @ApiResponse(responseCode = "404", description = "Requested resource was not found"),
+            @ApiResponse(responseCode = "409", description = "Request conflicts with existing state"),
+            @ApiResponse(responseCode = "422", description = "Business rule violation"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
+            @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
+            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
+    })
     @GetMapping("/{symbol}/price-target")
     @Cacheable(value = "analystCache", key = "'pt:' + #symbol.toUpperCase()")
     public FinnhubPriceTargetDto getPriceTarget(@PathVariable String symbol) {

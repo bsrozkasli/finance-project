@@ -1,5 +1,10 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioPosition;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
@@ -29,6 +34,7 @@ import java.util.List;
  * </ul>
  * </p>
  */
+@Tag(name = "Portfolio Positions", description = "Portfolio position management")
 @RestController
 @RequestMapping("/api/v1/portfolio/positions")
 @RequiredArgsConstructor
@@ -39,11 +45,37 @@ public class PortfolioPositionController {
 
     private final PortfolioPositionPort positionPort;
 
+    @Operation(summary = "GET Portfolio Positions endpoint", description = "Implements the GET operation for the Portfolio Positions API described in SPEC.md sections 7 and 8.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful response"),
+            @ApiResponse(responseCode = "201", description = "Resource created when the endpoint creates persistent state"),
+            @ApiResponse(responseCode = "204", description = "Command completed without response body"),
+            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
+            @ApiResponse(responseCode = "404", description = "Requested resource was not found"),
+            @ApiResponse(responseCode = "409", description = "Request conflicts with existing state"),
+            @ApiResponse(responseCode = "422", description = "Business rule violation"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
+            @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
+            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
+    })
     @GetMapping
     public List<PortfolioPosition> getAllPositions() {
         return positionPort.findByUserId(DEFAULT_USER);
     }
 
+    @Operation(summary = "POST Portfolio Positions endpoint", description = "Implements the POST operation for the Portfolio Positions API described in SPEC.md sections 7 and 8.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful response"),
+            @ApiResponse(responseCode = "201", description = "Resource created when the endpoint creates persistent state"),
+            @ApiResponse(responseCode = "204", description = "Command completed without response body"),
+            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
+            @ApiResponse(responseCode = "404", description = "Requested resource was not found"),
+            @ApiResponse(responseCode = "409", description = "Request conflicts with existing state"),
+            @ApiResponse(responseCode = "422", description = "Business rule violation"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
+            @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
+            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
+    })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public PortfolioPosition addPosition(@RequestBody PositionRequest request) {
@@ -62,6 +94,19 @@ public class PortfolioPositionController {
         return positionPort.save(position);
     }
 
+    @Operation(summary = "PUT Portfolio Positions endpoint", description = "Implements the PUT operation for the Portfolio Positions API described in SPEC.md sections 7 and 8.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful response"),
+            @ApiResponse(responseCode = "201", description = "Resource created when the endpoint creates persistent state"),
+            @ApiResponse(responseCode = "204", description = "Command completed without response body"),
+            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
+            @ApiResponse(responseCode = "404", description = "Requested resource was not found"),
+            @ApiResponse(responseCode = "409", description = "Request conflicts with existing state"),
+            @ApiResponse(responseCode = "422", description = "Business rule violation"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
+            @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
+            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
+    })
     @PutMapping("/{id}")
     public PortfolioPosition updatePosition(@PathVariable Long id, @RequestBody PositionRequest request) {
         positionPort.findByIdAndUserId(id, DEFAULT_USER)
@@ -81,6 +126,19 @@ public class PortfolioPositionController {
         return positionPort.save(updated);
     }
 
+    @Operation(summary = "DELETE Portfolio Positions endpoint", description = "Implements the DELETE operation for the Portfolio Positions API described in SPEC.md sections 7 and 8.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful response"),
+            @ApiResponse(responseCode = "201", description = "Resource created when the endpoint creates persistent state"),
+            @ApiResponse(responseCode = "204", description = "Command completed without response body"),
+            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
+            @ApiResponse(responseCode = "404", description = "Requested resource was not found"),
+            @ApiResponse(responseCode = "409", description = "Request conflicts with existing state"),
+            @ApiResponse(responseCode = "422", description = "Business rule violation"),
+            @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
+            @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
+            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
+    })
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePosition(@PathVariable Long id) {
