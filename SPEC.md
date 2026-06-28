@@ -400,6 +400,8 @@ Agent analysis (`GET /api/v1/agent-analysis/AAPL`):
 ```
 ## 8. Error Handling
 
+Endpoint-level error conditions, provider failure mappings, auth error targets, and frontend handling guidance are cataloged in `docs/ERROR_CATALOG.md`.
+
 - Provider failures degrade gracefully with empty lists, optional `null` fields, or partial DTOs where the endpoint contract allows.
 - Fake market data is forbidden.
 - Validation errors should return client-error status codes with clear messages.
