@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { fetchNews, NewsItem } from '../../api/client';
+import { fetchNews } from '../../api/client';
+import type { NewsItem } from '../../api/client';
 
 export const NewsView = ({ symbol }: { symbol: string | null }) => {
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -15,7 +16,7 @@ export const NewsView = ({ symbol }: { symbol: string | null }) => {
         const data = await fetchNews(symbol);
         setNews(data || []);
         setError(null);
-      } catch (err) {
+      } catch {
         setError('Failed to fetch news');
       } finally {
         setLoading(false);

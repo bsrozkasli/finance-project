@@ -16,6 +16,8 @@ from fastapi import FastAPI, HTTPException, Query
 from app.routers.analysis import router as analysis_router
 from app.routers.research import router as research_router
 from app.routers.agent_analysis import router as agent_analysis_router
+from app.routers.backtest import router as backtest_router
+from app.routers.chat import router as chat_router
 from app.routers.health import router as health_router
 
 logger = logging.getLogger(__name__)
@@ -29,6 +31,8 @@ app = FastAPI(
 app.include_router(analysis_router)
 app.include_router(research_router)
 app.include_router(agent_analysis_router)
+app.include_router(backtest_router)
+app.include_router(chat_router)
 app.include_router(health_router)
 
 

@@ -123,6 +123,11 @@ The systems expect a fixed deployment mapping for local development:
 
 ---
 
+## API Documentation
+
+- API Docs: http://localhost:8080/swagger-ui.html (backend ayaktayken)
+- OpenAPI spec: docs/openapi.yaml
+
 ## 🛠️ Step-by-Step Local Deployment
 
 ### 1. Configure the Environment

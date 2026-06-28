@@ -48,5 +48,17 @@ public class FinnhubMetricDto {
 
         @JsonProperty("dividendYieldIndicatedAnnual")
         private Double dividendYield;
+
+        @JsonProperty("roeTTM")
+        private Double roeTtm;
+
+        @JsonProperty("netMarginAnnual")
+        private Double netMarginAnnual;
+
+        @JsonProperty("pbAnnual")
+        private Double pbAnnual;
+
+        @JsonProperty("longTermDebtEquityAnnual")
+        private Double longTermDebtEquityAnnual;
     }
 }

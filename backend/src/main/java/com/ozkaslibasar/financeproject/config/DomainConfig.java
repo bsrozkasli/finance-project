@@ -7,8 +7,11 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
+import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -52,5 +55,12 @@ public class DomainConfig {
                 priceRepositoryPort,
                 sentimentDataPort,
                 agentAnalysisAiPort);
+    }
+
+    @Bean
+    public SmartReportUseCase smartReportUseCase(
+            SmartReportScorePort smartReportScorePort,
+            SmartReportMarketDataPort smartReportMarketDataPort) {
+        return new SmartReportUseCase(smartReportScorePort, smartReportMarketDataPort);
     }
 }

@@ -47,7 +47,7 @@ export const useLivePrice = (symbol: string | null) => {
           });
           setError(null);
         }
-      } catch (err) {
+      } catch {
         if (!cancelled) setError('Failed to fetch via HTTP fallback');
       } finally {
         if (!cancelled) {

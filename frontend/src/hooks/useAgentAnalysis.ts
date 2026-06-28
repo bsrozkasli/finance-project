@@ -54,7 +54,6 @@ export function useAgentAnalysis(symbol: string | null) {
 
   useEffect(() => {
     if (!symbol) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setData(null);
       setError(null);
       return;

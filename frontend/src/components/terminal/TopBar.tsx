@@ -96,7 +96,7 @@ export const TopBar = ({ assets, onSelectAsset, onManageAssets }: TopBarProps) =
           />
         </svg>
         <span className="font-bold text-sm tracking-wide" style={{ color: 'var(--color-text-primary)' }}>
-          APEX <span style={{ color: 'var(--color-accent-light)' }}>TERMINAL</span>
+          NEXUS <span style={{ color: 'var(--color-accent-light)' }}>TERMINAL</span>
         </span>
       </div>
 
@@ -118,7 +118,7 @@ export const TopBar = ({ assets, onSelectAsset, onManageAssets }: TopBarProps) =
             value={search}
             onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
             onFocus={() => setShowDropdown(true)}
-            placeholder="Sembol veya şirket ara..."
+            placeholder="Search tickers, news, or reports..."
             className="flex-1 bg-transparent text-xs outline-none"
             style={{ color: 'var(--color-text-primary)' }}
             autoComplete="off"
@@ -212,7 +212,7 @@ export const TopBar = ({ assets, onSelectAsset, onManageAssets }: TopBarProps) =
         <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
           <path d="M12 6v6m0 0v6m0-6h6m-6 0H6" strokeLinecap="round" />
         </svg>
-        Varlık Yönet
+        Manage Assets
       </button>
 
       {/* Settings */}
