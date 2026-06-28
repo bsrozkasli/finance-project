@@ -193,3 +193,8 @@ npm run build
 
 ## 🤝 Contribution Guidelines
 For architectural principles, code conventions, or design tokens guidelines, please read the [CONTRIBUTING.md](file:///c:/Users/basar/IdeaProjects/finance-project/CONTRIBUTING.md) and [AGENTS.md](file:///c:/Users/basar/IdeaProjects/finance-project/AGENTS.md) documents.
+
+
+## Architecture Decisions
+
+- Architecture Decisions: docs/adr/
