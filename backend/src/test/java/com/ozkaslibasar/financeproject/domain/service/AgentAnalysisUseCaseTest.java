@@ -9,7 +9,9 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialStatementClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -48,10 +50,18 @@ class AgentAnalysisUseCaseTest {
     private SentimentDataPort sentimentDataPort;
 
     @Mock
+    private MarketCalendarPort marketCalendarPort;
+
+    @Mock
     private AgentAnalysisAiPort agentAnalysisAiPort;
 
     @InjectMocks
     private AgentAnalysisUseCase agentAnalysisUseCase;
+
+    @BeforeEach
+    void defaultMacroContextUnavailable() {
+        when(marketCalendarPort.fetchMacroSnapshot()).thenReturn(Optional.empty());
+    }
 
     // ─── buildMetricsSnapshot() ──────────────────────────────────────────────
 
@@ -104,6 +114,7 @@ class AgentAnalysisUseCaseTest {
         assertThat(snapshot.technical()).isNotEmpty();
         assertThat(snapshot.risk()).isNotEmpty();
         assertThat(snapshot.valuation()).isNotEmpty();
+        assertThat(snapshot.macroContext()).containsEntry("fed_funds_rate", null);
 
         verify(priceRepository).findLatestByAssetId(symbol);
         verify(statementClient).fetchIncomeStatements(symbol);

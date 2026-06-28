@@ -10,6 +10,7 @@ class AgentAnalysisRequest(BaseModel):
     price: float
     metrics: dict[str, dict[str, float]] = Field(default_factory=dict)
     sentiment: dict[str, Any] = Field(default_factory=dict)
+    macro_context: dict[str, Any] | None = None
 
 
 class AgentAnalysisResponse(BaseModel):

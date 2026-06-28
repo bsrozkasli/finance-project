@@ -10,6 +10,8 @@ class Settings(BaseModel):
     # --- External API Keys ---
     FINNHUB_API_KEY: str = ""
     TIINGO_API_KEY: str = ""
+    FRED_API_KEY: str = ""
+    FMP_API_KEY: str = ""
 
     # --- Azure OpenAI ---
     AZURE_OPENAI_API_KEY: str = ""
@@ -32,11 +34,12 @@ class Settings(BaseModel):
 
     def __init__(self, **kwargs):
         # Load from environment variables if not provided
-        for field in self.__fields__:
+        fields = type(self).model_fields
+        for field in fields:
             if field not in kwargs:
                 env_value = os.getenv(field)
                 if env_value is not None:
-                    if self.__fields__[field].annotation == int:
+                    if fields[field].annotation == int:
                         kwargs[field] = int(env_value)
                     else:
                         kwargs[field] = env_value
@@ -48,6 +51,10 @@ class Settings(BaseModel):
             warnings.append("FINNHUB_API_KEY is missing")
         if not self.TIINGO_API_KEY:
             warnings.append("TIINGO_API_KEY is missing (Tiingo fallback disabled)")
+        if not self.FRED_API_KEY:
+            warnings.append("FRED_API_KEY is missing (macro snapshot fields will be null)")
+        if not self.FMP_API_KEY:
+            warnings.append("FMP_API_KEY is missing (market calendar endpoints return empty lists)")
         if not self.AZURE_OPENAI_API_KEY:
             warnings.append("AZURE_OPENAI_API_KEY is missing")
         if not self.AZURE_OPENAI_ENDPOINT:
@@ -58,4 +65,3 @@ class Settings(BaseModel):
 
 
 settings = Settings()
-

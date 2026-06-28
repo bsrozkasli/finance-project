@@ -4,10 +4,12 @@ import com.ozkaslibasar.financeproject.domain.model.AgentAnalysisResult;
 import com.ozkaslibasar.financeproject.domain.model.AgentMetricSnapshot;
 import com.ozkaslibasar.financeproject.domain.model.AgentSentimentSnapshot;
 import com.ozkaslibasar.financeproject.domain.model.FinancialStatement;
+import com.ozkaslibasar.financeproject.domain.model.MacroSnapshot;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialStatementClientPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 
@@ -27,6 +29,7 @@ public class AgentAnalysisUseCase {
     private final FinancialDataPort financialDataPort;
     private final PriceRepositoryPort priceRepository;
     private final SentimentDataPort sentimentDataPort;
+    private final MarketCalendarPort marketCalendarPort;
     private final AgentAnalysisAiPort agentAnalysisAiPort;
 
     public AgentAnalysisUseCase(
@@ -34,11 +37,13 @@ public class AgentAnalysisUseCase {
             FinancialDataPort financialDataPort,
             PriceRepositoryPort priceRepository,
             SentimentDataPort sentimentDataPort,
+            MarketCalendarPort marketCalendarPort,
             AgentAnalysisAiPort agentAnalysisAiPort) {
         this.statementClient = statementClient;
         this.financialDataPort = financialDataPort;
         this.priceRepository = priceRepository;
         this.sentimentDataPort = sentimentDataPort;
+        this.marketCalendarPort = marketCalendarPort;
         this.agentAnalysisAiPort = agentAnalysisAiPort;
     }
 
@@ -70,7 +75,11 @@ public class AgentAnalysisUseCase {
         valuation.put("dcf_fair_value", fundamentals.getOrDefault("dcf_fair_value", BigDecimal.ZERO));
         valuation.put("intrinsic_value", fundamentals.getOrDefault("intrinsic_value", BigDecimal.ZERO));
 
-        return new AgentMetricSnapshot(price, fundamentals, valuation, risk, technical);
+        Map<String, BigDecimal> macroContext = marketCalendarPort.fetchMacroSnapshot()
+                .map(this::macroAsMap)
+                .orElseGet(this::emptyMacroMap);
+
+        return new AgentMetricSnapshot(price, fundamentals, valuation, risk, technical, macroContext);
     }
 
     public Optional<AgentAnalysisResult> analyze(String ticker) {
@@ -91,6 +100,7 @@ public class AgentAnalysisUseCase {
         map.put("valuation", toPlainMap(snapshot.valuation()));
         map.put("risk", toPlainMap(snapshot.risk()));
         map.put("technical", toPlainMap(snapshot.technical()));
+        map.put("macro_context", toPlainMap(snapshot.macroContext()));
         return map;
     }
 
@@ -109,6 +119,30 @@ public class AgentAnalysisUseCase {
                 result.generatedAt(),
                 result.fromCache()
         );
+    }
+
+    private Map<String, BigDecimal> macroAsMap(MacroSnapshot snapshot) {
+        Map<String, BigDecimal> map = new LinkedHashMap<>();
+        map.put("fed_funds_rate", snapshot.fedFundsRate());
+        map.put("cpi_yoy", snapshot.cpiYoy());
+        map.put("gdp_growth", snapshot.gdpGrowth());
+        map.put("unemployment_rate", snapshot.unemploymentRate());
+        map.put("treasury_10y", snapshot.treasury10y());
+        map.put("treasury_2y", snapshot.treasury2y());
+        map.put("yield_curve_spread", snapshot.yieldCurveSpread());
+        return map;
+    }
+
+    private Map<String, BigDecimal> emptyMacroMap() {
+        Map<String, BigDecimal> map = new LinkedHashMap<>();
+        map.put("fed_funds_rate", null);
+        map.put("cpi_yoy", null);
+        map.put("gdp_growth", null);
+        map.put("unemployment_rate", null);
+        map.put("treasury_10y", null);
+        map.put("treasury_2y", null);
+        map.put("yield_curve_spread", null);
+        return map;
     }
 
     private Map<String, Object> toPlainMap(Map<String, BigDecimal> source) {

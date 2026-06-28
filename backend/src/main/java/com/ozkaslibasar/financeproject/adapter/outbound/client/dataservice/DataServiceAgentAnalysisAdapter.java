@@ -76,6 +76,7 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
                 "risk", toDoubleMap(metrics.risk()),
                 "technical", toDoubleMap(metrics.technical())
         ));
+        dto.setMacroContext(toNullableDoubleMap(metrics.macroContext()));
         dto.setSentiment(Map.of(
                 "news_score", sentiment.newsScore(),
                 "news_label", sentiment.newsLabel(),
@@ -89,6 +90,12 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
     private Map<String, Double> toDoubleMap(Map<String, BigDecimal> source) {
         Map<String, Double> out = new LinkedHashMap<>();
         source.forEach((k, v) -> out.put(k, v.doubleValue()));
+        return out;
+    }
+
+    private Map<String, Object> toNullableDoubleMap(Map<String, BigDecimal> source) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        source.forEach((k, v) -> out.put(k, v != null ? v.doubleValue() : null));
         return out;
     }
 
@@ -119,6 +126,8 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
         private double price;
         private Map<String, Map<String, Double>> metrics;
         private Map<String, Object> sentiment;
+        @JsonProperty("macro_context")
+        private Map<String, Object> macroContext;
     }
 
     @Data
