@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date as Date, datetime, timezone
 
@@ -30,17 +31,23 @@ class FredProvider:
     def __init__(self, api_key: str) -> None:
         self._api_key = api_key
 
-    def get_macro_snapshot(self) -> MacroSnapshot:
+    async def get_macro_snapshot(self) -> MacroSnapshot:
         if not self._api_key:
             return self.empty_snapshot()
 
         series: dict[str, list[tuple[Date, float | None]]] = {}
-        try:
-            for field, series_id in _FRED_SERIES.items():
-                series[field] = self._fetch_series(series_id)
-        except Exception as exc:
-            logger.warning("FRED macro snapshot unavailable: %s", exc)
-            return self.empty_snapshot()
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            results = await asyncio.gather(
+                *(self._fetch_series(client, series_id) for series_id in _FRED_SERIES.values()),
+                return_exceptions=True,
+            )
+
+        for (field, series_id), result in zip(_FRED_SERIES.items(), results):
+            if isinstance(result, Exception):
+                logger.warning("FRED series %s unavailable: %s", series_id, result)
+                series[field] = []
+            else:
+                series[field] = result
 
         fed_funds_rate = self._latest_value(series.get("fed_funds_rate", []))
         cpi_series = series.get("cpi", [])
@@ -64,17 +71,16 @@ class FredProvider:
             cached_at=datetime.now(timezone.utc),
         )
 
-    def _fetch_series(self, series_id: str) -> list[tuple[Date, float | None]]:
+    async def _fetch_series(self, client: httpx.AsyncClient, series_id: str) -> list[tuple[Date, float | None]]:
         params = {
             "series_id": series_id,
             "api_key": self._api_key,
             "file_type": "json",
             "sort_order": "asc",
         }
-        with httpx.Client(timeout=15.0) as client:
-            response = client.get(_FRED_BASE_URL, params=params)
-            response.raise_for_status()
-            payload = response.json()
+        response = await client.get(_FRED_BASE_URL, params=params)
+        response.raise_for_status()
+        payload = response.json()
 
         rows: list[tuple[Date, float | None]] = []
         for item in payload.get("observations", []):

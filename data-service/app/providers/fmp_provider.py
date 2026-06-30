@@ -39,7 +39,7 @@ class FmpProvider:
             return []
         params = self._date_params(from_date, to_date)
         try:
-            data = self._get("/earning-calendar", params)
+            data = self._get("/earnings-calendar", params)
             events = [self._to_earnings_event(item) for item in data]
             return [event for event in events if event is not None]
         except Exception as exc:

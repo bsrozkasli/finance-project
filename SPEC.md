@@ -272,7 +272,7 @@ Data-service endpoints:
 | Analysis | `GET /api/v1/analysis/patterns/{symbol}` | Pattern detection |
 | Analysis | `POST /api/v1/analysis/decision-support` | Decision support |
 | Agent analysis | `POST /api/v1/agent-analysis` | Multi-agent analysis |
-| Macro | `GET /api/v1/macro/snapshot` | FRED macro snapshot cached for 1 hour |
+| Macro | `GET /api/v1/macro/snapshot` | FRED macro snapshot cached for 4 hours |
 | Market calendar | `GET /api/v1/calendar?symbols=` | Combined FMP calendar cached until midnight UTC |
 | Market calendar | `GET /api/v1/calendar/earnings?symbols=` | FMP earnings calendar, optionally symbol-filtered |
 | Market calendar | `GET /api/v1/calendar/economic-events` | FMP high-impact economic calendar events |
@@ -524,8 +524,8 @@ Entity relationships and persistence semantics:
 - Yahoo Finance / `yfinance`: primary no-key market data source.
 - Tiingo: optional EOD/news fallback through `TIINGO_API_KEY`.
 - Finnhub: news, sentiment, analyst recommendations, price targets, metrics, and insider-related data through `FINNHUB_API_KEY`.
-- FRED: macroeconomic time series through `FRED_API_KEY`; missing values from FRED (`.`) are treated as `null`, and macro snapshots are cached for 1 hour.
-- Financial Modeling Prep: earnings and high-impact economic calendar data through `FMP_API_KEY`; calendar responses are cached until midnight UTC to protect the free daily quota.
+- FRED: macroeconomic time series through `FRED_API_KEY`; missing values from FRED (`.`) are treated as `null`, macro snapshots are fetched in parallel, individual series failures leave only that field null, and snapshots are cached for 4 hours in data-service Redis with in-memory fallback.
+- Financial Modeling Prep: earnings and high-impact economic calendar data through `FMP_API_KEY`; calendar responses use a fetch-time sliding 30-day window and are cached in data-service Redis until midnight UTC, with in-memory fallback, to protect the free daily quota.
 - Azure OpenAI: optional LLM-backed agent, chat, and insight flows through `AZURE_OPENAI_*` variables.
 - PostgreSQL: persistent relational database.
 - Redis: cache backend.
@@ -609,6 +609,8 @@ Required integration/smoke scenarios:
 - Backend Hikari pool defaults: max pool size 10, min idle 2, connection timeout 30 seconds.
 - Frontend build size warnings should be monitored.
 - Data-service provider downloads should not be repeated when backend persistence/cache already satisfies the request.
+- Data-service macro snapshots are cached for 4 hours in Redis with in-memory fallback. This balances daily Treasury yield freshness against unnecessary FRED calls; monthly and quarterly macro series can tolerate this interval, while same-day yield changes refresh within the trading day.
+- Data-service FMP calendar responses are cached until midnight UTC and use a 30-day lookahead window computed at fetch time.
 
 ## 15. Security
 

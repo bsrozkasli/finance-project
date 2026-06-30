@@ -13,6 +13,10 @@ class Settings(BaseModel):
     FRED_API_KEY: str = ""
     FMP_API_KEY: str = ""
 
+    # --- Redis ---
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
+
     # --- Azure OpenAI ---
     AZURE_OPENAI_API_KEY: str = ""
     AZURE_OPENAI_ENDPOINT: str = ""
