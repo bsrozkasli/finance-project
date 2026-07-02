@@ -161,7 +161,7 @@ export const fetchCompanyReport = async (symbol: string): Promise<CompanyReport>
   return response.data;
 };
 
-// ─── Portfolio Summary ───────────────────────────────────────────────────────
+// â”€â”€â”€ Portfolio Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface PortfolioSummary {
   totalValue: number;
@@ -347,8 +347,60 @@ export const fetchEnrichedPositions = async (): Promise<EnrichedPosition[]> => {
   const response = await apiClient.get<EnrichedPosition[]>('/portfolio/positions/enriched');
   return response.data;
 };
+// Market calendar and macro context
 
-// ─── Trading Journal ─────────────────────────────────────────────────────────
+export interface MacroSnapshot {
+  fedFundsRate?: number | null;
+  cpi?: number | null;
+  cpiYoy?: number | null;
+  gdpGrowth?: number | null;
+  unemploymentRate?: number | null;
+  treasury10y?: number | null;
+  treasury2y?: number | null;
+  yieldCurveSpread?: number | null;
+  observedAt?: string | null;
+  cachedAt?: string | null;
+}
+
+export interface EarningsEvent {
+  symbol: string;
+  date: string;
+  epsEstimate?: number | null;
+  epsActual?: number | null;
+  revenueEstimate?: number | null;
+  revenueActual?: number | null;
+  time?: string | null;
+}
+
+export interface EconomicEvent {
+  event: string;
+  date: string;
+  country?: string | null;
+  impact?: string | null;
+  actual?: unknown;
+  estimate?: unknown;
+  previous?: unknown;
+}
+
+export interface MarketCalendar {
+  earnings: EarningsEvent[];
+  economicEvents: EconomicEvent[];
+  cachedAt?: string | null;
+}
+
+export const fetchMacroSnapshot = async (): Promise<MacroSnapshot> => {
+  const response = await apiClient.get<MacroSnapshot>('/macro/snapshot');
+  return response.data;
+};
+
+export const fetchCalendar = async (symbols?: string[]): Promise<MarketCalendar> => {
+  const response = await apiClient.get<MarketCalendar>('/calendar', {
+    params: symbols?.length ? { symbols: symbols.join(',') } : undefined,
+  });
+  return response.data;
+};
+
+// â”€â”€â”€ Trading Journal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type JournalTradeType = 'BUY' | 'SELL';
 export type JournalTradeStatus = 'OPEN' | 'CLOSED';
@@ -437,7 +489,7 @@ export const fetchJournalStats = async (): Promise<JournalStats> => {
   return response.data;
 };
 
-// ─── Watchlists ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Watchlists â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface Watchlist {
   id: number;
@@ -475,7 +527,7 @@ export const deleteWatchlist = async (id: number): Promise<void> => {
   await apiClient.delete(`/watchlists/${id}`);
 };
 
-// ─── Fundamentals ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Fundamentals â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface AnnualMetric {
   year: number;
@@ -568,7 +620,7 @@ export const fetchInstitutionalOwnership = async (symbol: string): Promise<Insti
   return response.data;
 };
 
-// ─── News (categorized) ──────────────────────────────────────────────────────
+// â”€â”€â”€ News (categorized) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export type NewsCategory =
   | 'BREAKING'
