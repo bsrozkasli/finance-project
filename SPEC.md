@@ -537,6 +537,7 @@ Entity relationships and persistence semantics:
 - Finnhub: news, sentiment, analyst recommendations, price targets, metrics, and insider-related data through `FINNHUB_API_KEY`.
 - FRED: macroeconomic time series through `FRED_API_KEY`; missing values from FRED (`.`) are treated as `null`, macro snapshots are fetched in parallel, individual series failures leave only that field null, and snapshots are cached for 4 hours in data-service Redis with in-memory fallback.
 - Financial Modeling Prep: earnings and high-impact economic calendar data through `FMP_API_KEY`; calendar responses use a fetch-time sliding 30-day window and are cached in data-service Redis until midnight UTC, with in-memory fallback, to protect the free daily quota.
+Provider priority, fallback values, health endpoints, and new-provider onboarding are documented in `docs/PROVIDER_GUIDE.md`.
 - Azure OpenAI: optional LLM-backed agent, chat, and insight flows through `AZURE_OPENAI_*` variables.
 - PostgreSQL: persistent relational database.
 - Redis: cache backend.
@@ -729,4 +730,3 @@ A change is done when:
 - Define durable MongoDB usage for raw/news/analysis records.
 - Add CI artifacts for frontend build size and backend coverage.
 - Harden production deployment with TLS, secret manager, edge rate limiting, CORS restrictions, container resource limits, and backup/restore procedures.
-
