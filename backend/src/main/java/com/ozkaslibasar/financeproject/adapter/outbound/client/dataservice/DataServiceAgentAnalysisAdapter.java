@@ -44,7 +44,7 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
             AgentAnalysisRequestDto request = toRequest(ticker, metrics, sentiment);
             String url = baseUrl + "/api/v1/agent-analysis";
             AgentAnalysisResponseDto response = restTemplate.postForObject(url, request, AgentAnalysisResponseDto.class);
-            if (response == null) {
+            if (response == null || response.getDecision() == null || response.getConfidence() == null) {
                 meterRegistry.counter("agent.analysis.failure").increment();
                 return Optional.empty();
             }
@@ -76,27 +76,41 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
                 "risk", toDoubleMap(metrics.risk()),
                 "technical", toDoubleMap(metrics.technical())
         ));
-        dto.setSentiment(Map.of(
-                "news_score", sentiment.newsScore(),
-                "news_label", sentiment.newsLabel(),
-                "analyst_score", sentiment.analystScore(),
-                "analyst_consensus", sentiment.analystConsensus(),
-                "sentiment_score", sentiment.sentimentScore()
-        ));
+        dto.setMacroContext(toNullableDoubleMap(metrics.macroContext()));
+        dto.setSentiment(toSentimentMap(sentiment));
         return dto;
     }
 
+
+    private Map<String, Object> toSentimentMap(AgentSentimentSnapshot sentiment) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        if (sentiment == null) {
+            return out;
+        }
+        out.put("news_score", sentiment.newsScore());
+        out.put("news_label", sentiment.newsLabel());
+        out.put("analyst_score", sentiment.analystScore());
+        out.put("analyst_consensus", sentiment.analystConsensus());
+        out.put("sentiment_score", sentiment.sentimentScore());
+        return out;
+    }
     private Map<String, Double> toDoubleMap(Map<String, BigDecimal> source) {
         Map<String, Double> out = new LinkedHashMap<>();
         source.forEach((k, v) -> out.put(k, v.doubleValue()));
         return out;
     }
 
+    private Map<String, Object> toNullableDoubleMap(Map<String, BigDecimal> source) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        source.forEach((k, v) -> out.put(k, v != null ? v.doubleValue() : null));
+        return out;
+    }
+
     private AgentAnalysisResult toDomain(String ticker, AgentAnalysisResponseDto response) {
         return new AgentAnalysisResult(
                 ticker,
-                response.getDecision() != null ? response.getDecision() : "HOLD",
-                response.getConfidence() != null ? response.getConfidence() : 0,
+                response.getDecision(),
+                response.getConfidence(),
                 nullToEmpty(response.getFundamentalSummary()),
                 nullToEmpty(response.getTechnicalSummary()),
                 nullToEmpty(response.getRiskSummary()),
@@ -119,6 +133,8 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
         private double price;
         private Map<String, Map<String, Double>> metrics;
         private Map<String, Object> sentiment;
+        @JsonProperty("macro_context")
+        private Map<String, Object> macroContext;
     }
 
     @Data

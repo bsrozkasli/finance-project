@@ -8,11 +8,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import com.ozkaslibasar.financeproject.domain.model.SmartReport;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @Tag(name = "Reports", description = "Smart report endpoints")
 @RestController
@@ -36,12 +38,12 @@ public class SmartReportController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/smart/{symbol}")
-    public ResponseEntity<SmartReport> getSmartReport(@PathVariable String symbol) {
+    @Cacheable(value = "smartReportCache", key = "#symbol.toUpperCase()")
+    public SmartReport getSmartReport(@PathVariable String symbol) {
         try {
-            SmartReport report = smartReportUseCase.getSmartReport(symbol);
-            return ResponseEntity.ok(report);
+            return smartReportUseCase.getSmartReport(symbol);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().build();
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Smart report unavailable", e);
         }
     }
 }

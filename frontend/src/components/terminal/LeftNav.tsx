@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 interface NavItem {
   id: string;
   label: string;
@@ -48,6 +50,17 @@ const NAV_ITEMS: NavItem[] = [
     ),
   },
   {
+    id: 'transactions',
+    label: 'Transactions',
+    icon: (
+      <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+        <rect x="2" y="5" width="20" height="14" rx="2" />
+        <path d="M2 10h20" strokeLinecap="round" />
+        <path d="M6 15h4M14 15h4" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
     id: 'watchlist',
     label: 'Watchlist',
     icon: (
@@ -82,19 +95,23 @@ const NAV_ITEMS: NavItem[] = [
 interface LeftNavProps {
   activeId: string;
   onSelect: (id: string) => void;
+  onExpandedChange?: (expanded: boolean) => void;
 }
 
-export const LeftNav = ({ activeId, onSelect }: LeftNavProps) => {
+export const LeftNav = ({ activeId, onSelect, onExpandedChange }: LeftNavProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   return (
     <nav
-      className="terminal-leftnav flex flex-col items-center pt-2 pb-4 gap-1 border-r"
+      className={`terminal-leftnav flex flex-col pt-4 pb-4 gap-1 border-r transition-all duration-300 ${isExpanded ? 'items-stretch px-3' : 'items-center'}`}
       style={{ background: 'var(--color-bg-primary)', borderColor: 'var(--color-border)' }}
     >
+
       {NAV_ITEMS.map((item) => (
         <div key={item.id} className="nav-item relative w-full flex justify-center">
           <button
             id={`nav-${item.id}`}
-            className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
+            className={`flex items-center ${isExpanded ? 'justify-start px-3 w-full' : 'justify-center w-9'} h-9 rounded-lg transition-all`}
             style={{
               color: item.id === activeId ? 'var(--color-accent-light)' : 'var(--color-text-secondary)',
               background: item.id === activeId ? 'var(--color-accent-dim)' : 'transparent',
@@ -113,34 +130,61 @@ export const LeftNav = ({ activeId, onSelect }: LeftNavProps) => {
               }
             }}
           >
-            {item.icon}
+            <div className="shrink-0">{item.icon}</div>
+            {isExpanded && <span className="ml-3 text-sm font-medium whitespace-nowrap overflow-hidden">{item.label}</span>}
           </button>
 
           {/* Tooltip */}
-          <div
-            className="nav-tooltip absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
-          >
+          {!isExpanded && (
             <div
-              className="px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap"
-              style={{
-                background: 'var(--color-bg-card)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-text-primary)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-              }}
+              className="nav-tooltip absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 pointer-events-none"
             >
-              {item.label}
+              <div
+                className="px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap"
+                style={{
+                  background: 'var(--color-bg-card)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                }}
+              >
+                {item.label}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ))}
 
       {/* Bottom: divider + version */}
       <div className="mt-auto w-full flex justify-center">
-        <div className="w-6 h-px mb-3" style={{ background: 'var(--color-border)' }} />
+        <div className={`h-px mb-3 ${isExpanded ? 'w-full mx-2' : 'w-6'}`} style={{ background: 'var(--color-border)' }} />
       </div>
+      <div className="flex-1" />
+
+      {/* Toggle button */}
+      <div className={`mt-4 flex ${isExpanded ? 'justify-end' : 'justify-center'} w-full`}>
+        <button
+          onClick={() => {
+            setIsExpanded((current) => {
+              const next = !current;
+              onExpandedChange?.(next);
+              return next;
+            });
+          }}
+          className="p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-card)] rounded-lg transition-colors"
+        >
+          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.75" viewBox="0 0 24 24">
+            {isExpanded ? (
+              <path d="M15 19l-7-7 7-7" strokeLinecap="round" strokeLinejoin="round" />
+            ) : (
+              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" strokeLinejoin="round" />
+            )}
+          </svg>
+        </button>
+      </div>
+      
       <div
-        className="text-center"
+        className="text-center mb-2"
         style={{ fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: '0.1em' }}
       >
         v2.0
@@ -148,3 +192,8 @@ export const LeftNav = ({ activeId, onSelect }: LeftNavProps) => {
     </nav>
   );
 };
+
+
+
+
+

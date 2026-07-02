@@ -1,4 +1,4 @@
-name: ci
+﻿name: ci
 
 on:
   push:
@@ -51,10 +51,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
           cache-dependency-path: data-service/requirements.txt
 
@@ -111,6 +111,24 @@ jobs:
           path: frontend/dist/
           if-no-files-found: warn
 
+  docker-compose:
+    name: Docker Compose Config
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: finance_password
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create .env for compose validation
+        run: |
+          cp .env.example .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=finance_password/' .env
+
+      - name: Validate compose file
+        run: docker compose config --quiet
+
   all-checks-passed:
     name: All checks passed
     runs-on: ubuntu-latest
@@ -118,6 +136,7 @@ jobs:
       - backend-ci
       - data-service-ci
       - frontend-ci
+      - docker-compose
     if: always()
 
     steps:
@@ -133,6 +152,10 @@ jobs:
           fi
           if [ "${{ needs.frontend-ci.result }}" != "success" ]; then
             echo "frontend-ci failed or was cancelled"
+            exit 1
+          fi
+          if [ "${{ needs.docker-compose.result }}" != "success" ]; then
+            echo "docker-compose failed or was cancelled"
             exit 1
           fi
           echo "All checks passed"

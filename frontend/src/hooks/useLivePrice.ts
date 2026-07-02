@@ -14,6 +14,27 @@ export interface LivePrice {
   timestamp: string;
 }
 
+const intervalMs = () => (isMarketOpen() ? 30 * 1000 : 15 * 60 * 1000);
+
+const toLivePrice = (bars: PriceHistory[]): LivePrice | null => {
+  if (bars.length === 0) return null;
+  const latest = bars[bars.length - 1];
+  const prev = bars.length >= 2 ? bars[bars.length - 2] : null;
+  const prevClose = prev ? prev.close : latest.open;
+  const change = latest.close - prevClose;
+  const changePct = prevClose !== 0 ? (change / prevClose) * 100 : 0;
+  return {
+    price: latest.close,
+    open: latest.open,
+    high: latest.high,
+    low: latest.low,
+    volume: latest.volume,
+    change,
+    changePct,
+    timestamp: latest.timestamp,
+  };
+};
+
 export const useLivePrice = (symbol: string | null) => {
   const [data, setData] = useState<LivePrice | null>(null);
   const [loading, setLoading] = useState(false);
@@ -22,109 +43,38 @@ export const useLivePrice = (symbol: string | null) => {
   useEffect(() => {
     let cancelled = false;
     let timeoutId: number | undefined;
-    let ws: WebSocket | null = null;
 
-    const loadHttpFallback = async () => {
+    const load = async () => {
       if (!symbol) return;
       setLoading(true);
       try {
-        const bars: PriceHistory[] = await fetchPriceHistory(symbol, '1d', '5d');
-        if (!cancelled && bars.length >= 1) {
-          const latest = bars[bars.length - 1];
-          const prev = bars.length >= 2 ? bars[bars.length - 2] : null;
-          const prevClose = prev ? prev.close : latest.open;
-          const change = latest.close - prevClose;
-          const changePct = prevClose !== 0 ? (change / prevClose) * 100 : 0;
-          setData({
-            price: latest.close,
-            open: latest.open,
-            high: latest.high,
-            low: latest.low,
-            volume: latest.volume,
-            change,
-            changePct,
-            timestamp: latest.timestamp,
-          });
-          setError(null);
+        const bars = await fetchPriceHistory(symbol, '1d', '5d');
+        const live = toLivePrice(bars);
+        if (!cancelled) {
+          setData(live);
+          setError(live ? null : 'No price data available');
         }
       } catch {
-        if (!cancelled) setError('Failed to fetch via HTTP fallback');
+        if (!cancelled) setError('Failed to fetch latest price');
       } finally {
         if (!cancelled) {
           setLoading(false);
-          const intervalMs = isMarketOpen() ? 30 * 1000 : 15 * 60 * 1000;
-          timeoutId = window.setTimeout(loadHttpFallback, intervalMs);
+          timeoutId = window.setTimeout(load, intervalMs());
         }
       }
-    };
-
-    const initWebSocket = () => {
-      const apiKey = import.meta.env.VITE_FINNHUB_API_KEY;
-      if (!apiKey || !symbol) {
-        loadHttpFallback();
-        return;
-      }
-      
-      ws = new WebSocket(`wss://ws.finnhub.io?token=${apiKey}`);
-      
-      ws.onopen = () => {
-        ws?.send(JSON.stringify({ type: 'subscribe', symbol: symbol.toUpperCase() }));
-        // Still fetch initial data to get OHLC and yesterday's close
-        loadHttpFallback(); 
-      };
-      
-      ws.onmessage = (event) => {
-        if (cancelled) return;
-        const msg = JSON.parse(event.data);
-        if (msg.type === 'trade' && msg.data && msg.data.length > 0) {
-          const trade = msg.data[0]; // Take first trade
-          const currentPrice = trade.p;
-          setData(prev => {
-            if (!prev) return prev;
-            const change = currentPrice - (prev.price - prev.change); // recalc change against previous day's close
-            const changePct = prev.price - prev.change !== 0 ? (change / (prev.price - prev.change)) * 100 : 0;
-            return {
-              ...prev,
-              price: currentPrice,
-              change,
-              changePct,
-              timestamp: new Date(trade.t).toISOString()
-            };
-          });
-        }
-      };
-      
-      ws.onerror = () => {
-        if (!cancelled) loadHttpFallback();
-      };
-      
-      ws.onclose = () => {
-        if (!cancelled && isMarketOpen()) {
-           // Retry connection after 5 seconds
-           setTimeout(initWebSocket, 5000);
-        }
-      };
     };
 
     if (symbol) {
-      if (isMarketOpen()) {
-        initWebSocket();
-      } else {
-        loadHttpFallback();
-      }
+      void load();
     } else {
       setData(null);
+      setError(null);
+      setLoading(false);
     }
 
-    return () => { 
-      cancelled = true; 
+    return () => {
+      cancelled = true;
       if (timeoutId) window.clearTimeout(timeoutId);
-      if (ws) {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'unsubscribe', symbol: symbol?.toUpperCase() }));
-        }
-        ws.close();
-      }
     };
   }, [symbol]);
 

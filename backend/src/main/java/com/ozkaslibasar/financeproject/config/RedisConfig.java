@@ -27,16 +27,26 @@ public class RedisConfig {
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
 
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
-        
+
         // Fast-changing data (prices) - 5 minutes
         cacheConfigs.put("priceCache", defaultConfig.entryTtl(Duration.ofMinutes(5)));
-        
-        // Medium-changing data (indicators, news) - 30 to 60 minutes
+
+        // Medium-changing data
+        cacheConfigs.put("technicalCache", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigs.put("indicatorCache", defaultConfig.entryTtl(Duration.ofMinutes(60)));
         cacheConfigs.put("newsCache", defaultConfig.entryTtl(Duration.ofMinutes(30)));
-        
-        // Slow-changing data (fundamentals, asset list) - 24 hours
+
+        // Finnhub analyst and insider data changes slowly and should protect quota.
+        cacheConfigs.put("analystCache", defaultConfig.entryTtl(Duration.ofHours(6)));
+        cacheConfigs.put("insiderCache", defaultConfig.entryTtl(Duration.ofHours(6)));
+
+        // Composite reports mix slower data with news/technical signals.
+        cacheConfigs.put("companyReportCache", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigs.put("smartReportCache", defaultConfig.entryTtl(Duration.ofHours(6)));
+
+        // Slow-changing data (fundamentals, research, asset list)
         cacheConfigs.put("fundamentalCache", defaultConfig.entryTtl(Duration.ofHours(24)));
+        cacheConfigs.put("researchCache", defaultConfig.entryTtl(Duration.ofHours(12)));
         cacheConfigs.put("assetsCache", defaultConfig.entryTtl(Duration.ofHours(24)));
         cacheConfigs.put("assetCache", defaultConfig.entryTtl(Duration.ofHours(24)));
 

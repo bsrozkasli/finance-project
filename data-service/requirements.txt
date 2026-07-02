@@ -12,6 +12,7 @@ pytest-asyncio>=0.23.7
 httpx[test]
 anthropic==0.28.0
 python-dotenv>=1.0.1
+redis>=5.0.0
 tenacity>=8.3.0
 PyPortfolioOpt>=1.5.5
 cvxpy>=1.5.2

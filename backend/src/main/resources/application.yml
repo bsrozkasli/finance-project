@@ -32,8 +32,6 @@ spring:
 
   cache:
     type: redis
-    redis:
-      time-to-live: 60000
 
 server:
   port: 8080
@@ -59,7 +57,7 @@ feign:
   circuitbreaker:
     enabled: true
 
-# Resilience4j — finnhubApi instance (30 req/s free tier limit)
+# Resilience4j â€” finnhubApi instance (30 req/s free tier limit)
 resilience4j:
   ratelimiter:
     instances:
@@ -114,3 +112,8 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
   paths-to-match: /api/v1/**
+
+
+logging:
+  pattern:
+    level: '%5p [requestId:%X{requestId:-none}]'

@@ -3,7 +3,7 @@ import asyncio
 
 import pandas as pd
 import yfinance as yf
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, status
 import asyncio
 from functools import partial
 
@@ -67,7 +67,8 @@ async def get_technical_analysis(
     try:
         indicators = TechnicalAnalysisService.compute_indicators(history)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        code = status.HTTP_422_UNPROCESSABLE_CONTENT if str(exc).startswith("At least") else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
 
     date_col = "Datetime" if "Datetime" in history.columns else "Date"
     timestamp = _to_utc_z(history.iloc[-1].get(date_col))
@@ -86,7 +87,8 @@ async def get_technical_signals(
     try:
         indicators = TechnicalAnalysisService.compute_indicators(history)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        code = status.HTTP_422_UNPROCESSABLE_CONTENT if str(exc).startswith("At least") else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
 
     date_col = "Datetime" if "Datetime" in history.columns else "Date"
     timestamp = _to_utc_z(history.iloc[-1].get(date_col))

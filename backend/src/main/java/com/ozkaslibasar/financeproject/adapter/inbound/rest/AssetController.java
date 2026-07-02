@@ -99,7 +99,7 @@ public class AssetController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @PostMapping("/batch")
-    @CacheEvict(value = "assetsCache", allEntries = true)
+    @CacheEvict(value = {"assetsCache", "assetCache", "priceCache", "technicalCache", "analystCache", "fundamentalCache", "insiderCache", "researchCache", "companyReportCache", "smartReportCache"}, allEntries = true)
     public List<AssetResponseDto> addAssetBatch(@RequestBody AssetBatchRequestDto request) {
         if (request.getSymbols() == null || request.getSymbols().isEmpty()) {
             return new ArrayList<>();
@@ -161,7 +161,7 @@ public class AssetController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @DeleteMapping("/{symbol}")
-    @CacheEvict(value = {"assetsCache", "assetCache"}, allEntries = true)
+    @CacheEvict(value = {"assetsCache", "assetCache", "priceCache", "technicalCache", "analystCache", "fundamentalCache", "insiderCache", "researchCache", "companyReportCache", "smartReportCache"}, allEntries = true)
     public ResponseEntity<Void> deleteAsset(@PathVariable String symbol) {
         assetRepositoryPort.deleteBySymbol(symbol.toUpperCase());
         return ResponseEntity.noContent().build();

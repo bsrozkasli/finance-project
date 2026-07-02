@@ -61,7 +61,7 @@ class MetricsTradingAgentsGraph:
             llm = self._llm_client()
             ticker = request.ticker.upper()
             metrics_json = json.dumps(
-                {"price": request.price, "metrics": request.metrics, "sentiment": request.sentiment},
+                {"price": request.price, "metrics": request.metrics, "sentiment": request.sentiment, "macro_context": request.macro_context},
                 indent=2,
             )
 
@@ -74,7 +74,7 @@ class MetricsTradingAgentsGraph:
 
             context = (
                 f"Fundamental:\n{fundamental}\n\nTechnical:\n{technical}\n\nRisk:\n{risk}\n"
-                f"Sentiment:\n{json.dumps(request.sentiment)}"
+                f"Sentiment:\n{json.dumps(request.sentiment)}\nMacro context:\n{json.dumps(request.macro_context)}"
             )
             bull, t4 = run_bull_researcher(llm, ticker, context)
             total_tokens += t4
