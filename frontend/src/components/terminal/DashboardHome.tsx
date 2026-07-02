@@ -1,22 +1,27 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createChart, ColorType, AreaSeries } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import type { Asset } from '../../api/types';
-import type { NewsItem, PortfolioPosition } from '../../api/client';
-import { fetchNews } from '../../api/client';
-import { useLivePrice } from '../../hooks/useLivePrice';
-import { usePortfolioPositions } from '../../hooks/usePortfolioPositions';
-import { useSparkline } from '../../hooks/useSparkline';
+import type {
+  AllNewsResponse,
+  EnrichedPosition,
+  NewsItem,
+  PortfolioAllocation,
+  PortfolioPerformanceResponse,
+  PortfolioSummary,
+} from '../../api/client';
+import {
+  fetchAllNews,
+  fetchEnrichedPositions,
+  fetchNews,
+  fetchPortfolioAllocation,
+  fetchPortfolioPerformance,
+  fetchPortfolioSummary,
+} from '../../api/client';
 import { formatCurrency } from '../../utils/formatters';
-
-type HoldingSnapshot = {
-  symbol: string;
-  quantity: number;
-  avgCostPrice: number;
-  price: number | null;
-  change: number | null;
-  changePct: number | null;
-};
-
-type SortKey = 'symbol' | 'quantity' | 'avgCostPrice' | 'marketValue' | 'dailyChange' | 'totalReturn';
+import { isMarketOpen } from '../../utils/market';
+import { MacroCalendarWidget } from './MacroCalendarWidget';
 
 type DashboardHomeProps = {
   assets: Asset[];
@@ -27,132 +32,95 @@ type DashboardHomeProps = {
   onManageAssets: () => void;
 };
 
+type Range = '1D' | '5D' | '1M' | '3M' | '6M' | '1Y' | 'ALL';
+type SortKey = 'symbol' | 'shares' | 'avgCost' | 'currentPrice' | 'marketValue' | 'totalReturn' | 'unrealizedPnL';
+
+const RANGES: Range[] = ['1D', '5D', '1M', '3M', '6M', '1Y', 'ALL'];
+const COLORS = ['#00e5ff', '#ffb74d', '#4edea3', '#a78bfa', '#fb7185', '#60a5fa'];
+
 const currency = (value: number | null | undefined) => (value == null ? '-' : formatCurrency(value));
 const pct = (value: number | null | undefined) => (value == null ? '-' : `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`);
 const signedCurrency = (value: number | null | undefined) => (value == null ? '-' : `${value >= 0 ? '+' : ''}${formatCurrency(value)}`);
 
-const uniqueSymbols = (positions: PortfolioPosition[], assets: Asset[]) => {
+const uniqueSymbols = (positions: EnrichedPosition[], assets: Asset[]) => {
   const symbols = new Set<string>();
   positions.forEach((position) => symbols.add(position.symbol));
-  assets.slice(0, 6).forEach((asset) => symbols.add(asset.symbol));
+  assets.slice(0, 8).forEach((asset) => symbols.add(asset.symbol));
   return Array.from(symbols);
 };
 
-const MiniTrend = ({ symbol, positive }: { symbol: string; positive: boolean }) => {
-  const { points } = useSparkline(symbol);
-
-  if (points.length < 2) {
-    return <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>-</span>;
-  }
-
-  const width = 112;
-  const height = 34;
-  const min = Math.min(...points);
-  const max = Math.max(...points);
-  const range = max - min || 1;
-  const path = points
-    .map((point, index) => {
-      const x = (index / (points.length - 1)) * width;
-      const y = height - ((point - min) / range) * height;
-      return `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-    })
-    .join(' ');
-
-  const color = positive ? 'var(--color-bull)' : 'var(--color-bear)';
-
-  return (
-    <svg aria-hidden="true" className="w-28 h-9" preserveAspectRatio="none" viewBox={`0 0 ${width} ${height}`}>
-      <path d={path} fill="none" stroke={color} strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-    </svg>
-  );
-};
-
-const PositionProbe = ({ position, onSnapshot }: { position: PortfolioPosition; onSnapshot: (snapshot: HoldingSnapshot) => void }) => {
-  const { data } = useLivePrice(position.symbol);
+const PerformanceChart = ({ performance }: { performance: PortfolioPerformanceResponse | null }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Area'> | null>(null);
+  const series = useMemo(() => performance?.series ?? [], [performance]);
 
   useEffect(() => {
-    onSnapshot({
-      symbol: position.symbol,
-      quantity: position.quantity,
-      avgCostPrice: position.avgCostPrice,
-      price: data?.price ?? null,
-      change: data?.change ?? null,
-      changePct: data?.changePct ?? null,
+    if (!containerRef.current) return;
+
+    const chart = createChart(containerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: 'transparent' },
+        textColor: '#8c909f',
+      },
+      grid: {
+        vertLines: { color: 'rgba(255,255,255,0.04)' },
+        horzLines: { color: 'rgba(255,255,255,0.04)' },
+      },
+      rightPriceScale: { borderVisible: false },
+      timeScale: { borderVisible: false, timeVisible: true },
+      handleScroll: false,
+      handleScale: false,
+      width: containerRef.current.clientWidth,
+      height: containerRef.current.clientHeight,
     });
-  }, [data, onSnapshot, position.avgCostPrice, position.quantity, position.symbol]);
 
-  return null;
-};
+    chartRef.current = chart;
+    seriesRef.current = chart.addSeries(AreaSeries, {
+      lineColor: '#00e5ff',
+      topColor: 'rgba(0,229,255,0.28)',
+      bottomColor: 'rgba(0,229,255,0.0)',
+      lineWidth: 2,
+    });
 
-const WatchAssetRow = ({
-  asset,
-  selected,
-  onSelect,
-  onOpenChart,
-}: {
-  asset: Asset;
-  selected: boolean;
-  onSelect: () => void;
-  onOpenChart: () => void;
-}) => {
-  const { data, loading } = useLivePrice(asset.symbol);
-  const positive = (data?.changePct ?? 0) >= 0;
+    const resizeObserver = new ResizeObserver(() => {
+      if (containerRef.current) {
+        chart.applyOptions({ width: containerRef.current.clientWidth, height: containerRef.current.clientHeight });
+      }
+    });
+    resizeObserver.observe(containerRef.current);
 
-  return (
-    <tr
-      className={`market-row ${selected ? 'selected' : ''}`}
-      onClick={onSelect}
-      onDoubleClick={onOpenChart}
-      title="Double click to open chart"
-    >
-      <td>
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded font-bold"
-            style={{ background: selected ? 'var(--color-accent)' : 'var(--color-bg-hover)', color: selected ? '#001a42' : 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}
-          >
-            {asset.symbol.slice(0, 1)}
-          </div>
-          <div className="min-w-0">
-            <div className="font-mono text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>{asset.symbol}</div>
-            <div className="truncate text-xs" style={{ color: 'var(--color-text-muted)', maxWidth: 170 }}>{asset.name}</div>
-          </div>
-        </div>
-      </td>
-      <td className="font-mono text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-        {loading ? <span className="skeleton inline-block h-3 w-16" /> : currency(data?.price)}
-      </td>
-      <td className="font-mono text-xs" style={{ color: 'var(--color-text-secondary)' }}>-</td>
-      <td className="font-mono text-xs" style={{ color: 'var(--color-text-secondary)' }}>-</td>
-      <td className="font-mono text-xs font-semibold text-right" style={{ color: positive ? 'var(--color-bull)' : 'var(--color-bear)' }}>
-        {pct(data?.changePct)}
-      </td>
-      <td className="text-right"><MiniTrend symbol={asset.symbol} positive={positive} /></td>
-    </tr>
-  );
+    return () => {
+      resizeObserver.disconnect();
+      chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!seriesRef.current || !chartRef.current) return;
+    seriesRef.current.setData(
+      series.map((point) => ({ time: point.date as Time, value: point.portfolioValue }))
+    );
+    chartRef.current.timeScale().fitContent();
+  }, [series]);
+
+  return <div ref={containerRef} className="h-full w-full" />;
 };
 
 const HoldingRow = ({
   position,
-  asset,
   selected,
   onSelect,
   onOpenChart,
 }: {
-  position: PortfolioPosition;
-  asset?: Asset;
+  position: EnrichedPosition;
   selected: boolean;
   onSelect: () => void;
   onOpenChart: () => void;
 }) => {
-  const { data, loading } = useLivePrice(position.symbol);
-  const currentPrice = data?.price ?? null;
-  const marketValue = currentPrice == null ? null : currentPrice * position.quantity;
-  const costBasis = position.avgCostPrice * position.quantity;
-  const dailyChange = data?.change == null ? null : data.change * position.quantity;
-  const totalReturn = marketValue == null ? null : marketValue - costBasis;
-  const totalReturnPct = marketValue == null || costBasis === 0 ? null : (totalReturn! / costBasis) * 100;
-  const positive = (data?.changePct ?? totalReturnPct ?? 0) >= 0;
+  const pnlPositive = position.unrealizedPnL >= 0;
 
   return (
     <tr
@@ -171,49 +139,53 @@ const HoldingRow = ({
           </div>
           <div className="min-w-0">
             <div className="font-mono text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>{position.symbol}</div>
-            <div className="truncate text-xs" style={{ color: 'var(--color-text-muted)', maxWidth: 170 }}>{asset?.name ?? 'Portfolio holding'}</div>
+            <div className="truncate text-xs" style={{ color: 'var(--color-text-muted)', maxWidth: 140 }}>{position.company || 'Portfolio holding'}</div>
           </div>
         </div>
       </td>
-      <td className="font-mono text-xs text-right" style={{ color: 'var(--color-text-primary)' }}>{position.quantity.toLocaleString('en-US', { maximumFractionDigits: 4 })}</td>
-      <td className="font-mono text-xs text-right" style={{ color: 'var(--color-text-secondary)' }}>{currency(position.avgCostPrice)}</td>
-      <td className="font-mono text-xs text-right font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-        {loading ? <span className="skeleton inline-block h-3 w-16" /> : currency(currentPrice)}
-      </td>
-      <td className="font-mono text-xs text-right" style={{ color: 'var(--color-text-primary)' }}>{currency(marketValue)}</td>
-      <td className="font-mono text-xs text-right" style={{ color: data?.changePct == null ? 'var(--color-text-muted)' : positive ? 'var(--color-bull)' : 'var(--color-bear)' }}>
-        {signedCurrency(dailyChange)} / {pct(data?.changePct)}
-      </td>
-      <td className="font-mono text-xs text-right font-semibold" style={{ color: totalReturn == null ? 'var(--color-text-muted)' : totalReturn >= 0 ? 'var(--color-bull)' : 'var(--color-bear)' }}>
-        {signedCurrency(totalReturn)} / {pct(totalReturnPct)}
-      </td>
-      <td className="text-right"><MiniTrend symbol={position.symbol} positive={positive} /></td>
+      <td className="font-mono text-xs text-right" style={{ color: 'var(--color-text-primary)' }}>{position.shares.toLocaleString('en-US', { maximumFractionDigits: 4 })}</td>
+      <td className="font-mono text-xs text-right" style={{ color: 'var(--color-text-secondary)' }}>{currency(position.avgCost)}</td>
+      <td className="font-mono text-xs text-right" style={{ color: 'var(--color-text-primary)' }}>{currency(position.currentPrice)}</td>
+      <td className="font-mono text-xs text-right" style={{ color: 'var(--color-text-primary)' }}>{currency(position.marketValue)}</td>
+      <td className="font-mono text-xs text-right font-semibold" style={{ color: pnlPositive ? 'var(--color-bull)' : 'var(--color-bear)' }}>{pct(position.totalReturn)}</td>
+      <td className="font-mono text-xs text-right font-semibold" style={{ color: pnlPositive ? 'var(--color-bull)' : 'var(--color-bear)' }}>{signedCurrency(position.unrealizedPnL)}</td>
     </tr>
   );
 };
 
-const MetricCard = ({ label, value, detail, tone = 'neutral' }: { label: string; value: string; detail?: string; tone?: 'neutral' | 'positive' | 'negative' }) => {
-  const color = tone === 'positive' ? 'var(--color-bull)' : tone === 'negative' ? 'var(--color-bear)' : 'var(--color-text-primary)';
-
-  return (
-    <div className="rounded-lg border p-4" style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
-      <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>{label}</div>
-      <div className="mt-2 font-mono text-xl font-bold" style={{ color }}>{value}</div>
-      {detail && <div className="mt-1 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{detail}</div>}
-    </div>
-  );
-};
-
-const AllocationBar = ({ label, value, percent, color }: { label: string; value: string; percent: number; color: string }) => (
-  <div>
-    <div className="mb-1 flex items-center justify-between gap-3 text-xs">
-      <span style={{ color: 'var(--color-text-secondary)' }}>{label}</span>
-      <span className="font-mono" style={{ color: 'var(--color-text-primary)' }}>{value}</span>
-    </div>
-    <div className="h-2 overflow-hidden rounded-full" style={{ background: 'var(--color-bg-base)' }}>
-      <div className="h-full rounded-full" style={{ width: `${Math.max(4, Math.min(100, percent))}%`, background: color }} />
-    </div>
-  </div>
+const WatchAssetRow = ({
+  asset,
+  selected,
+  onSelect,
+  onOpenChart,
+}: {
+  asset: Asset;
+  selected: boolean;
+  onSelect: () => void;
+  onOpenChart: () => void;
+}) => (
+  <tr
+    className={`market-row ${selected ? 'selected' : ''}`}
+    onClick={onSelect}
+    onDoubleClick={onOpenChart}
+    title="Double click to open chart"
+  >
+    <td>
+      <div className="flex items-center gap-3">
+        <div
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded font-bold"
+          style={{ background: selected ? 'var(--color-accent)' : 'var(--color-bg-hover)', color: selected ? '#001a42' : 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}
+        >
+          {asset.symbol.slice(0, 1)}
+        </div>
+        <div className="min-w-0">
+          <div className="font-mono text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>{asset.symbol}</div>
+          <div className="truncate text-xs" style={{ color: 'var(--color-text-muted)', maxWidth: 140 }}>{asset.name}</div>
+        </div>
+      </div>
+    </td>
+    <td colSpan={6} className="text-right text-xs" style={{ color: 'var(--color-text-muted)' }}>Watchlist only</td>
+  </tr>
 );
 
 export const DashboardHome = ({
@@ -224,85 +196,70 @@ export const DashboardHome = ({
   onOpenChart,
   onManageAssets,
 }: DashboardHomeProps) => {
-  const { positions, loading: positionsLoading } = usePortfolioPositions();
-  const [snapshots, setSnapshots] = useState<Record<string, HoldingSnapshot>>({});
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [performance, setPerformance] = useState<PortfolioPerformanceResponse | null>(null);
+  const [allocation, setAllocation] = useState<PortfolioAllocation | null>(null);
+  const [positions, setPositions] = useState<EnrichedPosition[]>([]);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('marketValue');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [newsCollapsed, setNewsCollapsed] = useState(false);
   const [news, setNews] = useState<NewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
+  const [chartRange, setChartRange] = useState<Range>('1M');
 
-  const assetBySymbol = useMemo(() => new Map(assets.map((asset) => [asset.symbol, asset])), [assets]);
+  const loadDashboard = useCallback(async () => {
+    setDashboardLoading(true);
+    setDashboardError(null);
+    try {
+      const [summaryData, performanceData, allocationData, positionData] = await Promise.all([
+        fetchPortfolioSummary(),
+        fetchPortfolioPerformance(chartRange),
+        fetchPortfolioAllocation(),
+        fetchEnrichedPositions(),
+      ]);
+      setSummary(summaryData);
+      setPerformance(performanceData);
+      setAllocation(allocationData);
+      setPositions(positionData);
+    } catch (error) {
+      setDashboardError(error instanceof Error ? error.message : 'Failed to load dashboard data');
+    } finally {
+      setDashboardLoading(false);
+    }
+  }, [chartRange]);
 
-  const reportSnapshot = useCallback((snapshot: HoldingSnapshot) => {
-    setSnapshots((current) => ({ ...current, [snapshot.symbol]: snapshot }));
-  }, []);
-
-  const portfolio = useMemo(() => {
-    const rows = positions.map((position) => {
-      const snap = snapshots[position.symbol];
-      const costBasis = position.quantity * position.avgCostPrice;
-      const marketValue = snap?.price == null ? costBasis : snap.price * position.quantity;
-      const dailyPnl = snap?.change == null ? null : snap.change * position.quantity;
-      return { costBasis, marketValue, dailyPnl };
-    });
-
-    const value = rows.reduce((sum, row) => sum + row.marketValue, 0);
-    const cost = rows.reduce((sum, row) => sum + row.costBasis, 0);
-    const daily = rows.reduce((sum, row) => sum + (row.dailyPnl ?? 0), 0);
-    const total = value - cost;
-    const totalReturnPct = cost > 0 ? (total / cost) * 100 : null;
-
-    return { value, cost, daily, total, totalReturnPct };
-  }, [positions, snapshots]);
+  useEffect(() => {
+    void loadDashboard();
+    const interval = window.setInterval(
+      () => void loadDashboard(),
+      isMarketOpen() ? 60 * 1000 : 15 * 60 * 1000
+    );
+    return () => window.clearInterval(interval);
+  }, [loadDashboard]);
 
   const filteredPositions = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    const scored = positions.filter((position) => {
-      const asset = assetBySymbol.get(position.symbol);
-      return !normalized || position.symbol.toLowerCase().includes(normalized) || asset?.name.toLowerCase().includes(normalized);
+    const rows = positions.filter((position) => {
+      return !normalized
+        || position.symbol.toLowerCase().includes(normalized)
+        || position.company.toLowerCase().includes(normalized);
     });
 
-    const getValue = (position: PortfolioPosition) => {
-      const snap = snapshots[position.symbol];
-      const marketValue = (snap?.price ?? position.avgCostPrice) * position.quantity;
-      const totalReturn = marketValue - position.avgCostPrice * position.quantity;
-      const values: Record<SortKey, number | string> = {
-        symbol: position.symbol,
-        quantity: position.quantity,
-        avgCostPrice: position.avgCostPrice,
-        marketValue,
-        dailyChange: (snap?.change ?? 0) * position.quantity,
-        totalReturn,
-      };
-      return values[sortKey];
-    };
-
-    return [...scored].sort((a, b) => {
-      const av = getValue(a);
-      const bv = getValue(b);
+    const valueFor = (position: EnrichedPosition): number | string => position[sortKey];
+    return [...rows].sort((a, b) => {
+      const av = valueFor(a);
+      const bv = valueFor(b);
       const result = typeof av === 'string' && typeof bv === 'string' ? av.localeCompare(bv) : Number(av) - Number(bv);
       return sortDir === 'asc' ? result : -result;
     });
-  }, [assetBySymbol, positions, query, snapshots, sortDir, sortKey]);
+  }, [positions, query, sortDir, sortKey]);
 
-  const watchOnlyAssets = useMemo(
-    () => assets.filter((asset) => !positions.some((position) => position.symbol === asset.symbol)),
-    [assets, positions]
-  );
-
-  const allocation = useMemo(() => {
-    const total = portfolio.value || 1;
-    return positions
-      .map((position) => {
-        const snap = snapshots[position.symbol];
-        const value = (snap?.price ?? position.avgCostPrice) * position.quantity;
-        return { symbol: position.symbol, value, percent: (value / total) * 100 };
-      })
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
-  }, [portfolio.value, positions, snapshots]);
+  const positionSymbols = useMemo(() => new Set(positions.map((position) => position.symbol)), [positions]);
+  const watchOnlyAssets = useMemo(() => assets.filter((asset) => !positionSymbols.has(asset.symbol)), [assets, positionSymbols]);
+  const allocationRows = useMemo(() => (allocation?.byAsset ?? []).filter((item) => item.amount > 0).slice(0, 6), [allocation]);
 
   const loadNews = useCallback(async () => {
     const symbols = uniqueSymbols(positions, assets).slice(0, 8);
@@ -313,25 +270,34 @@ export const DashboardHome = ({
 
     setNewsLoading(true);
     try {
-      const settled = await Promise.allSettled(symbols.map((symbol) => fetchNews(symbol)));
+      let merged: NewsItem[] = [];
+      try {
+        const categorized: AllNewsResponse = await fetchAllNews(undefined, 0, 20, symbols);
+        merged = categorized.content ?? [];
+      } catch {
+        const settled = await Promise.allSettled(symbols.map((symbol) => fetchNews(symbol)));
+        merged = settled.flatMap((item) => item.status === 'fulfilled' ? item.value : []);
+      }
       const seen = new Set<string>();
-      const merged = settled
-        .flatMap((item) => item.status === 'fulfilled' ? item.value : [])
-        .filter((item) => {
-          const key = `${item.headline}-${item.source}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        })
-        .sort((a, b) => b.datetime - a.datetime)
-        .slice(0, 12);
-      setNews(merged);
+      setNews(
+        merged
+          .filter((item) => {
+            const key = `${item.headline}-${item.source}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => b.datetime - a.datetime)
+          .slice(0, 12)
+      );
     } finally {
       setNewsLoading(false);
     }
   }, [assets, positions]);
 
-  useEffect(() => { void loadNews(); }, [loadNews]);
+  useEffect(() => {
+    void loadNews();
+  }, [loadNews]);
 
   const setSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -342,151 +308,163 @@ export const DashboardHome = ({
     setSortDir(key === 'symbol' ? 'asc' : 'desc');
   };
 
-  const totalTone = portfolio.total >= 0 ? 'positive' : 'negative';
-  const dailyTone = portfolio.daily >= 0 ? 'positive' : 'negative';
+  const totalValue = summary?.totalValue ?? 0;
+  const totalPnl = summary?.totalPnL ?? 0;
+  const totalReturn = summary?.totalReturn ?? 0;
+  const chartSeries = performance?.series ?? [];
+  const firstValue = chartSeries[0]?.portfolioValue ?? null;
+  const lastValue = chartSeries[chartSeries.length - 1]?.portfolioValue ?? null;
+  const rangeReturn = firstValue && lastValue ? ((lastValue - firstValue) / firstValue) * 100 : null;
 
   return (
     <main className="terminal-main animate-fade-in" style={{ background: 'var(--color-bg-primary)', overflow: 'hidden' }}>
-      {positions.map((position) => <PositionProbe key={position.id} position={position} onSnapshot={reportSnapshot} />)}
-
       <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
-            <h1 className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>Overview</h1>
-            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Real-time portfolio metrics and market conditions.</p>
+            <h1 className="text-3xl font-bold tracking-tight" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>
+              Portfolio Overview
+            </h1>
+            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Backend-driven portfolio metrics and market conditions.</p>
           </div>
-          <div className="flex items-center gap-3 text-xs uppercase tracking-widest" style={{ color: 'var(--color-bull)' }}>
-            <span className="live-dot" />
-            <span className="font-mono">Market feed active</span>
+          <div className="flex items-center gap-2">
+            <button onClick={loadDashboard} className="rounded px-3 py-2 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--color-accent-light)', border: '1px solid var(--color-border)' }} disabled={dashboardLoading}>
+              {dashboardLoading ? 'Loading' : 'Refresh'}
+            </button>
+            <div className="flex items-center gap-3 text-xs uppercase tracking-widest" style={{ color: 'var(--color-bull)' }}>
+              <span className="live-dot" />
+              <span className="font-mono">Backend feed active</span>
+            </div>
           </div>
         </div>
+
+        {dashboardError && (
+          <div className="mb-4 rounded-lg border p-4 text-sm" style={{ background: 'rgba(255,77,109,0.08)', borderColor: 'rgba(255,77,109,0.25)', color: 'var(--color-bear)' }}>
+            {dashboardError}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
           <section className={`${newsCollapsed ? 'xl:col-span-12' : 'xl:col-span-8'} flex flex-col gap-4`}>
             <div className="rounded-lg border p-5" style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+              <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
                 <div>
                   <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>Portfolio Value</div>
-                  <div className="mt-2 font-mono text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                    {positionsLoading ? <span className="skeleton inline-block h-10 w-64" /> : currency(portfolio.value)}
-                  </div>
-                  <div className="mt-2 font-mono text-sm" style={{ color: portfolio.daily >= 0 ? 'var(--color-bull)' : 'var(--color-bear)' }}>
-                    {signedCurrency(portfolio.daily)} today
-                  </div>
+                  <div className="mt-1 font-mono text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{dashboardLoading ? <span className="skeleton inline-block h-7 w-36" /> : currency(totalValue)}</div>
                 </div>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:min-w-[460px]">
-                  <MetricCard label="Cash" value="-" detail="Cash endpoint not connected" />
-                  <MetricCard label="Total P/L" value={signedCurrency(portfolio.total)} detail={pct(portfolio.totalReturnPct)} tone={totalTone} />
-                  <MetricCard label="Cost Basis" value={currency(portfolio.cost)} detail={`${positions.length} holdings`} tone="neutral" />
-                </div>
-              </div>
-              <div className="mt-6 grid grid-cols-1 gap-3 md:grid-cols-3">
-                <MetricCard label="Daily Profit/Loss" value={signedCurrency(portfolio.daily)} detail="From live price deltas" tone={dailyTone} />
-                <MetricCard label="Portfolio Return" value={pct(portfolio.totalReturnPct)} detail="Unrealized return" tone={totalTone} />
-                <MetricCard label="Tracked Assets" value={String(assets.length)} detail="Watchlist universe" />
-              </div>
-            </div>
-
-            <div className="rounded-lg border" style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
-              <div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-center md:justify-between" style={{ borderColor: 'var(--color-border)' }}>
                 <div>
-                  <h2 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>Holdings</h2>
-                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Professional table with search, filtering, sorting, and chart drill-down.</p>
+                  <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>Total P/L</div>
+                  <div className="mt-1 font-mono text-xl font-bold" style={{ color: totalPnl >= 0 ? 'var(--color-bull)' : 'var(--color-bear)' }}>{signedCurrency(totalPnl)}</div>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <label className="sr-only" htmlFor="dashboard-holdings-search">Search holdings</label>
-                  <input
-                    id="dashboard-holdings-search"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search holdings..."
-                    className="h-9 rounded px-3 text-sm outline-none"
-                    style={{ background: 'var(--color-bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }}
-                  />
-                  <button
-                    onClick={onManageAssets}
-                    className="h-9 rounded px-3 text-xs font-bold uppercase tracking-wider"
-                    style={{ background: 'var(--color-accent)', color: '#001a42' }}
-                  >
-                    Manage Assets
-                  </button>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>Total Return</div>
+                  <div className="mt-1 font-mono text-xl font-bold" style={{ color: totalReturn >= 0 ? 'var(--color-bull)' : 'var(--color-bear)' }}>{pct(totalReturn)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>Holdings</div>
+                  <div className="mt-1 font-mono text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{positions.length}</div>
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="market-table min-w-[980px]">
-                  <thead>
-                    <tr>
-                      <th onClick={() => setSort('symbol')}>Company</th>
-                      <th onClick={() => setSort('quantity')}>Shares</th>
-                      <th onClick={() => setSort('avgCostPrice')}>Average Cost</th>
-                      <th>Current Price</th>
-                      <th onClick={() => setSort('marketValue')}>Market Value</th>
-                      <th onClick={() => setSort('dailyChange')}>Daily Change</th>
-                      <th onClick={() => setSort('totalReturn')}>Total Return</th>
-                      <th>Performance</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {positionsLoading || loading ? (
-                      Array.from({ length: 5 }, (_, index) => (
-                        <tr key={index}><td colSpan={8}><span className="skeleton inline-block h-5 w-full" /></td></tr>
-                      ))
-                    ) : filteredPositions.length > 0 ? (
-                      filteredPositions.map((position) => (
-                        <HoldingRow
-                          key={position.id}
-                          position={position}
-                          asset={assetBySymbol.get(position.symbol)}
-                          selected={selectedSymbol === position.symbol}
-                          onSelect={() => onSelectAsset(position.symbol)}
-                          onOpenChart={() => onOpenChart(position.symbol)}
-                        />
-                      ))
-                    ) : watchOnlyAssets.length > 0 ? (
-                      watchOnlyAssets.map((asset) => (
-                        <WatchAssetRow
-                          key={asset.symbol}
-                          asset={asset}
-                          selected={selectedSymbol === asset.symbol}
-                          onSelect={() => onSelectAsset(asset.symbol)}
-                          onOpenChart={() => onOpenChart(asset.symbol)}
-                        />
-                      ))
+              <div className={`grid grid-cols-1 gap-5 ${allocationRows.length > 0 ? 'lg:grid-cols-[minmax(0,1fr)_240px]' : ''}`}>
+                <div className="flex min-w-0 flex-col">
+                  <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>Portfolio Performance</div>
+                      <div className="mt-1 text-xs font-mono" style={{ color: rangeReturn == null ? 'var(--color-text-muted)' : rangeReturn >= 0 ? 'var(--color-bull)' : 'var(--color-bear)' }}>{rangeReturn == null ? 'Not enough price history for this range' : `${pct(rangeReturn)} in ${chartRange}`}</div>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {RANGES.map((range) => (
+                        <button key={range} onClick={() => setChartRange(range)} className="rounded px-2 py-1 text-[10px] font-bold transition-colors" style={{ background: range === chartRange ? 'var(--color-bg-hover)' : 'transparent', color: range === chartRange ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
+                          {range}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="relative min-h-[220px] overflow-hidden rounded-lg border" style={{ background: 'var(--color-bg-base)', borderColor: 'var(--color-border)' }}>
+                    {chartSeries.length >= 2 ? (
+                      <PerformanceChart performance={performance} />
                     ) : (
-                      <tr>
-                        <td colSpan={8} className="py-8 text-center" style={{ color: 'var(--color-text-muted)' }}>
-                          No holdings yet. Add assets to start building the dashboard.
-                        </td>
-                      </tr>
+                      <div className="flex h-[220px] items-center justify-center text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                        No portfolio price history yet. Trigger price history loads for holdings to build this chart.
+                      </div>
                     )}
-                  </tbody>
-                </table>
+                  </div>
+                </div>
+
+                {allocationRows.length > 0 && (
+                  <div className="flex min-w-0 flex-col">
+                    <div className="mb-3 text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--color-text-muted)' }}>Allocation</div>
+                    <div className="flex flex-1 flex-col justify-center rounded-lg border p-3" style={{ background: 'var(--color-bg-base)', borderColor: 'var(--color-border)' }}>
+                      <div className="relative h-36 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={allocationRows} dataKey="amount" nameKey="name" cx="50%" cy="50%" innerRadius={42} outerRadius={62} stroke="none">
+                              {allocationRows.map((item, index) => <Cell key={item.name} fill={item.color ?? COLORS[index % COLORS.length]} />)}
+                            </Pie>
+                            <Tooltip formatter={(value) => currency(Number(value ?? 0))} contentStyle={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', fontSize: '12px' }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                          <span className="text-[10px] font-bold" style={{ color: 'var(--color-text-muted)' }}>{allocationRows.length} ASSETS</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 space-y-2">
+                        {allocationRows.map((item, index) => (
+                          <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
+                            <div className="flex min-w-0 items-center gap-2">
+                              <div className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: item.color ?? COLORS[index % COLORS.length] }} />
+                              <span className="truncate font-semibold" style={{ color: 'var(--color-text-primary)' }}>{item.name}</span>
+                            </div>
+                            <span className="font-mono" style={{ color: 'var(--color-text-secondary)' }}>{item.value.toFixed(1)}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="rounded-lg border p-4" style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
-                <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>Asset Allocation</h2>
-                <div className="mt-4 space-y-4">
-                  {allocation.length > 0 ? allocation.map((item, index) => (
-                    <AllocationBar
-                      key={item.symbol}
-                      label={item.symbol}
-                      value={currency(item.value)}
-                      percent={item.percent}
-                      color={index === 0 ? 'var(--color-accent)' : index === 1 ? 'var(--color-bull)' : index === 2 ? 'var(--color-warning)' : 'var(--color-text-muted)'}
-                    />
-                  )) : <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Allocation appears after positions are added.</p>}
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2 xl:items-start">
+              <MacroCalendarWidget />
+
+              <div className="flex flex-col overflow-hidden rounded-lg border" style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
+                <div className="flex flex-col gap-3 border-b p-4 md:flex-row md:items-center md:justify-between" style={{ borderColor: 'var(--color-border)' }}>
+                  <div>
+                    <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>Holdings</h2>
+                    <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{filteredPositions.length} backend-enriched positions</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search..." className="h-8 w-28 rounded px-2 text-xs outline-none" style={{ background: 'var(--color-bg-base)', border: '1px solid var(--color-border)', color: 'var(--color-text-primary)' }} />
+                    <button onClick={onManageAssets} className="h-8 rounded px-2 text-[10px] font-bold uppercase tracking-wider" style={{ background: 'var(--color-accent)', color: '#001a42' }}>Manage</button>
+                  </div>
                 </div>
-              </div>
-              <div className="rounded-lg border p-4" style={{ background: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
-                <h2 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>Exposure Coverage</h2>
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <MetricCard label="Sector" value="Pending" detail="Requires metadata feed" />
-                  <MetricCard label="Industry" value="Pending" detail="Requires metadata feed" />
-                  <MetricCard label="Country" value="Pending" detail="Requires metadata feed" />
-                  <MetricCard label="Theme" value="Pending" detail="Requires tagging model" />
+
+                <div className="overflow-x-auto">
+                  <table className="market-table min-w-full">
+                    <thead>
+                      <tr>
+                        <th onClick={() => setSort('symbol')}>Symbol</th>
+                        <th className="text-right" onClick={() => setSort('shares')}>Qty</th>
+                        <th className="text-right" onClick={() => setSort('avgCost')}>Cost</th>
+                        <th className="text-right" onClick={() => setSort('currentPrice')}>Last</th>
+                        <th className="text-right" onClick={() => setSort('marketValue')}>Value</th>
+                        <th className="text-right" onClick={() => setSort('totalReturn')}>Return</th>
+                        <th className="text-right" onClick={() => setSort('unrealizedPnL')}>P/L</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dashboardLoading || loading ? (
+                        Array.from({ length: 5 }, (_, index) => <tr key={index}><td colSpan={7}><span className="skeleton inline-block h-5 w-full" /></td></tr>)
+                      ) : filteredPositions.length > 0 ? (
+                        filteredPositions.map((position) => <HoldingRow key={position.symbol} position={position} selected={selectedSymbol === position.symbol} onSelect={() => onSelectAsset(position.symbol)} onOpenChart={() => onOpenChart(position.symbol)} />)
+                      ) : watchOnlyAssets.length > 0 ? (
+                        watchOnlyAssets.map((asset) => <WatchAssetRow key={asset.symbol} asset={asset} selected={selectedSymbol === asset.symbol} onSelect={() => onSelectAsset(asset.symbol)} onOpenChart={() => onOpenChart(asset.symbol)} />)
+                      ) : (
+                        <tr><td colSpan={7} className="py-8 text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>No holdings yet. Add assets or portfolio positions.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -499,10 +477,8 @@ export const DashboardHome = ({
                 <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>Portfolio, watchlist, and macro feed</p>
               </div>
               <div className="flex items-center gap-2">
-                <button onClick={loadNews} className="rounded px-2 py-1 text-xs" style={{ color: 'var(--color-accent-light)', border: '1px solid var(--color-border)' }}>Refresh</button>
-                <button onClick={() => setNewsCollapsed((current) => !current)} className="rounded px-2 py-1 text-xs" style={{ color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>
-                  {newsCollapsed ? 'Expand' : 'Collapse'}
-                </button>
+                <button onClick={loadNews} disabled={newsLoading} className="rounded px-2 py-1 text-xs" style={{ color: 'var(--color-accent-light)', border: '1px solid var(--color-border)' }}>{newsLoading ? 'Loading' : 'Refresh'}</button>
+                <button onClick={() => setNewsCollapsed((current) => !current)} className="rounded px-2 py-1 text-xs" style={{ color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }}>{newsCollapsed ? 'Expand' : 'Collapse'}</button>
               </div>
             </div>
             {!newsCollapsed && (
@@ -530,3 +506,4 @@ export const DashboardHome = ({
     </main>
   );
 };
+

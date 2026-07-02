@@ -22,7 +22,7 @@ function isMarketOpen(date: Date): boolean {
   const utcM = date.getUTCMinutes();
   const utcDay = date.getUTCDay(); // 0=Sun, 6=Sat
   const totalMinutesUTC = utcH * 60 + utcM;
-  // ET = UTC-4 (EDT) — approx. open=13:30 UTC, close=20:00 UTC
+  // ET = UTC-4 (EDT), approx. open=13:30 UTC, close=20:00 UTC
   const openUTC = 13 * 60 + 30;
   const closeUTC = 20 * 60;
   return utcDay >= 1 && utcDay <= 5 && totalMinutesUTC >= openUTC && totalMinutesUTC < closeUTC;
@@ -45,7 +45,7 @@ export const TopBar = ({ assets, onSelectAsset, onManageAssets }: TopBarProps) =
   const localH = pad2(now.getHours());
   const localM = pad2(now.getMinutes());
   const localS = pad2(now.getSeconds());
-  const localDate = now.toLocaleDateString('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
+  const localDate = now.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
 
   // UTC time
   const utcH = pad2(now.getUTCHours());
@@ -181,7 +181,7 @@ export const TopBar = ({ assets, onSelectAsset, onManageAssets }: TopBarProps) =
             animation: marketOpen ? 'pulse-live 1.8s ease-in-out infinite' : 'none',
           }}
         />
-        {marketOpen ? 'PİYASA AÇIK' : 'PİYASA KAPALI'}
+        {marketOpen ? 'MARKET OPEN' : 'MARKET CLOSED'}
       </div>
 
       {/* Clock */}
@@ -190,7 +190,7 @@ export const TopBar = ({ assets, onSelectAsset, onManageAssets }: TopBarProps) =
           {localH}:{localM}:{localS}
         </div>
         <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-          {localDate} · UTC {utcH}:{utcM}
+          {localDate} - UTC {utcH}:{utcM}
         </div>
       </div>
 
@@ -231,3 +231,5 @@ export const TopBar = ({ assets, onSelectAsset, onManageAssets }: TopBarProps) =
     </header>
   );
 };
+
+

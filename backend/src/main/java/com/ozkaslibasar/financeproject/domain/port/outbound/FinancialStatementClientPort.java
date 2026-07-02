@@ -6,12 +6,12 @@ import java.util.List;
 
 /**
  * Outbound port — contract for fetching quarterly/annual financial statement data
- * from a fundamental data provider (e.g. Financial Modeling Prep API).
+ * from a fundamental data provider.
  *
  * <p>This port is intentionally separated from {@link PriceChartClientPort} to
- * enforce a strict rate-limiting boundary: FMP is rate-limited at 250 requests
+ * enforce a strict rate-limiting boundary for statement providers
  * per day. All calls through implementations of this port must be wrapped with
- * {@code @RateLimiter(name = "fmpApi")} and {@code @CircuitBreaker(name = "fmpApi")}
+ * {@code @RateLimiter} and {@code @CircuitBreaker}
  * at the adapter layer.</p>
  *
  * <p>This interface is pure Java — no framework annotations are permitted here.</p>

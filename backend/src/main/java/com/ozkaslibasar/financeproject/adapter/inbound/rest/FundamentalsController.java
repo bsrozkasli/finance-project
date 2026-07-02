@@ -12,6 +12,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -48,6 +49,7 @@ public class FundamentalsController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/{symbol}")
+    @Cacheable(value = "fundamentalCache", key = "'summary:' + #symbol.toUpperCase()")
     public FundamentalsData getFundamentals(@PathVariable String symbol) {
         String normalized = symbol.toUpperCase();
         List<FinancialStatement> statements = statements(normalized);
@@ -84,6 +86,7 @@ public class FundamentalsController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/{symbol}/ratios")
+    @Cacheable(value = "fundamentalCache", key = "'ratios:' + #symbol.toUpperCase()")
     public FinancialRatios getRatios(@PathVariable String symbol) {
         String normalized = symbol.toUpperCase();
         SmartReportMarketDataPort.CompanyMetrics market = marketDataPort.fetchCompanyMetrics(normalized).orElse(null);
@@ -116,6 +119,7 @@ public class FundamentalsController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/{symbol}/earnings")
+    @Cacheable(value = "fundamentalCache", key = "'earnings:' + #symbol.toUpperCase() + ':' + #periods")
     public List<EarningsResult> getEarnings(@PathVariable String symbol, @RequestParam(defaultValue = "8") int periods) {
         return researchDataPort.fetchEarnings(symbol.toUpperCase()).stream()
                 .limit(Math.max(1, periods))
@@ -137,6 +141,7 @@ public class FundamentalsController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/{symbol}/insider")
+    @Cacheable(value = "insiderCache", key = "#symbol.toUpperCase()")
     public List<InsiderActivity> getInsiderActivity(@PathVariable String symbol) {
         return finnhubClient.getInsiderTransactions(symbol.toUpperCase()).stream()
                 .limit(20)
@@ -158,6 +163,7 @@ public class FundamentalsController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/{symbol}/institutional")
+    @Cacheable(value = "fundamentalCache", key = "'institutional:' + #symbol.toUpperCase()")
     public List<InstitutionalHolder> getInstitutionalOwnership(@PathVariable String symbol) {
         return researchDataPort.fetchInstitutionalScores(symbol.toUpperCase())
                 .map(scores -> List.of(

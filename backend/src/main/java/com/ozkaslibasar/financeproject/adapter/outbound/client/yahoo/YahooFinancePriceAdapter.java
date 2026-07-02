@@ -65,7 +65,7 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
         try {
             String url = YAHOO_BASE_URL + "/" + symbol
                     + "?interval=" + interval + "&range=" + range;
-            log.info("Fetching Yahoo Finance price history: {}", url);
+            log.info("operation=price_history provider=yahoo symbol={} interval={} range={} result=request_start url={}", symbol, interval, range, url);
 
             YahooChartResponseDto response =
                     restTemplate.getForObject(url, YahooChartResponseDto.class);
@@ -75,7 +75,7 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             return parsed;
 
         } catch (Exception e) {
-            log.error("Failed to fetch Yahoo price history for symbol={}: {}", symbol, e.getMessage());
+            log.error("operation=price_history provider=yahoo symbol={} interval={} range={} result=error reason={}", symbol, interval, range, e.getMessage());
             meterRegistry.counter("data.ingestion.error", "provider", "YFinance").increment();
             return Collections.emptyList();
         }
@@ -92,7 +92,7 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
     public Optional<Asset> fetchAssetInfo(String symbol) {
         try {
             String url = YAHOO_BASE_URL + "/" + symbol + "?interval=1d&range=5d";
-            log.info("Fetching Yahoo asset info for symbol={}", symbol);
+            log.info("operation=asset_info provider=yahoo symbol={} result=request_start", symbol);
 
             YahooChartResponseDto response =
                     restTemplate.getForObject(url, YahooChartResponseDto.class);
@@ -123,7 +123,7 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             return result;
 
         } catch (Exception e) {
-            log.error("Failed to fetch Yahoo asset info for symbol={}: {}", symbol, e.getMessage());
+            log.error("operation=asset_info provider=yahoo symbol={} result=error reason={}", symbol, e.getMessage());
             meterRegistry.counter("data.ingestion.error", "provider", "YFinance").increment();
             return Optional.empty();
         }
@@ -146,21 +146,21 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
                 || response.getChart() == null
                 || response.getChart().getResult() == null
                 || response.getChart().getResult().isEmpty()) {
-            log.warn("Yahoo returned no result block for symbol={}", symbol);
+            log.warn("operation=price_history provider=yahoo symbol={} result=empty reason=no_result_block", symbol);
             return Collections.emptyList();
         }
 
         var result = response.getChart().getResult().get(0);
         var timestamps = result.getTimestamp();
         if (timestamps == null || timestamps.isEmpty()) {
-            log.warn("Yahoo returned no timestamps for symbol={}", symbol);
+            log.warn("operation=price_history provider=yahoo symbol={} result=empty reason=no_timestamps", symbol);
             return Collections.emptyList();
         }
 
         if (result.getIndicators() == null
                 || result.getIndicators().getQuote() == null
                 || result.getIndicators().getQuote().isEmpty()) {
-            log.warn("Yahoo returned no quote indicators for symbol={}", symbol);
+            log.warn("operation=price_history provider=yahoo symbol={} result=empty reason=no_quote_indicators", symbol);
             return Collections.emptyList();
         }
 
@@ -191,13 +191,15 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             Instant ts = Instant.ofEpochSecond(timestamps.get(i));
 
             BigDecimal close  = toBd(safeGet(quote.getClose(), i));
-            BigDecimal open   = orElse(toBd(safeGet(quote.getOpen(),   i)), close);
-            BigDecimal high   = orElse(toBd(safeGet(quote.getHigh(),   i)), close);
-            BigDecimal low    = orElse(toBd(safeGet(quote.getLow(),    i)), close);
+            BigDecimal open   = toBd(safeGet(quote.getOpen(), i));
+            BigDecimal high   = toBd(safeGet(quote.getHigh(), i));
+            BigDecimal low    = toBd(safeGet(quote.getLow(), i));
             Long rawVol = safeGet(quote.getVolume(), i);
-            BigDecimal volume = rawVol != null
-                    ? BigDecimal.valueOf(rawVol)
-                    : BigDecimal.ZERO;
+            if (open == null || high == null || low == null || close == null || rawVol == null) {
+                log.debug("operation=price_history provider=yahoo symbol={} result=skip_incomplete_bar index={}", symbol, i);
+                return null;
+            }
+            BigDecimal volume = BigDecimal.valueOf(rawVol);
 
             // Ensure high >= low (occasionally Yahoo data has rounding glitches)
             if (high.compareTo(low) < 0) {
@@ -207,7 +209,7 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             return new PriceHistory(symbol, open, close, high, low, volume, ts);
 
         } catch (Exception e) {
-            log.debug("Skipping malformed bar at index={} for symbol={}: {}", i, symbol, e.getMessage());
+            log.debug("operation=price_history provider=yahoo symbol={} result=skip_malformed_bar index={} reason={}", symbol, i, e.getMessage());
             return null;
         }
     }
@@ -222,11 +224,6 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
     private BigDecimal toBd(Double value) {
         if (value == null || Double.isNaN(value) || Double.isInfinite(value)) return null;
         return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
-    }
-
-    /** Returns {@code value} if non-null, otherwise {@code fallback}. */
-    private BigDecimal orElse(BigDecimal value, BigDecimal fallback) {
-        return value != null ? value : fallback;
     }
 
     /** Infers AssetType from Yahoo's exchangeName string. */

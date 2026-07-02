@@ -1,6 +1,8 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.client.dataservice;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.extern.slf4j.Slf4j;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,6 +16,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -32,13 +35,15 @@ public class DataServicePriceAdapter {
     private final RestTemplate restTemplate;
 
     private final PriceNormalizationService priceNormalizationService;
+    private final MeterRegistry meterRegistry;
 
     @Value("${data-service.base-url:http://localhost:8000}")
     private String baseUrl;
 
-    public DataServicePriceAdapter(RestTemplate restTemplate, PriceNormalizationService priceNormalizationService) {
+    public DataServicePriceAdapter(RestTemplate restTemplate, PriceNormalizationService priceNormalizationService, MeterRegistry meterRegistry) {
         this.restTemplate = restTemplate;
         this.priceNormalizationService = priceNormalizationService;
+        this.meterRegistry = meterRegistry;
     }
 
     /**
@@ -49,43 +54,65 @@ public class DataServicePriceAdapter {
      * @return a non-null, possibly empty list of {@link PriceHistory} records
      */
     public List<PriceHistory> fetchPriceHistory(String symbol, String interval, String range) {
+        Timer.Sample sample = Timer.start(meterRegistry);
+        String result = "error";
         try {
             String encodedSymbol = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
             String url = baseUrl + "/api/v1/prices/" + encodedSymbol
                     + "?interval=" + interval + "&range=" + range;
 
-            log.info("Fetching price history from data-service: {}", url);
+            log.info("operation=price_history provider=data-service symbol={} interval={} range={} result=request_start url={}", symbol, interval, range, url);
 
             DataServicePriceDto[] response = restTemplate.getForObject(url, DataServicePriceDto[].class);
 
             if (response == null || response.length == 0) {
-                log.warn("Data-service returned empty response for symbol={} interval={} range={}", symbol, interval, range);
+                log.warn("operation=price_history provider=data-service symbol={} interval={} range={} result=empty", symbol, interval, range);
+                result = "empty";
                 return Collections.emptyList();
             }
 
-            return Arrays.stream(response)
-                    .filter(dto -> dto.getClose() != null)
+            List<PriceHistory> parsed = Arrays.stream(response)
                     .map(dto -> toPriceHistory(dto, symbol))
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
+            result = parsed.isEmpty() ? "empty" : "success";
+            return parsed;
 
         } catch (Exception e) {
-            log.error("Failed to fetch price history from data-service for symbol={}: {}", symbol, e.getMessage());
+            log.error("operation=price_history provider=data-service symbol={} interval={} range={} result=error reason={}", symbol, interval, range, e.getMessage());
+            result = "error";
             return Collections.emptyList();
+        } finally {
+            meterRegistry.counter("provider_request_total", "provider", "data-service", "operation", "price_history", "result", result).increment();
+            sample.stop(meterRegistry.timer("dataservice_request_latency_seconds", "endpoint", "prices", "result", result));
         }
     }
 
     private PriceHistory toPriceHistory(DataServicePriceDto dto, String symbol) {
-        Instant ts = priceNormalizationService.normalizeYFinanceTimestamp(dto.getTimestamp());
+        if (dto.getTimestamp() == null
+                || dto.getOpen() == null
+                || dto.getHigh() == null
+                || dto.getLow() == null
+                || dto.getClose() == null
+                || dto.getVolume() == null) {
+            log.warn("operation=price_history provider=data-service symbol={} result=skip_incomplete_bar timestamp={}", symbol, dto.getTimestamp());
+            return null;
+        }
 
-        BigDecimal close = BigDecimal.valueOf(dto.getClose());
-        // Fall back to 'close' when optional OHLV fields are missing to keep the domain
-        // record valid (e.g. some crypto tickers omit high/low).
-        BigDecimal open   = dto.getOpen()   != null ? BigDecimal.valueOf(dto.getOpen())   : close;
-        BigDecimal high   = dto.getHigh()   != null ? BigDecimal.valueOf(dto.getHigh())   : close;
-        BigDecimal low    = dto.getLow()    != null ? BigDecimal.valueOf(dto.getLow())    : close;
-        BigDecimal volume = dto.getVolume() != null ? BigDecimal.valueOf(dto.getVolume()) : BigDecimal.ZERO;
+        try {
+            Instant ts = priceNormalizationService.normalizeYFinanceTimestamp(dto.getTimestamp());
 
-        // Use the backward-compat Instant constructor (open, close, high, low, volume, timestamp)
-        return new PriceHistory(symbol, open, close, high, low, volume, ts);
+            BigDecimal open = BigDecimal.valueOf(dto.getOpen());
+            BigDecimal high = BigDecimal.valueOf(dto.getHigh());
+            BigDecimal low = BigDecimal.valueOf(dto.getLow());
+            BigDecimal close = BigDecimal.valueOf(dto.getClose());
+            BigDecimal volume = BigDecimal.valueOf(dto.getVolume());
+
+            // Use the backward-compat Instant constructor (open, close, high, low, volume, timestamp)
+            return new PriceHistory(symbol, open, close, high, low, volume, ts);
+        } catch (Exception e) {
+            log.warn("operation=price_history provider=data-service symbol={} result=skip_invalid_bar timestamp={} reason={}", symbol, dto.getTimestamp(), e.getMessage());
+            return null;
+        }
     }
 }

@@ -230,11 +230,11 @@ class AgentAnalysisUseCaseTest {
         when(priceRepository.findByAssetIdAndPeriod(eq(symbol), any(Instant.class), any(Instant.class)))
                 .thenReturn(Collections.emptyList());
 
-        // Sentiment fails to fetch (falls back to default neutral)
+        // Sentiment unavailable: do not fabricate neutral/hold context.
         when(sentimentDataPort.fetchSentiment(symbol)).thenReturn(Optional.empty());
 
         // AI analysis returns empty
-        when(agentAnalysisAiPort.runAnalysis(eq(symbol), any(AgentMetricSnapshot.class), any(AgentSentimentSnapshot.class)))
+        when(agentAnalysisAiPort.runAnalysis(eq(symbol), any(AgentMetricSnapshot.class), isNull()))
                 .thenReturn(Optional.empty());
 
         // Act
@@ -244,7 +244,7 @@ class AgentAnalysisUseCaseTest {
         assertThat(resultOpt).isEmpty();
 
         verify(sentimentDataPort).fetchSentiment(symbol);
-        verify(agentAnalysisAiPort).runAnalysis(eq(symbol), any(AgentMetricSnapshot.class), any(AgentSentimentSnapshot.class));
+        verify(agentAnalysisAiPort).runAnalysis(eq(symbol), any(AgentMetricSnapshot.class), isNull());
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
