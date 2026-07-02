@@ -103,10 +103,10 @@ Agent analysis orchestration:
 
 Frontend rules:
 
-- `App.tsx` owns `BrowserRouter`; `Dashboard.tsx` composes the routed application shell.
-- User-facing pages use React Router browser paths. Transient UI state such as selected symbol, modals, drawers, chart ranges, filters, and table sorting remains component state.
-- Hooks under `frontend/src/hooks` own data fetching.
-- API contracts live in `frontend/src/api`.
+- `App.tsx` owns the `BrowserRouter`; `Dashboard.tsx` composes the routed application shell.
+- User-facing pages use React Router browser paths rather than tab-only state. Transient UI state such as selected symbol, modals, drawers, chart ranges, filters, and table sorting remains component state.
+- Hooks under `frontend/src/hooks` own data fetching and loading/error state.
+- API contracts live in `frontend/src/api` or near the hook that uses them.
 - Styling must use tokens in `frontend/src/index.css`.
 - Frontend browser routes and backend `/api/v1` endpoints are separate contracts; adding a frontend route must not rename backend endpoints.
 
@@ -434,8 +434,10 @@ Agent analysis (`GET /api/v1/agent-analysis/AAPL`):
   "from_cache": false
 }
 ```
+
 ## 8. Error Handling
 
+Endpoint-level error conditions, provider failure mappings, auth error targets, and frontend handling guidance are cataloged in `docs/ERROR_CATALOG.md`.
 - Provider failures degrade gracefully with empty lists, optional `null` fields, or partial DTOs where the endpoint contract allows.
 - Fake market data is forbidden.
 - Validation errors should return client-error status codes with clear messages.
