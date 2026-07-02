@@ -7,6 +7,7 @@ import com.ozkaslibasar.financeproject.domain.model.FinancialStatement;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.service.FinancialStatementMerger;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -17,9 +18,8 @@ import java.util.List;
 /**
  * Hybrid financial data adapter: Yahoo-backed statements + Yahoo/data-service price fallback.
  *
- * <p>Replaces the legacy FMP-based composite. Financial statements are now fetched
- * from the local FastAPI data-service (which proxies yfinance), keeping the
- * provider-agnostic contract intact.</p>
+ * <p>Financial statements and prices are fetched through provider-specific adapters,
+ * keeping the provider-agnostic domain contract intact.</p>
  */
 @Component
 @Primary
@@ -29,6 +29,7 @@ public class CompositeFinancialDataAdapter implements FinancialDataPort {
     private final YahooStatementClientAdapter yahooStatementClient;
     private final YahooFinancePriceAdapter yahooFinancePriceAdapter;
     private final DataServicePriceAdapter dataServicePriceAdapter;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public List<FinancialStatement> fetchStatements(String symbol) {

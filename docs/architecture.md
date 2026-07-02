@@ -98,10 +98,11 @@ flowchart TB
 ## 2. Key Components and Communication Patterns
 
 ### 2.1 Frontend Communication
-- Built with **React 18**, **TypeScript**, and **Vite**.
+- Built with **React**, **TypeScript**, **Vite**, and React Router browser routes.
 - Styled using design tokens declared in `frontend/src/index.css`.
 - The Axios HTTP client (`frontend/src/api/client.ts`) communicates exclusively with the Spring Boot backend on `http://localhost:8080/api/v1`.
-- State management and side-effects are organized via custom hooks (e.g. `useAgentAnalysis.ts`), which lift states to page-level views (e.g. `Dashboard.tsx`).
+- Browser routes such as `/dashboard`, `/portfolio/{portfolioId}`, `/news/{symbol}`, and `/reports/{symbol}` are frontend-only routes and are distinct from backend `/api/v1` endpoints.
+- State management and side-effects are organized via custom hooks (e.g., `useAgentAnalysis.ts`), with page-level state composed in `Dashboard.tsx` and transient UI state kept in components.
 
 ### 2.2 Backend (Hexagonal Architecture)
 To maintain long-term maintainability, the backend codebase is partitioned into three key packages:

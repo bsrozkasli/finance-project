@@ -12,7 +12,8 @@ public record AgentMetricSnapshot(
         Map<String, BigDecimal> fundamentals,
         Map<String, BigDecimal> valuation,
         Map<String, BigDecimal> risk,
-        Map<String, BigDecimal> technical
+        Map<String, BigDecimal> technical,
+        Map<String, BigDecimal> macroContext
 ) {
     public AgentMetricSnapshot {
         Objects.requireNonNull(price, "price");
@@ -20,6 +21,7 @@ public record AgentMetricSnapshot(
         Objects.requireNonNull(valuation, "valuation");
         Objects.requireNonNull(risk, "risk");
         Objects.requireNonNull(technical, "technical");
+        Objects.requireNonNull(macroContext, "macroContext");
         if (price.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("price must not be negative");
         }

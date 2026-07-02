@@ -29,8 +29,8 @@ public class FinnhubSentimentAdapter implements SentimentDataPort {
         List<FinnhubRecommendationDto> rows = finnhubClient.getRecommendations(symbol);
 
         if (rows == null || rows.isEmpty()) {
-            log.info("FinnhubSentimentAdapter: no recommendations for {}; using neutral", symbol);
-            return Optional.of(neutralSnapshot());
+            log.info("FinnhubSentimentAdapter: no recommendations for {}; sentiment unavailable", symbol);
+            return Optional.empty();
         }
 
         FinnhubRecommendationDto latest = rows.get(0);
@@ -44,21 +44,22 @@ public class FinnhubSentimentAdapter implements SentimentDataPort {
         double bearish = sell + strongSell;
         double total   = bullish + bearish + hold;
 
-        double analystScore = total == 0 ? 0 : (bullish - bearish) / total;
+        if (total == 0) {
+            log.info("FinnhubSentimentAdapter: recommendation totals are zero for {}; sentiment unavailable", symbol);
+            return Optional.empty();
+        }
+
+        double analystScore = (bullish - bearish) / total;
         String consensus    = analystScore > 0.2 ? "buy" : analystScore < -0.2 ? "sell" : "hold";
         int sentimentScore  = (int) Math.round(50 + analystScore * 50);
 
         return Optional.of(new AgentSentimentSnapshot(
-                0.0,
-                "neutral",
+                null,
+                null,
                 analystScore,
                 consensus,
                 Math.max(0, Math.min(100, sentimentScore))
         ));
-    }
-
-    private AgentSentimentSnapshot neutralSnapshot() {
-        return new AgentSentimentSnapshot(0, "neutral", 0, "hold", 50);
     }
 }
 

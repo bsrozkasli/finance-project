@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Computes compressed fundamental and valuation metrics from merged FMP statements.
+ * Computes compressed fundamental and valuation metrics from merged financial statements.
  * See FINANCIAL_ANALYSIS_FORMULAS.md for formula references.
  */
 public final class FinancialMetricsCalculator {

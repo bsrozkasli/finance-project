@@ -38,8 +38,12 @@ Use Bloomberg Terminal data density with TradingView-style usability as the refe
 
 ## Code Organization
 
+- `App.tsx` owns `BrowserRouter`; `Dashboard.tsx` composes the routed shell.
+- User-facing screens use React Router browser paths. Keep transient UI state such as modals, drawers, filters, chart ranges, table sorting, and selected symbol in component state unless the state needs to be shareable or reload-safe.
 - `frontend/src/api/client.ts` owns backend API access to `http://localhost:8080/api/v1`.
-- Update `frontend/vite.config.ts` together with `client.ts` if backend routing changes.
+- Frontend browser routes and backend API endpoints are separate contracts. Adding `/reports/NVDA` or `/portfolio/growth` must not rename existing `/api/v1` endpoints.
+- Keep `docs/FRONTEND_API.md` aligned when frontend callers or user-facing routes change.
+- Update `frontend/vite.config.ts` together with `client.ts` if backend API routing changes.
 - Page-level state belongs in pages such as `Dashboard.tsx`.
 - Data fetching belongs in hooks.
 - Presentational components should receive data and callbacks through typed props.

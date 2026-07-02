@@ -12,7 +12,7 @@ import java.util.Optional;
  *
  * <p>This port is intentionally separated from {@link FinancialStatementClientPort}
  * to respect the rate limits of each provider: Yahoo Finance is free and unlimited
- * for price data, while FMP is reserved exclusively for fundamental statements.</p>
+ * for price data, while statement data is fetched through a separate statement client port.</p>
  *
  * <p>Rate-limiting and circuit-breaker annotations ({@code @RateLimiter},
  * {@code @CircuitBreaker}) are applied in the adapter implementation,

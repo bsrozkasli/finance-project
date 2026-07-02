@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,7 +30,7 @@ class PriceRepositoryAdapterTest {
     @Test
     void shouldSaveAndFindLatestPrice() {
         // Arrange
-        Instant now = Instant.now();
+        Instant now = Instant.now().truncatedTo(ChronoUnit.MICROS);
         LocalDateTime nowUtc = LocalDateTime.ofInstant(now, ZoneOffset.UTC);
         PriceHistory p1 = new PriceHistory("TSLA", BigDecimal.valueOf(100), BigDecimal.valueOf(105), BigDecimal.valueOf(110), BigDecimal.valueOf(90), BigDecimal.valueOf(1000), now.minusSeconds(86400));
         PriceHistory p2 = new PriceHistory("TSLA", BigDecimal.valueOf(105), BigDecimal.valueOf(102), BigDecimal.valueOf(108), BigDecimal.valueOf(100), BigDecimal.valueOf(2000), now);
@@ -44,4 +45,20 @@ class PriceRepositoryAdapterTest {
         assertThat(latest.get().timestamp()).isEqualTo(nowUtc);
         assertThat(latest.get().close()).isEqualByComparingTo(BigDecimal.valueOf(102));
     }
+    @Test
+    void shouldUpdateExistingPriceForSameSymbolAndTimestamp() {
+        Instant timestamp = Instant.now().truncatedTo(ChronoUnit.MICROS);
+        PriceHistory original = new PriceHistory("NVDA", BigDecimal.valueOf(200), BigDecimal.valueOf(200), BigDecimal.valueOf(205), BigDecimal.valueOf(198), BigDecimal.valueOf(1000), timestamp);
+        PriceHistory updated = new PriceHistory("NVDA", BigDecimal.valueOf(194), BigDecimal.valueOf(195), BigDecimal.valueOf(196), BigDecimal.valueOf(193), BigDecimal.valueOf(2000), timestamp);
+
+        priceRepositoryAdapter.saveAll(List.of(original));
+        priceRepositoryAdapter.saveAll(List.of(updated));
+
+        Optional<PriceHistory> latest = priceRepositoryAdapter.findLatestByAssetId("NVDA");
+
+        assertThat(latest).isPresent();
+        assertThat(latest.get().close()).isEqualByComparingTo(BigDecimal.valueOf(195));
+        assertThat(latest.get().volume()).isEqualByComparingTo(BigDecimal.valueOf(2000));
+    }
 }
+

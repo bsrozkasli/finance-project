@@ -1,4 +1,4 @@
-"""Portfolio Analytics Service – Phase 8.
+"""Portfolio Analytics Service â€“ Phase 8.
 
 Extended portfolio analytics: risk decomposition, diversification metrics,
 and deterministic stress testing against hardcoded macro scenarios.
@@ -49,7 +49,7 @@ class PortfolioAnalyticsService:
         symbols:
             Ticker symbols understood by Yahoo Finance (minimum 2).
         weights:
-            Mapping of symbol → portfolio weight.  Values should sum
+            Mapping of symbol â†’ portfolio weight.  Values should sum
             to approximately 1.0.
         lookback_days:
             Number of calendar days of history to fetch (default 252).
@@ -138,7 +138,7 @@ class PortfolioAnalyticsService:
     @classmethod
     def _fetch_price_matrix(cls, tickers: list[str], lookback_days: int) -> pd.DataFrame:
         """Download close prices for *tickers* over *lookback_days* calendar days."""
-        end_date = pd.Timestamp.utcnow()
+        end_date = pd.Timestamp.now(tz="UTC")
         start_date = end_date - pd.Timedelta(days=lookback_days)
 
         data = yf.download(
@@ -210,7 +210,7 @@ class PortfolioAnalyticsService:
             risk_contribution[sym] = round(float(rc_pct[i]), 6)
             marginal_risk_contribution[sym] = round(float(marginal_rc[i]), 6)
 
-        # HHI – computed on the *input* weights (before renormalisation)
+        # HHI â€“ computed on the *input* weights (before renormalisation)
         hhi = sum(v ** 2 for v in w)
         hhi = float(min(max(hhi, 0.0), 1.0))
 
@@ -224,7 +224,7 @@ class PortfolioAnalyticsService:
             diversification_ratio = 1.0
         diversification_ratio = max(diversification_ratio, 1.0)
 
-        # Correlation matrix → nested dict
+        # Correlation matrix â†’ nested dict
         corr_dict: dict[str, dict[str, float]] = {}
         for sym_row in symbols:
             if sym_row not in corr_matrix.index:
@@ -291,13 +291,13 @@ class PortfolioAnalyticsService:
 
         scenarios: list[ScenarioResult] = []
 
-        # 1. Market Crash (-20%) – beta-adjusted
+        # 1. Market Crash (-20%) â€“ beta-adjusted
         shocks_crash: dict[str, float] = {}
         for sym in symbols:
             shocks_crash[sym] = -0.20 * betas.get(sym, 1.0)
         scenarios.append(cls._build_scenario("Market Crash (-20%)", symbols, w, shocks_crash))
 
-        # 2. Recession – beta-bucket dependent
+        # 2. Recession â€“ beta-bucket dependent
         shocks_recession: dict[str, float] = {}
         for sym in symbols:
             b = betas.get(sym, 1.0)
@@ -309,7 +309,7 @@ class PortfolioAnalyticsService:
                 shocks_recession[sym] = -0.03
         scenarios.append(cls._build_scenario("Recession", symbols, w, shocks_recession))
 
-        # 3. Inflation Shock – volatility-dependent
+        # 3. Inflation Shock â€“ volatility-dependent
         vol_median = float(np.median(individual_vols)) if len(individual_vols) > 0 else 0.0
         shocks_inflation: dict[str, float] = {}
         for i, sym in enumerate(symbols):
@@ -319,7 +319,7 @@ class PortfolioAnalyticsService:
                 shocks_inflation[sym] = -0.05
         scenarios.append(cls._build_scenario("Inflation Shock", symbols, w, shocks_inflation))
 
-        # 4. Interest Rate Shock – beta-dependent
+        # 4. Interest Rate Shock â€“ beta-dependent
         shocks_rate: dict[str, float] = {}
         for sym in symbols:
             b = betas.get(sym, 1.0)
@@ -346,7 +346,7 @@ class PortfolioAnalyticsService:
 
         # Most affected: top-2 by absolute weighted impact (negative)
         weighted_impact = w * shock_arr
-        impact_order = np.argsort(weighted_impact)  # ascending → worst first
+        impact_order = np.argsort(weighted_impact)  # ascending â†’ worst first
         most_affected: list[str] = []
         for idx in impact_order[:2]:
             if weighted_impact[idx] < 0:
@@ -358,3 +358,4 @@ class PortfolioAnalyticsService:
             estimated_drawdown=round(estimated_drawdown, 6),
             most_affected=most_affected,
         )
+

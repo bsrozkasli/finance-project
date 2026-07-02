@@ -4,13 +4,18 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatem
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
+import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
+import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -20,9 +25,8 @@ import org.springframework.context.annotation.Configuration;
  *
  * <p>This allows the domain layer to remain free of Spring annotations like
  * {@code @Service}, while still participating in the application context.</p>
- *
- * <p>FMP-based beans have been removed. All market data is now sourced from
- * Yahoo Finance (primary) and the local FastAPI data-service (fallback).</p>
+ * <p>Market data is sourced from Yahoo Finance, Tiingo where configured,
+ * and the local FastAPI data-service fallback.</p>
  */
 @Configuration
 public class DomainConfig {
@@ -35,11 +39,28 @@ public class DomainConfig {
      */
     @Bean
     public PriceIngestionService priceIngestionService(
-            AssetRepositoryPort  assetRepositoryPort,
-            PriceRepositoryPort  priceRepositoryPort,
+            AssetRepositoryPort assetRepositoryPort,
+            PriceRepositoryPort priceRepositoryPort,
             PriceChartClientPort priceChartClientPort) {
         return new PriceIngestionService(
                 assetRepositoryPort, priceRepositoryPort, priceChartClientPort);
+    }
+
+    @Bean
+    public PriceNormalizationService priceNormalizationService() {
+        return new PriceNormalizationService();
+    }
+
+    @Bean
+    public PriceRefreshService priceRefreshService(
+            PriceRepositoryPort priceRepositoryPort,
+            FinancialDataPort financialDataPort) {
+        return new PriceRefreshService(priceRepositoryPort, financialDataPort);
+    }
+
+    @Bean
+    public PortfolioLedgerService portfolioLedgerService(PortfolioTransactionPort transactionPort) {
+        return new PortfolioLedgerService(transactionPort);
     }
 
     @Bean
@@ -48,12 +69,14 @@ public class DomainConfig {
             FinancialDataPort financialDataPort,
             PriceRepositoryPort priceRepositoryPort,
             SentimentDataPort sentimentDataPort,
+            MarketCalendarPort marketCalendarPort,
             AgentAnalysisAiPort agentAnalysisAiPort) {
         return new AgentAnalysisUseCase(
                 yahooStatementClient,
                 financialDataPort,
                 priceRepositoryPort,
                 sentimentDataPort,
+                marketCalendarPort,
                 agentAnalysisAiPort);
     }
 

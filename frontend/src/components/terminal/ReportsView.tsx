@@ -9,6 +9,7 @@ import { BacktestPanel } from '../report/BacktestPanel';
 interface ReportsViewProps {
   assets: Asset[];
   initialSymbol?: string | null;
+  onSelectSymbol?: (symbol: string) => void;
 }
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -38,7 +39,7 @@ const SafeSmartReport = ({ symbol }: { symbol: string }) => {
   }
 };
 
-export const ReportsView = ({ assets, initialSymbol }: ReportsViewProps) => {
+export const ReportsView = ({ assets, initialSymbol, onSelectSymbol }: ReportsViewProps) => {
   const [selectedSymbol, setSelectedSymbol] = useState<string>(initialSymbol ?? assets[0]?.symbol ?? '');
 
   useEffect(() => {
@@ -78,7 +79,10 @@ export const ReportsView = ({ assets, initialSymbol }: ReportsViewProps) => {
         {assets.map(a => (
           <button
             key={a.symbol}
-            onClick={() => setSelectedSymbol(a.symbol)}
+            onClick={() => {
+              setSelectedSymbol(a.symbol);
+              onSelectSymbol?.(a.symbol);
+            }}
             className="w-full text-left px-3 py-2.5 transition-all cursor-pointer"
             style={{
               background: selectedSymbol === a.symbol ? 'var(--color-bg-selected)' : 'transparent',

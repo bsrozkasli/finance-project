@@ -21,7 +21,7 @@ def _correlated_price_matrix(symbols: list[str], periods: int = 320, seed: int =
     returns = rng.multivariate_normal(drift, covariance, size=periods)
 
     prices = 100 * np.exp(np.cumsum(returns, axis=0))
-    index = pd.date_range(end=pd.Timestamp.utcnow(), periods=periods, freq="D")
+    index = pd.date_range(end=pd.Timestamp.now(tz="UTC"), periods=periods, freq="D")
     return pd.DataFrame(prices, index=index, columns=symbols)
 
 
@@ -121,3 +121,4 @@ def test_fetch_price_matrix_smoke_real_yfinance_call():
     assert not prices.empty
     assert {"AAPL", "MSFT"}.issubset(set(prices.columns))
     assert prices.isna().sum().sum() == 0
+

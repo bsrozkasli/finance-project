@@ -28,7 +28,7 @@ public class SmartReportUseCase {
                 .orElse(null);
 
         SmartReport.ScoreBreakdown breakdown;
-        int overallScore;
+        Integer overallScore;
         String grade;
         String recommendation;
 
@@ -52,16 +52,16 @@ public class SmartReportUseCase {
             SmartReportMarketDataPort.CompanyMetrics metrics = smartReportMarketDataPort.fetchCompanyMetrics(symbol)
                     .orElse(null);
 
-            overallScore = 50;
-            grade = "C";
-            recommendation = "HOLD";
-
             Integer fundamentalScore = null;
             if (metrics != null) {
                 fundamentalScore = computeSimpleScore(metrics);
                 overallScore = fundamentalScore;
                 grade = gradeFromScore(overallScore);
                 recommendation = recFromScore(overallScore);
+            } else {
+                overallScore = null;
+                grade = null;
+                recommendation = null;
             }
 
             breakdown = SmartReport.ScoreBreakdown.builder()

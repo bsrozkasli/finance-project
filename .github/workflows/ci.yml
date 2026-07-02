@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend JUnit and Testcontainers
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: finance_password
+      FINNHUB_API_KEY: ""
+      TIINGO_API_KEY: ""
+      DATA_SERVICE_URL: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Verify Docker availability
+        run: docker version
+      - name: Run backend tests
+        working-directory: backend
+        run: ./mvnw clean test
+
+  data-service:
+    name: Data-service Pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: data-service/requirements.txt
+      - name: Install dependencies
+        working-directory: data-service
+        run: pip install -r requirements.txt
+      - name: Run pytest
+        working-directory: data-service
+        run: python -m pytest
+
+  frontend:
+    name: Frontend Lint and Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+      - name: Build
+        working-directory: frontend
+        run: npm run build
+
+  docker-compose:
+    name: Docker Compose Config
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: finance_password
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate compose file
+        run: docker compose config --quiet

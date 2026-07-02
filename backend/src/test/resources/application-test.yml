@@ -16,13 +16,13 @@ spring:
 resilience4j:
   ratelimiter:
     instances:
-      fmpApi:
+      finnhubApi:
         limitForPeriod: 5
         limitRefreshPeriod: 1s
         timeoutDuration: 0s
   circuitbreaker:
     instances:
-      fmpApi:
+      finnhubApi:
         registerHealthIndicator: true
         slidingWindowSize: 5
         minimumNumberOfCalls: 3
