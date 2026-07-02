@@ -17,3 +17,18 @@ export interface ChartSymbolInfo {
   change: number;
   changePercent: number;
 }
+export interface PatternOverlayMarker {
+  time: string;
+  label: string;
+  direction: 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+  confidence: number;
+  price?: number | null;
+}
+
+export interface SupportResistanceLevel {
+  id: string;
+  label: string;
+  price: number;
+  type: 'support' | 'resistance' | 'pivot';
+  method: 'Classic' | 'Fibonacci' | 'Woodie';
+}
