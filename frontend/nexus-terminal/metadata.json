@@ -1,6 +1,0 @@
-{
-  "name": "Nexus Terminal",
-  "description": "Gelişmiş finansal borsa takip ve portföy yönetim terminali.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
