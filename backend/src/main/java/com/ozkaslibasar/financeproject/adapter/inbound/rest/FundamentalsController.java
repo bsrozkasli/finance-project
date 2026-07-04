@@ -56,6 +56,7 @@ public class FundamentalsController {
         ResearchDataPort.FundamentalMetrics metrics = researchDataPort.fetchFundamental(normalized)
                 .map(ResearchDataPort.FundamentalResearch::metrics)
                 .orElse(null);
+        SmartReportMarketDataPort.CompanyMetrics market = marketDataPort.fetchCompanyMetrics(normalized).orElse(null);
         List<AnnualMetric> eps = researchDataPort.fetchEarnings(normalized).stream()
                 .map(q -> annualMetricFromQuarter(q.period(), q.actual()))
                 .filter(Objects::nonNull)
@@ -69,7 +70,8 @@ public class FundamentalsController {
                 metrics == null ? null : metrics.grossMargin(),
                 metrics == null ? null : metrics.netMargin(),
                 metrics == null ? null : metrics.roic(),
-                metrics == null ? null : metrics.roe());
+                metrics == null ? null : metrics.roe(),
+                market == null ? null : market.dividendYield());
     }
 
     @Operation(summary = "GET Fundamentals endpoint", description = "Implements the GET operation for the Fundamentals API described in SPEC.md sections 7 and 8.")
@@ -263,7 +265,8 @@ public class FundamentalsController {
             Double grossMargin,
             Double netMargin,
             Double roic,
-            Double roe) {
+            Double roe,
+            Double dividendYield) {
     }
 
     public record FinancialRatios(

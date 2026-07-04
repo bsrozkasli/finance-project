@@ -32,7 +32,21 @@ public class WatchlistRepositoryAdapter implements WatchlistPort {
 
     @Override
     public Watchlist save(Watchlist watchlist) {
-        return toDomain(jpaRepository.save(toEntity(watchlist)));
+        WatchlistEntity entity;
+        if (watchlist.id() != null) {
+            entity = jpaRepository.findById(watchlist.id()).orElseGet(WatchlistEntity::new);
+        } else {
+            entity = new WatchlistEntity();
+        }
+        
+        entity.setUserId(watchlist.userId());
+        entity.setName(watchlist.name());
+        
+        // Update collection safely for Hibernate
+        entity.getSymbols().clear();
+        entity.getSymbols().addAll(watchlist.symbols());
+        
+        return toDomain(jpaRepository.save(entity));
     }
 
     @Override
@@ -49,16 +63,5 @@ public class WatchlistRepositoryAdapter implements WatchlistPort {
                 List.copyOf(e.getSymbols()),
                 e.getCreatedAt(),
                 e.getUpdatedAt());
-    }
-
-    private WatchlistEntity toEntity(Watchlist watchlist) {
-        WatchlistEntity e = new WatchlistEntity();
-        if (watchlist.id() != null) {
-            e.setId(watchlist.id());
-        }
-        e.setUserId(watchlist.userId());
-        e.setName(watchlist.name());
-        e.setSymbols(watchlist.symbols());
-        return e;
     }
 }

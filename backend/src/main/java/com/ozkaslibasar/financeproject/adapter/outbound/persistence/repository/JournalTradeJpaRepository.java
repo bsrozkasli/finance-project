@@ -13,4 +13,6 @@ public interface JournalTradeJpaRepository extends JpaRepository<JournalTradeEnt
     Optional<JournalTradeEntity> findByIdAndUserId(Long id, String userId);
 
     void deleteByIdAndUserId(Long id, String userId);
+
+    void deleteByPortfolioIdAndTransactionIdAndUserId(Long portfolioId, Long transactionId, String userId);
 }

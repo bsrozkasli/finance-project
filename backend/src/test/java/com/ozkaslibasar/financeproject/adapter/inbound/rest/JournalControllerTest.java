@@ -18,6 +18,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -61,6 +63,21 @@ class JournalControllerTest {
                 .andExpect(jsonPath("$.content[0].currentPrice").value(225));
 
         verifyNoInteractions(priceRefreshService);
+    }
+
+    @Test
+    void shouldFetchLatestPriceOncePerOpenTradeSymbol() throws Exception {
+        when(tradePort.findByUserId("default")).thenReturn(List.of(
+                openTrade("AAPL", "2", "90", "100"),
+                openTrade("AAPL", "1", "95", "100")));
+        when(priceRefreshService.getFreshLatest("AAPL"))
+                .thenReturn(Optional.of(price("AAPL", "110")));
+
+        mockMvc.perform(get("/api/v1/journal/trades"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(2));
+
+        verify(priceRefreshService, times(1)).getFreshLatest("AAPL");
     }
 
     private JournalTrade openTrade(String symbol, String quantity, String purchasePrice, String currentPrice) {

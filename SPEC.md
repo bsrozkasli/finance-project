@@ -224,7 +224,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Reports | `GET /reports/company/{symbol}` | Company report |
 | Reports | `GET /reports/smart/{symbol}` | Smart report |
 | Reports | `GET /reports/test` | Diagnostic report endpoint |
-| Fundamentals | `GET /fundamentals/{symbol}` | Fundamental series |
+| Fundamentals | `GET /fundamentals/{symbol}` | Fundamental series, including nullable `dividendYield` when provider metrics are available |
 | Fundamentals | `GET /fundamentals/{symbol}/ratios` | Financial ratios |
 | Fundamentals | `GET /fundamentals/{symbol}/earnings?periods=` | Earnings history |
 | Fundamentals | `GET /fundamentals/{symbol}/insider` | Insider activity |
@@ -243,8 +243,8 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `POST /portfolio/positions` | Create position |
 | Portfolio positions | `PUT /portfolio/positions/{id}` | Update position |
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
-| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary |
-| Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; returns an empty series when no real price history exists |
+| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
+| Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
 | Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
 | Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |
 | Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
@@ -265,7 +265,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Investment portfolios | `DELETE /portfolios/{id}` | Delete a portfolio and its transaction ledger |
 | Portfolio ledger | `GET /portfolios/{id}/transactions` | List manual/CSV transaction ledger entries |
 | Portfolio ledger | `POST /portfolios/{id}/transactions` | Add BUY/SELL/dividend/cash/manual valuation transaction; optional journal note is linked, not used to delete history |
-| Portfolio ledger | `DELETE /portfolios/{id}/transactions/{transactionId}` | Delete one transaction entry |
+| Portfolio ledger | `DELETE /portfolios/{id}/transactions/{transactionId}` | Delete one transaction entry and remove any linked journal trade for that transaction |
 | Portfolio ledger | `GET /portfolios/{id}/holdings` | Derived current holdings from transaction ledger |
 
 Data-service endpoints:

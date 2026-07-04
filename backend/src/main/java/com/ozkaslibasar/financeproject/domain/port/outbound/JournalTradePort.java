@@ -14,4 +14,6 @@ public interface JournalTradePort {
     JournalTrade save(JournalTrade trade);
 
     void deleteByIdAndUserId(Long id, String userId);
+
+    void deleteByPortfolioIdAndTransactionIdAndUserId(Long portfolioId, Long transactionId, String userId);
 }
