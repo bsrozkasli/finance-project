@@ -5,8 +5,11 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPor
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -15,6 +18,8 @@ import java.util.Optional;
 @Component
 @Slf4j
 public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
+
+    private static final String INSUFFICIENT_CANDLES_MESSAGE = "At least 30 candles are required for technical analysis";
 
     private final RestTemplate restTemplate;
 
@@ -34,6 +39,12 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
                 return Optional.empty();
             }
             return Optional.of(toResult(response));
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == HttpStatus.UNPROCESSABLE_ENTITY.value()) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, INSUFFICIENT_CANDLES_MESSAGE, e);
+            }
+            log.warn("Failed to fetch technical analysis for symbol={}. Returning empty result. Reason: {}", symbol, e.getMessage());
+            return Optional.empty();
         } catch (Exception e) {
             log.warn("Failed to fetch technical analysis for symbol={}. Returning empty result. Reason: {}", symbol, e.getMessage());
             return Optional.empty();
@@ -64,6 +75,12 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
                     response.getSignal().getAction(),
                     response.getSignal().getConfidence()
             ));
+        } catch (HttpClientErrorException e) {
+            if (e.getStatusCode().value() == HttpStatus.UNPROCESSABLE_ENTITY.value()) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, INSUFFICIENT_CANDLES_MESSAGE, e);
+            }
+            log.warn("Failed to fetch technical signals for symbol={}. Returning empty result. Reason: {}", symbol, e.getMessage());
+            return Optional.empty();
         } catch (Exception e) {
             log.warn("Failed to fetch technical signals for symbol={}. Returning empty result. Reason: {}", symbol, e.getMessage());
             return Optional.empty();

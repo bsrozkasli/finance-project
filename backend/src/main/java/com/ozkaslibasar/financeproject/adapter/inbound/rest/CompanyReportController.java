@@ -11,6 +11,7 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.Finnh
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubRecommendationDto;
 import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,6 +44,7 @@ public class CompanyReportController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/company/{symbol}")
+    @Cacheable(value = "companyReportCache", key = "#symbol.toUpperCase()")
     public CompanyReport getCompanyReport(@PathVariable String symbol) {
         String normalized = symbol.toUpperCase();
         TechnicalResult technical = null;

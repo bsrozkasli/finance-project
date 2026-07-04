@@ -86,8 +86,7 @@ public class AgentAnalysisUseCase {
         String symbol = ticker.toUpperCase();
         AgentMetricSnapshot metrics = buildMetricsSnapshot(symbol);
 
-        AgentSentimentSnapshot sentiment = sentimentDataPort.fetchSentiment(symbol)
-                .orElse(new AgentSentimentSnapshot(0, "neutral", 0, "hold", 50));
+        AgentSentimentSnapshot sentiment = sentimentDataPort.fetchSentiment(symbol).orElse(null);
 
         return agentAnalysisAiPort.runAnalysis(symbol, metrics, sentiment)
                 .map(result -> enrichWithMetrics(result, metrics));

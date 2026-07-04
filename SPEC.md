@@ -31,6 +31,7 @@ In scope:
 - Latest price and historical OHLCV access.
 - Lazy price history loading: PostgreSQL first, data-service fallback, then persistence.
 - Portfolio positions, summary, allocation, performance, enriched position data, optimization, and rebalance checks.
+- Multi-portfolio account tracking with a transaction ledger and derived holdings for manual/CSV investment management.
 - Trading journal persistence, pagination, update/delete flows, and stats.
 - Watchlists and watchlist symbol management.
 - Technical indicators, technical signal summaries, pattern detection, sentiment, and decision support.
@@ -102,10 +103,10 @@ Agent analysis orchestration:
 
 Frontend rules:
 
-- `App.tsx` owns `BrowserRouter`; `Dashboard.tsx` composes the routed application shell.
-- User-facing pages use React Router browser paths. Transient UI state such as selected symbol, modals, drawers, chart ranges, filters, and table sorting remains component state.
-- Hooks under `frontend/src/hooks` own data fetching.
-- API contracts live in `frontend/src/api`.
+- `App.tsx` owns the `BrowserRouter`; `Dashboard.tsx` composes the routed application shell.
+- User-facing pages use React Router browser paths rather than tab-only state. Transient UI state such as selected symbol, modals, drawers, chart ranges, filters, and table sorting remains component state.
+- Hooks under `frontend/src/hooks` own data fetching and loading/error state.
+- API contracts live in `frontend/src/api` or near the hook that uses them.
 - Styling must use tokens in `frontend/src/index.css`.
 - Frontend browser routes and backend `/api/v1` endpoints are separate contracts; adding a frontend route must not rename backend endpoints.
 
@@ -209,8 +210,8 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Assets | `GET /assets/{symbol}` | Fetch one asset |
 | Assets | `POST /assets/batch` | Add symbols in batch; Yahoo metadata first, fallback `STOCK` |
 | Assets | `DELETE /assets/{symbol}` | Delete asset |
-| Prices | `GET /prices/{symbol}/latest` | Latest price candle |
-| Prices | `GET /prices/{symbol}/history?interval=&range=` | Historical candles with DB-first lazy loading |
+| Prices | `GET /prices/{symbol}/latest` | Latest price candle through DB-first refresh and `priceCache` |
+| Prices | `GET /prices/{symbol}/history?interval=&range=` | Historical candles with DB-first lazy loading, refresh, persistence, and `priceCache` |
 | Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators |
 | Technical | `GET /technical/{symbol}/signals?interval=&range=` | Technical signal summary |
 | Agent analysis | `GET /agent-analysis/{ticker}` | Cached or computed multi-agent analysis |
@@ -223,7 +224,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Reports | `GET /reports/company/{symbol}` | Company report |
 | Reports | `GET /reports/smart/{symbol}` | Smart report |
 | Reports | `GET /reports/test` | Diagnostic report endpoint |
-| Fundamentals | `GET /fundamentals/{symbol}` | Fundamental series |
+| Fundamentals | `GET /fundamentals/{symbol}` | Fundamental series, including nullable `dividendYield` when provider metrics are available |
 | Fundamentals | `GET /fundamentals/{symbol}/ratios` | Financial ratios |
 | Fundamentals | `GET /fundamentals/{symbol}/earnings?periods=` | Earnings history |
 | Fundamentals | `GET /fundamentals/{symbol}/insider` | Insider activity |
@@ -242,14 +243,14 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `POST /portfolio/positions` | Create position |
 | Portfolio positions | `PUT /portfolio/positions/{id}` | Update position |
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
-| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary |
-| Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series |
+| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
+| Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
 | Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
-| Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with price/PnL |
+| Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |
 | Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
 | Portfolio analytics | `POST /portfolio/rebalance-check` | Rebalance analysis |
-| Journal | `GET /journal/trades?page=&size=&sort=` | Paged journal trades |
-| Journal | `GET /journal/trades/stats` | Journal stats |
+| Journal | `GET /journal/trades?page=&size=&sort=` | Paged journal trades; open trades are enriched with latest real price at read time |
+| Journal | `GET /journal/trades/stats` | Journal stats derived from persisted trades with open-trade latest price enrichment |
 | Journal | `POST /journal/trades` | Create journal trade |
 | Journal | `PUT /journal/trades/{id}` | Update journal trade |
 | Journal | `DELETE /journal/trades/{id}` | Delete journal trade |
@@ -258,6 +259,14 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Watchlists | `POST /watchlists/{id}/symbols` | Add symbol |
 | Watchlists | `DELETE /watchlists/{id}/symbols/{symbol}` | Remove symbol |
 | Watchlists | `DELETE /watchlists/{id}` | Delete watchlist |
+| Investment portfolios | `GET /portfolios` | List user portfolios such as ABD, BIST, funds, or gold |
+| Investment portfolios | `POST /portfolios` | Create a portfolio with a base currency |
+| Investment portfolios | `PUT /portfolios/{id}` | Update portfolio metadata |
+| Investment portfolios | `DELETE /portfolios/{id}` | Delete a portfolio and its transaction ledger |
+| Portfolio ledger | `GET /portfolios/{id}/transactions` | List manual/CSV transaction ledger entries |
+| Portfolio ledger | `POST /portfolios/{id}/transactions` | Add BUY/SELL/dividend/cash/manual valuation transaction; optional journal note is linked, not used to delete history |
+| Portfolio ledger | `DELETE /portfolios/{id}/transactions/{transactionId}` | Delete one transaction entry and remove any linked journal trade for that transaction |
+| Portfolio ledger | `GET /portfolios/{id}/holdings` | Derived current holdings from transaction ledger |
 
 Data-service endpoints:
 
@@ -425,8 +434,10 @@ Agent analysis (`GET /api/v1/agent-analysis/AAPL`):
   "from_cache": false
 }
 ```
+
 ## 8. Error Handling
 
+Endpoint-level error conditions, provider failure mappings, auth error targets, and frontend handling guidance are cataloged in `docs/ERROR_CATALOG.md`.
 - Provider failures degrade gracefully with empty lists, optional `null` fields, or partial DTOs where the endpoint contract allows.
 - Fake market data is forbidden.
 - Validation errors should return client-error status codes with clear messages.
@@ -508,12 +519,14 @@ Entity relationships and persistence semantics:
 ## 10. Business Rules
 
 - Asset batch-add tries Yahoo metadata first and falls back to a minimal `STOCK` asset.
-- Price history reads from PostgreSQL before calling the data-service.
+- Price history reads from PostgreSQL before calling the provider chain through `FinancialDataPort`.
+- Latest and historical price reads use `PriceRefreshService`: local data first, provider refresh when needed, persist fetched rows, then return real data only.
 - Fetched historical prices are persisted after lazy loading.
-- Latest price and agent-analysis responses may be cached to reduce provider/API load.
+- Latest price, technical analysis, analyst data, fundamentals, research, reports, and agent-analysis responses may be cached to reduce provider/API load.
 - Technical analysis requires at least 30 candles.
-- Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and current prices.
-- Journal stats are derived from persisted journal trades.
+- Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.
+- New investment portfolio views should derive holdings from `PortfolioTransaction` ledger entries. BUY increases quantity/cost basis; SELL validates available quantity, reduces the holding, and records realized PnL. Journal entries are decision history and must not be deleted when a holding is sold.
+- Journal stats are derived from persisted journal trades; open trades may be read-enriched with latest real prices, while closed trades are not refreshed on read. Journal trades may optionally reference `portfolioId` and `transactionId`.
 - Watchlist updates persist through repository adapters and normalize symbols consistently.
 - Agent analysis uses the configured TTL and persists completed results.
 - Agent analysis includes nullable FRED macro context when available: fed funds rate, CPI YoY, GDP growth, unemployment, Treasury yields, and yield curve spread.
@@ -526,6 +539,7 @@ Entity relationships and persistence semantics:
 - Finnhub: news, sentiment, analyst recommendations, price targets, metrics, and insider-related data through `FINNHUB_API_KEY`.
 - FRED: macroeconomic time series through `FRED_API_KEY`; missing values from FRED (`.`) are treated as `null`, macro snapshots are fetched in parallel, individual series failures leave only that field null, and snapshots are cached for 4 hours in data-service Redis with in-memory fallback.
 - Financial Modeling Prep: earnings and high-impact economic calendar data through `FMP_API_KEY`; calendar responses use a fetch-time sliding 30-day window and are cached in data-service Redis until midnight UTC, with in-memory fallback, to protect the free daily quota.
+Provider priority, fallback values, health endpoints, and new-provider onboarding are documented in `docs/PROVIDER_GUIDE.md`.
 - Azure OpenAI: optional LLM-backed agent, chat, and insight flows through `AZURE_OPENAI_*` variables.
 - PostgreSQL: persistent relational database.
 - Redis: cache backend.
@@ -603,8 +617,8 @@ Required integration/smoke scenarios:
 
 ## 14. Performance Requirements
 
-- Price endpoints should avoid unnecessary external calls by reading PostgreSQL first and using cache where configured.
-- Agent analysis default cache TTL is 15 minutes.
+- Price endpoints should avoid unnecessary external calls by reading PostgreSQL first, refreshing through `PriceRefreshService` only when needed, persisting fetched rows, and using `priceCache` where configured.
+- Agent analysis default cache TTL is 15 minutes. Backend Redis cache TTLs are cache-name specific: price 5 minutes, technical 10 minutes, news 30 minutes, analyst and insider 6 hours, reports 30 minutes to 6 hours, fundamentals 24 hours, research 12 hours, and assets 24 hours.
 - Finnhub calls use configured limits: 30 requests per second, retry with exponential backoff, circuit breaker, and bulkhead max concurrent calls.
 - Backend Hikari pool defaults: max pool size 10, min idle 2, connection timeout 30 seconds.
 - Frontend build size warnings should be monitored.
@@ -718,6 +732,3 @@ A change is done when:
 - Define durable MongoDB usage for raw/news/analysis records.
 - Add CI artifacts for frontend build size and backend coverage.
 - Harden production deployment with TLS, secret manager, edge rate limiting, CORS restrictions, container resource limits, and backup/restore procedures.
-
-
-

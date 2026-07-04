@@ -24,7 +24,7 @@ import java.util.Optional;
  *
  * <p>Endpoint called: {@code GET /api/v1/research/fundamental/{symbol}}</p>
  *
- * <p>This replaces the legacy FMP-based {@code FmpStatementClientAdapter}.
+ * <p>This adapter fetches statement data from Yahoo-compatible sources.
  * Financial statement data is now zero-cost and provider-agnostic.</p>
  *
  * <p>Errors (network, empty response, parse failures) are caught and logged;
@@ -35,8 +35,6 @@ import java.util.Optional;
 @Component
 @Slf4j
 public class YahooStatementClientAdapter implements FinancialStatementClientPort {
-
-    private static final int DEFAULT_FISCAL_YEAR = 2000;
 
     private final RestTemplate restTemplate;
     private final MeterRegistry meterRegistry;
@@ -63,9 +61,14 @@ public class YahooStatementClientAdapter implements FinancialStatementClientPort
         }
 
         try {
+            if (isIncomeStatementMissing(response.getMetrics())) {
+                log.warn("Income statement fields unavailable for {}; skipping statement mapping", symbol);
+                return Collections.emptyList();
+            }
             FinancialStatement stmt = new FinancialStatement(
                     symbol,
-                    resolveYear(response.getFiscalYear()),
+                    parseYear(response.getFiscalYear()).orElseThrow(() ->
+                            new IllegalArgumentException("missing fiscal year")),
                     "annual",
                     orZero(response.getMetrics().getRevenue()),
                     orZero(response.getMetrics().getNetIncome()),
@@ -98,9 +101,14 @@ public class YahooStatementClientAdapter implements FinancialStatementClientPort
         }
 
         try {
+            if (isBalanceSheetMissing(response.getMetrics())) {
+                log.warn("Balance sheet fields unavailable for {}; skipping statement mapping", symbol);
+                return Collections.emptyList();
+            }
             FinancialStatement stmt = new FinancialStatement(
                     symbol,
-                    resolveYear(response.getFiscalYear()),
+                    parseYear(response.getFiscalYear()).orElseThrow(() ->
+                            new IllegalArgumentException("missing fiscal year")),
                     "annual",
                     BigDecimal.ZERO,  // filled by income statement
                     BigDecimal.ZERO,  // filled by income statement
@@ -142,17 +150,28 @@ public class YahooStatementClientAdapter implements FinancialStatementClientPort
         return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
     }
 
-    private int resolveYear(String fiscalYear) {
-        if (fiscalYear == null || fiscalYear.isBlank()) return DEFAULT_FISCAL_YEAR;
+    private Optional<Integer> parseYear(String fiscalYear) {
+        if (fiscalYear == null || fiscalYear.isBlank()) return Optional.empty();
         try {
             // FiscalYear may be "2024-09-28" or just "2024" from the data-service
             String yearPart = fiscalYear.length() >= 4 ? fiscalYear.substring(0, 4) : fiscalYear;
             int year = Integer.parseInt(yearPart);
-            return year > 0 ? year : DEFAULT_FISCAL_YEAR;
+            return year > 0 ? Optional.of(year) : Optional.empty();
         } catch (NumberFormatException e) {
-            log.warn("Could not parse fiscal year '{}'; defaulting to {}", fiscalYear, DEFAULT_FISCAL_YEAR);
-            return DEFAULT_FISCAL_YEAR;
+            log.warn("Could not parse fiscal year '{}'; skipping statement mapping", fiscalYear);
+            return Optional.empty();
         }
+    }
+
+    private boolean isIncomeStatementMissing(FundamentalMetrics metrics) {
+        return metrics.getRevenue() == null
+                && metrics.getNetIncome() == null
+                && metrics.getOperatingCashFlow() == null;
+    }
+
+    private boolean isBalanceSheetMissing(FundamentalMetrics metrics) {
+        return metrics.getTotalAssets() == null
+                && metrics.getTotalLiabilities() == null;
     }
 
     // ─── DTO classes for JSON deserialization ───────────────────────────────────

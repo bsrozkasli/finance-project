@@ -1,12 +1,12 @@
-"""Risk Analytics Service – Phase 3.
+"""Risk Analytics Service â€“ Phase 3.
 
-Computes comprehensive risk metrics (volatility, VaR, drawdown, beta, …)
+Computes comprehensive risk metrics (volatility, VaR, drawdown, beta, â€¦)
 across daily, weekly, and monthly timeframes using yfinance price data.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import yfinance as yf
@@ -67,12 +67,12 @@ class RiskAnalyticsService:
         if asset_df.empty or len(asset_df) < 30:
             raise ValueError(
                 f"Insufficient price data for '{symbol}': "
-                f"got {len(asset_df)} rows, need ≥ 30."
+                f"got {len(asset_df)} rows, need â‰¥ 30."
             )
         if market_df.empty or len(market_df) < 30:
             raise ValueError(
                 f"Insufficient market data for '{_MARKET_BENCHMARK}': "
-                f"got {len(market_df)} rows, need ≥ 30."
+                f"got {len(market_df)} rows, need â‰¥ 30."
             )
 
         # --- Handle multi-level columns produced by yfinance ----
@@ -123,7 +123,7 @@ class RiskAnalyticsService:
             weekly=weekly_metrics,
             monthly=monthly_metrics,
             max_drawdown=round(max_dd, 6),
-            calculated_at=datetime.utcnow(),
+            calculated_at=datetime.now(timezone.utc),
         )
 
     # ------------------------------------------------------------------
@@ -258,3 +258,4 @@ class RiskAnalyticsService:
         drawdowns = (cumulative - running_max) / running_max
         max_dd = float(drawdowns.min())
         return abs(max_dd)
+

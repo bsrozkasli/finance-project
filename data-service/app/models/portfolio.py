@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class OptimizationObjective(str, Enum):
@@ -14,7 +14,7 @@ class OptimizationObjective(str, Enum):
 
 
 class OptimizationRequest(BaseModel):
-    symbols: list[str] = Field(min_items=2, max_items=20)
+    symbols: list[str] = Field(min_length=2, max_length=20)
     objective: OptimizationObjective
     risk_free_rate: float = Field(ge=-1.0, le=1.0)
     lookback_period: int = Field(ge=1, le=3650)
@@ -22,7 +22,8 @@ class OptimizationRequest(BaseModel):
     min_weight: float = Field(ge=0.0, le=1.0)
     stress_scenario: str | None = None
 
-    @validator("symbols", pre=True)
+    @field_validator("symbols", mode="before")
+    @classmethod
     def normalize_symbols(cls, value: list[str]) -> list[str]:
         if not isinstance(value, list):
             raise ValueError("symbols must be a list of strings")
@@ -50,9 +51,10 @@ class PortfolioMetrics(BaseModel):
     volatility: float = Field(ge=0.0)
     sharpe: float
     drawdown: float = Field(ge=0.0, le=1.0)
-    weights: dict[str, float] = Field(min_items=2, max_items=20)
+    weights: dict[str, float] = Field(min_length=2, max_length=20)
 
-    @validator("weights")
+    @field_validator("weights")
+    @classmethod
     def validate_weights(cls, value: dict[str, float]) -> dict[str, float]:
         if any(weight < 0.0 or weight > 1.0 for weight in value.values()):
             raise ValueError("weights must be between 0.0 and 1.0")
@@ -68,7 +70,6 @@ class EfficientFrontierPoint(BaseModel):
     weights: dict[str, float] | None = None
 
 
-from typing import Any
 
 class StressTestResult(BaseModel):
     scenario_severity: str

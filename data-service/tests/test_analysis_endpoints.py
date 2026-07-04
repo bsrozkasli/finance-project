@@ -129,3 +129,47 @@ def test_get_patterns_insufficient_data(mock_ticker_class, client):
     assert data['symbol'] == 'AAPL'
     assert data['patterns'] == []
     assert data['dominant_pattern'] is None
+
+
+@patch('app.routers.analysis.yf.Ticker')
+def test_get_technical_analysis_insufficient_candles_returns_422(mock_ticker_class, client):
+    mock_ticker = MagicMock()
+    mock_ticker_class.return_value = mock_ticker
+
+    dates = pd.date_range(start='2024-01-01', periods=29, freq='D')
+    history_data = pd.DataFrame({
+        'Open': np.linspace(100, 110, 29),
+        'High': np.linspace(102, 112, 29),
+        'Low': np.linspace(98, 108, 29),
+        'Close': np.linspace(101, 111, 29),
+        'Volume': np.full(29, 1000000),
+    }, index=dates)
+    history_data.index.name = 'Date'
+    mock_ticker.history.return_value = history_data
+
+    response = client.get("/api/v1/technical/AAPL?interval=1d&range=1mo")
+
+    assert response.status_code == 422
+    assert "At least 30 candles" in response.json()["detail"]
+
+
+@patch('app.routers.analysis.yf.Ticker')
+def test_get_technical_signals_insufficient_candles_returns_422(mock_ticker_class, client):
+    mock_ticker = MagicMock()
+    mock_ticker_class.return_value = mock_ticker
+
+    dates = pd.date_range(start='2024-01-01', periods=29, freq='D')
+    history_data = pd.DataFrame({
+        'Open': np.linspace(100, 110, 29),
+        'High': np.linspace(102, 112, 29),
+        'Low': np.linspace(98, 108, 29),
+        'Close': np.linspace(101, 111, 29),
+        'Volume': np.full(29, 1000000),
+    }, index=dates)
+    history_data.index.name = 'Date'
+    mock_ticker.history.return_value = history_data
+
+    response = client.get("/api/v1/technical/AAPL/signals?interval=1d&range=1mo")
+
+    assert response.status_code == 422
+    assert "At least 30 candles" in response.json()["detail"]

@@ -1,0 +1,3 @@
+-- This migration was a duplicate of V2__agent_analysis_history.sql.
+-- Renamed to V2_1 to avoid Flyway version collision.
+-- No-op: the table already exists from V2__agent_analysis_history.sql or Hibernate DDL auto.

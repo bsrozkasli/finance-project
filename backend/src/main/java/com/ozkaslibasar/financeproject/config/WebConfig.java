@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.config;
 
 import org.springframework.context.annotation.Bean;
+import org.slf4j.MDC;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
@@ -31,6 +32,14 @@ public class WebConfig implements WebMvcConfigurer {
      */
     @Bean
     public RestTemplate restTemplate() {
-        return new RestTemplate();
+        RestTemplate restTemplate = new RestTemplate();
+        restTemplate.getInterceptors().add((request, body, execution) -> {
+            String requestId = MDC.get(RequestCorrelationFilter.REQUEST_ID_MDC_KEY);
+            if (requestId != null && !requestId.isBlank()) {
+                request.getHeaders().set(RequestCorrelationFilter.REQUEST_ID_HEADER, requestId);
+            }
+            return execution.execute(request, body);
+        });
+        return restTemplate;
     }
 }

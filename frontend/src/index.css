@@ -33,7 +33,9 @@
 
   /* Terminal layout dimensions */
   --terminal-top-h:      64px;
-  --terminal-nav-w:      240px;
+  --terminal-nav-w-collapsed: 80px;
+  --terminal-nav-w-expanded:  256px;
+  --terminal-nav-w-current:   var(--terminal-nav-w-collapsed);
   --terminal-right-w:    340px;
 
   /* Typography */
@@ -122,27 +124,40 @@ html, body, #root {
   height: 100vh;
   width: 100vw;
   grid-template-rows: var(--terminal-top-h) 1fr;
-  grid-template-columns: var(--terminal-nav-w) 1fr var(--terminal-right-w);
+  grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr) var(--terminal-right-w);
+  transition: grid-template-columns 0.3s ease;
   grid-template-areas:
     "topbar topbar topbar"
     "leftnav main rightpanel";
   overflow: hidden;
 }
 
+
+.terminal-root.nav-expanded {
+  --terminal-nav-w-current: var(--terminal-nav-w-expanded);
+}
 .terminal-topbar   { grid-area: topbar; }
-.terminal-leftnav  { grid-area: leftnav; }
-.terminal-main     { grid-area: main; overflow: hidden; display: flex; flex-direction: column; }
+.terminal-leftnav  { grid-area: leftnav; width: 100%; min-width: 0; }
+.terminal-main     { grid-area: main; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
 .terminal-right    { grid-area: rightpanel; overflow: hidden; display: flex; flex-direction: column; }
 
 .terminal-root.dashboard-mode {
-  grid-template-columns: var(--terminal-nav-w) 1fr;
+  grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr);
   grid-template-areas:
     "topbar topbar"
     "leftnav main";
 }
+
+.terminal-root.no-right-panel {
+  grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr);
+  grid-template-areas:
+    "topbar topbar"
+    "leftnav main";
+}
+
 @media (max-width: 1279px) {
   .terminal-root {
-    grid-template-columns: 64px 1fr;
+    grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr);
     grid-template-areas:
       "topbar topbar"
       "leftnav main";
@@ -243,3 +258,5 @@ html, body, #root {
   opacity: 1;
   transform: translateX(0);
 }
+
+

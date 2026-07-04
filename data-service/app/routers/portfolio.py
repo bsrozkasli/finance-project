@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from fastapi import APIRouter, HTTPException, Query
 
 from app.models.portfolio import EfficientFrontierPoint, OptimizationRequest, OptimizationResponse, RebalanceCheckResponse
@@ -10,11 +10,12 @@ router = APIRouter(prefix="/api/v1/portfolio", tags=["portfolio"])
 
 
 class RebalanceCheckRequest(BaseModel):
-    target_weights: dict[str, float] = Field(min_items=1)
-    current_weights: dict[str, float] = Field(min_items=1)
+    target_weights: dict[str, float] = Field(min_length=1)
+    current_weights: dict[str, float] = Field(min_length=1)
     threshold: float = Field(default=0.05, ge=0.0, le=1.0)
 
-    @validator("target_weights", "current_weights")
+    @field_validator("target_weights", "current_weights")
+    @classmethod
     def validate_weights(cls, value: dict[str, float]) -> dict[str, float]:
         for symbol, weight in value.items():
             if not symbol or symbol.strip() == "":

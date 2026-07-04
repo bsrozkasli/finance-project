@@ -34,7 +34,7 @@ class PortfolioService:
         if len(tickers) < cls.MIN_ASSETS:
             raise ValueError(f"At least {cls.MIN_ASSETS} assets are required for portfolio optimization")
 
-        end_date = pd.Timestamp.utcnow()
+        end_date = pd.Timestamp.now(tz="UTC")
         start_date = end_date - pd.Timedelta(days=lookback_days)
 
         data = yf.download(
@@ -431,3 +431,4 @@ class PortfolioService:
         else:
             sharpe = (expected_return - risk_free_rate) / volatility
         return expected_return, volatility, float(sharpe)
+

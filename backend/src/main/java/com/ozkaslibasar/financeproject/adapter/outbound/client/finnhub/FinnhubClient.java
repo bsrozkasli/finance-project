@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub;
 
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubMetricDto;
+import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubInsiderTransactionsDto;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubNewsDto;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubRecommendationDto;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
@@ -146,7 +147,8 @@ public class FinnhubClient implements SmartReportMarketDataPort {
                 metric.getPbAnnual(),
                 metric.getLongTermDebtEquityAnnual(),
                 metric.getNetMarginAnnual(),
-                metric.getRoeTtm()));
+                metric.getRoeTtm(),
+                metric.getDividendYield()));
     }
 
     /**
@@ -171,6 +173,22 @@ public class FinnhubClient implements SmartReportMarketDataPort {
         }
     }
 
+    @RateLimiter(name = "finnhubApi")
+    @Retry(name = "finnhubApi")
+    @CircuitBreaker(name = "finnhubApi")
+    @Bulkhead(name = "finnhubApi")
+    public List<FinnhubInsiderTransactionsDto.Transaction> getInsiderTransactions(String symbol) {
+        try {
+            String encoded = URLEncoder.encode(symbol, StandardCharsets.UTF_8);
+            String url = BASE_URL + "/stock/insider-transactions?symbol=" + encoded + "&token=" + apiKey;
+            log.debug("FinnhubClient: GET insider transactions for {}", symbol);
+            FinnhubInsiderTransactionsDto result = restTemplate.getForObject(url, FinnhubInsiderTransactionsDto.class);
+            return result != null && result.getData() != null ? result.getData() : Collections.emptyList();
+        } catch (Exception e) {
+            log.error("FinnhubClient.getInsiderTransactions failed for {}: {}", symbol, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
     /**
      * Fetches peer companies (similar stocks) for the given symbol.
      *
@@ -204,3 +222,5 @@ public class FinnhubClient implements SmartReportMarketDataPort {
         return getPeers(symbol);
     }
 }
+
+
