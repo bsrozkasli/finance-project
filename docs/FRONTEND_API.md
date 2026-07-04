@@ -44,8 +44,8 @@ Frontend routes are user-facing SPA routes served by Vite/React Router. They are
 | `addPortfolioPosition(request)` | `POST /portfolio/positions` | matched |
 | `updatePortfolioPosition(id, request)` | `PUT /portfolio/positions/{id}` | matched |
 | `deletePortfolioPosition(id)` | `DELETE /portfolio/positions/{id}` | matched |
-| `fetchPortfolioSummary()` | `GET /portfolio/summary` | matched |
-| `fetchPortfolioPerformance(period, benchmark)` | `GET /portfolio/performance?period=&benchmark=` | matched |
+| `fetchPortfolioSummary()` | `GET /portfolio/summary` | matched; daily PnL uses latest two real closes when available |
+| `fetchPortfolioPerformance(period, benchmark)` | `GET /portfolio/performance?period=&benchmark=` | matched; benchmark fills normalized `benchmarkValue` when available |
 | `fetchPortfolioAllocation()` | `GET /portfolio/allocation` | matched |
 | `fetchEnrichedPositions()` | `GET /portfolio/positions/enriched` | matched |
 | `fetchAnalystRecommendations(symbol)` | `GET /analyst/{symbol}/recommendations` | matched |
@@ -63,14 +63,14 @@ Frontend routes are user-facing SPA routes served by Vite/React Router. They are
 | `deleteInvestmentPortfolio(id)` | `DELETE /portfolios/{id}` | matched |
 | `fetchPortfolioTransactions(portfolioId)` | `GET /portfolios/{id}/transactions` | matched |
 | `createPortfolioTransaction(portfolioId, request)` | `POST /portfolios/{id}/transactions` | matched |
-| `deletePortfolioTransaction(portfolioId, transactionId)` | `DELETE /portfolios/{id}/transactions/{transactionId}` | matched |
+| `deletePortfolioTransaction(portfolioId, transactionId)` | `DELETE /portfolios/{id}/transactions/{transactionId}` | matched; deletes linked journal trade |
 | `fetchPortfolioHoldings(portfolioId)` | `GET /portfolios/{id}/holdings` | matched |
 | `fetchWatchlists()` | `GET /watchlists` | matched |
 | `createWatchlist(name)` | `POST /watchlists` | matched |
 | `addSymbolToWatchlist(id, symbol)` | `POST /watchlists/{id}/symbols` | matched |
 | `removeSymbolFromWatchlist(id, symbol)` | `DELETE /watchlists/{id}/symbols/{symbol}` | matched |
 | `deleteWatchlist(id)` | `DELETE /watchlists/{id}` | matched |
-| `fetchFundamentals(symbol)` | `GET /fundamentals/{symbol}` | matched |
+| `fetchFundamentals(symbol)` | `GET /fundamentals/{symbol}` | matched; includes nullable `dividendYield` |
 | `fetchFinancialRatios(symbol)` | `GET /fundamentals/{symbol}/ratios` | matched |
 | `fetchEarnings(symbol, periods)` | `GET /fundamentals/{symbol}/earnings?periods=` | matched |
 | `fetchInsiderActivity(symbol)` | `GET /fundamentals/{symbol}/insider` | matched |

@@ -23,6 +23,7 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -91,6 +92,19 @@ class PortfolioManagementControllerTest {
                                 }
                                 """))
                 .andExpect(status().isUnprocessableEntity());
+    }
+
+    @Test
+    void shouldDeleteLinkedJournalEntryWhenTransactionIsDeleted() throws Exception {
+        PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(transactionPort.findByIdAndPortfolioIdAndUserId(10L, 1L, "default")).thenReturn(Optional.of(saved));
+
+        mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
+                .andExpect(status().isNoContent());
+
+        verify(journalTradePort).deleteByPortfolioIdAndTransactionIdAndUserId(1L, 10L, "default");
+        verify(transactionPort).deleteByIdAndPortfolioIdAndUserId(10L, 1L, "default");
     }
 
     private Portfolio portfolio() {

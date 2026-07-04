@@ -147,7 +147,8 @@ public class FinnhubClient implements SmartReportMarketDataPort {
                 metric.getPbAnnual(),
                 metric.getLongTermDebtEquityAnnual(),
                 metric.getNetMarginAnnual(),
-                metric.getRoeTtm()));
+                metric.getRoeTtm(),
+                metric.getDividendYield()));
     }
 
     /**

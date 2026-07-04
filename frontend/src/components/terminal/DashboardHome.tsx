@@ -213,22 +213,22 @@ export const DashboardHome = ({
   const loadDashboard = useCallback(async () => {
     setDashboardLoading(true);
     setDashboardError(null);
-    try {
-      const [summaryData, performanceData, allocationData, positionData] = await Promise.all([
-        fetchPortfolioSummary(),
-        fetchPortfolioPerformance(chartRange),
-        fetchPortfolioAllocation(),
-        fetchEnrichedPositions(),
-      ]);
-      setSummary(summaryData);
-      setPerformance(performanceData);
-      setAllocation(allocationData);
-      setPositions(positionData);
-    } catch (error) {
-      setDashboardError(error instanceof Error ? error.message : 'Failed to load dashboard data');
-    } finally {
-      setDashboardLoading(false);
-    }
+    const [summaryData, performanceData, allocationData, positionData] = await Promise.allSettled([
+      fetchPortfolioSummary(),
+      fetchPortfolioPerformance(chartRange),
+      fetchPortfolioAllocation(),
+      fetchEnrichedPositions(),
+    ]);
+
+    const failures = [summaryData, performanceData, allocationData, positionData].filter(result => result.status === 'rejected');
+
+    if (summaryData.status === 'fulfilled') setSummary(summaryData.value);
+    if (performanceData.status === 'fulfilled') setPerformance(performanceData.value);
+    if (allocationData.status === 'fulfilled') setAllocation(allocationData.value);
+    if (positionData.status === 'fulfilled') setPositions(positionData.value);
+
+    setDashboardError(failures.length > 0 ? `${failures.length} dashboard data source failed. Showing available data.` : null);
+    setDashboardLoading(false);
   }, [chartRange]);
 
   useEffect(() => {
@@ -506,4 +506,3 @@ export const DashboardHome = ({
     </main>
   );
 };
-

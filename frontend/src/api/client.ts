@@ -181,7 +181,7 @@ export interface PortfolioPerformancePoint {
 export interface PortfolioPerformanceResponse {
   period: string;
   series: PortfolioPerformancePoint[];
-  metrics?: { sharpe?: number; maxDrawdown?: number };
+  metrics?: { sharpe?: number; maxDrawdown?: number; volatility?: number };
 }
 
 export interface AllocationSlice {
@@ -211,6 +211,74 @@ export interface EnrichedPosition {
   unrealizedPnL: number;
 }
 
+
+export type OptimizationObjective =
+  | 'MAX_SHARPE'
+  | 'MIN_VOLATILITY'
+  | 'TARGET_RISK'
+  | 'MAX_RETURN'
+  | 'RISK_PARITY';
+
+export interface PortfolioOptimizationRequest {
+  symbols: string[];
+  objective: OptimizationObjective;
+  risk_free_rate: number;
+  lookback_period: number;
+  max_weight: number;
+  min_weight: number;
+}
+
+export interface PortfolioOptimizationMetrics {
+  returns?: number;
+  volatility?: number;
+  sharpe?: number;
+  drawdown?: number;
+  weights?: Record<string, number>;
+}
+
+export interface EfficientFrontierPoint {
+  expectedReturn?: number;
+  expected_return?: number;
+  volatility: number;
+  sharpe?: number;
+  sharpeRatio?: number;
+  sharpe_ratio?: number;
+  targetReturn?: number;
+  target_return?: number;
+  weights?: Record<string, number>;
+}
+
+export interface PortfolioOptimizationResponse {
+  portfolioMetrics?: PortfolioOptimizationMetrics;
+  portfolio_metrics?: PortfolioOptimizationMetrics;
+  weights: Record<string, number>;
+  efficientFrontier?: EfficientFrontierPoint[];
+  efficient_frontier?: EfficientFrontierPoint[];
+  optimizedAt?: string;
+  optimized_at?: string;
+}
+
+export interface RebalanceCheckRequest {
+  target_weights: Record<string, number>;
+  current_weights: Record<string, number>;
+  threshold: number;
+}
+
+export interface RebalanceAction {
+  symbol: string;
+  targetWeight?: number;
+  target_weight?: number;
+  currentWeight?: number;
+  current_weight?: number;
+  deviation: number;
+  requiresRebalance?: boolean;
+  requires_rebalance?: boolean;
+  action: string;
+}
+
+export interface RebalanceCheckResponse {
+  actions: RebalanceAction[];
+}
 export const fetchPortfolioSummary = async (): Promise<PortfolioSummary> => {
   const response = await apiClient.get<PortfolioSummary>('/portfolio/summary');
   return response.data;
@@ -350,6 +418,20 @@ export const fetchEnrichedPositions = async (): Promise<EnrichedPosition[]> => {
 
 // ─── Trading Journal ─────────────────────────────────────────────────────────
 
+
+export const optimizePortfolio = async (
+  request: PortfolioOptimizationRequest
+): Promise<PortfolioOptimizationResponse> => {
+  const response = await apiClient.post<PortfolioOptimizationResponse>('/portfolio/optimize', request);
+  return response.data;
+};
+
+export const checkPortfolioRebalance = async (
+  request: RebalanceCheckRequest
+): Promise<RebalanceCheckResponse> => {
+  const response = await apiClient.post<RebalanceCheckResponse>('/portfolio/rebalance-check', request);
+  return response.data;
+};
 export type JournalTradeType = 'BUY' | 'SELL';
 export type JournalTradeStatus = 'OPEN' | 'CLOSED';
 
@@ -372,6 +454,8 @@ export interface JournalTrade {
   pnl?: number;
   returnPct?: number;
   holdingDays?: number;
+  portfolioId?: number;
+  transactionId?: number;
 }
 
 export interface AddJournalTradeRequest {
@@ -380,9 +464,14 @@ export interface AddJournalTradeRequest {
   quantity: number;
   purchasePrice: number;
   openedAt: string;
+  closedAt?: string;
+  status?: JournalTradeStatus;
+  currentPrice?: number;
   commission?: number;
   strategy?: string;
   notes?: string;
+  portfolioId?: number;
+  transactionId?: number;
   tags?: string[];
 }
 
@@ -497,6 +586,7 @@ export interface FundamentalsData {
   netMargin?: number;
   roic?: number;
   roe?: number;
+  dividendYield?: number;
 }
 
 export interface FinancialRatios {
@@ -570,6 +660,27 @@ export const fetchInstitutionalOwnership = async (symbol: string): Promise<Insti
 
 // ─── News (categorized) ──────────────────────────────────────────────────────
 
+
+export interface EconomicEvent {
+  event: string;
+  date: string;
+  country?: string;
+  impact?: string;
+  actual?: unknown;
+  estimate?: unknown;
+  previous?: unknown;
+}
+
+export interface MarketCalendarResponse {
+  earnings: EarningsResult[];
+  economicEvents: EconomicEvent[];
+  cachedAt?: string;
+}
+
+export const fetchEconomicEvents = async (): Promise<EconomicEvent[]> => {
+  const response = await apiClient.get<EconomicEvent[]>('/calendar/economic-events');
+  return response.data;
+};
 export type NewsCategory =
   | 'BREAKING'
   | 'PORTFOLIO'
