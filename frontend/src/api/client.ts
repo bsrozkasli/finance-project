@@ -672,7 +672,7 @@ export interface EconomicEvent {
 }
 
 export interface MarketCalendarResponse {
-  earnings: EarningsResult[];
+  earnings: EarningsEvent[];
   economicEvents: EconomicEvent[];
   cachedAt?: string;
 }
@@ -728,5 +728,124 @@ export const fetchAllNews = async (
 
 export const fetchPortfolioNews = async (): Promise<CategorizedNewsItem[]> => {
   const response = await apiClient.get<CategorizedNewsItem[]>('/news/portfolio');
+  return response.data;
+};
+
+export interface MacroSnapshot {
+  fedFundsRate?: number | null;
+  cpi?: number | null;
+  cpiYoy?: number | null;
+  gdpGrowth?: number | null;
+  unemploymentRate?: number | null;
+  treasury10y?: number | null;
+  treasury2y?: number | null;
+  yieldCurveSpread?: number | null;
+  observedAt?: string | null;
+  cachedAt?: string | null;
+}
+
+export interface EarningsEvent {
+  symbol: string;
+  date: string;
+  epsEstimate?: number | null;
+  epsActual?: number | null;
+  revenueEstimate?: number | null;
+  revenueActual?: number | null;
+  time?: string | null;
+}
+
+export type MarketCalendar = MarketCalendarResponse;
+
+export const fetchMacroSnapshot = async (): Promise<MacroSnapshot> => {
+  const response = await apiClient.get<MacroSnapshot>('/macro/snapshot');
+  return response.data;
+};
+
+export const fetchCalendar = async (symbols?: string[]): Promise<MarketCalendar> => {
+  const response = await apiClient.get<MarketCalendar>('/calendar', {
+    params: symbols?.length ? { symbols: symbols.join(',') } : undefined,
+  });
+  return response.data;
+};
+
+export interface TechnicalSignalSummary {
+  symbol: string;
+  timestamp: string;
+  signal: {
+    action: string;
+    confidence: number;
+  };
+}
+
+export type PatternDirection = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
+
+export interface DetectedPattern {
+  patternType: string;
+  direction: PatternDirection;
+  confidence: number;
+  startIndex: number;
+  endIndex: number;
+  description: string;
+  priceTarget?: number | null;
+}
+
+export interface PatternDetectionResponse {
+  symbol: string;
+  interval: string;
+  patterns: DetectedPattern[];
+  dominantPattern?: DetectedPattern | null;
+  llmContext?: string | null;
+  detectedAt?: number | null;
+}
+
+export interface DecisionSupportRequest {
+  symbol: string;
+  userScenario?: string;
+  portfolioContext?: {
+    currentWeight: number;
+    targetWeight: number;
+    deviation: number;
+    rebalanceNeeded: boolean;
+  };
+}
+
+export interface DecisionSupportResponse {
+  symbol: string;
+  executiveSummary: string;
+  primarySignal: string;
+  convictionLevel: number;
+  bullCase: string[];
+  bearCase: string[];
+  criticalLevels: Record<string, number>;
+  riskReward: string;
+  timeHorizon: string;
+  watchlistItems: string[];
+  fullAnalysis: string;
+  generatedAt: number;
+}
+
+export const fetchTechnicalSignals = async (
+  symbol: string,
+  interval = '1d',
+  range = '3mo'
+): Promise<TechnicalSignalSummary> => {
+  const response = await apiClient.get<TechnicalSignalSummary>(`/technical/${symbol}/signals`, { params: { interval, range } });
+  return response.data;
+};
+
+export const fetchPatternDetection = async (
+  symbol: string,
+  interval = '1d',
+  range = '3mo',
+  includeLlmContext = false
+): Promise<PatternDetectionResponse> => {
+  const response = await apiClient.get<PatternDetectionResponse>(`/analysis/patterns/${symbol}`, {
+    params: { interval, range, includeLlmContext },
+  });
+  return response.data;
+};
+
+export const fetchDecisionSupport = async (request: DecisionSupportRequest): Promise<DecisionSupportResponse> => {
+  const response = await apiClient.post<DecisionSupportResponse>('/analysis/decision-support', request);
   return response.data;
 };

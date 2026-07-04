@@ -77,11 +77,11 @@ export const AskAIModal = ({ symbol }: { symbol: string }) => {
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="rounded border p-3" style={{ borderColor: 'var(--color-border-subtle)' }}>
                     <div className="mb-2 text-xs font-bold uppercase" style={{ color: 'var(--color-bull)' }}>Bull Case</div>
-                    <ul className="space-y-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{data.bullCase.map((item) => <li key={item}>{item}</li>)}</ul>
+                    <ul className="space-y-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{data.bullCase.map((item: string) => <li key={item}>{item}</li>)}</ul>
                   </div>
                   <div className="rounded border p-3" style={{ borderColor: 'var(--color-border-subtle)' }}>
                     <div className="mb-2 text-xs font-bold uppercase" style={{ color: 'var(--color-bear)' }}>Bear Case</div>
-                    <ul className="space-y-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{data.bearCase.map((item) => <li key={item}>{item}</li>)}</ul>
+                    <ul className="space-y-2 text-xs" style={{ color: 'var(--color-text-secondary)' }}>{data.bearCase.map((item: string) => <li key={item}>{item}</li>)}</ul>
                   </div>
                 </div>
                 <div className="rounded border p-3 text-xs leading-5" style={{ color: 'var(--color-text-secondary)', borderColor: 'var(--color-border-subtle)' }}>{data.fullAnalysis}</div>

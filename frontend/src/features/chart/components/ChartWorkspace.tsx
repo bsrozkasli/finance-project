@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Asset } from '../../../api/types';
+import type { DetectedPattern } from '../../../api/client';
 import { useAgentAnalysis } from '../../../hooks/useAgentAnalysis';
 import { useChartData } from '../hooks/useChartData';
 import { useIndicators } from '../hooks/useIndicators';
@@ -66,7 +67,7 @@ export const ChartWorkspace = ({ assets, initialSymbol, onSymbolChange }: ChartW
 
   const patternMarkers = useMemo(() => {
     if (!showPatternOverlay || !patternDetection.data) return [];
-    return patternDetection.data.patterns.map((pattern) => {
+    return patternDetection.data.patterns.map((pattern: DetectedPattern) => {
       const index = Math.min(Math.max(pattern.endIndex, 0), Math.max(data.length - 1, 0));
       const bar = data[index];
       return {

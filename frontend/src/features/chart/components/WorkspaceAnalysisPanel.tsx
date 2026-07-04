@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { PatternDetectionResponse, TechnicalResult, TechnicalSignalSummary } from '../../../api/client';
+import type { DetectedPattern, PatternDetectionResponse, TechnicalResult, TechnicalSignalSummary } from '../../../api/client';
 import type { AgentAnalysis } from '../../../hooks/useAgentAnalysis';
 import { AITechnicalAnalysisPanel } from './AITechnicalAnalysisPanel';
 import { TechnicalSignalCard } from './TechnicalSignalCard';
@@ -32,7 +32,7 @@ const PatternList = ({ data, loading, error, onRefresh }: { data: PatternDetecti
     {!loading && !error && (!data || data.patterns.length === 0) && <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>No detected patterns for this range.</div>}
     {!loading && data && data.patterns.length > 0 && (
       <div className="space-y-3">
-        {data.patterns.map((pattern) => (
+        {data.patterns.map((pattern: DetectedPattern) => (
           <div key={`${pattern.patternType}-${pattern.startIndex}-${pattern.endIndex}`} className="rounded border p-3" style={{ borderColor: 'var(--color-border-subtle)', background: 'var(--color-bg-base)' }}>
             <div className="mb-1 flex items-center justify-between gap-2">
               <span className="text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>{pattern.patternType.replaceAll('_', ' ')}</span>
