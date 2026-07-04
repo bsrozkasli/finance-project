@@ -14,6 +14,7 @@ import { ReportsView } from '../components/terminal/ReportsView';
 import { TradingJournalView } from '../components/terminal/TradingJournalView';
 import { ChartWorkspace } from '../features/chart/components/ChartWorkspace';
 import { PortfolioView } from '../components/terminal/PortfolioView';
+import { WatchlistView } from '../components/terminal/WatchlistView';
 
 const NO_RIGHT_PANEL_TABS = ['workspace', 'portfolio', 'transactions', 'journal', 'watchlist', 'reports'];
 const NAV_PATHS: Record<string, string> = {
@@ -150,19 +151,8 @@ export const Dashboard = () => {
           />
           <Route path="/portfolio" element={<PortfolioView />} />
           <Route path="/portfolio/:portfolioId" element={<PortfolioView />} />
-          <Route path="/transactions" element={<TradingJournalView />} />
-          <Route
-            path="/watchlist"
-            element={
-              <MarketGrid
-                assets={assets}
-                loading={loading}
-                selectedSymbol={selectedSymbol}
-                onSelectAsset={handleSelectAsset}
-                onOpenChart={(sym) => setChartSymbol(sym)}
-              />
-            }
-          />
+          <Route path="/transactions" element={<TradingJournalView mode="transactions" />} />
+          <Route path="/watchlist" element={<WatchlistView />} />
           <Route
             path="/scanner"
             element={
@@ -184,7 +174,7 @@ export const Dashboard = () => {
               </SymbolRoute>
             }
           />
-          <Route path="/journal" element={<TradingJournalView />} />
+          <Route path="/journal" element={<TradingJournalView mode="journal" />} />
           <Route
             path="/reports"
             element={

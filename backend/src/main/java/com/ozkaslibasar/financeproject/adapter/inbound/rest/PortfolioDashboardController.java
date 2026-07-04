@@ -20,6 +20,7 @@ import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,15 +52,19 @@ public class PortfolioDashboardController {
     })
     @GetMapping("/summary")
     public PortfolioSummary getSummary() {
-        List<EnrichedPosition> positions = getEnrichedPositions();
-        BigDecimal totalValue = sum(positions.stream().map(EnrichedPosition::marketValue).toList());
-        BigDecimal costBasis = sum(positions.stream().map(EnrichedPosition::costBasis).toList());
+        List<PortfolioPosition> positions = positionPort.findByUserId(DEFAULT_USER);
+        BigDecimal totalValue = sum(positions.stream().map(this::marketValue).toList());
+        BigDecimal costBasis = sum(positions.stream()
+                .map(position -> position.quantity().multiply(position.avgCostPrice()))
+                .toList());
+        BigDecimal dailyPnl = sum(positions.stream().map(this::dailyPnl).toList());
+        BigDecimal previousValue = totalValue.subtract(dailyPnl);
         BigDecimal totalPnl = totalValue.subtract(costBasis);
         return new PortfolioSummary(
                 totalValue,
                 BigDecimal.ZERO,
-                BigDecimal.ZERO,
-                BigDecimal.ZERO,
+                dailyPnl,
+                percent(dailyPnl, previousValue),
                 totalPnl,
                 percent(totalPnl, costBasis));
     }
@@ -104,6 +109,7 @@ public class PortfolioDashboardController {
             return new PortfolioPerformance(period, List.of(), new PortfolioMetrics(null, null));
         }
 
+        TreeMap<LocalDate, BigDecimal> benchmarkHistory = benchmarkHistory(benchmark, period);
         TreeMap<LocalDate, BigDecimal> seriesByDate = new TreeMap<>();
         for (TreeMap<LocalDate, BigDecimal> history : histories.values()) {
             history.keySet().forEach(date -> seriesByDate.putIfAbsent(date, BigDecimal.ZERO));
@@ -134,6 +140,10 @@ public class PortfolioDashboardController {
             if (hasAnyValue) {
                 series.add(new PortfolioPerformancePoint(date.toString(), value, null));
             }
+        }
+
+        if (!benchmarkHistory.isEmpty()) {
+            series = withBenchmarkValues(series, benchmarkHistory);
         }
 
         return new PortfolioPerformance(period, series, new PortfolioMetrics(null, maxDrawdown(series)));
@@ -207,8 +217,83 @@ public class PortfolioDashboardController {
                 unrealizedPnl);
     }
 
+    private TreeMap<LocalDate, BigDecimal> benchmarkHistory(String benchmark, String period) {
+        String symbol = benchmarkSymbol(benchmark);
+        TreeMap<LocalDate, BigDecimal> byDate = new TreeMap<>();
+        if (symbol == null) {
+            return byDate;
+        }
+        List<PriceHistory> prices = priceRefreshService.getFreshHistory(symbol, "1d", periodToRange(period));
+        for (PriceHistory price : prices) {
+            byDate.put(price.timestamp().toLocalDate(), price.close());
+        }
+        return byDate;
+    }
+
+    private String benchmarkSymbol(String benchmark) {
+        if (benchmark == null || benchmark.isBlank()) {
+            return null;
+        }
+        String normalized = benchmark.trim().toUpperCase();
+        return switch (normalized) {
+            case "SP500", "S&P500", "SNP500", "SPY" -> "SPY";
+            case "NASDAQ", "NASDAQ100", "QQQ" -> "QQQ";
+            case "BIST100", "XU100" -> "XU100.IS";
+            default -> normalized;
+        };
+    }
+
+    private List<PortfolioPerformancePoint> withBenchmarkValues(
+            List<PortfolioPerformancePoint> series,
+            TreeMap<LocalDate, BigDecimal> benchmarkHistory) {
+        if (series.isEmpty()) {
+            return series;
+        }
+        List<PortfolioPerformancePoint> withBenchmark = new ArrayList<>();
+        BigDecimal initialPortfolioValue = series.get(0).portfolioValue();
+        BigDecimal firstBenchmarkClose = null;
+        BigDecimal lastBenchmarkClose = null;
+        for (PortfolioPerformancePoint point : series) {
+            LocalDate date = LocalDate.parse(point.date());
+            BigDecimal close = benchmarkHistory.get(date);
+            if (close != null) {
+                lastBenchmarkClose = close;
+            } else {
+                close = lastBenchmarkClose;
+            }
+            if (close == null || close.compareTo(BigDecimal.ZERO) <= 0) {
+                withBenchmark.add(point);
+                continue;
+            }
+            if (firstBenchmarkClose == null) {
+                firstBenchmarkClose = close;
+            }
+            BigDecimal benchmarkValue = close
+                    .multiply(initialPortfolioValue)
+                    .divide(firstBenchmarkClose, 4, RoundingMode.HALF_UP);
+            withBenchmark.add(new PortfolioPerformancePoint(point.date(), point.portfolioValue(), benchmarkValue));
+        }
+        return withBenchmark;
+    }
+
     private BigDecimal marketValue(PortfolioPosition position) {
         return position.quantity().multiply(currentPrice(position));
+    }
+
+    private BigDecimal dailyPnl(PortfolioPosition position) {
+        try {
+            List<PriceHistory> prices = priceRefreshService.getFreshHistory(position.symbol().toUpperCase(), "1d", "5d").stream()
+                    .sorted(Comparator.comparing(PriceHistory::timestampAsInstant))
+                    .toList();
+            if (prices.size() < 2) {
+                return BigDecimal.ZERO;
+            }
+            BigDecimal previousClose = prices.get(prices.size() - 2).close();
+            BigDecimal latestClose = prices.get(prices.size() - 1).close();
+            return latestClose.subtract(previousClose).multiply(position.quantity());
+        } catch (Exception ignored) {
+            return BigDecimal.ZERO;
+        }
     }
 
     private BigDecimal currentPrice(PortfolioPosition position) {
