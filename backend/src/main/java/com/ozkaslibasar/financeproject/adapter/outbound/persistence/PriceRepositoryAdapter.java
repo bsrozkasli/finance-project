@@ -4,6 +4,7 @@ import com.ozkaslibasar.financeproject.adapter.outbound.persistence.mapper.Price
 import com.ozkaslibasar.financeproject.adapter.outbound.persistence.repository.PriceJpaRepository;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ public class PriceRepositoryAdapter implements PriceRepositoryPort {
 
     private final PriceJpaRepository repository;
     private final PricePersistenceMapper mapper;
+    private final MeterRegistry meterRegistry;
 
     @Override
     public List<PriceHistory> findByAssetIdAndPeriod(String assetId, Instant from, Instant to) {
@@ -40,12 +42,18 @@ public class PriceRepositoryAdapter implements PriceRepositoryPort {
         if (prices == null || prices.isEmpty()) {
             return;
         }
-        
-        // In a real-world scenario we might need an upsert using native query.
-        // For Phase 1 we will rely on saving new entities and ignoring constraint violations
-        // or checking for existing entities. Since this is an adapter to DB, 
-        // a simple saveAll handles insertion.
         var entities = mapper.toEntityList(prices);
-        repository.saveAll(entities);
+        for (var entity : entities) {
+            repository.upsertPrice(
+                    entity.getAssetId(),
+                    entity.getOpen(),
+                    entity.getClose(),
+                    entity.getHigh(),
+                    entity.getLow(),
+                    entity.getVolume(),
+                    entity.getTimestamp()
+            );
+        }
     }
 }
+

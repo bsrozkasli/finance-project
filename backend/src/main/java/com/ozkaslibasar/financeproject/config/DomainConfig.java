@@ -7,12 +7,15 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
+import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -46,6 +49,18 @@ public class DomainConfig {
     @Bean
     public PriceNormalizationService priceNormalizationService() {
         return new PriceNormalizationService();
+    }
+
+    @Bean
+    public PriceRefreshService priceRefreshService(
+            PriceRepositoryPort priceRepositoryPort,
+            FinancialDataPort financialDataPort) {
+        return new PriceRefreshService(priceRepositoryPort, financialDataPort);
+    }
+
+    @Bean
+    public PortfolioLedgerService portfolioLedgerService(PortfolioTransactionPort transactionPort) {
+        return new PortfolioLedgerService(transactionPort);
     }
 
     @Bean

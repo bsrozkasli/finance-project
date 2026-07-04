@@ -17,6 +17,7 @@ public interface SmartReportMarketDataPort {
             Double pbRatio,
             Double debtToEquity,
             Double netProfitMargin,
-            Double roe) {
+            Double roe,
+            Double dividendYield) {
     }
 }

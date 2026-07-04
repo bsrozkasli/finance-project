@@ -1,14 +1,15 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
-
+import com.ozkaslibasar.financeproject.domain.model.JournalTrade;
+import com.ozkaslibasar.financeproject.domain.model.JournalTradeStatus;
+import com.ozkaslibasar.financeproject.domain.model.JournalTradeType;
+import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
+import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.ozkaslibasar.financeproject.domain.model.JournalTrade;
-import com.ozkaslibasar.financeproject.domain.model.JournalTradeStatus;
-import com.ozkaslibasar.financeproject.domain.model.JournalTradeType;
-import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -26,7 +27,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Tag(name = "Journal", description = "Trading journal management")
 @RestController
@@ -37,6 +41,7 @@ public class JournalController {
     private static final String DEFAULT_USER = "default";
 
     private final JournalTradePort tradePort;
+    private final PriceRefreshService priceRefreshService;
 
     @Operation(summary = "GET Journal endpoint", description = "Implements the GET operation for the Journal API described in SPEC.md sections 7 and 8.")
     @ApiResponses({
@@ -55,7 +60,7 @@ public class JournalController {
     public PagedResponse<JournalTrade> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        List<JournalTrade> all = tradePort.findByUserId(DEFAULT_USER);
+        List<JournalTrade> all = enrichOpenTrades(tradePort.findByUserId(DEFAULT_USER));
         int safeSize = Math.max(size, 1);
         int safePage = Math.max(page, 0);
         int from = Math.min(safePage * safeSize, all.size());
@@ -79,7 +84,7 @@ public class JournalController {
     })
     @GetMapping("/stats")
     public JournalStats stats() {
-        List<JournalTrade> all = tradePort.findByUserId(DEFAULT_USER);
+        List<JournalTrade> all = enrichOpenTrades(tradePort.findByUserId(DEFAULT_USER));
         int openTrades = (int) all.stream().filter(trade -> trade.status() == JournalTradeStatus.OPEN).count();
         List<JournalTrade> closed = all.stream().filter(trade -> trade.status() == JournalTradeStatus.CLOSED).toList();
         long wins = closed.stream().filter(trade -> trade.returnPct().compareTo(BigDecimal.ZERO) > 0).count();
@@ -164,18 +169,18 @@ public class JournalController {
         try {
             BigDecimal quantity = request.quantity();
             BigDecimal purchasePrice = request.purchasePrice();
-            BigDecimal currentPrice = request.currentPrice() == null ? purchasePrice : request.currentPrice();
             BigDecimal commission = request.commission() == null ? BigDecimal.ZERO : request.commission();
+            LocalDate closedAt = request.closedAt();
+            JournalTradeStatus status = request.status() == null
+                    ? (closedAt == null ? JournalTradeStatus.OPEN : JournalTradeStatus.CLOSED)
+                    : request.status();
+            BigDecimal currentPrice = resolveCurrentPrice(request.symbol(), request.currentPrice(), purchasePrice, status);
             BigDecimal marketValue = quantity.multiply(currentPrice);
             BigDecimal pnl = currentPrice.subtract(purchasePrice).multiply(quantity).subtract(commission);
             BigDecimal costBasis = purchasePrice.multiply(quantity).add(commission);
             BigDecimal returnPct = costBasis.compareTo(BigDecimal.ZERO) == 0
                     ? BigDecimal.ZERO
                     : pnl.multiply(BigDecimal.valueOf(100)).divide(costBasis, 4, RoundingMode.HALF_UP);
-            LocalDate closedAt = request.closedAt();
-            JournalTradeStatus status = request.status() == null
-                    ? (closedAt == null ? JournalTradeStatus.OPEN : JournalTradeStatus.CLOSED)
-                    : request.status();
             return new JournalTrade(
                     id,
                     DEFAULT_USER,
@@ -196,11 +201,81 @@ public class JournalController {
                     pnl,
                     returnPct,
                     null,
+                    request.portfolioId(),
+                    request.transactionId(),
                     null,
                     null);
         } catch (IllegalArgumentException | NullPointerException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
+    }
+
+    private List<JournalTrade> enrichOpenTrades(List<JournalTrade> trades) {
+        Map<String, Optional<BigDecimal>> latestPriceBySymbol = new HashMap<>();
+        return trades.stream()
+                .map(trade -> enrichOpenTrade(trade, latestPriceBySymbol))
+                .toList();
+    }
+
+    private JournalTrade enrichOpenTrade(JournalTrade trade, Map<String, Optional<BigDecimal>> latestPriceBySymbol) {
+        if (trade.status() != JournalTradeStatus.OPEN) {
+            return trade;
+        }
+        Optional<BigDecimal> latestPrice = latestPriceBySymbol.computeIfAbsent(
+                trade.symbol(),
+                symbol -> priceRefreshService.getFreshLatest(symbol).map(PriceHistory::close));
+        return latestPrice
+                .map(price -> withCurrentPrice(trade, price))
+                .orElse(trade);
+    }
+
+    private JournalTrade withCurrentPrice(JournalTrade trade, BigDecimal currentPrice) {
+        BigDecimal marketValue = trade.quantity().multiply(currentPrice);
+        BigDecimal pnl = currentPrice.subtract(trade.purchasePrice()).multiply(trade.quantity()).subtract(trade.commission());
+        BigDecimal costBasis = trade.purchasePrice().multiply(trade.quantity()).add(trade.commission());
+        BigDecimal returnPct = costBasis.compareTo(BigDecimal.ZERO) == 0
+                ? BigDecimal.ZERO
+                : pnl.multiply(BigDecimal.valueOf(100)).divide(costBasis, 4, RoundingMode.HALF_UP);
+        return new JournalTrade(
+                trade.id(),
+                trade.userId(),
+                trade.symbol(),
+                trade.company(),
+                trade.type(),
+                trade.quantity(),
+                trade.purchasePrice(),
+                currentPrice,
+                marketValue,
+                trade.commission(),
+                trade.strategy(),
+                trade.notes(),
+                trade.tags(),
+                trade.openedAt(),
+                trade.closedAt(),
+                trade.status(),
+                pnl,
+                returnPct,
+                null,
+                trade.portfolioId(),
+                trade.transactionId(),
+                trade.createdAt(),
+                trade.updatedAt());
+    }
+
+    private BigDecimal resolveCurrentPrice(
+            String symbol,
+            BigDecimal requestedCurrentPrice,
+            BigDecimal fallbackPrice,
+            JournalTradeStatus status) {
+        if (requestedCurrentPrice != null) {
+            return requestedCurrentPrice;
+        }
+        if (status == JournalTradeStatus.OPEN) {
+            return priceRefreshService.getFreshLatest(symbol)
+                    .map(PriceHistory::close)
+                    .orElse(fallbackPrice);
+        }
+        return fallbackPrice;
     }
 
     public record JournalTradeRequest(
@@ -214,6 +289,8 @@ public class JournalController {
             LocalDate closedAt,
             JournalTradeStatus status,
             BigDecimal commission,
+            Long portfolioId,
+            Long transactionId,
             String strategy,
             String notes,
             List<String> tags) {

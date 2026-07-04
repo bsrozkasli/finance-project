@@ -15,20 +15,20 @@ def _symbols_param(symbols: str | None) -> list[str] | None:
 
 
 @router.get("/macro/snapshot", response_model=MacroSnapshot)
-def get_macro_snapshot() -> MacroSnapshot:
-    return MarketCalendarService.macro_snapshot()
+async def get_macro_snapshot() -> MacroSnapshot:
+    return await MarketCalendarService.macro_snapshot()
 
 
 @router.get("/calendar", response_model=MarketCalendar)
-def get_market_calendar(symbols: str | None = Query(default=None)) -> MarketCalendar:
-    return MarketCalendarService.market_calendar(_symbols_param(symbols))
+async def get_market_calendar(symbols: str | None = Query(default=None)) -> MarketCalendar:
+    return await MarketCalendarService.market_calendar(_symbols_param(symbols))
 
 
 @router.get("/calendar/earnings", response_model=list[EarningsEvent])
-def get_earnings_calendar(symbols: str | None = Query(default=None)) -> list[EarningsEvent]:
-    return MarketCalendarService.earnings(_symbols_param(symbols))
+async def get_earnings_calendar(symbols: str | None = Query(default=None)) -> list[EarningsEvent]:
+    return await MarketCalendarService.earnings(_symbols_param(symbols))
 
 
 @router.get("/calendar/economic-events", response_model=list[EconomicEvent])
-def get_economic_events() -> list[EconomicEvent]:
-    return MarketCalendarService.economic_events()
+async def get_economic_events() -> list[EconomicEvent]:
+    return await MarketCalendarService.economic_events()

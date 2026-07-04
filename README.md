@@ -34,7 +34,7 @@ graph TD
         end
         
         subgraph Adapters [Spring Adapters]
-            FMPAdapter[FMP Financial Data Client]
+            YahooAdapter[Yahoo/Tiingo Market Data Client]
             DBAdapter[Postgres DB Persistence]
             RedisAdapter[Redis Cache Adapter]
             DSPriceAdapter[Data Service Price Client]
@@ -115,7 +115,7 @@ The systems expect a fixed deployment mapping for local development:
 
 | Part | Tech Stack | Dev Port | Main Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **Backend** | Spring Boot 3.4 / Java 17 | `8080` | Domain processing, persistence, Redis caching, FMP client adapter |
+| **Backend** | Spring Boot 3.4 / Java 17 | `8080` | Domain processing, persistence, Redis caching, Yahoo/Tiingo market data adapters |
 | **Data-Service**| FastAPI / Python 3.10+ | `8000` | PyPortfolioOpt, pandas-ta indicators, yfinance proxy, AI insights |
 | **Frontend** | Vite / React / TypeScript | `5173` | Rich interactive visualization, client-side hooks, lifted state |
 | **PostgreSQL**| Database | `5433` | Historical OHLCV candle storage, tracked assets metadata |
@@ -137,7 +137,6 @@ DB_NAME=financedb
 DB_USERNAME=finance_user
 DB_PASSWORD=your_secure_password
 REDIS_PORT=6379
-FMP_API_KEY=your_fmp_api_key
 FINNHUB_API_KEY=your_finnhub_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 ```
@@ -198,3 +197,8 @@ npm run build
 
 ## 🤝 Contribution Guidelines
 For architectural principles, code conventions, or design tokens guidelines, please read the [CONTRIBUTING.md](file:///c:/Users/basar/IdeaProjects/finance-project/CONTRIBUTING.md) and [AGENTS.md](file:///c:/Users/basar/IdeaProjects/finance-project/AGENTS.md) documents.
+
+
+## Architecture Decisions
+
+- Architecture Decisions: docs/adr/

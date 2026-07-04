@@ -38,7 +38,7 @@ The Spring Boot 3.4 API core depends on:
 *   **Spring Web & Spring Data JPA**: REST Controllers layer and persistence mappings.
 *   **PostgreSQL Driver**: JDBC communications.
 *   **Spring Data Redis**: Caching interface for latest asset rates.
-*   **Spring Cloud OpenFeign**: Declarative client for external FMP HTTP calls.
+*   **Spring Cloud OpenFeign**: Declarative client support for external HTTP calls.
 *   **Resilience4j**: Rate limiter and circuit breaker protection on third-party HTTP clients.
 *   **MapStruct**: High-performance, type-safe bean mapping between Entities, Domain records, and REST DTOs.
 *   **Lombok**: Automatic getters, setters, constructors, and builder generation.
@@ -82,11 +82,9 @@ The persistence layer contains tables maps to the following entities:
 
 You need to obtain API credentials from the respective providers to enable all features:
 
-1.  **Financial Modeling Prep (FMP) Key**: Required by `backend` to retrieve stock metadata profiles.
-    *   Sign up at: [Financial Modeling Prep](https://site.financialmodelingprep.com/)
-2.  **Finnhub API Key**: Required by `data-service` to run market news sentiment indicators.
+1.  **Finnhub API Key**: Required by `data-service` to run market news sentiment indicators.
     *   Sign up at: [Finnhub API](https://finnhub.io/)
-3.  **Anthropic API Key**: Required by `data-service` to generate LLM insights and portfolio stress scenario text.
+2.  **Anthropic API Key**: Required by `data-service` to generate LLM insights and portfolio stress scenario text.
     *   Sign up at: [Anthropic Console](https://console.anthropic.com/)
 
 ---
