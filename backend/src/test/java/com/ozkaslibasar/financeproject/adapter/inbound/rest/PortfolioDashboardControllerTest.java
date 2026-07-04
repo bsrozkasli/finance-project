@@ -52,6 +52,28 @@ class PortfolioDashboardControllerTest {
     }
 
     @Test
+    void shouldPopulateBenchmarkSeriesWhenBenchmarkIsProvided() throws Exception {
+        when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
+        LocalDateTime first = LocalDateTime.now().minusDays(2);
+        LocalDateTime second = LocalDateTime.now().minusDays(1);
+        when(priceRefreshService.getFreshHistory("AAPL", "1d", "1mo"))
+                .thenReturn(List.of(
+                        price("AAPL", "100", first),
+                        price("AAPL", "110", second)
+                ));
+        when(priceRefreshService.getFreshHistory("SPY", "1d", "1mo"))
+                .thenReturn(List.of(
+                        price("SPY", "400", first),
+                        price("SPY", "440", second)
+                ));
+
+        mockMvc.perform(get("/api/v1/portfolio/performance?period=1M&benchmark=SP500"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.series[0].benchmarkValue").value(200.0))
+                .andExpect(jsonPath("$.series[1].benchmarkValue").value(220.0));
+    }
+
+    @Test
     void shouldReturnEmptyPerformanceSeriesWhenNoPriceHistoryExists() throws Exception {
         when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
         when(priceRefreshService.getFreshHistory("AAPL", "1d", "1mo")).thenReturn(List.of());
@@ -73,6 +95,26 @@ class PortfolioDashboardControllerTest {
                 .andExpect(jsonPath("$[0].currentPrice").value(110))
                 .andExpect(jsonPath("$[0].marketValue").value(220))
                 .andExpect(jsonPath("$[0].unrealizedPnL").value(40));
+    }
+
+    @Test
+    void shouldCalculateDailyPnlFromLatestTwoCloses() throws Exception {
+        when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
+        LocalDateTime first = LocalDateTime.now().minusDays(2);
+        LocalDateTime second = LocalDateTime.now().minusDays(1);
+        when(priceRefreshService.getFreshLatest("AAPL"))
+                .thenReturn(Optional.of(price("AAPL", "110", Instant.now())));
+        when(priceRefreshService.getFreshHistory("AAPL", "1d", "5d"))
+                .thenReturn(List.of(
+                        price("AAPL", "100", first),
+                        price("AAPL", "110", second)
+                ));
+
+        mockMvc.perform(get("/api/v1/portfolio/summary"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalValue").value(220))
+                .andExpect(jsonPath("$.dailyPnL").value(20))
+                .andExpect(jsonPath("$.dailyPnLPercent").value(10.0));
     }
 
     private PortfolioPosition position(String symbol, String quantity, String avgCostPrice) {

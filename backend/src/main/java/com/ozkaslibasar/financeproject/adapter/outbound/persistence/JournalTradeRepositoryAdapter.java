@@ -41,6 +41,12 @@ public class JournalTradeRepositoryAdapter implements JournalTradePort {
         jpaRepository.deleteByIdAndUserId(id, userId);
     }
 
+    @Override
+    @Transactional
+    public void deleteByPortfolioIdAndTransactionIdAndUserId(Long portfolioId, Long transactionId, String userId) {
+        jpaRepository.deleteByPortfolioIdAndTransactionIdAndUserId(portfolioId, transactionId, userId);
+    }
+
     private JournalTrade toDomain(JournalTradeEntity e) {
         return new JournalTrade(
                 e.getId(),

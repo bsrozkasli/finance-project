@@ -127,6 +127,7 @@ public class PortfolioManagementController {
         getPortfolio(portfolioId);
         transactionPort.findByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not found: " + transactionId));
+        journalTradePort.deleteByPortfolioIdAndTransactionIdAndUserId(portfolioId, transactionId, DEFAULT_USER);
         transactionPort.deleteByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER);
     }
 

@@ -27,7 +27,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Tag(name = "Journal", description = "Trading journal management")
 @RestController
@@ -57,9 +60,7 @@ public class JournalController {
     public PagedResponse<JournalTrade> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        List<JournalTrade> all = tradePort.findByUserId(DEFAULT_USER).stream()
-                .map(this::enrichOpenTrade)
-                .toList();
+        List<JournalTrade> all = enrichOpenTrades(tradePort.findByUserId(DEFAULT_USER));
         int safeSize = Math.max(size, 1);
         int safePage = Math.max(page, 0);
         int from = Math.min(safePage * safeSize, all.size());
@@ -83,9 +84,7 @@ public class JournalController {
     })
     @GetMapping("/stats")
     public JournalStats stats() {
-        List<JournalTrade> all = tradePort.findByUserId(DEFAULT_USER).stream()
-                .map(this::enrichOpenTrade)
-                .toList();
+        List<JournalTrade> all = enrichOpenTrades(tradePort.findByUserId(DEFAULT_USER));
         int openTrades = (int) all.stream().filter(trade -> trade.status() == JournalTradeStatus.OPEN).count();
         List<JournalTrade> closed = all.stream().filter(trade -> trade.status() == JournalTradeStatus.CLOSED).toList();
         long wins = closed.stream().filter(trade -> trade.returnPct().compareTo(BigDecimal.ZERO) > 0).count();
@@ -211,12 +210,21 @@ public class JournalController {
         }
     }
 
-    private JournalTrade enrichOpenTrade(JournalTrade trade) {
+    private List<JournalTrade> enrichOpenTrades(List<JournalTrade> trades) {
+        Map<String, Optional<BigDecimal>> latestPriceBySymbol = new HashMap<>();
+        return trades.stream()
+                .map(trade -> enrichOpenTrade(trade, latestPriceBySymbol))
+                .toList();
+    }
+
+    private JournalTrade enrichOpenTrade(JournalTrade trade, Map<String, Optional<BigDecimal>> latestPriceBySymbol) {
         if (trade.status() != JournalTradeStatus.OPEN) {
             return trade;
         }
-        return priceRefreshService.getFreshLatest(trade.symbol())
-                .map(PriceHistory::close)
+        Optional<BigDecimal> latestPrice = latestPriceBySymbol.computeIfAbsent(
+                trade.symbol(),
+                symbol -> priceRefreshService.getFreshLatest(symbol).map(PriceHistory::close));
+        return latestPrice
                 .map(price -> withCurrentPrice(trade, price))
                 .orElse(trade);
     }

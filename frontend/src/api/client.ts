@@ -156,94 +156,12 @@ export const fetchTechnicalAnalysis = async (
   return response.data;
 };
 
-
-export interface TechnicalSignalSummary {
-  symbol: string;
-  timestamp: string;
-  signal: {
-    action: string;
-    confidence: number;
-  };
-}
-
-export type PatternDirection = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
-
-export interface DetectedPattern {
-  patternType: string;
-  direction: PatternDirection;
-  confidence: number;
-  startIndex: number;
-  endIndex: number;
-  description: string;
-  priceTarget?: number | null;
-}
-
-export interface PatternDetectionResponse {
-  symbol: string;
-  interval: string;
-  patterns: DetectedPattern[];
-  dominantPattern?: DetectedPattern | null;
-  llmContext?: string | null;
-  detectedAt?: number | null;
-}
-
-export interface DecisionSupportRequest {
-  symbol: string;
-  userScenario?: string;
-  portfolioContext?: {
-    currentWeight: number;
-    targetWeight: number;
-    deviation: number;
-    rebalanceNeeded: boolean;
-  };
-}
-
-export interface DecisionSupportResponse {
-  symbol: string;
-  executiveSummary: string;
-  primarySignal: string;
-  convictionLevel: number;
-  bullCase: string[];
-  bearCase: string[];
-  criticalLevels: Record<string, number>;
-  riskReward: string;
-  timeHorizon: string;
-  watchlistItems: string[];
-  fullAnalysis: string;
-  generatedAt: number;
-}
-
-export const fetchTechnicalSignals = async (
-  symbol: string,
-  interval = '1d',
-  range = '3mo'
-): Promise<TechnicalSignalSummary> => {
-  const response = await apiClient.get<TechnicalSignalSummary>(`/technical/${symbol}/signals`, { params: { interval, range } });
-  return response.data;
-};
-
-export const fetchPatternDetection = async (
-  symbol: string,
-  interval = '1d',
-  range = '3mo',
-  includeLlmContext = false
-): Promise<PatternDetectionResponse> => {
-  const response = await apiClient.get<PatternDetectionResponse>(`/analysis/patterns/${symbol}`, {
-    params: { interval, range, includeLlmContext },
-  });
-  return response.data;
-};
-
-export const fetchDecisionSupport = async (request: DecisionSupportRequest): Promise<DecisionSupportResponse> => {
-  const response = await apiClient.post<DecisionSupportResponse>('/analysis/decision-support', request);
-  return response.data;
-};
 export const fetchCompanyReport = async (symbol: string): Promise<CompanyReport> => {
   const response = await apiClient.get<CompanyReport>(`/reports/company/${symbol}`);
   return response.data;
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Portfolio Summary Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Portfolio Summary ───────────────────────────────────────────────────────
 
 export interface PortfolioSummary {
   totalValue: number;
@@ -263,7 +181,7 @@ export interface PortfolioPerformancePoint {
 export interface PortfolioPerformanceResponse {
   period: string;
   series: PortfolioPerformancePoint[];
-  metrics?: { sharpe?: number; maxDrawdown?: number };
+  metrics?: { sharpe?: number; maxDrawdown?: number; volatility?: number };
 }
 
 export interface AllocationSlice {
@@ -293,6 +211,74 @@ export interface EnrichedPosition {
   unrealizedPnL: number;
 }
 
+
+export type OptimizationObjective =
+  | 'MAX_SHARPE'
+  | 'MIN_VOLATILITY'
+  | 'TARGET_RISK'
+  | 'MAX_RETURN'
+  | 'RISK_PARITY';
+
+export interface PortfolioOptimizationRequest {
+  symbols: string[];
+  objective: OptimizationObjective;
+  risk_free_rate: number;
+  lookback_period: number;
+  max_weight: number;
+  min_weight: number;
+}
+
+export interface PortfolioOptimizationMetrics {
+  returns?: number;
+  volatility?: number;
+  sharpe?: number;
+  drawdown?: number;
+  weights?: Record<string, number>;
+}
+
+export interface EfficientFrontierPoint {
+  expectedReturn?: number;
+  expected_return?: number;
+  volatility: number;
+  sharpe?: number;
+  sharpeRatio?: number;
+  sharpe_ratio?: number;
+  targetReturn?: number;
+  target_return?: number;
+  weights?: Record<string, number>;
+}
+
+export interface PortfolioOptimizationResponse {
+  portfolioMetrics?: PortfolioOptimizationMetrics;
+  portfolio_metrics?: PortfolioOptimizationMetrics;
+  weights: Record<string, number>;
+  efficientFrontier?: EfficientFrontierPoint[];
+  efficient_frontier?: EfficientFrontierPoint[];
+  optimizedAt?: string;
+  optimized_at?: string;
+}
+
+export interface RebalanceCheckRequest {
+  target_weights: Record<string, number>;
+  current_weights: Record<string, number>;
+  threshold: number;
+}
+
+export interface RebalanceAction {
+  symbol: string;
+  targetWeight?: number;
+  target_weight?: number;
+  currentWeight?: number;
+  current_weight?: number;
+  deviation: number;
+  requiresRebalance?: boolean;
+  requires_rebalance?: boolean;
+  action: string;
+}
+
+export interface RebalanceCheckResponse {
+  actions: RebalanceAction[];
+}
 export const fetchPortfolioSummary = async (): Promise<PortfolioSummary> => {
   const response = await apiClient.get<PortfolioSummary>('/portfolio/summary');
   return response.data;
@@ -429,61 +415,23 @@ export const fetchEnrichedPositions = async (): Promise<EnrichedPosition[]> => {
   const response = await apiClient.get<EnrichedPosition[]>('/portfolio/positions/enriched');
   return response.data;
 };
-// Market calendar and macro context
 
-export interface MacroSnapshot {
-  fedFundsRate?: number | null;
-  cpi?: number | null;
-  cpiYoy?: number | null;
-  gdpGrowth?: number | null;
-  unemploymentRate?: number | null;
-  treasury10y?: number | null;
-  treasury2y?: number | null;
-  yieldCurveSpread?: number | null;
-  observedAt?: string | null;
-  cachedAt?: string | null;
-}
+// ─── Trading Journal ─────────────────────────────────────────────────────────
 
-export interface EarningsEvent {
-  symbol: string;
-  date: string;
-  epsEstimate?: number | null;
-  epsActual?: number | null;
-  revenueEstimate?: number | null;
-  revenueActual?: number | null;
-  time?: string | null;
-}
 
-export interface EconomicEvent {
-  event: string;
-  date: string;
-  country?: string | null;
-  impact?: string | null;
-  actual?: unknown;
-  estimate?: unknown;
-  previous?: unknown;
-}
-
-export interface MarketCalendar {
-  earnings: EarningsEvent[];
-  economicEvents: EconomicEvent[];
-  cachedAt?: string | null;
-}
-
-export const fetchMacroSnapshot = async (): Promise<MacroSnapshot> => {
-  const response = await apiClient.get<MacroSnapshot>('/macro/snapshot');
+export const optimizePortfolio = async (
+  request: PortfolioOptimizationRequest
+): Promise<PortfolioOptimizationResponse> => {
+  const response = await apiClient.post<PortfolioOptimizationResponse>('/portfolio/optimize', request);
   return response.data;
 };
 
-export const fetchCalendar = async (symbols?: string[]): Promise<MarketCalendar> => {
-  const response = await apiClient.get<MarketCalendar>('/calendar', {
-    params: symbols?.length ? { symbols: symbols.join(',') } : undefined,
-  });
+export const checkPortfolioRebalance = async (
+  request: RebalanceCheckRequest
+): Promise<RebalanceCheckResponse> => {
+  const response = await apiClient.post<RebalanceCheckResponse>('/portfolio/rebalance-check', request);
   return response.data;
 };
-
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Trading Journal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
-
 export type JournalTradeType = 'BUY' | 'SELL';
 export type JournalTradeStatus = 'OPEN' | 'CLOSED';
 
@@ -506,6 +454,8 @@ export interface JournalTrade {
   pnl?: number;
   returnPct?: number;
   holdingDays?: number;
+  portfolioId?: number;
+  transactionId?: number;
 }
 
 export interface AddJournalTradeRequest {
@@ -514,9 +464,14 @@ export interface AddJournalTradeRequest {
   quantity: number;
   purchasePrice: number;
   openedAt: string;
+  closedAt?: string;
+  status?: JournalTradeStatus;
+  currentPrice?: number;
   commission?: number;
   strategy?: string;
   notes?: string;
+  portfolioId?: number;
+  transactionId?: number;
   tags?: string[];
 }
 
@@ -571,7 +526,7 @@ export const fetchJournalStats = async (): Promise<JournalStats> => {
   return response.data;
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Watchlists Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Watchlists ──────────────────────────────────────────────────────────────
 
 export interface Watchlist {
   id: number;
@@ -609,7 +564,7 @@ export const deleteWatchlist = async (id: number): Promise<void> => {
   await apiClient.delete(`/watchlists/${id}`);
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Fundamentals Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Fundamentals ────────────────────────────────────────────────────────────
 
 export interface AnnualMetric {
   year: number;
@@ -631,6 +586,7 @@ export interface FundamentalsData {
   netMargin?: number;
   roic?: number;
   roe?: number;
+  dividendYield?: number;
 }
 
 export interface FinancialRatios {
@@ -702,8 +658,29 @@ export const fetchInstitutionalOwnership = async (symbol: string): Promise<Insti
   return response.data;
 };
 
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ News (categorized) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── News (categorized) ──────────────────────────────────────────────────────
 
+
+export interface EconomicEvent {
+  event: string;
+  date: string;
+  country?: string;
+  impact?: string;
+  actual?: unknown;
+  estimate?: unknown;
+  previous?: unknown;
+}
+
+export interface MarketCalendarResponse {
+  earnings: EarningsResult[];
+  economicEvents: EconomicEvent[];
+  cachedAt?: string;
+}
+
+export const fetchEconomicEvents = async (): Promise<EconomicEvent[]> => {
+  const response = await apiClient.get<EconomicEvent[]>('/calendar/economic-events');
+  return response.data;
+};
 export type NewsCategory =
   | 'BREAKING'
   | 'PORTFOLIO'
