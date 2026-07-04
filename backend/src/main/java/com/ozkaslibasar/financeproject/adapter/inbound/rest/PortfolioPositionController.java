@@ -111,7 +111,7 @@ public class PortfolioPositionController {
                         null, DEFAULT_USER, "Default Portfolio", "USD", null, true, null, null));
             } else {
                 targetPortfolio = portfolios.stream()
-                        .filter(com.ozkaslibasar.financeproject.domain.model.Portfolio::isDefaultPortfolio)
+                        .filter(com.ozkaslibasar.financeproject.domain.model.Portfolio::defaultPortfolio)
                         .findFirst()
                         .orElse(portfolios.get(0));
             }
