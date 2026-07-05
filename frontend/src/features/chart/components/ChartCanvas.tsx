@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { createChart, ColorType, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi, UTCTimestamp } from 'lightweight-charts';
-import type { OHLCVData, Range } from '../types/chart.types';
+import { createChart, ColorType, CandlestickSeries, HistogramSeries, LineSeries, LineStyle, createSeriesMarkers } from 'lightweight-charts';
+import type { IChartApi, ISeriesApi, UTCTimestamp, IPriceLine, ISeriesMarkersPluginApi, SeriesMarker, Time } from 'lightweight-charts';
+import type { OHLCVData, PatternOverlayMarker, Range, SupportResistanceLevel } from '../types/chart.types';
 import type { DrawingObject, DrawingType } from '../types/drawing.types';
 import { DrawingOverlay } from './DrawingOverlay';
 
@@ -20,6 +20,8 @@ interface ChartCanvasProps {
   onStartDrawing: (point: { x: number; y: number }, symbol: string, range: string) => void;
   onUpdateDrawing: (point: { x: number; y: number }) => void;
   onCompleteDrawing: () => void;
+  patternMarkers?: PatternOverlayMarker[];
+  supportResistanceLevels?: SupportResistanceLevel[];
 }
 
 export const ChartCanvas = ({
@@ -36,6 +38,8 @@ export const ChartCanvas = ({
   onStartDrawing,
   onUpdateDrawing,
   onCompleteDrawing,
+  patternMarkers = [],
+  supportResistanceLevels = [],
 }: ChartCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -45,6 +49,8 @@ export const ChartCanvas = ({
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const sma20SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const sma50SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const patternMarkersRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const supportResistanceLinesRef = useRef<IPriceLine[]>([]);
 
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
@@ -170,6 +176,38 @@ export const ChartCanvas = ({
     }
   }, [showSMA50, sma50Data]);
 
+
+  useEffect(() => {
+    if (!candleSeriesRef.current || data.length === 0) return;
+    const markers: SeriesMarker<Time>[] = patternMarkers.map((marker) => ({
+      time: toUnix(marker.time),
+      position: marker.direction === 'BEARISH' ? 'aboveBar' : 'belowBar',
+      shape: marker.direction === 'BEARISH' ? 'arrowDown' : marker.direction === 'BULLISH' ? 'arrowUp' : 'circle',
+      color: marker.direction === 'BEARISH' ? '#ef4444' : marker.direction === 'BULLISH' ? '#10b981' : '#94a3b8',
+      text: `${marker.label} ${Math.round(marker.confidence * 100)}%`,
+    }));
+
+    if (!patternMarkersRef.current) {
+      patternMarkersRef.current = createSeriesMarkers(candleSeriesRef.current, markers, { zOrder: 'top' });
+    } else {
+      patternMarkersRef.current.setMarkers(markers);
+    }
+  }, [data, patternMarkers]);
+
+  useEffect(() => {
+    if (!candleSeriesRef.current) return;
+    for (const line of supportResistanceLinesRef.current) {
+      candleSeriesRef.current.removePriceLine(line);
+    }
+    supportResistanceLinesRef.current = supportResistanceLevels.map((level) => candleSeriesRef.current!.createPriceLine({
+      price: level.price,
+      color: level.type === 'resistance' ? '#ef4444' : level.type === 'support' ? '#10b981' : '#eab308',
+      lineWidth: 1,
+      lineStyle: LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: `${level.method} ${level.label}`,
+    }));
+  }, [supportResistanceLevels]);
   // Drawing Handlers
   const handleMouseDown = (e: React.MouseEvent<SVGSVGElement>) => {
     if (activeTool === 'cursor') return;
