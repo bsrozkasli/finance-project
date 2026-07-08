@@ -36,7 +36,9 @@ public class NotificationController {
     })
     @GetMapping
     public ResponseEntity<List<OpportunityNotification>> getAllNotifications() {
-        return ResponseEntity.ok(notificationRepositoryPort.findAll());
+        List<OpportunityNotification> result = notificationRepositoryPort.findAll();
+        // Normalize null repository response to empty list to preserve list-contract.
+        return ResponseEntity.ok(result != null ? result : List.of());
     }
 
     @Operation(summary = "GET Notifications endpoint", description = "Implements the GET operation for the Notifications API described in SPEC.md sections 7 and 8.")
@@ -54,7 +56,9 @@ public class NotificationController {
     })
     @GetMapping("/unread")
     public ResponseEntity<List<OpportunityNotification>> getUnreadNotifications() {
-        return ResponseEntity.ok(notificationRepositoryPort.findUnread());
+        List<OpportunityNotification> result = notificationRepositoryPort.findUnread();
+        // Normalize null repository response to empty list to preserve list-contract.
+        return ResponseEntity.ok(result != null ? result : List.of());
     }
 
     @Operation(summary = "POST Notifications endpoint", description = "Implements the POST operation for the Notifications API described in SPEC.md sections 7 and 8.")

@@ -34,6 +34,15 @@ public class ChatController {
     })
     @PostMapping("/ask")
     public ResponseEntity<ChatResponse> askChat(@RequestBody ChatRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Request body must not be null");
+        }
+        if (request.getSymbol() == null || request.getSymbol().isBlank()) {
+            throw new IllegalArgumentException("symbol must not be blank");
+        }
+        if (request.getMessage() == null || request.getMessage().isBlank()) {
+            throw new IllegalArgumentException("message must not be blank");
+        }
         String answer = chatAdapter.askChat(request.getSymbol(), request.getMessage());
         return ResponseEntity.ok(new ChatResponse(answer));
     }

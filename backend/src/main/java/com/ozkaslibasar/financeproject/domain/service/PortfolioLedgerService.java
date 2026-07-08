@@ -3,11 +3,12 @@ package com.ozkaslibasar.financeproject.domain.service;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
-import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -34,7 +35,7 @@ public class PortfolioLedgerService {
 
     public List<PortfolioHolding> calculateHoldings(List<PortfolioTransaction> transactions) {
         Map<String, Accumulator> bySymbol = new LinkedHashMap<>();
-        for (PortfolioTransaction transaction : transactions) {
+        for (PortfolioTransaction transaction : chronological(transactions)) {
             if (transaction.symbol() == null || transaction.symbol().isBlank()) {
                 continue;
             }
@@ -49,17 +50,15 @@ public class PortfolioLedgerService {
     }
 
     private void validateTransaction(List<PortfolioTransaction> existing, PortfolioTransaction candidate) {
-        if (candidate.action() != PortfolioTransactionAction.SELL) {
-            return;
-        }
-        BigDecimal heldQuantity = calculateHoldings(existing).stream()
-                .filter(holding -> holding.symbol().equals(candidate.symbol()))
-                .map(PortfolioHolding::quantity)
-                .findFirst()
-                .orElse(BigDecimal.ZERO);
-        if (heldQuantity.compareTo(candidate.quantity()) < 0) {
-            throw new IllegalArgumentException("sell quantity exceeds current holding for " + candidate.symbol());
-        }
+        List<PortfolioTransaction> withCandidate = new ArrayList<>(existing);
+        withCandidate.add(candidate);
+        calculateHoldings(withCandidate);
+    }
+
+    private List<PortfolioTransaction> chronological(List<PortfolioTransaction> transactions) {
+        return transactions.stream()
+                .sorted(Comparator.comparing(PortfolioTransaction::tradeDate))
+                .toList();
     }
 
     private void apply(Accumulator acc, PortfolioTransaction transaction) {

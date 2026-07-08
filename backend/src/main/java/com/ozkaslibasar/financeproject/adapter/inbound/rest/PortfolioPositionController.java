@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -80,6 +81,7 @@ public class PortfolioPositionController {
     })
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Transactional
     public PortfolioPosition addPosition(@RequestBody PositionRequest request) {
         log.info("Adding portfolio position: {} x{}", request.symbol(), request.quantity());
         PortfolioPosition position = new PortfolioPosition(
@@ -102,41 +104,37 @@ public class PortfolioPositionController {
     }
 
     private void syncToLedger(PositionRequest request) {
-        try {
-            List<com.ozkaslibasar.financeproject.domain.model.Portfolio> portfolios = portfolioPort.findByUserId(DEFAULT_USER);
-            com.ozkaslibasar.financeproject.domain.model.Portfolio targetPortfolio = null;
-            
-            if (portfolios.isEmpty()) {
-                targetPortfolio = portfolioPort.save(new com.ozkaslibasar.financeproject.domain.model.Portfolio(
-                        null, DEFAULT_USER, "Default Portfolio", "USD", null, true, null, null));
-            } else {
-                targetPortfolio = portfolios.stream()
-                        .filter(com.ozkaslibasar.financeproject.domain.model.Portfolio::defaultPortfolio)
-                        .findFirst()
-                        .orElse(portfolios.get(0));
-            }
+        List<com.ozkaslibasar.financeproject.domain.model.Portfolio> portfolios = portfolioPort.findByUserId(DEFAULT_USER);
+        com.ozkaslibasar.financeproject.domain.model.Portfolio targetPortfolio;
 
-            ledgerService.addTransaction(new com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction(
-                    null,
-                    targetPortfolio.id(),
-                    DEFAULT_USER,
-                    request.symbol(),
-                    com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType.US_STOCK, // Default fallback
-                    com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction.BUY,
-                    request.quantity(),
-                    request.avgCostPrice(),
-                    targetPortfolio.baseCurrency(),
-                    BigDecimal.ZERO,
-                    BigDecimal.ONE,
-                    request.openedAt() != null ? request.openedAt() : LocalDate.now(),
-                    com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource.MANUAL,
-                    request.notes(),
-                    null,
-                    null
-            ));
-        } catch (Exception e) {
-            log.warn("Failed to sync legacy position to transaction ledger: {}", e.getMessage());
+        if (portfolios.isEmpty()) {
+            targetPortfolio = portfolioPort.save(new com.ozkaslibasar.financeproject.domain.model.Portfolio(
+                    null, DEFAULT_USER, "Default Portfolio", "USD", null, true, null, null));
+        } else {
+            targetPortfolio = portfolios.stream()
+                    .filter(com.ozkaslibasar.financeproject.domain.model.Portfolio::defaultPortfolio)
+                    .findFirst()
+                    .orElse(portfolios.get(0));
         }
+
+        ledgerService.addTransaction(new com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction(
+                null,
+                targetPortfolio.id(),
+                DEFAULT_USER,
+                request.symbol(),
+                com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType.US_STOCK,
+                com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction.BUY,
+                request.quantity(),
+                request.avgCostPrice(),
+                targetPortfolio.baseCurrency(),
+                BigDecimal.ZERO,
+                BigDecimal.ONE,
+                request.openedAt() != null ? request.openedAt() : LocalDate.now(),
+                com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource.MANUAL,
+                request.notes(),
+                null,
+                null
+        ));
     }
 
     @Operation(summary = "PUT Portfolio Positions endpoint", description = "Implements the PUT operation for the Portfolio Positions API described in SPEC.md sections 7 and 8.")

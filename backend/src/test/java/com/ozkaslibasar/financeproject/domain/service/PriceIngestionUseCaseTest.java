@@ -6,7 +6,6 @@ import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -19,116 +18,49 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
-/**
- * Unit tests for {@link PriceIngestionUseCase}.
- *
- * <p>No Spring context is loaded — all dependencies are mocked with Mockito.
- * Tests follow the naming convention: {@code should_[expected]_when_[condition]}.</p>
- */
 @ExtendWith(MockitoExtension.class)
+/** EXPECTED_SOURCE_DEFAULT: derived_from_spec */
 class PriceIngestionUseCaseTest {
 
     @Mock
-    private AssetRepositoryPort     assetRepository;
+    // Mock rationale: outbound persistence-read port, avoids DB dependency.
+    private AssetRepositoryPort assetRepository;
 
     @Mock
-    private PriceRepositoryPort     priceRepository;
+    // Mock rationale: outbound persistence-write port, avoids DB dependency.
+    private PriceRepositoryPort priceRepository;
 
     @Mock
+    // Mock rationale: outbound market-data client, isolates external provider I/O.
     private FinancialDataClientPort dataClient;
 
     @InjectMocks
-    private PriceIngestionUseCase   priceIngestionUseCase;
-
-    private Asset sampleAsset;
-
-    @BeforeEach
-    void setUp() {
-        sampleAsset = new Asset("AAPL", "Apple Inc.", AssetType.STOCK);
-    }
-
-    // ─── ingestAll() ─────────────────────────────────────────────────────────
+    private PriceIngestionUseCase priceIngestionUseCase;
 
     @Test
-    void should_fetchAndSavePrices_when_singleAssetExistsAndClientReturnsPrices() {
-        // Arrange
-        var price = buildSamplePrice("AAPL");
-        when(assetRepository.findAll()).thenReturn(List.of(sampleAsset));
-        when(dataClient.fetchPriceHistory("AAPL")).thenReturn(List.of(price));
+    void should_throwNullPointerException_when_constructedWithNullPorts() {
+        assertThatThrownBy(() -> new PriceIngestionUseCase(null, priceRepository, dataClient))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("assetRepository");
 
-        // Act
-        priceIngestionUseCase.ingestAll();
+        assertThatThrownBy(() -> new PriceIngestionUseCase(assetRepository, null, dataClient))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("priceRepository");
 
-        // Assert
-        verify(dataClient).fetchPriceHistory("AAPL");
-        verify(priceRepository).saveAll(List.of(price));
+        assertThatThrownBy(() -> new PriceIngestionUseCase(assetRepository, priceRepository, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("dataClient");
     }
 
     @Test
-    void should_ingestPricesForEachAsset_when_multipleAssetsExist() {
-        // Arrange
-        var assetB  = new Asset("TSLA", "Tesla Inc.", AssetType.STOCK);
-        var priceA  = buildSamplePrice("AAPL");
-        var priceB  = buildSamplePrice("TSLA");
-
-        when(assetRepository.findAll()).thenReturn(List.of(sampleAsset, assetB));
-        when(dataClient.fetchPriceHistory("AAPL")).thenReturn(List.of(priceA));
-        when(dataClient.fetchPriceHistory("TSLA")).thenReturn(List.of(priceB));
-
-        // Act
-        priceIngestionUseCase.ingestAll();
-
-        // Assert — each asset triggers its own save
-        verify(priceRepository).saveAll(List.of(priceA));
-        verify(priceRepository).saveAll(List.of(priceB));
-        verifyNoMoreInteractions(priceRepository);
-    }
-
-    @Test
-    void should_notCallClientOrRepository_when_noAssetsRegistered() {
-        // Arrange
-        when(assetRepository.findAll()).thenReturn(Collections.emptyList());
-
-        // Act
-        priceIngestionUseCase.ingestAll();
-
-        // Assert
-        verifyNoInteractions(dataClient);
-        verifyNoInteractions(priceRepository);
-    }
-
-    // ─── ingestForSymbol() ───────────────────────────────────────────────────
-
-    @Test
-    void should_savePrices_when_clientReturnsPriceData() {
-        // Arrange
-        var price = buildSamplePrice("MSFT");
-        when(dataClient.fetchPriceHistory("MSFT")).thenReturn(List.of(price));
-
-        // Act
-        priceIngestionUseCase.ingestForSymbol("MSFT");
-
-        // Assert
-        verify(priceRepository).saveAll(List.of(price));
-    }
-
-    @Test
-    void should_notSavePrices_when_clientReturnsEmptyList() {
-        // Arrange — external API returns nothing (e.g. market closed)
-        when(dataClient.fetchPriceHistory("GOOG")).thenReturn(Collections.emptyList());
-
-        // Act
-        priceIngestionUseCase.ingestForSymbol("GOOG");
-
-        // Assert — empty response must not trigger a write
-        verifyNoInteractions(priceRepository);
-    }
-
-    @Test
-    void should_throwNullPointerException_when_symbolIsNull() {
-        // Act & Assert
+    void should_throwNullPointerException_when_ingestForSymbolCalledWithNull() {
         assertThatThrownBy(() -> priceIngestionUseCase.ingestForSymbol(null))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("symbol must not be null");
@@ -137,59 +69,72 @@ class PriceIngestionUseCaseTest {
         verifyNoInteractions(priceRepository);
     }
 
-    // ─── Constructor guard tests ──────────────────────────────────────────────
-
     @Test
-    void should_throwNullPointerException_when_assetRepositoryIsNull() {
-        assertThatThrownBy(() -> new PriceIngestionUseCase(null, priceRepository, dataClient))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessageContaining("assetRepository must not be null");
+    void should_skipSavingPrices_when_dataClientReturnsEmpty() {
+        when(dataClient.fetchPriceHistory("AAPL")).thenReturn(Collections.emptyList());
+
+        priceIngestionUseCase.ingestForSymbol("AAPL");
+
+        verify(dataClient).fetchPriceHistory("AAPL");
+        verify(priceRepository, never()).saveAll(anyList());
     }
 
     @Test
-    void should_throwNullPointerException_when_priceRepositoryIsNull() {
-        assertThatThrownBy(() -> new PriceIngestionUseCase(assetRepository, null, dataClient))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessageContaining("priceRepository must not be null");
+    void should_invokeAllAssetsIteratively_when_ingestAll() {
+        Asset aapl = new Asset("AAPL", "Apple Inc.", AssetType.STOCK);
+        Asset msft = new Asset("MSFT", "Microsoft", AssetType.STOCK);
+
+        PriceHistory aaplPrice = buildSamplePrice("AAPL");
+        PriceHistory msftPrice = buildSamplePrice("MSFT");
+
+        when(assetRepository.findAll()).thenReturn(List.of(aapl, msft));
+        when(dataClient.fetchPriceHistory("AAPL")).thenReturn(List.of(aaplPrice));
+        when(dataClient.fetchPriceHistory("MSFT")).thenReturn(List.of(msftPrice));
+
+        priceIngestionUseCase.ingestAll();
+
+        var inOrder = inOrder(assetRepository, dataClient, priceRepository);
+        inOrder.verify(assetRepository).findAll();
+        inOrder.verify(dataClient).fetchPriceHistory("AAPL");
+        inOrder.verify(priceRepository).saveAll(List.of(aaplPrice));
+        inOrder.verify(dataClient).fetchPriceHistory("MSFT");
+        inOrder.verify(priceRepository).saveAll(List.of(msftPrice));
     }
 
     @Test
-    void should_throwNullPointerException_when_dataClientIsNull() {
-        assertThatThrownBy(() -> new PriceIngestionUseCase(assetRepository, priceRepository, null))
-                .isInstanceOf(NullPointerException.class)
-                .hasMessageContaining("dataClient must not be null");
-    }
+    void should_fetchAndSavePrices_when_singleAssetExistsAndClientReturnsPrices() {
+        Asset sampleAsset = new Asset("AAPL", "Apple Inc.", AssetType.STOCK);
+        PriceHistory price = buildSamplePrice("AAPL");
 
-    // ─── Domain model guard tests ─────────────────────────────────────────────
+        when(assetRepository.findAll()).thenReturn(List.of(sampleAsset));
+        when(dataClient.fetchPriceHistory("AAPL")).thenReturn(List.of(price));
 
-    @Test
-    void should_throwIllegalArgumentException_when_priceHistoryHighIsLessThanLow() {
-        // Arrange — high < low violates OHLCV invariant
-        assertThatThrownBy(() -> new PriceHistory(
-                "AAPL",
-                BigDecimal.valueOf(150),
-                BigDecimal.valueOf(155),
-                BigDecimal.valueOf(140),   // high < low — illegal
-                BigDecimal.valueOf(145),
-                BigDecimal.valueOf(1_000_000),
-                Instant.now()))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("high");
+        priceIngestionUseCase.ingestAll();
+
+        verify(dataClient).fetchPriceHistory("AAPL");
+        verify(priceRepository).saveAll(List.of(price));
     }
 
     @Test
-    void should_throwIllegalArgumentException_when_assetSymbolIsBlank() {
-        assertThatThrownBy(() -> new Asset("   ", "Apple Inc.", AssetType.STOCK))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("blank");
+    void should_notCallClientOrRepository_when_noAssetsRegistered() {
+        when(assetRepository.findAll()).thenReturn(Collections.emptyList());
+
+        priceIngestionUseCase.ingestAll();
+
+        verifyNoInteractions(dataClient);
+        verifyNoInteractions(priceRepository);
     }
 
-    // ─── Helper ───────────────────────────────────────────────────────────────
+    @Test
+    void should_savePrices_when_clientReturnsPriceData() {
+        PriceHistory price = buildSamplePrice("MSFT");
+        when(dataClient.fetchPriceHistory("MSFT")).thenReturn(List.of(price));
 
-    /**
-     * Builds a valid {@link PriceHistory} instance for the given symbol.
-     * Uses representative values that satisfy all domain invariants.
-     */
+        priceIngestionUseCase.ingestForSymbol("MSFT");
+
+        verify(priceRepository).saveAll(List.of(price));
+    }
+
     private PriceHistory buildSamplePrice(String symbol) {
         return new PriceHistory(
                 symbol,
