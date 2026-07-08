@@ -43,7 +43,7 @@ class FredProvider:
             )
 
         for (field, series_id), result in zip(_FRED_SERIES.items(), results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 logger.warning("FRED series %s unavailable: %s", series_id, result)
                 series[field] = []
             else:
@@ -95,7 +95,7 @@ class FredProvider:
         if value is None or value == ".":
             return None
         try:
-            return float(value)
+            return float(str(value))
         except (TypeError, ValueError):
             return None
 

@@ -133,6 +133,6 @@ def _parse_float(raw: object) -> float | None:
     if raw in (None, ""):
         return None
     try:
-        return float(raw)
+        return float(str(raw))
     except (TypeError, ValueError):
         return None

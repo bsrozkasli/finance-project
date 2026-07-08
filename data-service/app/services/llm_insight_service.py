@@ -121,6 +121,11 @@ class LlmInsightService:
         return "\n".join(lines)
 
     @classmethod
+    async def chat_with_report(cls, symbol: str, message: str) -> str:
+        insight = await cls.generate_insight(LlmInsightRequest(symbol=symbol, scenario=message))
+        return insight.insight
+
+    @classmethod
     async def generate_insight(cls, request: LlmInsightRequest) -> LlmInsightResponse:
         symbol = request.symbol.strip().upper()
         
