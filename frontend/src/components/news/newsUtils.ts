@@ -1,4 +1,4 @@
-﻿import type { CategorizedNewsItem, NewsCategory, NewsPriority } from '../../api/client';
+import type { CategorizedNewsItem, NewsCategory, NewsPriority } from '../../api/client';
 
 export type SentimentFilter = 'ALL' | 'BULLISH' | 'BEARISH' | 'NEUTRAL';
 export type PriorityFilter = 'ALL' | 'HIGH';
