@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
 
 export interface Notification {
@@ -14,7 +14,7 @@ export const useNotifications = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     try {
       const response = await apiClient.get<Notification[]>('/notifications');
       setNotifications(response.data);
@@ -22,9 +22,9 @@ export const useNotifications = () => {
     } catch (error) {
       console.error('Failed to fetch notifications', error);
     }
-  };
+  }, []);
 
-  const markAllAsRead = async () => {
+  const markAllAsRead = useCallback(async () => {
     try {
       await apiClient.post('/notifications/read-all');
       setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -32,14 +32,13 @@ export const useNotifications = () => {
     } catch (error) {
       console.error('Failed to mark notifications as read', error);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchNotifications();
-    // Poll every minute
-    const interval = setInterval(fetchNotifications, 60000);
+    void fetchNotifications();
+    const interval = setInterval(() => void fetchNotifications(), 60000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchNotifications]);
 
   return {
     notifications,

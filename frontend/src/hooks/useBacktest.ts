@@ -17,8 +17,12 @@ export const useBacktest = (symbol: string | null) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!symbol) return;
-    
+    if (!symbol) {
+      setData(null);
+      setError(null);
+      return;
+    }
+
     let isMounted = true;
     const fetchBacktest = async () => {
       setLoading(true);

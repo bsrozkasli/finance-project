@@ -35,6 +35,24 @@ export const fetchPriceHistory = async (
   return response.data;
 };
 
+export interface BatchPriceHistoryRequest {
+  symbols: string[];
+  interval?: string;
+  range?: string;
+}
+
+export const fetchBatchPriceHistory = async (
+  symbols: string[],
+  interval: string = '1d',
+  range: string = '1mo'
+): Promise<Record<string, PriceHistory[]>> => {
+  const response = await apiClient.post<Record<string, PriceHistory[]>>('/prices/batch-history', {
+    symbols,
+    interval,
+    range,
+  } satisfies BatchPriceHistoryRequest);
+  return response.data;
+};
 export const deleteAsset = async (symbol: string): Promise<void> => {
   await apiClient.delete(`/assets/${symbol}`);
 };
@@ -161,7 +179,7 @@ export const fetchCompanyReport = async (symbol: string): Promise<CompanyReport>
   return response.data;
 };
 
-// ─── Portfolio Summary ───────────────────────────────────────────────────────
+// Portfolio Summary
 
 export interface PortfolioSummary {
   totalValue: number;
@@ -416,7 +434,7 @@ export const fetchEnrichedPositions = async (): Promise<EnrichedPosition[]> => {
   return response.data;
 };
 
-// ─── Trading Journal ─────────────────────────────────────────────────────────
+// Trading Journal
 
 
 export const optimizePortfolio = async (
@@ -526,7 +544,7 @@ export const fetchJournalStats = async (): Promise<JournalStats> => {
   return response.data;
 };
 
-// ─── Watchlists ──────────────────────────────────────────────────────────────
+// Watchlists
 
 export interface Watchlist {
   id: number;
@@ -564,7 +582,7 @@ export const deleteWatchlist = async (id: number): Promise<void> => {
   await apiClient.delete(`/watchlists/${id}`);
 };
 
-// ─── Fundamentals ────────────────────────────────────────────────────────────
+// Fundamentals
 
 export interface AnnualMetric {
   year: number;
@@ -658,9 +676,27 @@ export const fetchInstitutionalOwnership = async (symbol: string): Promise<Insti
   return response.data;
 };
 
-// ─── News (categorized) ──────────────────────────────────────────────────────
+// News (categorized)
 
 
+
+export interface MacroSnapshot {
+  fedFundsRate?: number | null;
+  cpi?: number | null;
+  cpiYoy?: number | null;
+  gdpGrowth?: number | null;
+  unemploymentRate?: number | null;
+  treasury10y?: number | null;
+  treasury2y?: number | null;
+  yieldCurveSpread?: number | null;
+  observedAt?: string | null;
+  cachedAt?: string | null;
+}
+
+export const fetchMacroSnapshot = async (): Promise<MacroSnapshot> => {
+  const response = await apiClient.get<MacroSnapshot>('/macro/snapshot');
+  return response.data;
+};
 export interface EconomicEvent {
   event: string;
   date: string;

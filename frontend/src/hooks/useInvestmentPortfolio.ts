@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   CreateInvestmentPortfolioRequest,
   EnrichedPosition,
@@ -39,6 +39,16 @@ interface PortfolioDetailState {
 
 const errorMessage = (value: unknown, fallback: string) => value instanceof Error ? value.message : fallback;
 
+const resolvePortfolioId = (
+  list: InvestmentPortfolio[],
+  requestedId: number | null,
+): number | null => {
+  if (requestedId && list.some((portfolio) => portfolio.id === requestedId)) {
+    return requestedId;
+  }
+  return list.find((portfolio) => portfolio.defaultPortfolio)?.id ?? list[0]?.id ?? null;
+};
+
 export function useInvestmentPortfolio(
   portfolioId: number | null,
   period = '1M',
@@ -54,9 +64,12 @@ export function useInvestmentPortfolio(
   const [enrichedPositions, setEnrichedPositions] = useState<EnrichedPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const selectedPortfolioIdRef = useRef<number | null>(portfolioId);
+  const lastLoadedSelectionRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (portfolioId) {
+    if (portfolioId && portfolioId !== selectedPortfolioIdRef.current) {
+      selectedPortfolioIdRef.current = portfolioId;
       setSelectedPortfolioIdState(portfolioId);
     }
   }, [portfolioId]);
@@ -64,13 +77,8 @@ export function useInvestmentPortfolio(
   const loadPortfolios = useCallback(async () => {
     const list = await fetchInvestmentPortfolios();
     setPortfolios(list);
-    setSelectedPortfolioIdState(prev => {
-      if (portfolioId && list.some(portfolio => portfolio.id === portfolioId)) return portfolioId;
-      if (prev && list.some(portfolio => portfolio.id === prev)) return prev;
-      return list.find(portfolio => portfolio.defaultPortfolio)?.id ?? list[0]?.id ?? null;
-    });
     return list;
-  }, [portfolioId]);
+  }, []);
 
   const loadSelectedData = useCallback(async (id: number | null) => {
     const [holdingsResult, transactionsResult, summaryResult, performanceResult, allocationResult, enrichedResult] = await Promise.allSettled([
@@ -95,12 +103,11 @@ export function useInvestmentPortfolio(
     setError(null);
     try {
       const list = await loadPortfolios();
-      const id = selectedPortfolioId && list.some(portfolio => portfolio.id === selectedPortfolioId)
-        ? selectedPortfolioId
-        : portfolioId && list.some(portfolio => portfolio.id === portfolioId)
-          ? portfolioId
-          : list.find(portfolio => portfolio.defaultPortfolio)?.id ?? list[0]?.id ?? null;
-      await loadSelectedData(id);
+      const nextSelectedId = resolvePortfolioId(list, portfolioId ?? selectedPortfolioIdRef.current);
+      selectedPortfolioIdRef.current = nextSelectedId;
+      lastLoadedSelectionRef.current = nextSelectedId;
+      setSelectedPortfolioIdState(nextSelectedId);
+      await loadSelectedData(nextSelectedId);
     } catch (e) {
       setError(errorMessage(e, 'Failed to load investment portfolios'));
       setPortfolios([]);
@@ -109,21 +116,29 @@ export function useInvestmentPortfolio(
     } finally {
       setLoading(false);
     }
-  }, [loadPortfolios, loadSelectedData, portfolioId, selectedPortfolioId]);
+  }, [loadPortfolios, loadSelectedData, portfolioId]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
   useEffect(() => {
-    if (!loading) {
-      void loadSelectedData(selectedPortfolioId);
-    }
+    if (loading) return;
+    if (lastLoadedSelectionRef.current === selectedPortfolioId) return;
+    lastLoadedSelectionRef.current = selectedPortfolioId;
+    void loadSelectedData(selectedPortfolioId);
   }, [loadSelectedData, loading, selectedPortfolioId]);
+
+  const setSelectedPortfolioId = useCallback((id: number) => {
+    selectedPortfolioIdRef.current = id;
+    setSelectedPortfolioIdState(id);
+  }, []);
 
   const createPortfolio = useCallback(async (request: CreateInvestmentPortfolioRequest) => {
     const created = await createInvestmentPortfolio(request);
     setPortfolios(prev => [created, ...prev]);
+    selectedPortfolioIdRef.current = created.id;
+    lastLoadedSelectionRef.current = created.id;
     setSelectedPortfolioIdState(created.id);
     await loadSelectedData(created.id);
     return created;
@@ -146,7 +161,7 @@ export function useInvestmentPortfolio(
     enrichedPositions,
     loading,
     error,
-    setSelectedPortfolioId: setSelectedPortfolioIdState,
+    setSelectedPortfolioId,
     createPortfolio,
     reload,
   };

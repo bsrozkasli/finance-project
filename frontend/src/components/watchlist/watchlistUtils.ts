@@ -1,4 +1,4 @@
-﻿import type { FinancialRatios, FundamentalsData } from '../../api/client';
+import type { FinancialRatios, FundamentalsData } from '../../api/client';
 import type { PriceHistory } from '../../api/types';
 
 export type WatchlistTab = 'overview' | 'technical' | 'analyst' | 'news' | 'ai';

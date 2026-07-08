@@ -1,263 +1,85 @@
 @import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
-/* ── Design Tokens ──────────────────────────────────────────────── */
 @theme {
-  /* Core palette */
-  --color-bg-base:       #060e20;
-  --color-bg-primary:    #0b1326;
-  --color-bg-secondary:  #131b2e;
-  --color-bg-card:       #171f33;
-  --color-bg-hover:      #222a3d;
-  --color-bg-selected:   rgba(77, 142, 255, 0.12);
-  --color-border:        #424754;
-  --color-border-subtle: rgba(140, 144, 159, 0.22);
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-headline: "Hanken Grotesk", sans-serif;
+  --font-display-lg: "Hanken Grotesk", sans-serif;
+  --font-headline-md: "Hanken Grotesk", sans-serif;
+  --font-title-sm: "Inter", sans-serif;
+  --font-body-md: "Inter", sans-serif;
+  --font-body-sm: "Inter", sans-serif;
+  --font-data-mono: "JetBrains Mono", monospace;
+  --font-label-caps: "JetBrains Mono", monospace;
 
-  /* Accent — indigo/violet */
-  --color-accent:        #4d8eff;
-  --color-accent-light:  #adc6ff;
-  --color-accent-dim:    rgba(77, 142, 255, 0.15);
-
-  /* Status */
-  --color-bull:          #4edea3;
-  --color-bull-dim:      rgba(78, 222, 163, 0.14);
-  --color-bear:          #ff5451;
-  --color-bear-dim:      rgba(255, 84, 81, 0.14);
-  --color-success:       #4edea3;
-  --color-danger:        #ff5451;
-  --color-warning:       #f59e0b;
-
-  /* Text */
-  --color-text-primary:   #dae2fd;
+  --color-bg-base: #060e20;
+  --color-bg-primary: #0b1326;
+  --color-bg-card: #171f33;
+  --color-surface: #11131a;
+  --color-surface-dim: #11131a;
+  --color-surface-bright: #363941;
+  --color-surface-container-lowest: #0b0e15;
+  --color-surface-container-low: #191b22;
+  --color-surface-container: #1d2026;
+  --color-surface-container-high: #272a31;
+  --color-surface-container-highest: #32353c;
+  --color-on-surface: #e1e2ec;
+  --color-on-surface-variant: #c2c6d6;
+  --color-inverse-surface: #e1e2ec;
+  --color-inverse-on-surface: #2e3038;
+  --color-outline: #8c909f;
+  --color-outline-variant: #424753;
+  --color-surface-tint: #adc6ff;
+  --color-primary: #adc6ff;
+  --color-on-primary: #002e6a;
+  --color-primary-container: #4d8eff;
+  --color-on-primary-container: #00285d;
+  --color-inverse-primary: #005ac2;
+  --color-secondary: #bec6e0;
+  --color-on-secondary: #283044;
+  --color-secondary-container: #41495e;
+  --color-on-secondary-container: #b0b8d1;
+  --color-tertiary: #ffb779;
+  --color-on-tertiary: #4c2700;
+  --color-tertiary-container: #d87900;
+  --color-on-tertiary-container: #432200;
+  --color-error: #ffb4ab;
+  --color-on-error: #690005;
+  --color-error-container: #93000a;
+  --color-on-error-container: #ffdad6;
+  --color-bull-green: #4edea3;
+  --color-bear-red: #ff5451;
+  --color-warning-amber: #f59e0b;
+  --color-text-primary: #dae2fd;
   --color-text-secondary: #c2c6d6;
-  --color-text-muted:     #8c909f;
-
-  /* Terminal layout dimensions */
-  --terminal-top-h:      64px;
-  --terminal-nav-w-collapsed: 80px;
-  --terminal-nav-w-expanded:  256px;
-  --terminal-nav-w-current:   var(--terminal-nav-w-collapsed);
-  --terminal-right-w:    340px;
-
-  /* Typography */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-heading: 'Hanken Grotesk', 'Inter', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --color-text-muted: #8c909f;
 }
 
-/* ── Reset & Base ───────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; }
-
-html, body, #root {
-  height: 100%;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  background-color: var(--color-bg-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* ── Scrollbar ──────────────────────────────────────────────────── */
-*::-webkit-scrollbar       { width: 4px; height: 4px; }
-*::-webkit-scrollbar-track { background: transparent; }
-*::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 4px; }
-*::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
-
-/* ── Animations ─────────────────────────────────────────────────── */
-@keyframes pulse-live {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50%       { opacity: 0.4; transform: scale(0.85); }
-}
-
-@keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
-}
-
-@keyframes fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes flash-bull {
-  0%   { background-color: var(--color-bull-dim); }
-  100% { background-color: transparent; }
-}
-
-@keyframes flash-bear {
-  0%   { background-color: var(--color-bear-dim); }
-  100% { background-color: transparent; }
-}
-
-/* ── Utility classes ────────────────────────────────────────────── */
-.font-mono { font-family: var(--font-mono); }
-
-.live-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--color-bull);
-  animation: pulse-live 1.8s ease-in-out infinite;
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    rgba(255,255,255,0.04) 0%,
-    rgba(255,255,255,0.08) 50%,
-    rgba(255,255,255,0.04) 100%
-  );
-  background-size: 400px 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
-  border-radius: 4px;
-}
-
-.animate-fade-in { animation: fade-in 0.25s ease-out both; }
-
-/* ── Terminal Layout ────────────────────────────────────────────── */
-.terminal-root {
-  display: grid;
-  height: 100vh;
-  width: 100vw;
-  grid-template-rows: var(--terminal-top-h) 1fr;
-  grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr) var(--terminal-right-w);
-  transition: grid-template-columns 0.3s ease;
-  grid-template-areas:
-    "topbar topbar topbar"
-    "leftnav main rightpanel";
-  overflow: hidden;
-}
-
-
-.terminal-root.nav-expanded {
-  --terminal-nav-w-current: var(--terminal-nav-w-expanded);
-}
-.terminal-topbar   { grid-area: topbar; }
-.terminal-leftnav  { grid-area: leftnav; width: 100%; min-width: 0; }
-.terminal-main     { grid-area: main; min-width: 0; overflow: hidden; display: flex; flex-direction: column; }
-.terminal-right    { grid-area: rightpanel; overflow: hidden; display: flex; flex-direction: column; }
-
-.terminal-root.dashboard-mode {
-  grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr);
-  grid-template-areas:
-    "topbar topbar"
-    "leftnav main";
-}
-
-.terminal-root.no-right-panel {
-  grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr);
-  grid-template-areas:
-    "topbar topbar"
-    "leftnav main";
-}
-
-@media (max-width: 1279px) {
-  .terminal-root {
-    grid-template-columns: var(--terminal-nav-w-current) minmax(0, 1fr);
-    grid-template-areas:
-      "topbar topbar"
-      "leftnav main";
+@layer utilities {
+  .pulse-live {
+    animation: pulse-ring 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
   }
 
-  .terminal-right {
-    display: none;
-  }
-}
-
-@media (max-width: 767px) {
-  html, body, #root {
-    overflow: auto;
+  @keyframes pulse-ring {
+    0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(78, 222, 163, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(78, 222, 163, 0); }
+    100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(78, 222, 163, 0); }
   }
 
-  .terminal-root {
-    min-height: 100vh;
-    height: auto;
-    grid-template-rows: auto 1fr auto;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "topbar"
-      "main"
-      "leftnav";
+  /* Custom styled scrollbars for financial terminal look */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
   }
-
-  .terminal-main {
-    min-height: 0;
+  ::-webkit-scrollbar-track {
+    background: #060e20;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #272a31;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #424753;
   }
 }
-
-/* ── Market Data Table ──────────────────────────────────────────── */
-.market-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-}
-
-.market-table th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--color-bg-primary);
-  padding: 8px 12px;
-  text-align: right;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
-  white-space: nowrap;
-  cursor: pointer;
-  user-select: none;
-}
-
-.market-table th:first-child { text-align: left; }
-.market-table th:hover { color: var(--color-text-primary); }
-
-.market-table td {
-  padding: 0 12px;
-  height: 44px;
-  font-size: 12.5px;
-  text-align: right;
-  border-bottom: 1px solid var(--color-border-subtle);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  vertical-align: middle;
-}
-
-.market-table td:first-child { text-align: left; }
-
-.market-row {
-  cursor: pointer;
-  transition: background-color 0.1s;
-}
-
-.market-row:hover { background-color: var(--color-bg-hover); }
-.market-row.selected { background-color: var(--color-bg-selected); }
-.market-row.selected td:first-child {
-  border-left: 2px solid var(--color-accent);
-}
-
-/* ── Price flash animations ─────────────────────────────────────── */
-.flash-bull { animation: flash-bull 0.8s ease-out; }
-.flash-bear { animation: flash-bear 0.8s ease-out; }
-
-/* ── Nav tooltip ────────────────────────────────────────────────── */
-.nav-tooltip {
-  pointer-events: none;
-  opacity: 0;
-  transform: translateX(-8px);
-  transition: opacity 0.15s, transform 0.15s;
-}
-
-.nav-item:hover .nav-tooltip {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-
