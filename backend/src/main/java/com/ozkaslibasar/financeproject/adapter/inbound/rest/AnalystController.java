@@ -11,6 +11,8 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.Finnh
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -59,7 +61,15 @@ public class AnalystController {
     @Cacheable(value = "analystCache", key = "'rec:' + #symbol.toUpperCase()")
     public List<FinnhubRecommendationDto> getRecommendations(@PathVariable String symbol) {
         log.info("Fetching analyst recommendations for: {}", symbol);
-        return finnhubClient.getRecommendations(symbol.toUpperCase());
+        try {
+            List<FinnhubRecommendationDto> result = finnhubClient.getRecommendations(symbol.toUpperCase());
+            // Normalize null provider response to empty list to honour list-contract.
+            return result != null ? result : List.of();
+        } catch (Exception e) {
+            // Provider unavailable: degrade gracefully with empty list (200 []).
+            log.warn("Recommendation provider unavailable for {}: {}", symbol, e.getMessage());
+            return List.of();
+        }
     }
 
     /**
@@ -80,8 +90,16 @@ public class AnalystController {
     })
     @GetMapping("/{symbol}/price-target")
     @Cacheable(value = "analystCache", key = "'pt:' + #symbol.toUpperCase()")
-    public FinnhubPriceTargetDto getPriceTarget(@PathVariable String symbol) {
+    public ResponseEntity<?> getPriceTarget(@PathVariable String symbol) {
         log.info("Fetching price target for: {}", symbol);
-        return finnhubClient.getPriceTarget(symbol.toUpperCase());
+        try {
+            return ResponseEntity.ok(finnhubClient.getPriceTarget(symbol.toUpperCase()));
+        } catch (Exception e) {
+            // Provider unavailable: degrade gracefully with JSON null (200 null body).
+            log.warn("Price target provider unavailable for {}: {}", symbol, e.getMessage());
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body("null");
+        }
     }
 }

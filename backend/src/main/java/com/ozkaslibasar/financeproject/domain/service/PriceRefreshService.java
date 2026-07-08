@@ -37,7 +37,7 @@ public class PriceRefreshService {
         PriceHistory latest = priceRepository.findLatestByAssetId(normalizedSymbol).orElse(null);
 
         List<PriceHistory> fetched = fetchAndPersist(normalizedSymbol, "1d", LIVE_PRICE_RANGE);
-        return newestOf(latest, fetched);
+        return newestOf(normalizedSymbol, latest, fetched);
     }
 
     public List<PriceHistory> getFreshHistory(String symbol, String interval, String range) {
@@ -61,20 +61,42 @@ public class PriceRefreshService {
     }
 
     private List<PriceHistory> fetchAndPersist(String symbol, String interval, String range) {
-        List<PriceHistory> fetched = financialDataPort.fetchPriceHistory(symbol, interval, range);
+        List<PriceHistory> fetched;
+        try {
+            fetched = financialDataPort.fetchPriceHistory(symbol, interval, range);
+        } catch (RuntimeException ex) {
+            return List.of();
+        }
         if (fetched == null || fetched.isEmpty()) {
             return List.of();
         }
-        priceRepository.saveAll(fetched);
-        return fetched;
+        List<PriceHistory> matchingRows = fetched.stream()
+                .filter(row -> matchesRequestedSymbol(symbol, row))
+                .toList();
+        if (matchingRows.isEmpty()) {
+            return List.of();
+        }
+        priceRepository.saveAll(matchingRows);
+        return matchingRows;
     }
 
-    private Optional<PriceHistory> newestOf(PriceHistory existing, List<PriceHistory> fetched) {
-        List<PriceHistory> candidates = new ArrayList<>(fetched);
+    private Optional<PriceHistory> newestOf(String requestedSymbol, PriceHistory existing, List<PriceHistory> fetched) {
+        List<PriceHistory> candidates = new ArrayList<>();
+        // Only accept fetched rows whose symbol matches the requested symbol to prevent
+        // cross-symbol contamination (e.g. provider returning MSFT rows for an AAPL request).
+        for (PriceHistory row : fetched) {
+            if (matchesRequestedSymbol(requestedSymbol, row)) {
+                candidates.add(row);
+            }
+        }
         if (existing != null) {
             candidates.add(existing);
         }
         return candidates.stream().max(Comparator.comparing(PriceHistory::timestampAsInstant));
+    }
+
+    private boolean matchesRequestedSymbol(String requestedSymbol, PriceHistory row) {
+        return row != null && requestedSymbol.equalsIgnoreCase(row.assetId());
     }
 
     private boolean shouldRefresh(List<PriceHistory> prices, String interval, String range, Instant now) {

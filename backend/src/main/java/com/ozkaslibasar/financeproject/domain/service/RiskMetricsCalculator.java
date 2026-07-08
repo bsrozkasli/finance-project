@@ -90,22 +90,31 @@ public final class RiskMetricsCalculator {
     }
 
     private static double valueAtRisk(double[] returns, double tail) {
+        // Sort ALL returns; the tail-th percentile represents the worst loss in the distribution.
+        // VaR is only meaningful when the tail value is negative (an actual loss).
+        // If the worst tail return is non-negative (all gains), VaR is 0 by definition.
         double[] copy = returns.clone();
         java.util.Arrays.sort(copy);
         int idx = (int) Math.floor(copy.length * tail);
         idx = Math.max(0, Math.min(idx, copy.length - 1));
-        return Math.abs(copy[idx]) * 100;
+        double tailValue = copy[idx];
+        return tailValue < 0 ? Math.abs(tailValue) * 100 : 0.0;
     }
 
     private static double conditionalVar(double[] returns, double tail) {
+        // CVaR (Expected Shortfall) averages the losses in the tail window [0..idx].
+        // Only negative entries in that window are counted; positives contribute 0 to the loss.
+        // If there are no losses in the tail window, CVaR is 0.
         double[] copy = returns.clone();
         java.util.Arrays.sort(copy);
         int idx = (int) Math.floor(copy.length * tail);
         double sum = 0;
         int count = 0;
-        for (int i = 0; i <= idx; i++) {
-            sum += copy[i];
-            count++;
+        for (int i = 0; i <= idx && i < copy.length; i++) {
+            if (copy[i] < 0) {
+                sum += copy[i];
+                count++;
+            }
         }
         return count == 0 ? 0 : Math.abs(sum / count) * 100;
     }
