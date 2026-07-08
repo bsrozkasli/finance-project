@@ -67,7 +67,7 @@ class EarningsAnalysisService:
     async def _fetch_earnings(cls, symbol: str) -> list[dict]:
         """Call Finnhub ``/stock/earnings`` and return the raw JSON list."""
 
-        params = {
+        params: dict[str, str | int] = {
             "symbol": symbol,
             "limit": 20,
             "token": settings.FINNHUB_API_KEY,

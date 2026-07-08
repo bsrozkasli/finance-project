@@ -49,7 +49,7 @@ class PatternDetectionService:
                 detected_at=datetime.now(timezone.utc),
             )
         
-        patterns = []
+        patterns: list[DetectedPattern] = []
         
         # Detect all pattern types
         patterns.extend(cls._detect_double_tops(closes, highs, lows))
@@ -77,7 +77,7 @@ class PatternDetectionService:
     @staticmethod
     def _detect_double_tops(closes: np.ndarray, highs: np.ndarray, lows: np.ndarray) -> list[DetectedPattern]:
         """Detect double top patterns using peak detection."""
-        patterns = []
+        patterns: list[DetectedPattern] = []
         try:
             peaks, peak_props = find_peaks(highs, distance=10, prominence=0.01 * np.mean(highs))
             
@@ -118,7 +118,7 @@ class PatternDetectionService:
     @staticmethod
     def _detect_double_bottoms(closes: np.ndarray, highs: np.ndarray, lows: np.ndarray) -> list[DetectedPattern]:
         """Detect double bottom patterns using valley detection."""
-        patterns = []
+        patterns: list[DetectedPattern] = []
         try:
             valleys, valley_props = find_peaks(-lows, distance=10, prominence=0.01 * np.mean(lows))
             
@@ -159,7 +159,7 @@ class PatternDetectionService:
     @staticmethod
     def _detect_head_and_shoulders(closes: np.ndarray, highs: np.ndarray, lows: np.ndarray) -> list[DetectedPattern]:
         """Detect head and shoulders pattern."""
-        patterns = []
+        patterns: list[DetectedPattern] = []
         try:
             peaks, _ = find_peaks(highs, distance=5, prominence=0.005 * np.mean(highs))
             
@@ -203,7 +203,7 @@ class PatternDetectionService:
     @staticmethod
     def _detect_inv_head_and_shoulders(closes: np.ndarray, highs: np.ndarray, lows: np.ndarray) -> list[DetectedPattern]:
         """Detect inverse head and shoulders pattern."""
-        patterns = []
+        patterns: list[DetectedPattern] = []
         try:
             valleys, _ = find_peaks(-lows, distance=5, prominence=0.005 * np.mean(lows))
             
@@ -247,7 +247,7 @@ class PatternDetectionService:
     @staticmethod
     def _detect_support_bounces(closes: np.ndarray, lows: np.ndarray) -> list[DetectedPattern]:
         """Detect support bounce patterns using 10th percentile on 50-candle window."""
-        patterns = []
+        patterns: list[DetectedPattern] = []
         try:
             window = 50
             if len(lows) < window:
@@ -288,7 +288,7 @@ class PatternDetectionService:
     @staticmethod
     def _detect_resistance_rejects(closes: np.ndarray, highs: np.ndarray) -> list[DetectedPattern]:
         """Detect resistance reject patterns using 90th percentile on 50-candle window."""
-        patterns = []
+        patterns: list[DetectedPattern] = []
         try:
             window = 50
             if len(highs) < window:
@@ -329,7 +329,7 @@ class PatternDetectionService:
     @staticmethod
     def _detect_ma_crosses(closes: np.ndarray) -> list[DetectedPattern]:
         """Detect Golden Cross (SMA20 > SMA50) and Death Cross (SMA20 < SMA50)."""
-        patterns = []
+        patterns: list[DetectedPattern] = []
         try:
             if len(closes) < 50:
                 return patterns

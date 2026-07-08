@@ -11,10 +11,11 @@ from app.models.market_calendar import EarningsEvent, EconomicEvent, MacroSnapsh
 from app.providers.fmp_provider import FmpProvider, filter_earnings_by_symbols
 from app.providers.fred_provider import FredProvider
 
+RedisClient: Any
 try:
-    from redis.asyncio import Redis
+    from redis.asyncio import Redis as RedisClient
 except ImportError:  # pragma: no cover - exercised only when optional dependency is absent
-    Redis = None  # type: ignore[assignment]
+    RedisClient = None
 
 logger = logging.getLogger(__name__)
 
@@ -141,9 +142,9 @@ class MarketCalendarService:
     def _redis(cls) -> Any | None:
         if cls._redis_client is not None:
             return cls._redis_client
-        if Redis is None:
+        if RedisClient is None:
             return None
-        cls._redis_client = Redis(
+        cls._redis_client = RedisClient(
             host=settings.REDIS_HOST,
             port=settings.REDIS_PORT,
             decode_responses=True,

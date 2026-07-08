@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     from app.config import settings
     from app.dependencies import get_resolver
 
-    warnings = settings.validate()
+    warnings = settings.validate_configuration()
     for warning in warnings:
         logger.warning("Config warning: %s", warning)
 
@@ -110,7 +110,7 @@ def get_prices(
     from app.dependencies import get_resolver
 
     resolver = get_resolver()
-    bars = resolver.get_ohlcv(symbol=symbol, interval=interval, period=range)
+    bars = resolver.get_ohlcv(symbol=symbol, interval=interval or "1d", period=range or "1mo")
 
     if not bars:
         return []

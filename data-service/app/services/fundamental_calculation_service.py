@@ -168,7 +168,8 @@ class FundamentalCalculationService:
             rev=rev, rev_prev=rev_prev, ni_prev=ni_prev,
         )
 
-        fiscal_year = _safe_get(statements.fiscal_years, 0)
+        fiscal_year_raw = _safe_get(statements.fiscal_years, 0)
+        fiscal_year = None if fiscal_year_raw is None else str(fiscal_year_raw)
 
         return FundamentalMetricsSnapshot(
             symbol=symbol,

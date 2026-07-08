@@ -49,7 +49,7 @@ class Settings(BaseModel):
                         kwargs[field] = env_value
         super().__init__(**kwargs)
 
-    def validate(self) -> list[str]:
+    def validate_configuration(self) -> list[str]:
         warnings = []
         if not self.FINNHUB_API_KEY:
             warnings.append("FINNHUB_API_KEY is missing")

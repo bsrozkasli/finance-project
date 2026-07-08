@@ -36,7 +36,7 @@ class TechnicalAnalysisService:
         frame["macd_signal"] = macd["MACDs_12_26_9"]
         frame["macd_histogram"] = macd["MACDh_12_26_9"]
 
-        bbands = ta.bbands(frame["close"], length=20, std=2)
+        bbands = ta.bbands(frame["close"], length=20, std=2)  # type: ignore[arg-type]
         frame["bb_lower"] = cls._first_series(bbands, "BBL_")
         frame["bb_middle"] = cls._first_series(bbands, "BBM_")
         frame["bb_upper"] = cls._first_series(bbands, "BBU_")
@@ -104,7 +104,9 @@ class TechnicalAnalysisService:
             return None
         if pd.isna(value):
             return None
-        return float(value)
+        if isinstance(value, (int, float)):
+            return float(value)
+        return float(str(value))
 
     @staticmethod
     def _first_series(frame: pd.DataFrame, prefix: str) -> pd.Series:
