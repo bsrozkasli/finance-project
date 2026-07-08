@@ -35,6 +35,24 @@ export const fetchPriceHistory = async (
   return response.data;
 };
 
+export interface BatchPriceHistoryRequest {
+  symbols: string[];
+  interval?: string;
+  range?: string;
+}
+
+export const fetchBatchPriceHistory = async (
+  symbols: string[],
+  interval: string = '1d',
+  range: string = '1mo'
+): Promise<Record<string, PriceHistory[]>> => {
+  const response = await apiClient.post<Record<string, PriceHistory[]>>('/prices/batch-history', {
+    symbols,
+    interval,
+    range,
+  } satisfies BatchPriceHistoryRequest);
+  return response.data;
+};
 export const deleteAsset = async (symbol: string): Promise<void> => {
   await apiClient.delete(`/assets/${symbol}`);
 };
@@ -161,7 +179,7 @@ export const fetchCompanyReport = async (symbol: string): Promise<CompanyReport>
   return response.data;
 };
 
-// ─── Portfolio Summary ───────────────────────────────────────────────────────
+// Portfolio Summary
 
 export interface PortfolioSummary {
   totalValue: number;
@@ -416,7 +434,7 @@ export const fetchEnrichedPositions = async (): Promise<EnrichedPosition[]> => {
   return response.data;
 };
 
-// ─── Trading Journal ─────────────────────────────────────────────────────────
+// Trading Journal
 
 
 export const optimizePortfolio = async (
@@ -526,7 +544,7 @@ export const fetchJournalStats = async (): Promise<JournalStats> => {
   return response.data;
 };
 
-// ─── Watchlists ──────────────────────────────────────────────────────────────
+// Watchlists
 
 export interface Watchlist {
   id: number;
@@ -564,7 +582,7 @@ export const deleteWatchlist = async (id: number): Promise<void> => {
   await apiClient.delete(`/watchlists/${id}`);
 };
 
-// ─── Fundamentals ────────────────────────────────────────────────────────────
+// Fundamentals
 
 export interface AnnualMetric {
   year: number;
@@ -658,9 +676,27 @@ export const fetchInstitutionalOwnership = async (symbol: string): Promise<Insti
   return response.data;
 };
 
-// ─── News (categorized) ──────────────────────────────────────────────────────
+// News (categorized)
 
 
+
+export interface MacroSnapshot {
+  fedFundsRate?: number | null;
+  cpi?: number | null;
+  cpiYoy?: number | null;
+  gdpGrowth?: number | null;
+  unemploymentRate?: number | null;
+  treasury10y?: number | null;
+  treasury2y?: number | null;
+  yieldCurveSpread?: number | null;
+  observedAt?: string | null;
+  cachedAt?: string | null;
+}
+
+export const fetchMacroSnapshot = async (): Promise<MacroSnapshot> => {
+  const response = await apiClient.get<MacroSnapshot>('/macro/snapshot');
+  return response.data;
+};
 export interface EconomicEvent {
   event: string;
   date: string;
@@ -672,7 +708,7 @@ export interface EconomicEvent {
 }
 
 export interface MarketCalendarResponse {
-  earnings: EarningsEvent[];
+  earnings: EarningsResult[];
   economicEvents: EconomicEvent[];
   cachedAt?: string;
 }
@@ -728,124 +764,5 @@ export const fetchAllNews = async (
 
 export const fetchPortfolioNews = async (): Promise<CategorizedNewsItem[]> => {
   const response = await apiClient.get<CategorizedNewsItem[]>('/news/portfolio');
-  return response.data;
-};
-
-export interface MacroSnapshot {
-  fedFundsRate?: number | null;
-  cpi?: number | null;
-  cpiYoy?: number | null;
-  gdpGrowth?: number | null;
-  unemploymentRate?: number | null;
-  treasury10y?: number | null;
-  treasury2y?: number | null;
-  yieldCurveSpread?: number | null;
-  observedAt?: string | null;
-  cachedAt?: string | null;
-}
-
-export interface EarningsEvent {
-  symbol: string;
-  date: string;
-  epsEstimate?: number | null;
-  epsActual?: number | null;
-  revenueEstimate?: number | null;
-  revenueActual?: number | null;
-  time?: string | null;
-}
-
-export type MarketCalendar = MarketCalendarResponse;
-
-export const fetchMacroSnapshot = async (): Promise<MacroSnapshot> => {
-  const response = await apiClient.get<MacroSnapshot>('/macro/snapshot');
-  return response.data;
-};
-
-export const fetchCalendar = async (symbols?: string[]): Promise<MarketCalendar> => {
-  const response = await apiClient.get<MarketCalendar>('/calendar', {
-    params: symbols?.length ? { symbols: symbols.join(',') } : undefined,
-  });
-  return response.data;
-};
-
-export interface TechnicalSignalSummary {
-  symbol: string;
-  timestamp: string;
-  signal: {
-    action: string;
-    confidence: number;
-  };
-}
-
-export type PatternDirection = 'BULLISH' | 'BEARISH' | 'NEUTRAL';
-
-export interface DetectedPattern {
-  patternType: string;
-  direction: PatternDirection;
-  confidence: number;
-  startIndex: number;
-  endIndex: number;
-  description: string;
-  priceTarget?: number | null;
-}
-
-export interface PatternDetectionResponse {
-  symbol: string;
-  interval: string;
-  patterns: DetectedPattern[];
-  dominantPattern?: DetectedPattern | null;
-  llmContext?: string | null;
-  detectedAt?: number | null;
-}
-
-export interface DecisionSupportRequest {
-  symbol: string;
-  userScenario?: string;
-  portfolioContext?: {
-    currentWeight: number;
-    targetWeight: number;
-    deviation: number;
-    rebalanceNeeded: boolean;
-  };
-}
-
-export interface DecisionSupportResponse {
-  symbol: string;
-  executiveSummary: string;
-  primarySignal: string;
-  convictionLevel: number;
-  bullCase: string[];
-  bearCase: string[];
-  criticalLevels: Record<string, number>;
-  riskReward: string;
-  timeHorizon: string;
-  watchlistItems: string[];
-  fullAnalysis: string;
-  generatedAt: number;
-}
-
-export const fetchTechnicalSignals = async (
-  symbol: string,
-  interval = '1d',
-  range = '3mo'
-): Promise<TechnicalSignalSummary> => {
-  const response = await apiClient.get<TechnicalSignalSummary>(`/technical/${symbol}/signals`, { params: { interval, range } });
-  return response.data;
-};
-
-export const fetchPatternDetection = async (
-  symbol: string,
-  interval = '1d',
-  range = '3mo',
-  includeLlmContext = false
-): Promise<PatternDetectionResponse> => {
-  const response = await apiClient.get<PatternDetectionResponse>(`/analysis/patterns/${symbol}`, {
-    params: { interval, range, includeLlmContext },
-  });
-  return response.data;
-};
-
-export const fetchDecisionSupport = async (request: DecisionSupportRequest): Promise<DecisionSupportResponse> => {
-  const response = await apiClient.post<DecisionSupportResponse>('/analysis/decision-support', request);
   return response.data;
 };
