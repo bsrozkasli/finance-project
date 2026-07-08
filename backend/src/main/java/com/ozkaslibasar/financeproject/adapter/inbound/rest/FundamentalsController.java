@@ -12,6 +12,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +29,7 @@ import java.util.Objects;
 @RestController
 @RequestMapping("/api/v1/fundamentals")
 @RequiredArgsConstructor
+@Slf4j
 public class FundamentalsController {
 
     private final FinancialDataPort financialDataPort;
@@ -53,25 +55,43 @@ public class FundamentalsController {
     public FundamentalsData getFundamentals(@PathVariable String symbol) {
         String normalized = symbol.toUpperCase();
         List<FinancialStatement> statements = statements(normalized);
-        ResearchDataPort.FundamentalMetrics metrics = researchDataPort.fetchFundamental(normalized)
-                .map(ResearchDataPort.FundamentalResearch::metrics)
-                .orElse(null);
-        SmartReportMarketDataPort.CompanyMetrics market = marketDataPort.fetchCompanyMetrics(normalized).orElse(null);
-        List<AnnualMetric> eps = researchDataPort.fetchEarnings(normalized).stream()
-                .map(q -> annualMetricFromQuarter(q.period(), q.actual()))
-                .filter(Objects::nonNull)
-                .toList();
+        // Non-critical providers: degrade to null on failure so partial data is returned.
+        ResearchDataPort.FundamentalMetrics metrics = null;
+        try {
+            metrics = researchDataPort.fetchFundamental(normalized)
+                    .map(ResearchDataPort.FundamentalResearch::metrics)
+                    .orElse(null);
+        } catch (Exception e) {
+            log.warn("Research metrics unavailable for {}: {}", normalized, e.getMessage());
+        }
+        SmartReportMarketDataPort.CompanyMetrics market = null;
+        try {
+            market = marketDataPort.fetchCompanyMetrics(normalized).orElse(null);
+        } catch (Exception e) {
+            log.warn("Market metrics unavailable for {}: {}", normalized, e.getMessage());
+        }
+        List<AnnualMetric> eps = List.of();
+        try {
+            eps = researchDataPort.fetchEarnings(normalized).stream()
+                    .map(q -> annualMetricFromQuarter(q.period(), q.actual()))
+                    .filter(Objects::nonNull)
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Earnings data unavailable for {}: {}", normalized, e.getMessage());
+        }
+        final ResearchDataPort.FundamentalMetrics finalMetrics = metrics;
+        final SmartReportMarketDataPort.CompanyMetrics finalMarket = market;
         return new FundamentalsData(
                 normalized,
                 annual(statements, Metric.REVENUE),
                 annual(statements, Metric.NET_INCOME),
                 eps,
                 annual(statements, Metric.OPERATING_CASH_FLOW),
-                metrics == null ? null : metrics.grossMargin(),
-                metrics == null ? null : metrics.netMargin(),
-                metrics == null ? null : metrics.roic(),
-                metrics == null ? null : metrics.roe(),
-                market == null ? null : market.dividendYield());
+                finalMetrics == null ? null : finalMetrics.grossMargin(),
+                finalMetrics == null ? null : finalMetrics.netMargin(),
+                finalMetrics == null ? null : finalMetrics.roic(),
+                finalMetrics == null ? null : finalMetrics.roe(),
+                finalMarket == null ? null : finalMarket.dividendYield());
     }
 
     @Operation(summary = "GET Fundamentals endpoint", description = "Implements the GET operation for the Fundamentals API described in SPEC.md sections 7 and 8.")
@@ -91,20 +111,33 @@ public class FundamentalsController {
     @Cacheable(value = "fundamentalCache", key = "'ratios:' + #symbol.toUpperCase()")
     public FinancialRatios getRatios(@PathVariable String symbol) {
         String normalized = symbol.toUpperCase();
-        SmartReportMarketDataPort.CompanyMetrics market = marketDataPort.fetchCompanyMetrics(normalized).orElse(null);
-        ResearchDataPort.FundamentalMetrics research = researchDataPort.fetchFundamental(normalized)
-                .map(ResearchDataPort.FundamentalResearch::metrics)
-                .orElse(null);
+        // Non-critical providers: degrade to null on failure so partial ratios are returned.
+        SmartReportMarketDataPort.CompanyMetrics market = null;
+        try {
+            market = marketDataPort.fetchCompanyMetrics(normalized).orElse(null);
+        } catch (Exception e) {
+            log.warn("Market metrics unavailable for ratios {}: {}", normalized, e.getMessage());
+        }
+        ResearchDataPort.FundamentalMetrics research = null;
+        try {
+            research = researchDataPort.fetchFundamental(normalized)
+                    .map(ResearchDataPort.FundamentalResearch::metrics)
+                    .orElse(null);
+        } catch (Exception e) {
+            log.warn("Research metrics unavailable for ratios {}: {}", normalized, e.getMessage());
+        }
+        final SmartReportMarketDataPort.CompanyMetrics finalMarket = market;
+        final ResearchDataPort.FundamentalMetrics finalResearch = research;
         return new FinancialRatios(
-                market == null ? null : market.peRatio(),
-                market == null ? null : market.pbRatio(),
+                finalMarket == null ? null : finalMarket.peRatio(),
+                finalMarket == null ? null : finalMarket.pbRatio(),
                 null,
                 null,
-                market != null && market.debtToEquity() != null ? market.debtToEquity() : research == null ? null : research.debtToEquity(),
-                research == null ? null : research.currentRatio(),
-                research == null ? null : research.quickRatio(),
-                market != null && market.roe() != null ? market.roe() : research == null ? null : research.roe(),
-                research == null ? null : research.roa());
+                finalMarket != null && finalMarket.debtToEquity() != null ? finalMarket.debtToEquity() : finalResearch == null ? null : finalResearch.debtToEquity(),
+                finalResearch == null ? null : finalResearch.currentRatio(),
+                finalResearch == null ? null : finalResearch.quickRatio(),
+                finalMarket != null && finalMarket.roe() != null ? finalMarket.roe() : finalResearch == null ? null : finalResearch.roe(),
+                finalResearch == null ? null : finalResearch.roa());
     }
 
     @Operation(summary = "GET Fundamentals endpoint", description = "Implements the GET operation for the Fundamentals API described in SPEC.md sections 7 and 8.")
@@ -123,10 +156,15 @@ public class FundamentalsController {
     @GetMapping("/{symbol}/earnings")
     @Cacheable(value = "fundamentalCache", key = "'earnings:' + #symbol.toUpperCase() + ':' + #periods")
     public List<EarningsResult> getEarnings(@PathVariable String symbol, @RequestParam(defaultValue = "8") int periods) {
-        return researchDataPort.fetchEarnings(symbol.toUpperCase()).stream()
-                .limit(Math.max(1, periods))
-                .map(q -> new EarningsResult(q.period(), q.estimate(), q.actual(), q.surprise(), null, null, q.surprisePct()))
-                .toList();
+        try {
+            return researchDataPort.fetchEarnings(symbol.toUpperCase()).stream()
+                    .limit(Math.max(1, periods))
+                    .map(q -> new EarningsResult(q.period(), q.estimate(), q.actual(), q.surprise(), null, null, q.surprisePct()))
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Earnings provider unavailable for {}: {}", symbol, e.getMessage());
+            return List.of();
+        }
     }
 
     @Operation(summary = "GET Fundamentals endpoint", description = "Implements the GET operation for the Fundamentals API described in SPEC.md sections 7 and 8.")
@@ -145,10 +183,15 @@ public class FundamentalsController {
     @GetMapping("/{symbol}/insider")
     @Cacheable(value = "insiderCache", key = "#symbol.toUpperCase()")
     public List<InsiderActivity> getInsiderActivity(@PathVariable String symbol) {
-        return finnhubClient.getInsiderTransactions(symbol.toUpperCase()).stream()
-                .limit(20)
-                .map(this::toInsiderActivity)
-                .toList();
+        try {
+            return finnhubClient.getInsiderTransactions(symbol.toUpperCase()).stream()
+                    .limit(20)
+                    .map(this::toInsiderActivity)
+                    .toList();
+        } catch (Exception e) {
+            log.warn("Insider data provider unavailable for {}: {}", symbol, e.getMessage());
+            return List.of();
+        }
     }
 
     @Operation(summary = "GET Fundamentals endpoint", description = "Implements the GET operation for the Fundamentals API described in SPEC.md sections 7 and 8.")
@@ -167,30 +210,35 @@ public class FundamentalsController {
     @GetMapping("/{symbol}/institutional")
     @Cacheable(value = "fundamentalCache", key = "'institutional:' + #symbol.toUpperCase()")
     public List<InstitutionalHolder> getInstitutionalOwnership(@PathVariable String symbol) {
-        return researchDataPort.fetchInstitutionalScores(symbol.toUpperCase())
-                .map(scores -> List.of(
-                        new InstitutionalHolder(
-                                "Piotroski F-Score",
-                                asBigDecimal(scores.piotroskiFScore()),
-                                scorePercent(scores.piotroskiFScore(), 9),
-                                null,
-                                null,
-                                null),
-                        new InstitutionalHolder(
-                                "Quality Composite",
-                                asBigDecimal(scores.qualityComposite()),
-                                scorePercent(scores.qualityComposite(), 100),
-                                null,
-                                null,
-                                scores.economicMoat()),
-                        new InstitutionalHolder(
-                                "Earnings Quality",
-                                asBigDecimal(scores.earningsQuality()),
-                                scorePercent(scores.earningsQuality(), 100),
-                                scores.altmanZScore() == null ? null : BigDecimal.valueOf(scores.altmanZScore()),
-                                scores.beneishMScore() == null ? null : BigDecimal.valueOf(scores.beneishMScore()),
-                                null)))
-                .orElse(List.of());
+        try {
+            return researchDataPort.fetchInstitutionalScores(symbol.toUpperCase())
+                    .map(scores -> List.of(
+                            new InstitutionalHolder(
+                                    "Piotroski F-Score",
+                                    asBigDecimal(scores.piotroskiFScore()),
+                                    scorePercent(scores.piotroskiFScore(), 9),
+                                    null,
+                                    null,
+                                    null),
+                            new InstitutionalHolder(
+                                    "Quality Composite",
+                                    asBigDecimal(scores.qualityComposite()),
+                                    scorePercent(scores.qualityComposite(), 100),
+                                    null,
+                                    null,
+                                    scores.economicMoat()),
+                            new InstitutionalHolder(
+                                    "Earnings Quality",
+                                    asBigDecimal(scores.earningsQuality()),
+                                    scorePercent(scores.earningsQuality(), 100),
+                                    scores.altmanZScore() == null ? null : BigDecimal.valueOf(scores.altmanZScore()),
+                                    scores.beneishMScore() == null ? null : BigDecimal.valueOf(scores.beneishMScore()),
+                                    null)))
+                    .orElse(List.of());
+        } catch (Exception e) {
+            log.warn("Institutional scores provider unavailable for {}: {}", symbol, e.getMessage());
+            return List.of();
+        }
     }
 
     private List<FinancialStatement> statements(String symbol) {

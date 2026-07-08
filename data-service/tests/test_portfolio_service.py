@@ -1,5 +1,8 @@
 import numpy as np
 import pandas as pd
+import yfinance as yf
+from typing import Any
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -83,7 +86,7 @@ async def test_optimize_respects_weight_bounds(symbols: list[str], mock_price_ma
 
 @pytest.mark.asyncio
 async def test_min_volatility_objective_has_lower_volatility_than_max_sharpe(symbols: list[str], mock_price_matrix):
-    shared = dict(symbols=symbols, risk_free_rate=0.02, lookback_period=252, min_weight=0.0, max_weight=0.8)
+    shared: dict[str, Any] = dict(symbols=symbols, risk_free_rate=0.02, lookback_period=252, min_weight=0.0, max_weight=0.8)
 
     min_vol = await PortfolioService.optimize(
         OptimizationRequest(objective=OptimizationObjective.MIN_VOLATILITY, **shared)
@@ -111,14 +114,32 @@ async def test_rebalance_check_endpoint_flags_sell_when_current_weight_exceeds_t
     assert actions["AAPL"]["requires_rebalance"] is True
 
 
-@pytest.mark.smoke
-def test_fetch_price_matrix_smoke_real_yfinance_call():
-    try:
-        prices = PortfolioService._fetch_price_matrix(["AAPL", "MSFT"], lookback_period=45)
-    except Exception as exc:
-        pytest.skip(f"Real yfinance smoke call unavailable: {exc}")
 
-    assert not prices.empty
-    assert {"AAPL", "MSFT"}.issubset(set(prices.columns))
-    assert prices.isna().sum().sum() == 0
+def test_fetch_price_matrix_uses_yfinance_close_prices_without_live_call(monkeypatch):
+    index = pd.date_range(end=pd.Timestamp.now(tz="UTC"), periods=4, freq="D")
+    raw = pd.DataFrame(
+        {
+            ("Close", "AAPL"): [100.0, 101.0, 102.0, 103.0],
+            ("Close", "MSFT"): [200.0, 201.0, 202.0, 203.0],
+            ("Open", "AAPL"): [99.0, 100.0, 101.0, 102.0],
+            ("Open", "MSFT"): [199.0, 200.0, 201.0, 202.0],
+        },
+        index=index,
+    )
+    raw.columns = pd.MultiIndex.from_tuples(raw.columns)
+    captured: dict[str, Any] = {}
 
+    def fake_download(**kwargs):
+        # Mocking external yfinance I/O boundary; tests must not call financial APIs live.
+        captured.update(kwargs)
+        return raw
+
+    monkeypatch.setattr(yf, "download", fake_download)
+
+    prices = PortfolioService._fetch_price_matrix([" aapl ", "MSFT"], lookback_days=45)
+
+    pd.testing.assert_frame_equal(prices, raw["Close"])
+    assert captured["tickers"] == "AAPL MSFT"
+    assert captured["auto_adjust"] is False
+    assert captured["actions"] is False
+    assert captured["progress"] is False

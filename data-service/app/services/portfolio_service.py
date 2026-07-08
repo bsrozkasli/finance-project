@@ -305,7 +305,7 @@ class PortfolioService:
         if min_return == max_return:
             targets = [min_return]
         else:
-            targets = np.linspace(min_return, max_return, num=frontier_points)
+            targets = list(np.linspace(min_return, max_return, num=frontier_points))
 
         frontier: list[EfficientFrontierPoint] = []
         for target in targets:

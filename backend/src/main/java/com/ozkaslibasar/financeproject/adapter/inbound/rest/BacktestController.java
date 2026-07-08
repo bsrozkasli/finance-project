@@ -34,7 +34,17 @@ public class BacktestController {
     })
     @GetMapping("/{symbol}")
     public ResponseEntity<BacktestResult> getBacktest(@PathVariable String symbol) {
-        BacktestResult result = backtestAdapter.getBacktest(symbol);
+        if (symbol == null || symbol.isBlank()) {
+            throw new IllegalArgumentException("symbol must not be blank");
+        }
+        String trimmed = symbol.strip();
+        if (!trimmed.toUpperCase(java.util.Locale.ROOT).matches("^[A-Z0-9.]{1,10}$")) {
+            throw new IllegalArgumentException("symbol contains invalid characters: " + symbol);
+        }
+        BacktestResult result = backtestAdapter.getBacktest(trimmed);
+        if (result == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
         return ResponseEntity.ok(result);
     }
 }

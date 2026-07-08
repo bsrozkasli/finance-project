@@ -11,6 +11,7 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.Finnh
 import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubRecommendationDto;
 import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/reports")
 @RequiredArgsConstructor
+@Slf4j
 public class CompanyReportController {
 
     private final TechnicalAnalysisPort technicalAnalysisPort;
@@ -55,12 +57,27 @@ public class CompanyReportController {
         } catch (Exception ignored) {
             technical = null;
         }
-        return new CompanyReport(
-                normalized,
-                technical,
-                finnhubClient.getRecommendations(normalized),
-                finnhubClient.getPriceTarget(normalized),
-                recentNews(normalized));
+        // Each optional Finnhub section is fetched independently so a single provider
+        // failure does not abort the entire report (partial-200 degradation).
+        List<com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubRecommendationDto> recommendations = null;
+        try {
+            recommendations = finnhubClient.getRecommendations(normalized);
+        } catch (Exception e) {
+            log.warn("Recommendations unavailable for {}: {}", normalized, e.getMessage());
+        }
+        com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubPriceTargetDto priceTarget = null;
+        try {
+            priceTarget = finnhubClient.getPriceTarget(normalized);
+        } catch (Exception e) {
+            log.warn("Price target unavailable for {}: {}", normalized, e.getMessage());
+        }
+        List<com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.FinnhubNewsDto> news = List.of();
+        try {
+            news = recentNews(normalized);
+        } catch (Exception e) {
+            log.warn("News unavailable for {}: {}", normalized, e.getMessage());
+        }
+        return new CompanyReport(normalized, technical, recommendations, priceTarget, news);
     }
 
     private List<FinnhubNewsDto> recentNews(String symbol) {

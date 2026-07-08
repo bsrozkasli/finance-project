@@ -1,11 +1,9 @@
 package com.ozkaslibasar.financeproject.domain.model;
 
 import lombok.Builder;
-import lombok.Getter;
 
 import java.time.LocalDateTime;
 
-@Getter
 @Builder
 public class OpportunityNotification {
     private final Long id;
@@ -14,4 +12,28 @@ public class OpportunityNotification {
     private final String message;
     private final LocalDateTime createdAt;
     private final boolean isRead;
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getSymbol() {
+        return symbol;
+    }
+
+    public Integer getScore() {
+        return score;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public boolean isRead() {
+        return isRead;
+    }
 }
