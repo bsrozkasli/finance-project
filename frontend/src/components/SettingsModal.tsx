@@ -68,14 +68,14 @@ export default function SettingsModal({
 
           <div className="space-y-2.5">
             <label className="block text-bear-red font-label-caps text-[10px] uppercase tracking-wider">
-              Dangerous Actions
+              Local Preferences
             </label>
             <p className="text-[11px] text-text-secondary leading-normal">
-              Resets the local journal, watchlists, and portfolio positions back to the default Microsoft and Nvidia sample data.
+              Resets browser-only UI preferences. Backend portfolio, journal, and watchlist data is not deleted.
             </p>
             <button
               onClick={() => {
-                if (confirm('Reset all portfolio history and restore default data? This action cannot be undone.')) {
+                if (confirm('Reset local UI preferences? Backend data will not be deleted.')) {
                   onResetDatabase();
                   onClose();
                 }
@@ -83,7 +83,7 @@ export default function SettingsModal({
               className="w-full py-2 bg-bear-red/10 border border-bear-red/35 hover:bg-bear-red/20 text-bear-red font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              <span>Restore Factory Defaults</span>
+              <span>Reset Local Preferences</span>
             </button>
           </div>
 
@@ -99,7 +99,7 @@ export default function SettingsModal({
               <span className="text-primary font-bold">{frontendPort} (Vite)</span>
             </div>
             <div className="flex justify-between items-center text-text-secondary">
-              <span>Local Storage:</span>
+              <span>Browser Preferences:</span>
               <span className="text-bull-green font-bold flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5" /> Connected
               </span>
