@@ -110,7 +110,7 @@ class PriceControllerTest {
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
                 .andExpect(status().isNotFound())
-                .andExpect(status().reason("Price not found"));
+                .andExpect(jsonPath("$.message").value("Price not found"));
 
         verify(priceRefreshService).getFreshLatest("AAPL");
         verify(restMapper, never()).toPriceResponseDto(any(PriceHistory.class));
