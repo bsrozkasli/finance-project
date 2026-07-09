@@ -5,8 +5,8 @@ import type { Stock, Watchlist } from '../types';
 interface WatchlistsViewProps {
   stocks: Stock[];
   watchlists: Watchlist[];
-  onAddStockToWatchlist: (watchlistId: string, symbol: string) => void;
-  onAddWatchlist: (name: string) => void;
+  onAddStockToWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
+  onAddWatchlist: (name: string) => void | Promise<string | void>;
   onOpenTradeModal: (symbol: string) => void;
   onSelectStock: (stock: Stock) => void;
 }
@@ -44,7 +44,7 @@ export default function WatchlistsView({
     ? 0
     : activeStocks.reduce((sum, stock) => sum + stock.changePercent, 0) / activeStocks.length;
 
-  const handleAddTicker = () => {
+  const handleAddTicker = async () => {
     if (!activeWatchlist || !tickerToAdd.trim()) return;
     const symbol = tickerToAdd.trim().toUpperCase();
     const exists = stocks.some((stock) => stock.symbol === symbol);
@@ -52,15 +52,26 @@ export default function WatchlistsView({
       alert(`Symbol not found: ${symbol}.`);
       return;
     }
-    onAddStockToWatchlist(activeWatchlist.id, symbol);
-    setTickerToAdd('');
+    try {
+      await onAddStockToWatchlist(activeWatchlist.id, symbol);
+      setTickerToAdd('');
+    } catch (error) {
+      console.error('Failed to add symbol to watchlist', error);
+      alert('Symbol could not be added to the watchlist. Please try again.');
+    }
   };
 
-  const handleCreateWatchlist = () => {
+  const handleCreateWatchlist = async () => {
     const name = newWatchlistName.trim();
     if (!name) return;
-    onAddWatchlist(name);
-    setNewWatchlistName('');
+    try {
+      const createdId = await onAddWatchlist(name);
+      if (createdId) setActiveWatchlistId(createdId);
+      setNewWatchlistName('');
+    } catch (error) {
+      console.error('Failed to create watchlist', error);
+      alert('Watchlist could not be created. Please try again.');
+    }
   };
 
   const renderSparkline = (values: number[], positive: boolean) => {

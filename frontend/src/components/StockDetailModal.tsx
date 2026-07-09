@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { X, Sparkles, TrendingUp, AlertTriangle, RefreshCw, BarChart2, Briefcase } from 'lucide-react';
 import type { Stock } from '../types';
 import { useAnalystRatings } from '../hooks/useAnalystRatings';
+import { useSmartReport } from '../hooks/useSmartReport';
 
 interface StockDetailModalProps {
   stock: Stock | null;
@@ -117,6 +118,7 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'analyst' | 'ai'>('overview');
   const { data: analystData, loading: analystLoading, error: analystError, refetch: refetchAnalystData } = useAnalystRatings(stock?.symbol ?? null);
+  const { report: smartReport, loading: smartReportLoading, error: smartReportError } = useSmartReport(stock?.symbol ?? null);
 
   const analystTargetPrice = priceTargetValue(analystData?.priceTarget);
   const analystRating = useMemo(
@@ -130,43 +132,39 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
   const targetPriceForUpside = analystTargetPrice ?? analystRating?.targetPrice ?? null;
   const analystUpside = targetPriceForUpside == null ? '-' : (((targetPriceForUpside - stock.price) / stock.price) * 100).toFixed(1);
 
-  // Trigger Gemini AI report generation
-  const handleGenerateReport = async () => {
-    setIsLoading(true);
-    setErrorMessage('');
-    try {
-      const response = await fetch('/api/gemini/summarize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: stock.symbol,
-          name: stock.name,
-          sector: stock.sector,
-          stats: {
-            pe: stock.pe,
-            pb: stock.pb,
-            roe: stock.roe,
-            revenueGrowth: stock.revenueGrowth,
-            divYield: stock.divYield
-          }
-        })
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'Generative report generation failed.');
-      }
-      setAiReport(data.text);
-    } catch (error: unknown) {
-      console.error(error);
-      const message = error instanceof Error ? error.message : 'AI report could not be generated. Check your API key and provider configuration.';
-      setErrorMessage(message);
-    } finally {
-      setIsLoading(false);
+  const buildSmartReportText = () => {
+    if (!smartReport) {
+      return smartReportError || 'Backend smart report data is not available for this symbol.';
     }
+
+    const breakdown = smartReport.breakdown
+      ? Object.entries(smartReport.breakdown)
+          .map(([key, value]) => `- **${key.replace('Score', '')}:** ${value.toFixed(0)} / 100`)
+          .join('\n')
+      : '- Score breakdown is unavailable.';
+    const targetPriceText = targetPriceForUpside == null ? 'Unavailable' : '$' + targetPriceForUpside.toFixed(2);
+
+    return `# Backend Smart Investment Report: ${smartReport.symbol}\n\n## Summary\n- **Overall score:** ${smartReport.overallScore.toFixed(0)} / 100\n- **Grade:** ${smartReport.grade}\n- **Recommendation:** ${smartReport.recommendation}\n\n## Score Breakdown\n${breakdown}\n\n## Analyst Context\n- **Consensus:** ${analystRating?.consensus ?? 'Unavailable'}\n- **Target price:** ${targetPriceText}\n- **Upside/downside:** ${analystUpside}%\n\nThis report is generated from backend provider data. Missing provider fields remain unavailable instead of being fabricated.`;
   };
 
-  // Calculate 52W Position Slider percentage
+  const handleGenerateReport = () => {
+    setIsLoading(false);
+    setErrorMessage('');
+
+    if (smartReportLoading) {
+      setErrorMessage('Backend smart report is still loading. Try again in a moment.');
+      return;
+    }
+
+    const text = buildSmartReportText();
+    if (!smartReport) {
+      setErrorMessage(text);
+      return;
+    }
+    setAiReport(text);
+  };
+
+  // Calculate 52W Position Slider percentage  // Calculate 52W Position Slider percentage
   const rangeMax = stock.high52W;
   const rangeMin = stock.low52W;
   const rangePercent = Math.min(
@@ -264,7 +262,7 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Gemini AI Analysis
+            Smart Report
           </button>
         </div>
 
@@ -398,7 +396,7 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                       </span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-outline-variant/20 items-center">
-                      <span className="text-text-secondary font-medium">MACD Sinyali (12, 26, 9):</span>
+                      <span className="text-text-secondary font-medium">MACD Signal (12, 26, 9):</span>
                       <span className="font-data-mono font-bold text-bull-green bg-bull-green/5 px-2 py-0.5 rounded">
                         {stock.technicals ? `${stock.technicals.macd} - ${stock.technicals.macdStatus}` : 'No data'}
                       </span>
@@ -491,7 +489,7 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary animate-pulse" />
                     <h4 className="font-headline text-sm font-bold text-text-primary uppercase tracking-wide">
-                      Gemini AI Professional Investment Report</h4>
+                      Backend Smart Investment Report</h4>
                   </div>
 
                   {!aiReport && !isLoading && (
@@ -508,19 +506,19 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                   <div className="py-12 flex flex-col items-center justify-center gap-3">
                     <RefreshCw className="w-8 h-8 text-primary animate-spin" />
                     <p className="font-sans text-xs text-text-secondary animate-pulse">
-                      Gemini 3.5 Flash is analyzing current financial data. Please wait.....
+                      Backend smart report is loading current provider data. Please wait...
                     </p>
                   </div>
                 ) : errorMessage ? (
                   <div className="p-3 bg-bear-red/10 border border-bear-red/25 rounded-lg flex items-start gap-2.5">
                     <AlertTriangle className="w-4 h-4 text-bear-red shrink-0 mt-0.5" />
                     <div className="text-xs text-bear-red font-sans">
-                      <strong>Connection Error:</strong> {errorMessage}
+                      <strong>Report Error:</strong> {errorMessage}
                       <button
                         onClick={handleGenerateReport}
                         className="underline block mt-1 font-bold text-[10px] uppercase"
                       >
-                        Yeniden Dene
+                        Try Again
                       </button>
                     </div>
                   </div>
@@ -529,7 +527,7 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                     <CustomMarkdownParser text={aiReport} />
 
                     <div className="mt-4 pt-3 border-t border-outline-variant/20 flex justify-between items-center text-[9px] text-text-muted font-data-mono">
-                      <span>MODEL: GEMINI-3.5-FLASH</span>
+                      <span>SOURCE: BACKEND SMART REPORT</span>
                       <button
                         onClick={handleGenerateReport}
                         className="text-primary hover:underline flex items-center gap-1 font-bold"

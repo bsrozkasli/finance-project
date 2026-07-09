@@ -84,7 +84,7 @@ describe('SettingsModal', () => {
     expect(screen.queryByText('Nexus Terminal System Settings')).not.toBeInTheDocument();
   });
 
-  it('requires confirmation before resetting local portfolio data', async () => {
+  it('requires confirmation before resetting local UI preferences', async () => {
     const onClose = vi.fn();
     const onResetDatabase = vi.fn();
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
@@ -99,12 +99,12 @@ describe('SettingsModal', () => {
       />,
     );
 
-    await user().click(screen.getByRole('button', { name: /restore factory defaults/i }));
+    await user().click(screen.getByRole('button', { name: /reset local preferences/i }));
     expect(onResetDatabase).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
 
-    await user().click(screen.getByRole('button', { name: /restore factory defaults/i }));
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Reset all portfolio history'));
+    await user().click(screen.getByRole('button', { name: /reset local preferences/i }));
+    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Reset local UI preferences'));
     expect(onResetDatabase).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
@@ -191,9 +191,9 @@ describe('TradeActionModal', () => {
 });
 
 describe('ManageAssetsDrawer', () => {
-  it('validates position input before updating holdings', async () => {
+  it('validates position input before sending a portfolio trade', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
-    const onUpdateHoldings = vi.fn();
+    const onExecuteTrade = vi.fn();
 
     render(
       <ManageAssetsDrawer
@@ -201,7 +201,8 @@ describe('ManageAssetsDrawer', () => {
         onClose={vi.fn()}
         stocks={stocks}
         holdings={holdings}
-        onUpdateHoldings={onUpdateHoldings}
+        portfolioId="10"
+        onExecuteTrade={onExecuteTrade}
       />,
     );
 
@@ -211,12 +212,12 @@ describe('ManageAssetsDrawer', () => {
     await user().click(screen.getByRole('button', { name: /save to portfolio/i }));
 
     expect(alertSpy).toHaveBeenCalledWith('Enter a valid quantity and cost basis.');
-    expect(onUpdateHoldings).not.toHaveBeenCalled();
+    expect(onExecuteTrade).not.toHaveBeenCalled();
   });
 
-  it('merges an added position using weighted average cost', async () => {
+  it('records an added position as a backend portfolio buy trade', async () => {
     vi.spyOn(window, 'alert').mockImplementation(() => undefined);
-    const onUpdateHoldings = vi.fn();
+    const onExecuteTrade = vi.fn();
 
     render(
       <ManageAssetsDrawer
@@ -224,7 +225,8 @@ describe('ManageAssetsDrawer', () => {
         onClose={vi.fn()}
         stocks={stocks}
         holdings={holdings}
-        onUpdateHoldings={onUpdateHoldings}
+        portfolioId="10"
+        onExecuteTrade={onExecuteTrade}
       />,
     );
 
@@ -235,14 +237,18 @@ describe('ManageAssetsDrawer', () => {
     await user().type(averageCost, '120');
     await user().click(screen.getByRole('button', { name: /save to portfolio/i }));
 
-    expect(onUpdateHoldings).toHaveBeenCalledWith([
-      { symbol: 'AAPL', quantity: 5, costPrice: 112 },
-      { symbol: 'MSFT', quantity: 1, costPrice: 300 },
-    ]);
+    expect(onExecuteTrade).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      type: 'BUY',
+      quantity: 3,
+      price: 120,
+      notes: 'AAPL position added from portfolio drawer.',
+      portfolioId: '10',
+    });
   });
 
-  it('removes a position only after user confirmation', async () => {
-    const onUpdateHoldings = vi.fn();
+  it('records a closing sell trade only after user confirmation', async () => {
+    const onExecuteTrade = vi.fn();
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
 
     render(
@@ -251,19 +257,26 @@ describe('ManageAssetsDrawer', () => {
         onClose={vi.fn()}
         stocks={stocks}
         holdings={holdings}
-        onUpdateHoldings={onUpdateHoldings}
+        portfolioId="10"
+        onExecuteTrade={onExecuteTrade}
       />,
     );
 
     const closeButtons = screen.getAllByTitle('Close Position');
     await user().click(closeButtons[0]);
-    expect(onUpdateHoldings).not.toHaveBeenCalled();
+    expect(onExecuteTrade).not.toHaveBeenCalled();
 
     await user().click(closeButtons[0]);
-    expect(onUpdateHoldings).toHaveBeenCalledWith([{ symbol: 'MSFT', quantity: 1, costPrice: 300 }]);
+    expect(onExecuteTrade).toHaveBeenCalledWith({
+      symbol: 'AAPL',
+      type: 'SELL',
+      quantity: 2,
+      price: 150.25,
+      notes: 'AAPL position closed from portfolio drawer.',
+      portfolioId: '10',
+    });
   });
 });
-
 describe('ToastProvider', () => {
   function ToastHarness() {
     const { showToast } = useToast();

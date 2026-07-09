@@ -58,6 +58,48 @@ public class LlmInsightAdapter implements LlmInsightPort {
         }
     }
 
+
+    @Override
+    public Optional<DecisionSupportResult> generateDecisionSupport(DecisionSupportRequest request) {
+        try {
+            String url = baseUrl + "/api/v1/decision-support";
+            DecisionSupportRequestDto requestDto = new DecisionSupportRequestDto();
+            requestDto.setSymbol(request.symbol());
+            requestDto.setUserScenario(request.userScenario());
+            if (request.portfolioContext() != null) {
+                PortfolioContextDto contextDto = new PortfolioContextDto();
+                contextDto.setCurrentWeight(request.portfolioContext().currentWeight());
+                contextDto.setTargetWeight(request.portfolioContext().targetWeight());
+                contextDto.setDeviation(request.portfolioContext().deviation());
+                contextDto.setRebalanceNeeded(request.portfolioContext().rebalanceNeeded());
+                requestDto.setPortfolioContext(contextDto);
+            }
+
+            DecisionSupportResponseDto response = restTemplate.postForObject(url, requestDto, DecisionSupportResponseDto.class);
+            if (response == null) {
+                return Optional.empty();
+            }
+
+            return Optional.of(new DecisionSupportResult(
+                    response.getSymbol(),
+                    response.getExecutiveSummary(),
+                    response.getPrimarySignal(),
+                    response.getConvictionLevel(),
+                    response.getBullCase(),
+                    response.getBearCase(),
+                    response.getCriticalLevels(),
+                    response.getRiskReward(),
+                    response.getTimeHorizon(),
+                    response.getWatchlistItems(),
+                    response.getFullAnalysis(),
+                    System.currentTimeMillis()
+            ));
+        } catch (Exception e) {
+            log.warn("Failed to generate decision support for symbol={}. Returning empty result. Reason: {}", request.symbol(), e.getMessage());
+            return Optional.empty();
+        }
+    }
+
     @Override
     public Optional<SentimentResult> getSentiment(String symbol) {
         try {
@@ -297,6 +339,53 @@ public class LlmInsightAdapter implements LlmInsightPort {
         return null;
     }
 
+
+    @Data
+    static class DecisionSupportRequestDto {
+        private String symbol;
+        @JsonProperty("portfolio_context")
+        private PortfolioContextDto portfolioContext;
+        @JsonProperty("user_scenario")
+        private String userScenario;
+    }
+
+    @Data
+    static class PortfolioContextDto {
+        @JsonProperty("current_weight")
+        private Double currentWeight;
+        @JsonProperty("target_weight")
+        private Double targetWeight;
+        private Double deviation;
+        @JsonProperty("rebalance_needed")
+        private Boolean rebalanceNeeded;
+    }
+
+    @Data
+    static class DecisionSupportResponseDto {
+        private String symbol;
+        @JsonProperty("executive_summary")
+        private String executiveSummary;
+        @JsonProperty("primary_signal")
+        private String primarySignal;
+        @JsonProperty("conviction_level")
+        private Integer convictionLevel;
+        @JsonProperty("bull_case")
+        private List<String> bullCase;
+        @JsonProperty("bear_case")
+        private List<String> bearCase;
+        @JsonProperty("critical_levels")
+        private java.util.Map<String, Double> criticalLevels;
+        @JsonProperty("risk_reward")
+        private String riskReward;
+        @JsonProperty("time_horizon")
+        private String timeHorizon;
+        @JsonProperty("watchlist_items")
+        private List<String> watchlistItems;
+        @JsonProperty("full_analysis")
+        private String fullAnalysis;
+        @JsonProperty("generated_at")
+        private String generatedAt;
+    }
     @Data
     static class LlmInsightRequestDto {
         private String symbol;
