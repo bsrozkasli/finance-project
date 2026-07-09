@@ -1,17 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
-  --font-headline: "Hanken Grotesk", sans-serif;
-  --font-display-lg: "Hanken Grotesk", sans-serif;
-  --font-headline-md: "Hanken Grotesk", sans-serif;
-  --font-title-sm: "Inter", sans-serif;
-  --font-body-md: "Inter", sans-serif;
-  --font-body-sm: "Inter", sans-serif;
-  --font-data-mono: "JetBrains Mono", monospace;
-  --font-label-caps: "JetBrains Mono", monospace;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, monospace;
+  --font-headline: ui-sans-serif, system-ui, sans-serif;
+  --font-display-lg: ui-sans-serif, system-ui, sans-serif;
+  --font-headline-md: ui-sans-serif, system-ui, sans-serif;
+  --font-title-sm: ui-sans-serif, system-ui, sans-serif;
+  --font-body-md: ui-sans-serif, system-ui, sans-serif;
+  --font-body-sm: ui-sans-serif, system-ui, sans-serif;
+  --font-data-mono: ui-monospace, SFMono-Regular, monospace;
+  --font-label-caps: ui-monospace, SFMono-Regular, monospace;
 
   --color-bg-base: #060e20;
   --color-bg-primary: #0b1326;

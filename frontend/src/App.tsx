@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { CalendarEvent, News, Stock, Trade, Watchlist, Portfolio } from './types';
 import type { CategorizedNewsItem, EconomicEvent, JournalTrade } from './api/client';
 import type { PriceHistory } from './api/types';
@@ -45,6 +45,47 @@ const numericPortfolioId = (id: string | undefined): number | undefined => {
   const parsed = Number(id);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+function PortfolioRoute({
+  portfolios,
+  activePortfolioId,
+  onSelectPortfolioId,
+  onCreatePortfolio,
+  onDeletePortfolio,
+  onExecuteTrade,
+  onOpenTradingJournal,
+  stocks,
+}: {
+  portfolios: Portfolio[];
+  activePortfolioId: string;
+  onSelectPortfolioId: (id: string) => void;
+  onCreatePortfolio: (name: string) => Promise<string>;
+  onDeletePortfolio: (id: string) => Promise<void>;
+  onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void>;
+  onOpenTradingJournal: () => void;
+  stocks: Stock[];
+}) {
+  const { portfolioId } = useParams();
+
+  useEffect(() => {
+    if (portfolioId && portfolioId !== activePortfolioId) {
+      onSelectPortfolioId(portfolioId);
+    }
+  }, [activePortfolioId, onSelectPortfolioId, portfolioId]);
+
+  return (
+    <PortfolioManagerView
+      stocks={stocks}
+      portfolios={portfolios}
+      onCreatePortfolio={onCreatePortfolio}
+      onDeletePortfolio={onDeletePortfolio}
+      activePortfolioId={portfolioId ?? activePortfolioId}
+      onSelectPortfolioId={onSelectPortfolioId}
+      onExecuteTrade={onExecuteTrade}
+      onOpenTradingJournal={onOpenTradingJournal}
+    />
+  );
+}
 export default function App() {
   const navigate = useNavigate();
 
@@ -465,7 +506,8 @@ export default function App() {
         {/* Dynamic active view panel */}
         <main className="flex-1 flex flex-col overflow-hidden">
           <Routes>
-            <Route path="/" element={
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={
               <DashboardHome
                 stocks={stocks}
                 portfolios={portfolios}
@@ -478,7 +520,14 @@ export default function App() {
                 calendarEvents={calendarEvents}
               />
             } />
-            <Route path="/charts" element={
+            <Route path="/charts" element={<Navigate to="/workspace" replace />} />
+            <Route path="/workspace" element={
+              <ChartWorkspace
+                stocks={stocks}
+                onSelectStock={(s) => setSelectedStock(s)}
+              />
+            } />
+            <Route path="/workspace/:symbol" element={
               <ChartWorkspace
                 stocks={stocks}
                 onSelectStock={(s) => setSelectedStock(s)}
@@ -500,7 +549,19 @@ export default function App() {
                 news={news}
               />
             } />
+            <Route path="/news/:symbol" element={
+              <NewsFeedView
+                activePortfolio={activePortfolio}
+                news={news}
+              />
+            } />
             <Route path="/reports" element={
+              <AiReportsView
+                holdings={activePortfolio?.holdings ?? []}
+                stocks={stocks}
+              />
+            } />
+            <Route path="/reports/:symbol" element={
               <AiReportsView
                 holdings={activePortfolio?.holdings ?? []}
                 stocks={stocks}
@@ -513,8 +574,15 @@ export default function App() {
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
               />
             } />
-            <Route path="/portfolios" element={
-              <PortfolioManagerView
+            <Route path="/transactions" element={
+              <TradingJournalView
+                stocks={stocks}
+                portfolios={portfolios}
+                onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
+              />
+            } />
+            <Route path="/portfolio" element={
+              <PortfolioRoute
                 stocks={stocks}
                 portfolios={portfolios}
                 onCreatePortfolio={handleCreatePortfolio}
@@ -525,7 +593,20 @@ export default function App() {
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
               />
             } />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/portfolio/:portfolioId" element={
+              <PortfolioRoute
+                stocks={stocks}
+                portfolios={portfolios}
+                onCreatePortfolio={handleCreatePortfolio}
+                onDeletePortfolio={handleDeletePortfolio}
+                activePortfolioId={activePortfolioId}
+                onSelectPortfolioId={saveActivePortfolioIdState}
+                onExecuteTrade={handleExecuteTrade}
+                onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+              />
+            } />
+            <Route path="/portfolios" element={<Navigate to="/portfolio" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
       </div>

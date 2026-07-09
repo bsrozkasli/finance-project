@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'coverage', 'playwright-report', 'test-results']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -23,6 +23,18 @@ export default defineConfig([
       'react-hooks/purity': 'off',
       'react-hooks/use-memo': 'off',
       'react-hooks/error-boundaries': 'off',
+    },
+  },
+  {
+    files: ['playwright.config.ts', 'e2e/**/*.ts'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
+    },
+    rules: {
+      'react-hooks/rules-of-hooks': 'off',
     },
   },
 ])
