@@ -68,6 +68,10 @@ interface AiReportsViewProps {
   stocks: Stock[];
 }
 
+const formatFiniteNumber = (value: unknown, digits: number) => {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : null;
+};
+
 export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) {
   const [reportText, setReportText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -256,7 +260,7 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
               <div className="rounded-lg border border-outline-variant/25 bg-bg-base/40 p-3">
                 <div className="text-[9px] uppercase text-text-muted font-label-caps">Smart Score</div>
                 <div className="mt-1 font-data-mono text-lg font-bold text-primary">
-                  {smartReportLoading ? '...' : smartReport ? `${smartReport.overallScore.toFixed(0)} / 100` : '-'}
+                  {smartReportLoading ? '...' : formatFiniteNumber(smartReport?.overallScore, 0) ? `${formatFiniteNumber(smartReport?.overallScore, 0)} / 100` : '-'}
                 </div>
                 <div className="mt-1 text-[10px] text-text-secondary">
                   {smartReport?.grade ?? smartReport?.recommendation ?? smartReportError ?? 'Provider data unavailable'}
@@ -266,10 +270,10 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
               <div className="rounded-lg border border-outline-variant/25 bg-bg-base/40 p-3">
                 <div className="text-[9px] uppercase text-text-muted font-label-caps">Backtest Win Rate</div>
                 <div className="mt-1 font-data-mono text-lg font-bold text-bull-green">
-                  {backtestLoading ? '...' : backtest ? `${backtest.winRate.toFixed(1)}%` : '-'}
+                  {backtestLoading ? '...' : formatFiniteNumber(backtest?.winRate, 1) ? `${formatFiniteNumber(backtest?.winRate, 1)}%` : '-'}
                 </div>
                 <div className="mt-1 text-[10px] text-text-secondary">
-                  {backtest ? `Avg return ${backtest.averageReturnPct.toFixed(2)}%` : backtestError ?? 'Provider data unavailable'}
+                  {formatFiniteNumber(backtest?.averageReturnPct, 2) ? `Avg return ${formatFiniteNumber(backtest?.averageReturnPct, 2)}%` : backtestError ?? 'Provider data unavailable'}
                 </div>
               </div>
             </div>
@@ -279,7 +283,7 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
                 {Object.entries(smartReport.breakdown).slice(0, 6).map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-2 border-b border-outline-variant/10 py-1">
                     <span>{key.replace('Score', '')}</span>
-                    <span className="font-data-mono font-bold text-text-primary">{value.toFixed(0)}</span>
+                    <span className="font-data-mono font-bold text-text-primary">{formatFiniteNumber(value, 0) ?? '-'}</span>
                   </div>
                 ))}
               </div>

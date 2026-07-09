@@ -5,8 +5,8 @@ import type { Stock, Watchlist } from '../types';
 interface WatchlistsViewProps {
   stocks: Stock[];
   watchlists: Watchlist[];
-  onAddStockToWatchlist: (watchlistId: string, symbol: string) => void;
-  onAddWatchlist: (name: string) => void;
+  onAddStockToWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
+  onAddWatchlist: (name: string) => void | Promise<void>;
   onOpenTradeModal: (symbol: string) => void;
   onSelectStock: (stock: Stock) => void;
 }
@@ -25,6 +25,8 @@ export default function WatchlistsView({
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [tickerToAdd, setTickerToAdd] = useState('');
   const [newWatchlistName, setNewWatchlistName] = useState('');
+  const [addingTicker, setAddingTicker] = useState(false);
+  const [creatingWatchlist, setCreatingWatchlist] = useState(false);
 
   const activeWatchlist = useMemo(
     () => watchlists.find((watchlist) => watchlist.id === activeWatchlistId) ?? watchlists[0] ?? null,
@@ -36,31 +38,45 @@ export default function WatchlistsView({
     return stocks.filter((stock) => activeWatchlist.symbols.includes(stock.symbol));
   }, [stocks, activeWatchlist]);
 
+  const activeSymbols = activeWatchlist?.symbols ?? [];
+
   const selectedStock = useMemo(() => {
-    return stocks.find((stock) => stock.symbol === selectedSymbol) ?? activeStocks[0] ?? stocks[0] ?? null;
+    return stocks.find((stock) => stock.symbol === selectedSymbol) ?? activeStocks[0] ?? null;
   }, [stocks, selectedSymbol, activeStocks]);
 
   const averageChange = activeStocks.length === 0
     ? 0
     : activeStocks.reduce((sum, stock) => sum + stock.changePercent, 0) / activeStocks.length;
 
-  const handleAddTicker = () => {
+  const handleAddTicker = async () => {
     if (!activeWatchlist || !tickerToAdd.trim()) return;
     const symbol = tickerToAdd.trim().toUpperCase();
-    const exists = stocks.some((stock) => stock.symbol === symbol);
-    if (!exists) {
-      alert(`Symbol not found: ${symbol}.`);
-      return;
+    setAddingTicker(true);
+    try {
+      await Promise.resolve(onAddStockToWatchlist(activeWatchlist.id, symbol));
+      setTickerToAdd('');
+      setSelectedSymbol(symbol);
+    } catch (error) {
+      console.error('Failed to add symbol to watchlist', error);
+      alert(`Could not add symbol: ${symbol}.`);
+    } finally {
+      setAddingTicker(false);
     }
-    onAddStockToWatchlist(activeWatchlist.id, symbol);
-    setTickerToAdd('');
   };
 
-  const handleCreateWatchlist = () => {
+  const handleCreateWatchlist = async () => {
     const name = newWatchlistName.trim();
     if (!name) return;
-    onAddWatchlist(name);
-    setNewWatchlistName('');
+    setCreatingWatchlist(true);
+    try {
+      await Promise.resolve(onAddWatchlist(name));
+      setNewWatchlistName('');
+    } catch (error) {
+      console.error('Failed to create watchlist', error);
+      alert(`Could not create watchlist: ${name}.`);
+    } finally {
+      setCreatingWatchlist(false);
+    }
   };
 
   const renderSparkline = (values: number[], positive: boolean) => {
@@ -112,9 +128,10 @@ export default function WatchlistsView({
           <button
             type="button"
             onClick={handleCreateWatchlist}
-            className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-bg-base shadow-sm"
+            disabled={creatingWatchlist}
+            className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-bg-base shadow-sm disabled:opacity-60"
           >
-            Create Watchlist
+            {creatingWatchlist ? 'Creating...' : 'Create Watchlist'}
           </button>
         </div>
       </div>
@@ -140,7 +157,7 @@ export default function WatchlistsView({
             <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
               <div className="rounded-lg border border-outline-variant/30 bg-bg-base/50 p-3">
                 <div className="text-[9px] uppercase text-text-muted">Active Instruments</div>
-                <div className="mt-1 font-data-mono text-lg font-bold text-text-primary">{activeStocks.length}</div>
+                <div className="mt-1 font-data-mono text-lg font-bold text-text-primary">{activeSymbols.length}</div>
               </div>
               <div className="rounded-lg border border-outline-variant/30 bg-bg-base/50 p-3">
                 <div className="text-[9px] uppercase text-text-muted">Average Change</div>
@@ -160,12 +177,14 @@ export default function WatchlistsView({
                 value={tickerToAdd}
                 onChange={(event) => setTickerToAdd(event.target.value)}
                 placeholder="Add stock/ETF..."
-                className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
+                disabled={addingTicker}
+                className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none disabled:opacity-60"
               />
               <button
                 type="button"
                 onClick={handleAddTicker}
-                className="rounded-lg bg-primary px-3 py-2 text-bg-base"
+                disabled={addingTicker}
+                className="rounded-lg bg-primary px-3 py-2 text-bg-base disabled:opacity-60"
                 aria-label="Add instrument"
               >
                 <Plus className="h-4 w-4" />
@@ -178,12 +197,29 @@ export default function WatchlistsView({
               Watchlist Instruments
             </div>
             <div className="space-y-2">
-              {activeStocks.length === 0 ? (
+              {activeSymbols.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-outline-variant p-6 text-center text-xs text-text-muted">
                   This watchlist has no instruments yet. Add one from the panel above.
                 </div>
               ) : (
-                activeStocks.map((stock) => {
+                activeSymbols.map((symbol) => {
+                  const stock = stocks.find((item) => item.symbol === symbol);
+                  if (!stock) {
+                    return (
+                      <div
+                        key={symbol}
+                        className="w-full rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
+                            <div className="max-w-44 truncate text-[10px] text-text-muted">Market data unavailable</div>
+                          </div>
+                          <div className="text-right font-data-mono text-xs text-text-muted">No price</div>
+                        </div>
+                      </div>
+                    );
+                  }
                   const positive = stock.changePercent >= 0;
                   return (
                     <button

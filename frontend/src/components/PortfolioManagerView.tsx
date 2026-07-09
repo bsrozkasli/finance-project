@@ -19,6 +19,7 @@ interface PortfolioManagerViewProps {
   stocks: Stock[];
   portfolios: Portfolio[];
   onUpdatePortfolios: (updated: Portfolio[]) => void;
+  onCreatePortfolio?: (name: string) => Promise<string | void> | string | void;
   activePortfolioId: string;
   onSelectPortfolioId: (id: string) => void;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
@@ -29,6 +30,7 @@ export default function PortfolioManagerView({
   stocks,
   portfolios,
   onUpdatePortfolios,
+  onCreatePortfolio,
   activePortfolioId,
   onSelectPortfolioId,
   onExecuteTrade,
@@ -53,10 +55,19 @@ export default function PortfolioManagerView({
   }, [portfolios, activePortfolioId]);
 
   // Handle adding a new portfolio
-  const handleCreatePortfolio = (e: React.FormEvent) => {
+  const handleCreatePortfolio = async (e: React.FormEvent) => {
     e.preventDefault();
     const name = newPortfolioName.trim();
     if (!name) return;
+
+    if (onCreatePortfolio) {
+      const createdId = await Promise.resolve(onCreatePortfolio(name));
+      if (createdId) {
+        onSelectPortfolioId(String(createdId));
+      }
+      setNewPortfolioName('');
+      return;
+    }
 
     const newPort: Portfolio = {
       id: `port-${Date.now()}`,
@@ -454,7 +465,7 @@ export default function PortfolioManagerView({
             <form onSubmit={handleCreatePortfolio} className="flex gap-2 bg-surface-container-low border border-outline-variant/30 p-1.5 rounded-xl">
               <input
                 type="text"
-                placeholder="Example: Added to the position after a confirmed support bounce..."
+                placeholder="New portfolio name..."
                 value={newPortfolioName}
                 onChange={(e) => setNewPortfolioName(e.target.value)}
                 className="bg-bg-base border-none rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none w-36 font-sans"

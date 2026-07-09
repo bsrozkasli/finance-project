@@ -51,6 +51,7 @@ function PortfolioRoute({
   activePortfolioId,
   onSelectPortfolioId,
   onUpdatePortfolios,
+  onCreatePortfolio,
   onExecuteTrade,
   onOpenTradingJournal,
   stocks,
@@ -59,11 +60,13 @@ function PortfolioRoute({
   activePortfolioId: string;
   onSelectPortfolioId: (id: string) => void;
   onUpdatePortfolios: (portfolios: Portfolio[]) => void;
+  onCreatePortfolio: (name: string) => Promise<string>;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void>;
   onOpenTradingJournal: () => void;
   stocks: Stock[];
 }) {
   const { portfolioId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (portfolioId && portfolioId !== activePortfolioId) {
@@ -71,13 +74,19 @@ function PortfolioRoute({
     }
   }, [activePortfolioId, onSelectPortfolioId, portfolioId]);
 
+  const handleSelectPortfolioId = (id: string) => {
+    onSelectPortfolioId(id);
+    navigate(`/portfolio/${id}`);
+  };
+
   return (
     <PortfolioManagerView
       stocks={stocks}
       portfolios={portfolios}
       onUpdatePortfolios={onUpdatePortfolios}
+      onCreatePortfolio={onCreatePortfolio}
       activePortfolioId={portfolioId ?? activePortfolioId}
-      onSelectPortfolioId={onSelectPortfolioId}
+      onSelectPortfolioId={handleSelectPortfolioId}
       onExecuteTrade={onExecuteTrade}
       onOpenTradingJournal={onOpenTradingJournal}
     />
@@ -102,9 +111,15 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTradingJournalOpen, setIsTradingJournalOpen] = useState(false);
 
-  const { assets } = useAssets();
-  const { portfolios: apiPortfolios, holdings: apiHoldings, reload: reloadInvestmentPortfolio } = useInvestmentPortfolio(null);
-  const { watchlists: apiWatchlists } = useWatchlists();
+  const { assets, addAssets } = useAssets();
+  const {
+    portfolios: apiPortfolios,
+    holdings: apiHoldings,
+    createPortfolio: createApiPortfolio,
+    setSelectedPortfolioId: setApiPortfolioId,
+    reload: reloadInvestmentPortfolio,
+  } = useInvestmentPortfolio(numericPortfolioId(activePortfolioId) ?? null);
+  const { watchlists: apiWatchlists, createList: createApiWatchlist, addSymbol: addApiWatchlistSymbol } = useWatchlists();
   const {
     trades: journalTrades,
     addTrade: addJournalTradeRecord,
@@ -270,7 +285,6 @@ export default function App() {
   }, [portfolios, activePortfolioId]);
 
   // 2. State persistence helper triggers (Will eventually be API calls)
-  const saveWatchlistsState = (updated: Watchlist[]) => setWatchlists(updated);
   const savePortfoliosState = (updated: Portfolio[]) => setPortfolios(updated);
 
   const saveActivePortfolioIdState = (id: string) => {
@@ -283,26 +297,28 @@ export default function App() {
   };
 
   // 4. Watchlist Handlers
-  const handleAddStockToWatchlist = (watchlistId: string, symbol: string) => {
-    const updated = watchlists.map((w) => {
-      if (w.id === watchlistId) {
-        return {
-          ...w,
-          symbols: [...w.symbols, symbol],
-        };
-      }
-      return w;
-    });
-    saveWatchlistsState(updated);
+  const handleAddStockToWatchlist = async (watchlistId: string, symbol: string) => {
+    const normalizedSymbol = symbol.trim().toUpperCase();
+    const numericWatchlistId = Number(watchlistId);
+    if (!normalizedSymbol || !Number.isFinite(numericWatchlistId)) return;
+
+    if (!assets.some((asset) => asset.symbol === normalizedSymbol)) {
+      await addAssets([normalizedSymbol]);
+    }
+
+    await addApiWatchlistSymbol(numericWatchlistId, normalizedSymbol);
   };
 
-  const handleAddWatchlist = (name: string) => {
-    const newWatchlist: Watchlist = {
-      id: 'w-' + Date.now(),
-      name,
-      symbols: [],
-    };
-    saveWatchlistsState([...watchlists, newWatchlist]);
+  const handleAddWatchlist = async (name: string) => {
+    await createApiWatchlist(name);
+  };
+
+  const handleCreatePortfolio = async (name: string) => {
+    const created = await createApiPortfolio({ name, baseCurrency: 'USD' });
+    const id = String(created.id);
+    setApiPortfolioId(created.id);
+    setActivePortfolioId(id);
+    return id;
   };
 
   // 5. Ledger & Transaction execution coordinates (API-backed journal)
@@ -577,6 +593,7 @@ export default function App() {
                 stocks={stocks}
                 portfolios={portfolios}
                 onUpdatePortfolios={savePortfoliosState}
+                onCreatePortfolio={handleCreatePortfolio}
                 activePortfolioId={activePortfolioId}
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}
@@ -588,6 +605,7 @@ export default function App() {
                 stocks={stocks}
                 portfolios={portfolios}
                 onUpdatePortfolios={savePortfoliosState}
+                onCreatePortfolio={handleCreatePortfolio}
                 activePortfolioId={activePortfolioId}
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}
