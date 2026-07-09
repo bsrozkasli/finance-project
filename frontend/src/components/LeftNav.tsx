@@ -22,9 +22,9 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
   const currentPath = location.pathname;
 
   const menuItems = [
-    { path: '/', label: 'Overview', icon: BarChart3 },
-    { path: '/portfolios', label: 'Portfolio Management', icon: Briefcase },
-    { path: '/charts', label: 'Technical Chart', icon: TrendingUp },
+    { path: '/dashboard', label: 'Overview', icon: BarChart3 },
+    { path: '/portfolio', label: 'Portfolio Management', icon: Briefcase },
+    { path: '/workspace', label: 'Technical Chart', icon: TrendingUp },
     { path: '/watchlist', label: 'Watchlists', icon: LayoutList },
     { path: '/news', label: 'News Feed', icon: Newspaper },
     { path: '/reports', label: 'AI Analysis', icon: Sparkles },
@@ -44,6 +44,7 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
             <Link
               key={item.path}
               to={item.path}
+              aria-label={item.label}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all group ${
                 isActive
                   ? 'bg-primary-container/15 text-primary border-l-4 border-primary font-semibold'
@@ -58,6 +59,8 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
       </div>
       <div className="py-6 px-2 md:px-3 border-t border-outline-variant/30 flex flex-col gap-1">
         <button
+          type="button"
+          aria-label="Manage Assets"
           onClick={onOpenManageAssets}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card/50 text-left transition-all group"
         >
@@ -65,6 +68,8 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
           <span className="hidden md:inline text-xs font-sans">Manage Assets</span>
         </button>
         <button
+          type="button"
+          aria-label="System Settings"
           onClick={onOpenSettings}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card/50 text-left transition-all group"
         >
@@ -75,6 +80,7 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
           href="https://github.com/bsrozkasli/finance-project"
           target="_blank"
           rel="noreferrer"
+          aria-label="GitHub Source"
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card/50 text-left transition-all group"
         >
           <HelpCircle className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
