@@ -18,8 +18,8 @@ import type { Stock, Portfolio, Trade } from '../types';
 interface PortfolioManagerViewProps {
   stocks: Stock[];
   portfolios: Portfolio[];
-  onUpdatePortfolios: (updated: Portfolio[]) => void;
-  onCreatePortfolio?: (name: string) => Promise<string | void> | string | void;
+  onCreatePortfolio: (name: string) => Promise<string>;
+  onDeletePortfolio: (id: string) => Promise<void>;
   activePortfolioId: string;
   onSelectPortfolioId: (id: string) => void;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
@@ -29,8 +29,8 @@ interface PortfolioManagerViewProps {
 export default function PortfolioManagerView({
   stocks,
   portfolios,
-  onUpdatePortfolios,
   onCreatePortfolio,
+  onDeletePortfolio,
   activePortfolioId,
   onSelectPortfolioId,
   onExecuteTrade,
@@ -60,37 +60,31 @@ export default function PortfolioManagerView({
     const name = newPortfolioName.trim();
     if (!name) return;
 
-    if (onCreatePortfolio) {
-      const createdId = await Promise.resolve(onCreatePortfolio(name));
-      if (createdId) {
-        onSelectPortfolioId(String(createdId));
-      }
+    try {
+      const createdId = await onCreatePortfolio(name);
+      onSelectPortfolioId(createdId);
       setNewPortfolioName('');
-      return;
+    } catch (error) {
+      console.error('Failed to create portfolio', error);
+      alert('Portfolio could not be created. Please try again.');
     }
-
-    const newPort: Portfolio = {
-      id: `port-${Date.now()}`,
-      name,
-      holdings: [],
-    };
-
-    const updated = [...portfolios, newPort];
-    onUpdatePortfolios(updated);
-    onSelectPortfolioId(newPort.id);
-    setNewPortfolioName('');
   };
 
-  // Handle deleting the current portfolio
-  const handleDeletePortfolio = (id: string) => {
+  // Handle deleting the current portfolio through the backend portfolio API.
+  const handleDeletePortfolio = async (id: string) => {
     if (portfolios.length <= 1) {
       alert('At least one portfolio is required.');
       return;
     }
     if (confirm('Delete this portfolio?')) {
-      const updated = portfolios.filter(p => p.id !== id);
-      onUpdatePortfolios(updated);
-      onSelectPortfolioId(updated[0].id);
+      try {
+        await onDeletePortfolio(id);
+        const next = portfolios.find(p => p.id !== id);
+        if (next) onSelectPortfolioId(next.id);
+      } catch (error) {
+        console.error('Failed to delete portfolio', error);
+        alert('Portfolio could not be deleted. Please try again.');
+      }
     }
   };
 
@@ -169,7 +163,7 @@ export default function PortfolioManagerView({
       const notesIndex = indexOf('notes');
 
       if ([symbolIndex, typeIndex, quantityIndex, priceIndex].some(index => index < 0)) {
-        alert('CSV kolonlari symbol,type,quantity,price alanlarini icermelidir.');
+        alert('CSV columns must include symbol, type, quantity, and price.');
         return;
       }
 
@@ -196,7 +190,7 @@ export default function PortfolioManagerView({
         imported += 1;
       }
 
-      alert(`${imported} CSV islemi ice aktarildi.`);
+      alert(`${imported} CSV transactions were imported.`);
     } finally {
       setImportingCsv(false);
     }

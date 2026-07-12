@@ -11,6 +11,39 @@ public interface LlmInsightPort {
 
     Optional<FullAnalysisResult> getFullAnalysis(String symbol);
 
+    Optional<DecisionSupportResult> generateDecisionSupport(DecisionSupportRequest request);
+
+
+    record DecisionSupportRequest(
+            String symbol,
+            PortfolioContext portfolioContext,
+            String userScenario
+    ) {
+    }
+
+    record PortfolioContext(
+            Double currentWeight,
+            Double targetWeight,
+            Double deviation,
+            Boolean rebalanceNeeded
+    ) {
+    }
+
+    record DecisionSupportResult(
+            String symbol,
+            String executiveSummary,
+            String primarySignal,
+            Integer convictionLevel,
+            List<String> bullCase,
+            List<String> bearCase,
+            java.util.Map<String, Double> criticalLevels,
+            String riskReward,
+            String timeHorizon,
+            List<String> watchlistItems,
+            String fullAnalysis,
+            Long generatedAt
+    ) {
+    }
     record InsightResult(
             String symbol,
             String insight,
