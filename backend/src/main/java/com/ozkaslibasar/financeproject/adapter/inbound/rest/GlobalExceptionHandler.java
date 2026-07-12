@@ -2,7 +2,6 @@ package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +17,6 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
-import java.io.IOException;
 import java.util.stream.Collectors;
 
 /**
@@ -89,26 +87,16 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ResponseStatusException.class)
-    public void handleResponseStatus(
-            ResponseStatusException ex, HttpServletRequest request, HttpServletResponse response) throws IOException {
+    public ResponseEntity<ErrorResponse> handleResponseStatus(
+            ResponseStatusException ex, HttpServletRequest request) {
         int statusCode = ex.getStatusCode().value();
         HttpStatus status = HttpStatus.resolve(statusCode);
         HttpStatus resolved = status != null ? status : HttpStatus.INTERNAL_SERVER_ERROR;
         String message = ex.getReason() != null ? ex.getReason() : resolved.getReasonPhrase();
         log.debug("Response status exception at {}: {} {}", request.getRequestURI(), statusCode, message);
 
-        response.sendError(statusCode, message);
-        response.setContentType(org.springframework.http.MediaType.APPLICATION_JSON_VALUE);
-        String json = String.format(
-                "{\"timestamp\":\"%s\",\"status\":%d,\"error\":\"%s\",\"message\":\"%s\",\"path\":\"%s\"}",
-                java.time.Instant.now(),
-                statusCode,
-                escapeJson(resolved.getReasonPhrase()),
-                escapeJson(message),
-                escapeJson(request.getRequestURI())
-        );
-        response.getWriter().write(json);
-        response.getWriter().flush();
+        return ResponseEntity.status(statusCode)
+                .body(ErrorResponse.of(statusCode, resolved.getReasonPhrase(), message, request.getRequestURI()));
     }
 
     @ExceptionHandler(RuntimeException.class)
@@ -125,10 +113,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGeneral(Exception ex, HttpServletRequest request) {
         log.error("Unexpected error at {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         return error(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred", request);
-    }
-
-    private String escapeJson(String value) {
-        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private ResponseEntity<ErrorResponse> error(HttpStatus status, String message, HttpServletRequest request) {

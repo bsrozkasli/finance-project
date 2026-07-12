@@ -459,7 +459,7 @@ export default function PortfolioManagerView({
             <form onSubmit={handleCreatePortfolio} className="flex gap-2 bg-surface-container-low border border-outline-variant/30 p-1.5 rounded-xl">
               <input
                 type="text"
-                placeholder="Example: Added to the position after a confirmed support bounce..."
+                placeholder="New portfolio name..."
                 value={newPortfolioName}
                 onChange={(e) => setNewPortfolioName(e.target.value)}
                 className="bg-bg-base border-none rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none w-36 font-sans"

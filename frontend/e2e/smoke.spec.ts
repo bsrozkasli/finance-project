@@ -2,6 +2,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from './fixtures';
 
 const API_BASE = 'http://localhost:8080/api/v1';
+const integrated = process.env.E2E_INTEGRATED === 'true';
+
+test.skip(integrated, 'Mocked smoke tests are disabled in integrated mode; use integrated.spec.ts for real backend smoke.');
 
 const priceBars = [
   { assetId: 'AAPL', open: 100, high: 105, low: 99, close: 102, volume: 1000, timestamp: '2026-07-08T20:00:00Z' },
@@ -10,6 +13,8 @@ const priceBars = [
 ];
 
 test.beforeEach(async ({ page }) => {
+  if (integrated) return;
+
   await page.route(`${API_BASE}/**`, async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -134,7 +139,7 @@ test('opens shell actions without leaving the backend API boundary', async ({ pa
   await expect(page.getByText(/Trading Journal/i).last()).toBeVisible();
 });
 
-test('has no critical accessibility violations on the mocked dashboard', async ({ page }) => {
+test('has no critical accessibility violations on the dashboard', async ({ page }) => {
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
   const results = await new AxeBuilder({ page }).analyze();

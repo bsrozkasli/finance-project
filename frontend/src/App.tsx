@@ -66,12 +66,18 @@ function PortfolioRoute({
   stocks: Stock[];
 }) {
   const { portfolioId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (portfolioId && portfolioId !== activePortfolioId) {
       onSelectPortfolioId(portfolioId);
     }
   }, [activePortfolioId, onSelectPortfolioId, portfolioId]);
+
+  const handleSelectPortfolioId = (id: string) => {
+    onSelectPortfolioId(id);
+    navigate(`/portfolio/${id}`);
+  };
 
   return (
     <PortfolioManagerView
@@ -80,7 +86,7 @@ function PortfolioRoute({
       onCreatePortfolio={onCreatePortfolio}
       onDeletePortfolio={onDeletePortfolio}
       activePortfolioId={portfolioId ?? activePortfolioId}
-      onSelectPortfolioId={onSelectPortfolioId}
+      onSelectPortfolioId={handleSelectPortfolioId}
       onExecuteTrade={onExecuteTrade}
       onOpenTradingJournal={onOpenTradingJournal}
     />
@@ -105,20 +111,16 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTradingJournalOpen, setIsTradingJournalOpen] = useState(false);
 
-  const { assets } = useAssets();
+  const { assets, addAssets } = useAssets();
   const {
     portfolios: apiPortfolios,
     holdings: apiHoldings,
+    createPortfolio: createApiPortfolio,
+    deletePortfolio: deleteApiPortfolio,
+    setSelectedPortfolioId: setApiPortfolioId,
     reload: reloadInvestmentPortfolio,
-    createPortfolio: createInvestmentPortfolioRecord,
-    deletePortfolio: deleteInvestmentPortfolioRecord,
-  } = useInvestmentPortfolio(null);
-  const {
-    watchlists: apiWatchlists,
-    createList: createWatchlistRecord,
-    addSymbol: addWatchlistSymbolRecord,
-    reload: reloadWatchlists,
-  } = useWatchlists();
+  } = useInvestmentPortfolio(numericPortfolioId(activePortfolioId) ?? null);
+  const { watchlists: apiWatchlists, createList: createApiWatchlist, addSymbol: addApiWatchlistSymbol } = useWatchlists();
   const {
     trades: journalTrades,
     addTrade: addJournalTradeRecord,
@@ -283,7 +285,6 @@ export default function App() {
     return portfolios.find((p) => p.id === activePortfolioId) || portfolios[0] || null;
   }, [portfolios, activePortfolioId]);
 
-
   const saveActivePortfolioIdState = (id: string) => {
     setActivePortfolioId(id);
   };
@@ -293,35 +294,40 @@ export default function App() {
     localStorage.setItem('nexus_volatility', v);
   };
 
-  // 4. Watchlist handlers are persisted through the backend watchlist API.
+  // 4. Watchlist handlers
   const handleAddStockToWatchlist = async (watchlistId: string, symbol: string) => {
-    const numericId = Number(watchlistId);
-    if (!Number.isFinite(numericId)) return;
-    await addWatchlistSymbolRecord(numericId, symbol);
-    await reloadWatchlists();
+    const normalizedSymbol = symbol.trim().toUpperCase();
+    const numericWatchlistId = Number(watchlistId);
+    if (!normalizedSymbol || !Number.isFinite(numericWatchlistId)) return;
+
+    if (!assets.some((asset) => asset.symbol === normalizedSymbol)) {
+      await addAssets([normalizedSymbol]);
+    }
+
+    await addApiWatchlistSymbol(numericWatchlistId, normalizedSymbol);
   };
 
   const handleAddWatchlist = async (name: string) => {
-    const created = await createWatchlistRecord(name);
-    await reloadWatchlists();
+    const created = await createApiWatchlist(name);
     return created.id.toString();
   };
 
   const handleCreatePortfolio = async (name: string) => {
-    const created = await createInvestmentPortfolioRecord({
+    const created = await createApiPortfolio({
       name,
       baseCurrency: 'USD',
       defaultPortfolio: portfolios.length === 0,
     });
-    await reloadInvestmentPortfolio();
-    setActivePortfolioId(created.id.toString());
-    return created.id.toString();
+    const id = String(created.id);
+    setApiPortfolioId(created.id);
+    setActivePortfolioId(id);
+    return id;
   };
 
   const handleDeletePortfolio = async (id: string) => {
     const numericId = numericPortfolioId(id);
     if (!numericId) return;
-    await deleteInvestmentPortfolioRecord(numericId);
+    await deleteApiPortfolio(numericId);
     await reloadInvestmentPortfolio();
   };
 
