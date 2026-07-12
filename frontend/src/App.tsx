@@ -3,7 +3,7 @@ import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-do
 import type { CalendarEvent, News, Stock, Trade, Watchlist, Portfolio } from './types';
 import type { CategorizedNewsItem, EconomicEvent, JournalTrade } from './api/client';
 import type { PriceHistory } from './api/types';
-import { createPortfolioTransaction, deletePortfolioTransaction, fetchBatchPriceHistory, fetchEconomicEvents, fetchPortfolioNews } from './api/client';
+import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction, fetchBatchPriceHistory, fetchEconomicEvents, fetchPortfolioNews } from './api/client';
 
 import { useAssets } from './hooks/useAssets';
 import { useInvestmentPortfolio } from './hooks/useInvestmentPortfolio';
@@ -52,6 +52,7 @@ function PortfolioRoute({
   onSelectPortfolioId,
   onUpdatePortfolios,
   onCreatePortfolio,
+  onDeletePortfolio,
   onExecuteTrade,
   onOpenTradingJournal,
   stocks,
@@ -61,6 +62,7 @@ function PortfolioRoute({
   onSelectPortfolioId: (id: string) => void;
   onUpdatePortfolios: (portfolios: Portfolio[]) => void;
   onCreatePortfolio: (name: string) => Promise<string>;
+  onDeletePortfolio: (id: string) => Promise<void>;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void>;
   onOpenTradingJournal: () => void;
   stocks: Stock[];
@@ -85,6 +87,7 @@ function PortfolioRoute({
       portfolios={portfolios}
       onUpdatePortfolios={onUpdatePortfolios}
       onCreatePortfolio={onCreatePortfolio}
+      onDeletePortfolio={onDeletePortfolio}
       activePortfolioId={portfolioId ?? activePortfolioId}
       onSelectPortfolioId={handleSelectPortfolioId}
       onExecuteTrade={onExecuteTrade}
@@ -316,11 +319,35 @@ export default function App() {
   const handleCreatePortfolio = async (name: string) => {
     const created = await createApiPortfolio({ name, baseCurrency: 'USD' });
     const id = String(created.id);
+    setPortfolios(prev => [
+      { id, name: created.name, holdings: [] },
+      ...prev.filter((portfolio) => portfolio.id !== id),
+    ]);
     setApiPortfolioId(created.id);
     setActivePortfolioId(id);
     return id;
   };
 
+
+  const handleDeletePortfolio = async (id: string) => {
+    const numericId = numericPortfolioId(id);
+    if (!numericId) {
+      throw new Error('Portfolio cannot be deleted because its identifier is invalid.');
+    }
+    const nextPortfolio = portfolios.find((portfolio) => portfolio.id !== id) ?? null;
+    await deleteInvestmentPortfolio(numericId);
+    setPortfolios(prev => prev.filter((portfolio) => portfolio.id !== id));
+    if (nextPortfolio) {
+      const nextId = numericPortfolioId(nextPortfolio.id);
+      if (nextId) {
+        setApiPortfolioId(nextId);
+      }
+      setActivePortfolioId(nextPortfolio.id);
+    } else {
+      setActivePortfolioId('');
+    }
+    await reloadInvestmentPortfolio();
+  };
   // 5. Ledger & Transaction execution coordinates (API-backed journal)
   const handleExecuteTrade = async (newTrade: Omit<Trade, 'id' | 'date'>) => {
     const targetPortfolioId = newTrade.portfolioId || activePortfolioId;
@@ -594,6 +621,7 @@ export default function App() {
                 portfolios={portfolios}
                 onUpdatePortfolios={savePortfoliosState}
                 onCreatePortfolio={handleCreatePortfolio}
+                onDeletePortfolio={handleDeletePortfolio}
                 activePortfolioId={activePortfolioId}
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}
@@ -606,6 +634,7 @@ export default function App() {
                 portfolios={portfolios}
                 onUpdatePortfolios={savePortfoliosState}
                 onCreatePortfolio={handleCreatePortfolio}
+                onDeletePortfolio={handleDeletePortfolio}
                 activePortfolioId={activePortfolioId}
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}

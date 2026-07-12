@@ -29,4 +29,19 @@ public class AssetEntity {
 
     @Column(name = "type", nullable = false, length = 20)
     private String type;
+
+    @Column(name = "exchange", length = 40)
+    private String exchange;
+
+    @Column(name = "currency", length = 10)
+    private String currency;
+
+    @Column(name = "provider", length = 40)
+    private String provider;
+
+    @Column(name = "provider_symbol", length = 40)
+    private String providerSymbol;
+
+    @Column(name = "metadata_status", nullable = false, length = 20)
+    private String metadataStatus;
 }

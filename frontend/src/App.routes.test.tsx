@@ -16,6 +16,8 @@ const installShellHandlers = () => {
     http.get(apiUrl('/portfolios'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolio/summary'), () => HttpResponse.json({ totalValue: 0, cashBalance: 0, dailyPnL: 0, dailyPnLPercent: 0, totalPnL: 0, totalReturn: 0 })),
     http.get(apiUrl('/portfolio/performance'), () => HttpResponse.json({ period: '1M', series: [] })),
+    http.get(apiUrl('/portfolio/performance/comparison'), () => HttpResponse.json({ period: '6M', series: [] })),
+    http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolio/allocation'), () => HttpResponse.json({ bySector: [], byAsset: [], byCountry: [] })),
     http.get(apiUrl('/portfolio/positions/enriched'), () => HttpResponse.json([])),
     http.get(apiUrl('/watchlists'), () => HttpResponse.json([])),

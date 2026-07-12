@@ -290,3 +290,69 @@ The following are hard stops. Do not do them under any circumstances:
 - Change an existing endpoint path or DTO field name without updating all consumers.
 - Add `@Service`/`@Component`/`@Repository` to domain classes.
 - Modify already-applied Flyway migration files (create a new migration instead).
+
+---
+
+## 11. Permanent rules for testing tasks
+
+These rules apply to any task whose goal is to write, extend, or generate tests.
+
+### 11.1 Scope boundaries
+
+- Do not modify production source code when the task is only about tests.
+- Only create or edit files under the relevant test directory:
+  - Backend: `backend/src/test/java/...`
+  - Data-service: `data-service/tests/...`
+  - Frontend: `frontend/src/...` test files only, if a test-only task explicitly requires them
+- If a test turns red, that is evidence of a bug or mismatch; do not fix the source code unless the task explicitly asks for code changes.
+
+### 11.2 Expected values must be independent
+
+- Do not derive expected values by reading the implementation and copying its output back into the test.
+- For tests with formulas or business rules, derive expected values independently using one of these methods:
+  1. Hand-calculated mathematical or financial formula
+  2. Written requirement or specification
+  3. Logical deduction from multiple independent scenarios
+- If a test intentionally mirrors the implementation because no other safe source exists, mark the docstring or test comment with:
+  `# EXPECTED_SOURCE: mirrors_implementation (RİSKLİ)`
+
+### 11.3 Red tests must stay red
+
+- Never hide a failing test by loosening assertions, swallowing exceptions with `try/except`, deleting the test, or skipping it after it fails.
+- If a failure is real, leave the test as-is and report the issue separately.
+
+### 11.4 Ambiguous behavior
+
+- If the expected behavior is not documented or cannot be inferred safely, mark the test as `xfail` or `skip`.
+- Add the case to an `AMBIGUOUS_BEHAVIOR` list so a human can decide the intended behavior later.
+
+### 11.5 Mocking discipline
+
+- Mock only I/O boundaries: external APIs, DB, filesystem, clock, or randomness.
+- Do not mock the logic under test.
+- Write a one-line reason for every mocked dependency.
+- For this repository, external financial APIs such as YFinance, Tiingo, and Finnhub must never be called live in tests; use stubs or wire-level mocks instead.
+
+### 11.6 Bug reporting after test work
+
+- After writing and running tests, log every red test in a JSONL file under `test-results/`.
+- Use the format `test-results/bugs-found-{modül}.jsonl`.
+- Each JSONL line must include these fields:
+  - `test_name`
+  - `source_file`
+  - `source_line`
+  - `expected`
+  - `actual`
+  - `hypothesis`
+  - `severity` (`critical` | `high` | `medium` | `low`)
+
+### 11.7 Work in small slices
+
+- If a task spans multiple modules or test suites, do not attempt everything in one pass.
+- Work module by module, finish one slice, then record the results before moving on.
+
+### 11.8 Runtime-specific reminders
+
+- Backend test tasks should follow Mockito/JUnit5 style and keep domain classes framework-free.
+- Data-service test tasks should be pytest-based, aggressively cover boundary conditions, and use `pandas.testing.assert_frame_equal` whenever DataFrame-producing or DataFrame-transforming functions are tested.
+- When the user explicitly asks only for a prompt, do not create or modify test files; provide the prompt text instead.
