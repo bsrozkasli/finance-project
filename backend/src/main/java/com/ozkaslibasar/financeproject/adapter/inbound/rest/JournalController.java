@@ -1,11 +1,12 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.domain.model.JournalTrade;
+import com.ozkaslibasar.financeproject.domain.model.JournalTradeCommand;
+import com.ozkaslibasar.financeproject.domain.model.JournalTradePage;
+import com.ozkaslibasar.financeproject.domain.model.JournalTradeStats;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeStatus;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeType;
-import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
-import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
-import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
+import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
@@ -25,12 +26,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.NoSuchElementException;
 
 @Tag(name = "Journal", description = "Trading journal management")
 @RestController
@@ -40,8 +38,7 @@ public class JournalController {
 
     private static final String DEFAULT_USER = "default";
 
-    private final JournalTradePort tradePort;
-    private final PriceRefreshService priceRefreshService;
+    private final JournalTradeService journalTradeService;
 
     @Operation(summary = "GET Journal endpoint", description = "Implements the GET operation for the Journal API described in SPEC.md sections 7 and 8.")
     @ApiResponses({
@@ -60,13 +57,8 @@ public class JournalController {
     public PagedResponse<JournalTrade> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
-        List<JournalTrade> all = enrichOpenTrades(tradePort.findByUserId(DEFAULT_USER));
-        int safeSize = Math.max(size, 1);
-        int safePage = Math.max(page, 0);
-        int from = Math.min(safePage * safeSize, all.size());
-        int to = Math.min(from + safeSize, all.size());
-        int totalPages = all.isEmpty() ? 0 : (int) Math.ceil((double) all.size() / safeSize);
-        return new PagedResponse<>(all.subList(from, to), all.size(), totalPages, safePage);
+        JournalTradePage result = journalTradeService.list(DEFAULT_USER, page, size);
+        return new PagedResponse<>(result.content(), result.totalElements(), result.totalPages(), result.number());
     }
 
     @Operation(summary = "GET Journal endpoint", description = "Implements the GET operation for the Journal API described in SPEC.md sections 7 and 8.")
@@ -84,25 +76,15 @@ public class JournalController {
     })
     @GetMapping("/stats")
     public JournalStats stats() {
-        List<JournalTrade> all = enrichOpenTrades(tradePort.findByUserId(DEFAULT_USER));
-        int openTrades = (int) all.stream().filter(trade -> trade.status() == JournalTradeStatus.OPEN).count();
-        List<JournalTrade> closed = all.stream().filter(trade -> trade.status() == JournalTradeStatus.CLOSED).toList();
-        long wins = closed.stream().filter(trade -> trade.returnPct().compareTo(BigDecimal.ZERO) > 0).count();
-        BigDecimal avgReturn = closed.isEmpty()
-                ? BigDecimal.ZERO
-                : closed.stream().map(JournalTrade::returnPct).reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(closed.size()), 4, RoundingMode.HALF_UP);
-        String best = all.stream().max((left, right) -> left.returnPct().compareTo(right.returnPct()))
-                .map(JournalTrade::symbol)
-                .orElse(null);
-        String worst = all.stream().min((left, right) -> left.returnPct().compareTo(right.returnPct()))
-                .map(JournalTrade::symbol)
-                .orElse(null);
-        BigDecimal winRate = closed.isEmpty()
-                ? BigDecimal.ZERO
-                : BigDecimal.valueOf(wins).multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(closed.size()), 4, RoundingMode.HALF_UP);
-        return new JournalStats(all.size(), openTrades, closed.size(), winRate, avgReturn, best, worst);
+        JournalTradeStats stats = journalTradeService.stats(DEFAULT_USER);
+        return new JournalStats(
+                stats.totalTrades(),
+                stats.openTrades(),
+                stats.closedTrades(),
+                stats.winRate(),
+                stats.avgReturn(),
+                stats.bestTrade(),
+                stats.worstTrade());
     }
 
     @Operation(summary = "POST Journal endpoint", description = "Implements the POST operation for the Journal API described in SPEC.md sections 7 and 8.")
@@ -121,7 +103,7 @@ public class JournalController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public JournalTrade add(@RequestBody JournalTradeRequest request) {
-        return tradePort.save(toTrade(null, request));
+        return handleBadRequest(() -> journalTradeService.add(toCommand(request)));
     }
 
     @Operation(summary = "PUT Journal endpoint", description = "Implements the PUT operation for the Journal API described in SPEC.md sections 7 and 8.")
@@ -139,9 +121,11 @@ public class JournalController {
     })
     @PutMapping("/{id}")
     public JournalTrade update(@PathVariable long id, @RequestBody JournalTradeRequest request) {
-        tradePort.findByIdAndUserId(id, DEFAULT_USER)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trade not found: " + id));
-        return tradePort.save(toTrade(id, request));
+        try {
+            return handleBadRequest(() -> journalTradeService.update(id, toCommand(request)));
+        } catch (NoSuchElementException ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage(), ex);
+        }
     }
 
     @Operation(summary = "DELETE Journal endpoint", description = "Implements the DELETE operation for the Journal API described in SPEC.md sections 7 and 8.")
@@ -160,122 +144,43 @@ public class JournalController {
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable long id) {
-        tradePort.findByIdAndUserId(id, DEFAULT_USER)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Trade not found: " + id));
-        tradePort.deleteByIdAndUserId(id, DEFAULT_USER);
+        try {
+            journalTradeService.delete(id, DEFAULT_USER);
+        } catch (NoSuchElementException ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage(), ex);
+        }
     }
 
-    private JournalTrade toTrade(Long id, JournalTradeRequest request) {
+    private JournalTradeCommand toCommand(JournalTradeRequest request) {
+        return new JournalTradeCommand(
+                DEFAULT_USER,
+                request.symbol(),
+                request.company(),
+                request.type(),
+                request.quantity(),
+                request.purchasePrice(),
+                request.currentPrice(),
+                request.openedAt(),
+                request.closedAt(),
+                request.status(),
+                request.commission(),
+                request.portfolioId(),
+                request.transactionId(),
+                request.strategy(),
+                request.notes(),
+                request.tags());
+    }
+
+    private JournalTrade handleBadRequest(JournalCommand command) {
         try {
-            BigDecimal quantity = request.quantity();
-            BigDecimal purchasePrice = request.purchasePrice();
-            BigDecimal commission = request.commission() == null ? BigDecimal.ZERO : request.commission();
-            LocalDate closedAt = request.closedAt();
-            JournalTradeStatus status = request.status() == null
-                    ? (closedAt == null ? JournalTradeStatus.OPEN : JournalTradeStatus.CLOSED)
-                    : request.status();
-            BigDecimal currentPrice = resolveCurrentPrice(request.symbol(), request.currentPrice(), purchasePrice, status);
-            BigDecimal marketValue = quantity.multiply(currentPrice);
-            BigDecimal pnl = currentPrice.subtract(purchasePrice).multiply(quantity).subtract(commission);
-            BigDecimal costBasis = purchasePrice.multiply(quantity).add(commission);
-            BigDecimal returnPct = costBasis.compareTo(BigDecimal.ZERO) == 0
-                    ? BigDecimal.ZERO
-                    : pnl.multiply(BigDecimal.valueOf(100)).divide(costBasis, 4, RoundingMode.HALF_UP);
-            return new JournalTrade(
-                    id,
-                    DEFAULT_USER,
-                    request.symbol(),
-                    request.company(),
-                    request.type(),
-                    quantity,
-                    purchasePrice,
-                    currentPrice,
-                    marketValue,
-                    commission,
-                    request.strategy(),
-                    request.notes(),
-                    request.tags(),
-                    request.openedAt(),
-                    closedAt,
-                    status,
-                    pnl,
-                    returnPct,
-                    null,
-                    request.portfolioId(),
-                    request.transactionId(),
-                    null,
-                    null);
+            return command.execute();
         } catch (IllegalArgumentException | NullPointerException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
         }
     }
 
-    private List<JournalTrade> enrichOpenTrades(List<JournalTrade> trades) {
-        Map<String, Optional<BigDecimal>> latestPriceBySymbol = new HashMap<>();
-        return trades.stream()
-                .map(trade -> enrichOpenTrade(trade, latestPriceBySymbol))
-                .toList();
-    }
-
-    private JournalTrade enrichOpenTrade(JournalTrade trade, Map<String, Optional<BigDecimal>> latestPriceBySymbol) {
-        if (trade.status() != JournalTradeStatus.OPEN) {
-            return trade;
-        }
-        Optional<BigDecimal> latestPrice = latestPriceBySymbol.computeIfAbsent(
-                trade.symbol(),
-                symbol -> priceRefreshService.getFreshLatest(symbol).map(PriceHistory::close));
-        return latestPrice
-                .map(price -> withCurrentPrice(trade, price))
-                .orElse(trade);
-    }
-
-    private JournalTrade withCurrentPrice(JournalTrade trade, BigDecimal currentPrice) {
-        BigDecimal marketValue = trade.quantity().multiply(currentPrice);
-        BigDecimal pnl = currentPrice.subtract(trade.purchasePrice()).multiply(trade.quantity()).subtract(trade.commission());
-        BigDecimal costBasis = trade.purchasePrice().multiply(trade.quantity()).add(trade.commission());
-        BigDecimal returnPct = costBasis.compareTo(BigDecimal.ZERO) == 0
-                ? BigDecimal.ZERO
-                : pnl.multiply(BigDecimal.valueOf(100)).divide(costBasis, 4, RoundingMode.HALF_UP);
-        return new JournalTrade(
-                trade.id(),
-                trade.userId(),
-                trade.symbol(),
-                trade.company(),
-                trade.type(),
-                trade.quantity(),
-                trade.purchasePrice(),
-                currentPrice,
-                marketValue,
-                trade.commission(),
-                trade.strategy(),
-                trade.notes(),
-                trade.tags(),
-                trade.openedAt(),
-                trade.closedAt(),
-                trade.status(),
-                pnl,
-                returnPct,
-                null,
-                trade.portfolioId(),
-                trade.transactionId(),
-                trade.createdAt(),
-                trade.updatedAt());
-    }
-
-    private BigDecimal resolveCurrentPrice(
-            String symbol,
-            BigDecimal requestedCurrentPrice,
-            BigDecimal fallbackPrice,
-            JournalTradeStatus status) {
-        if (requestedCurrentPrice != null) {
-            return requestedCurrentPrice;
-        }
-        if (status == JournalTradeStatus.OPEN) {
-            return priceRefreshService.getFreshLatest(symbol)
-                    .map(PriceHistory::close)
-                    .orElse(fallbackPrice);
-        }
-        return fallbackPrice;
+    private interface JournalCommand {
+        JournalTrade execute();
     }
 
     public record JournalTradeRequest(
