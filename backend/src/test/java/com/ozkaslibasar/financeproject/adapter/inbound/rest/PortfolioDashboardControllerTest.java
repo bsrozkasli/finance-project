@@ -1,8 +1,13 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+import com.ozkaslibasar.financeproject.domain.model.Portfolio;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioPosition;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,6 +35,12 @@ class PortfolioDashboardControllerTest {
 
     @MockitoBean
     private PortfolioPositionPort positionPort;
+
+    @MockitoBean
+    private PortfolioPort portfolioPort;
+
+    @MockitoBean
+    private PortfolioLedgerService ledgerService;
 
     @MockitoBean
     private PriceRefreshService priceRefreshService;
@@ -81,6 +92,39 @@ class PortfolioDashboardControllerTest {
         mockMvc.perform(get("/api/v1/portfolio/performance?period=1M"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.series.length()").value(0));
+    }
+
+    @Test
+    void shouldReturnEmptyComparisonSeriesWhenProviderDataIsUnavailable() throws Exception {
+        mockMvc.perform(get("/api/v1/portfolio/performance/comparison?period=6M"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.period").value("6M"))
+                .andExpect(jsonPath("$.series.length()").value(0));
+    }
+
+    @Test
+    void shouldReturnLedgerPositionPerformanceWithoutFabricatingMissingPrices() throws Exception {
+        when(portfolioPort.findByIdAndUserId(3L, "default"))
+                .thenReturn(Optional.of(new Portfolio(3L, "default", "test", "USD", null, true, null, null)));
+        when(ledgerService.calculateHoldings(3L, "default"))
+                .thenReturn(List.of(new PortfolioHolding(
+                        3L,
+                        "MSFT",
+                        PortfolioAssetType.US_STOCK,
+                        new BigDecimal("2"),
+                        new BigDecimal("100"),
+                        new BigDecimal("200"),
+                        BigDecimal.ZERO,
+                        "USD")));
+        when(priceRefreshService.getFreshLatest("MSFT"))
+                .thenReturn(Optional.empty());
+
+        mockMvc.perform(get("/api/v1/portfolio/positions/performance?portfolioId=3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].symbol").value("MSFT"))
+                .andExpect(jsonPath("$[0].costPrice").value(100))
+                .andExpect(jsonPath("$[0].currentPrice").doesNotExist())
+                .andExpect(jsonPath("$[0].marketValue").value(0));
     }
 
     @Test

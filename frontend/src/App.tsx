@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { CalendarEvent, News, Stock, Trade, Watchlist, Portfolio } from './types';
 import type { CategorizedNewsItem, EconomicEvent, JournalTrade } from './api/client';
 import type { PriceHistory } from './api/types';
-import { createPortfolioTransaction, deletePortfolioTransaction, fetchBatchPriceHistory, fetchEconomicEvents, fetchPortfolioNews } from './api/client';
+import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction, fetchBatchPriceHistory, fetchEconomicEvents, fetchPortfolioNews } from './api/client';
 
 import { useAssets } from './hooks/useAssets';
 import { useInvestmentPortfolio } from './hooks/useInvestmentPortfolio';
@@ -45,6 +45,56 @@ const numericPortfolioId = (id: string | undefined): number | undefined => {
   const parsed = Number(id);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+function PortfolioRoute({
+  portfolios,
+  activePortfolioId,
+  onSelectPortfolioId,
+  onUpdatePortfolios,
+  onCreatePortfolio,
+  onDeletePortfolio,
+  onExecuteTrade,
+  onOpenTradingJournal,
+  stocks,
+}: {
+  portfolios: Portfolio[];
+  activePortfolioId: string;
+  onSelectPortfolioId: (id: string) => void;
+  onUpdatePortfolios: (portfolios: Portfolio[]) => void;
+  onCreatePortfolio: (name: string) => Promise<string>;
+  onDeletePortfolio: (id: string) => Promise<void>;
+  onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void>;
+  onOpenTradingJournal: () => void;
+  stocks: Stock[];
+}) {
+  const { portfolioId } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (portfolioId && portfolioId !== activePortfolioId) {
+      onSelectPortfolioId(portfolioId);
+    }
+  }, [activePortfolioId, onSelectPortfolioId, portfolioId]);
+
+  const handleSelectPortfolioId = (id: string) => {
+    onSelectPortfolioId(id);
+    navigate(`/portfolio/${id}`);
+  };
+
+  return (
+    <PortfolioManagerView
+      stocks={stocks}
+      portfolios={portfolios}
+      onUpdatePortfolios={onUpdatePortfolios}
+      onCreatePortfolio={onCreatePortfolio}
+      onDeletePortfolio={onDeletePortfolio}
+      activePortfolioId={portfolioId ?? activePortfolioId}
+      onSelectPortfolioId={handleSelectPortfolioId}
+      onExecuteTrade={onExecuteTrade}
+      onOpenTradingJournal={onOpenTradingJournal}
+    />
+  );
+}
 export default function App() {
   const navigate = useNavigate();
 
@@ -64,20 +114,15 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTradingJournalOpen, setIsTradingJournalOpen] = useState(false);
 
-  const { assets } = useAssets();
+  const { assets, addAssets } = useAssets();
   const {
     portfolios: apiPortfolios,
     holdings: apiHoldings,
+    createPortfolio: createApiPortfolio,
+    setSelectedPortfolioId: setApiPortfolioId,
     reload: reloadInvestmentPortfolio,
-    createPortfolio: createInvestmentPortfolioRecord,
-    deletePortfolio: deleteInvestmentPortfolioRecord,
-  } = useInvestmentPortfolio(null);
-  const {
-    watchlists: apiWatchlists,
-    createList: createWatchlistRecord,
-    addSymbol: addWatchlistSymbolRecord,
-    reload: reloadWatchlists,
-  } = useWatchlists();
+  } = useInvestmentPortfolio(numericPortfolioId(activePortfolioId) ?? null);
+  const { watchlists: apiWatchlists, createList: createApiWatchlist, addSymbol: addApiWatchlistSymbol } = useWatchlists();
   const {
     trades: journalTrades,
     addTrade: addJournalTradeRecord,
@@ -242,6 +287,8 @@ export default function App() {
     return portfolios.find((p) => p.id === activePortfolioId) || portfolios[0] || null;
   }, [portfolios, activePortfolioId]);
 
+  // 2. State persistence helper triggers (Will eventually be API calls)
+  const savePortfoliosState = (updated: Portfolio[]) => setPortfolios(updated);
 
   const saveActivePortfolioIdState = (id: string) => {
     setActivePortfolioId(id);
@@ -252,38 +299,55 @@ export default function App() {
     localStorage.setItem('nexus_volatility', v);
   };
 
-  // 4. Watchlist handlers are persisted through the backend watchlist API.
+  // 4. Watchlist Handlers
   const handleAddStockToWatchlist = async (watchlistId: string, symbol: string) => {
-    const numericId = Number(watchlistId);
-    if (!Number.isFinite(numericId)) return;
-    await addWatchlistSymbolRecord(numericId, symbol);
-    await reloadWatchlists();
+    const normalizedSymbol = symbol.trim().toUpperCase();
+    const numericWatchlistId = Number(watchlistId);
+    if (!normalizedSymbol || !Number.isFinite(numericWatchlistId)) return;
+
+    if (!assets.some((asset) => asset.symbol === normalizedSymbol)) {
+      await addAssets([normalizedSymbol]);
+    }
+
+    await addApiWatchlistSymbol(numericWatchlistId, normalizedSymbol);
   };
 
   const handleAddWatchlist = async (name: string) => {
-    const created = await createWatchlistRecord(name);
-    await reloadWatchlists();
-    return created.id.toString();
+    await createApiWatchlist(name);
   };
 
   const handleCreatePortfolio = async (name: string) => {
-    const created = await createInvestmentPortfolioRecord({
-      name,
-      baseCurrency: 'USD',
-      defaultPortfolio: portfolios.length === 0,
-    });
-    await reloadInvestmentPortfolio();
-    setActivePortfolioId(created.id.toString());
-    return created.id.toString();
+    const created = await createApiPortfolio({ name, baseCurrency: 'USD' });
+    const id = String(created.id);
+    setPortfolios(prev => [
+      { id, name: created.name, holdings: [] },
+      ...prev.filter((portfolio) => portfolio.id !== id),
+    ]);
+    setApiPortfolioId(created.id);
+    setActivePortfolioId(id);
+    return id;
   };
+
 
   const handleDeletePortfolio = async (id: string) => {
     const numericId = numericPortfolioId(id);
-    if (!numericId) return;
-    await deleteInvestmentPortfolioRecord(numericId);
+    if (!numericId) {
+      throw new Error('Portfolio cannot be deleted because its identifier is invalid.');
+    }
+    const nextPortfolio = portfolios.find((portfolio) => portfolio.id !== id) ?? null;
+    await deleteInvestmentPortfolio(numericId);
+    setPortfolios(prev => prev.filter((portfolio) => portfolio.id !== id));
+    if (nextPortfolio) {
+      const nextId = numericPortfolioId(nextPortfolio.id);
+      if (nextId) {
+        setApiPortfolioId(nextId);
+      }
+      setActivePortfolioId(nextPortfolio.id);
+    } else {
+      setActivePortfolioId('');
+    }
     await reloadInvestmentPortfolio();
   };
-
   // 5. Ledger & Transaction execution coordinates (API-backed journal)
   const handleExecuteTrade = async (newTrade: Omit<Trade, 'id' | 'date'>) => {
     const targetPortfolioId = newTrade.portfolioId || activePortfolioId;
@@ -365,7 +429,7 @@ export default function App() {
       };
     });
 
-    setPortfolios(updatedPortfolios);
+    savePortfoliosState(updatedPortfolios);
   };
 
   const handleRemoveTrade = async (id: string) => {
@@ -432,14 +496,25 @@ export default function App() {
       };
     });
 
-    setPortfolios(updatedPortfolios);
+    savePortfoliosState(updatedPortfolios);
   };
-  // 6. Reset local UI preferences only. Backend portfolio, journal, and watchlist data is not deleted.
+  // 6. Hard Reset to defaults
   const handleResetDatabase = () => {
+    localStorage.removeItem('nexus_stocks');
+    localStorage.removeItem('nexus_watchlists');
+    localStorage.removeItem('nexus_portfolios');
+    localStorage.removeItem('nexus_active_portfolio_id');
     localStorage.removeItem('nexus_volatility');
+
+    setStocks([]);
+    setWatchlists([]);
+    setPortfolios([]);
+    setActivePortfolioId('port-1');
     setVolatility('normal');
+
     localStorage.setItem('nexus_volatility', 'normal');
-    alert('Local UI preferences were reset. Backend data was not deleted.');
+
+    alert('System was restored to factory defaults.');
   };
 
   // renderView is replaced by Routes
@@ -465,7 +540,8 @@ export default function App() {
         {/* Dynamic active view panel */}
         <main className="flex-1 flex flex-col overflow-hidden">
           <Routes>
-            <Route path="/" element={
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={
               <DashboardHome
                 stocks={stocks}
                 portfolios={portfolios}
@@ -478,7 +554,14 @@ export default function App() {
                 calendarEvents={calendarEvents}
               />
             } />
-            <Route path="/charts" element={
+            <Route path="/charts" element={<Navigate to="/workspace" replace />} />
+            <Route path="/workspace" element={
+              <ChartWorkspace
+                stocks={stocks}
+                onSelectStock={(s) => setSelectedStock(s)}
+              />
+            } />
+            <Route path="/workspace/:symbol" element={
               <ChartWorkspace
                 stocks={stocks}
                 onSelectStock={(s) => setSelectedStock(s)}
@@ -500,7 +583,19 @@ export default function App() {
                 news={news}
               />
             } />
+            <Route path="/news/:symbol" element={
+              <NewsFeedView
+                activePortfolio={activePortfolio}
+                news={news}
+              />
+            } />
             <Route path="/reports" element={
+              <AiReportsView
+                holdings={activePortfolio?.holdings ?? []}
+                stocks={stocks}
+              />
+            } />
+            <Route path="/reports/:symbol" element={
               <AiReportsView
                 holdings={activePortfolio?.holdings ?? []}
                 stocks={stocks}
@@ -513,21 +608,41 @@ export default function App() {
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
               />
             } />
-            {['/portfolio', '/portfolios'].map((path) => (
-              <Route key={path} path={path} element={
-                <PortfolioManagerView
-                  stocks={stocks}
-                  portfolios={portfolios}
-                  onCreatePortfolio={handleCreatePortfolio}
-                  onDeletePortfolio={handleDeletePortfolio}
-                  activePortfolioId={activePortfolioId}
-                  onSelectPortfolioId={saveActivePortfolioIdState}
-                  onExecuteTrade={handleExecuteTrade}
-                  onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
-                />
-              } />
-            ))}
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/transactions" element={
+              <TradingJournalView
+                stocks={stocks}
+                portfolios={portfolios}
+                onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
+              />
+            } />
+            <Route path="/portfolio" element={
+              <PortfolioRoute
+                stocks={stocks}
+                portfolios={portfolios}
+                onUpdatePortfolios={savePortfoliosState}
+                onCreatePortfolio={handleCreatePortfolio}
+                onDeletePortfolio={handleDeletePortfolio}
+                activePortfolioId={activePortfolioId}
+                onSelectPortfolioId={saveActivePortfolioIdState}
+                onExecuteTrade={handleExecuteTrade}
+                onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+              />
+            } />
+            <Route path="/portfolio/:portfolioId" element={
+              <PortfolioRoute
+                stocks={stocks}
+                portfolios={portfolios}
+                onUpdatePortfolios={savePortfoliosState}
+                onCreatePortfolio={handleCreatePortfolio}
+                onDeletePortfolio={handleDeletePortfolio}
+                activePortfolioId={activePortfolioId}
+                onSelectPortfolioId={saveActivePortfolioIdState}
+                onExecuteTrade={handleExecuteTrade}
+                onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+              />
+            } />
+            <Route path="/portfolios" element={<Navigate to="/portfolio" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
       </div>
@@ -549,8 +664,15 @@ export default function App() {
         onClose={() => setIsManageAssetsOpen(false)}
         stocks={stocks}
         holdings={activePortfolio ? activePortfolio.holdings : []}
-        portfolioId={activePortfolio?.id}
-        onExecuteTrade={handleExecuteTrade}
+        onUpdateHoldings={(updatedHoldings) => {
+          const updatedPortfolios = portfolios.map((p) => {
+            if (p.id === activePortfolioId) {
+              return { ...p, holdings: updatedHoldings };
+            }
+            return p;
+          });
+          savePortfoliosState(updatedPortfolios);
+        }}
       />
 
       {/* Transaction order input modal */}

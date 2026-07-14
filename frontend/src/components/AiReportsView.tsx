@@ -68,6 +68,10 @@ interface AiReportsViewProps {
   stocks: Stock[];
 }
 
+const formatFiniteNumber = (value: unknown, digits: number) => {
+  return typeof value === 'number' && Number.isFinite(value) ? value.toFixed(digits) : null;
+};
+
 export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) {
   const [reportText, setReportText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -128,52 +132,36 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
     };
   }, [holdings, stockMap]);
 
-  const buildSmartReportText = (type: 'macro' | 'risk' | 'recommendations') => {
-    if (!effectiveSymbol) {
-      return 'Select at least one symbol before requesting a backend smart report.';
-    }
-    if (!smartReport) {
-      return smartReportError || 'Backend smart report data is not available for the selected symbol.';
-    }
-
-    const breakdown = smartReport.breakdown
-      ? Object.entries(smartReport.breakdown)
-          .map(([key, value]) => `- **${key.replace('Score', '')}:** ${value.toFixed(0)} / 100`)
-          .join('\n')
-      : '- Score breakdown is unavailable.';
-
-    const backtestSection = backtest
-      ? `- **Win rate:** ${backtest.winRate.toFixed(1)}%\n- **Average return:** ${backtest.averageReturnPct.toFixed(2)}%`
-      : `- Backtest data is unavailable. ${backtestError ?? ''}`.trim();
-
-    if (type === 'risk') {
-      return `# Risk & Diversification Report\n\n## Selected Symbol\n${effectiveSymbol}\n\n## Smart Report\n- **Overall score:** ${smartReport.overallScore.toFixed(0)} / 100\n- **Grade:** ${smartReport.grade}\n- **Recommendation:** ${smartReport.recommendation}\n\n## Score Breakdown\n${breakdown}\n\n## Risk Readout\nUse the risk, momentum, quality, and valuation scores to review concentration before adding exposure. The backend report does not fabricate unavailable provider data.`;
-    }
-
-    if (type === 'recommendations') {
-      return `# Strategic Optimization Plan\n\n## Selected Symbol\n${effectiveSymbol}\n\n## Backend Recommendation\n- **Recommendation:** ${smartReport.recommendation}\n- **Grade:** ${smartReport.grade}\n- **Overall score:** ${smartReport.overallScore.toFixed(0)} / 100\n\n## Backtest Context\n${backtestSection}\n\n## Action Framework\nReview position size, cost basis, and portfolio concentration before creating BUY or SELL transactions in the ledger.`;
-    }
-
-    return `# Macro Portfolio Analysis\n\n## Portfolio Snapshot\n- **Total value:** $${portfolioSummary.totalValue}\n- **Total return:** ${portfolioSummary.totalReturn}%\n- **Positions:** ${holdings.length}\n\n## Backend Smart Report: ${effectiveSymbol}\n- **Overall score:** ${smartReport.overallScore.toFixed(0)} / 100\n- **Grade:** ${smartReport.grade}\n- **Recommendation:** ${smartReport.recommendation}\n\n## Score Breakdown\n${breakdown}\n\n## Backtest Context\n${backtestSection}`;
-  };
-
-  const handleGenerateReport = (type: 'macro' | 'risk' | 'recommendations') => {
-    setIsLoading(false);
+  const handleGenerateReport = async (type: 'macro' | 'risk' | 'recommendations') => {
     setReportType(type);
+    setIsLoading(true);
     setErrorMessage('');
     setReportText('');
 
-    if (smartReportLoading || backtestLoading) {
-      setErrorMessage('Backend analytics are still loading. Try again in a moment.');
-      return;
-    }
+    try {
+      const response = await fetch('/api/gemini/portfolio-report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          holdings: portfolioSummary.formattedHoldings,
+          totalValue: portfolioSummary.totalValue,
+          totalReturn: portfolioSummary.totalReturn,
+          reportType: type,
+        }),
+      });
 
-    const text = buildSmartReportText(type);
-    if (!smartReport) {
-      setErrorMessage(text);
-      return;
+      const data = await response.json() as { error?: string; text?: string };
+      if (!response.ok) {
+        throw new Error(data.error || 'Generative report failed.');
+      }
+      setReportText(data.text ?? '');
+    } catch (err: unknown) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : 'AI report could not be generated. Check your API key and provider configuration.';
+      setErrorMessage(message);
+    } finally {
+      setIsLoading(false);
     }
-    setReportText(text);
   };
 
   const reportTitle = reportType === 'risk'
@@ -272,7 +260,7 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
               <div className="rounded-lg border border-outline-variant/25 bg-bg-base/40 p-3">
                 <div className="text-[9px] uppercase text-text-muted font-label-caps">Smart Score</div>
                 <div className="mt-1 font-data-mono text-lg font-bold text-primary">
-                  {smartReportLoading ? '...' : smartReport ? `${smartReport.overallScore.toFixed(0)} / 100` : '-'}
+                  {smartReportLoading ? '...' : formatFiniteNumber(smartReport?.overallScore, 0) ? `${formatFiniteNumber(smartReport?.overallScore, 0)} / 100` : '-'}
                 </div>
                 <div className="mt-1 text-[10px] text-text-secondary">
                   {smartReport?.grade ?? smartReport?.recommendation ?? smartReportError ?? 'Provider data unavailable'}
@@ -282,10 +270,10 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
               <div className="rounded-lg border border-outline-variant/25 bg-bg-base/40 p-3">
                 <div className="text-[9px] uppercase text-text-muted font-label-caps">Backtest Win Rate</div>
                 <div className="mt-1 font-data-mono text-lg font-bold text-bull-green">
-                  {backtestLoading ? '...' : backtest ? `${backtest.winRate.toFixed(1)}%` : '-'}
+                  {backtestLoading ? '...' : formatFiniteNumber(backtest?.winRate, 1) ? `${formatFiniteNumber(backtest?.winRate, 1)}%` : '-'}
                 </div>
                 <div className="mt-1 text-[10px] text-text-secondary">
-                  {backtest ? `Avg return ${backtest.averageReturnPct.toFixed(2)}%` : backtestError ?? 'Provider data unavailable'}
+                  {formatFiniteNumber(backtest?.averageReturnPct, 2) ? `Avg return ${formatFiniteNumber(backtest?.averageReturnPct, 2)}%` : backtestError ?? 'Provider data unavailable'}
                 </div>
               </div>
             </div>
@@ -295,7 +283,7 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
                 {Object.entries(smartReport.breakdown).slice(0, 6).map(([key, value]) => (
                   <div key={key} className="flex justify-between gap-2 border-b border-outline-variant/10 py-1">
                     <span>{key.replace('Score', '')}</span>
-                    <span className="font-data-mono font-bold text-text-primary">{value.toFixed(0)}</span>
+                    <span className="font-data-mono font-bold text-text-primary">{formatFiniteNumber(value, 0) ?? '-'}</span>
                   </div>
                 ))}
               </div>
@@ -328,7 +316,7 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
               <div className="text-center">
                 <h4 className="font-headline text-sm font-bold text-text-primary animate-pulse">Generating Institutional Analysis Report</h4>
                 <p className="text-xs text-text-muted mt-1 font-sans">
-                  Backend analytics are preparing the smart report. Please wait...
+                  Gemini 3.5 Flash is calculating portfolio correlations. Please wait...
                 </p>
               </div>
             </div>
@@ -356,7 +344,7 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
                     <h3 className="font-headline text-sm font-bold text-text-primary uppercase tracking-wide">
                       {reportTitle}
                     </h3>
-                    <span className="text-[9px] font-data-mono text-text-muted uppercase">Generated: Today - Source: Backend Smart Report</span>
+                    <span className="text-[9px] font-data-mono text-text-muted uppercase">Generated: Today - Model: Gemini-3.5-Flash</span>
                   </div>
                 </div>
 

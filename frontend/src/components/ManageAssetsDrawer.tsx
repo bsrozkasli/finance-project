@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { X, Briefcase, Plus, Trash2, ArrowUpRight } from 'lucide-react';
-import type { Stock, Holding, Trade } from '../types';
+import type { Stock, Holding } from '../types';
 
 interface ManageAssetsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   stocks: Stock[];
   holdings: Holding[];
-  portfolioId?: string;
-  onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
+  onUpdateHoldings: (newHoldings: Holding[]) => void;
 }
 
 export default function ManageAssetsDrawer({
@@ -16,8 +15,7 @@ export default function ManageAssetsDrawer({
   onClose,
   stocks,
   holdings,
-  portfolioId,
-  onExecuteTrade,
+  onUpdateHoldings,
 }: ManageAssetsDrawerProps) {
   const [selectedSymbol, setSelectedSymbol] = useState(stocks[0]?.symbol || '');
   const [quantity, setQuantity] = useState<number>(1);
@@ -33,47 +31,42 @@ export default function ManageAssetsDrawer({
     }
   };
 
-  const handleAddAsset = async (e: React.FormEvent) => {
+  const handleAddAsset = (e: React.FormEvent) => {
     e.preventDefault();
     if (quantity <= 0 || costPrice <= 0) {
       alert('Enter a valid quantity and cost basis.');
       return;
     }
 
-    try {
-      await onExecuteTrade({
+    const updated = [...holdings];
+    const index = updated.findIndex((h) => h.symbol === selectedSymbol);
+
+    if (index >= 0) {
+      const existing = updated[index];
+      const newQty = existing.quantity + quantity;
+      const newCost = (existing.quantity * existing.costPrice + quantity * costPrice) / newQty;
+
+      updated[index] = {
         symbol: selectedSymbol,
-        type: 'BUY',
+        quantity: newQty,
+        costPrice: Math.round(newCost * 100) / 100,
+      };
+    } else {
+      updated.push({
+        symbol: selectedSymbol,
         quantity,
-        price: costPrice,
-        notes: selectedSymbol + ' position added from portfolio drawer.',
-        portfolioId,
+        costPrice,
       });
-      alert(selectedSymbol + ' was saved to the backend portfolio ledger.');
-    } catch (error) {
-      console.error('Failed to save portfolio position', error);
-      alert('Position could not be saved. Please try again.');
     }
+
+    onUpdateHoldings(updated);
+    alert(`${selectedSymbol} was saved to the portfolio.`);
   };
 
-  const handleRemoveAsset = async (symbol: string) => {
-    const holding = holdings.find((item) => item.symbol === symbol);
-    if (!holding) return;
-    if (!confirm('Record a SELL transaction to close ' + symbol + '?')) return;
-
-    const stock = stocks.find((item) => item.symbol === symbol);
-    try {
-      await onExecuteTrade({
-        symbol,
-        type: 'SELL',
-        quantity: holding.quantity,
-        price: stock?.price ?? holding.costPrice,
-        notes: symbol + ' position closed from portfolio drawer.',
-        portfolioId,
-      });
-    } catch (error) {
-      console.error('Failed to close portfolio position', error);
-      alert('Position could not be closed. Please try again.');
+  const handleRemoveAsset = (symbol: string) => {
+    if (confirm(`Remove ${symbol} from this portfolio?`)) {
+      const filtered = holdings.filter((h) => h.symbol !== symbol);
+      onUpdateHoldings(filtered);
     }
   };
 
@@ -214,7 +207,7 @@ export default function ManageAssetsDrawer({
                 Notice
               </div>
               <p className="text-[11px] text-text-secondary leading-relaxed font-sans">
-                Portfolio holdings are persisted through backend ledger transactions. Live market prices come from the market feed when available.
+                Portfolio holdings are stored in local storage. Live market prices come from the market feed when available.
               </p>
             </div>
           </div>

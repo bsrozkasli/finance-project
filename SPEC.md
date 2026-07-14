@@ -245,6 +245,8 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
 | Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
 | Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
+| Portfolio dashboard | `GET /portfolio/performance/comparison?period=&portfolioIds=&benchmarks=` | Multi-series comparison contract; degrades to an empty `series` array when no real comparison data is available |
+| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Ledger position performance; missing provider prices return nullable period fields rather than fabricated returns |
 | Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
 | Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |
 | Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
@@ -257,6 +259,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Watchlists | `GET /watchlists` | List watchlists |
 | Watchlists | `POST /watchlists` | Create watchlist |
 | Watchlists | `POST /watchlists/{id}/symbols` | Add symbol |
+| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Research snapshot contract with partial/EMPTY sections when providers are unavailable; no synthetic market data |
 | Watchlists | `DELETE /watchlists/{id}/symbols/{symbol}` | Remove symbol |
 | Watchlists | `DELETE /watchlists/{id}` | Delete watchlist |
 | Investment portfolios | `GET /portfolios` | List user portfolios such as ABD, BIST, funds, or gold |

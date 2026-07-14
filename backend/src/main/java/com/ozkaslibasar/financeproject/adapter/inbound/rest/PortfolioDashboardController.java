@@ -5,15 +5,21 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import com.ozkaslibasar.financeproject.domain.model.Portfolio;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioPosition;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -35,6 +41,8 @@ public class PortfolioDashboardController {
     private static final String DEFAULT_USER = "default";
 
     private final PortfolioPositionPort positionPort;
+    private final PortfolioPort portfolioPort;
+    private final PortfolioLedgerService ledgerService;
     private final PriceRefreshService priceRefreshService;
 
     @Operation(summary = "GET Portfolio Dashboard endpoint", description = "Implements the GET operation for the Portfolio Dashboard API described in SPEC.md sections 7 and 8.")
@@ -67,6 +75,33 @@ public class PortfolioDashboardController {
                 percent(dailyPnl, previousValue),
                 totalPnl,
                 percent(totalPnl, costBasis));
+    }
+
+    @GetMapping("/performance/comparison")
+    public PortfolioPerformanceComparison getPerformanceComparison(
+            @RequestParam(defaultValue = "6M") String period,
+            @RequestParam(required = false) List<Long> portfolioIds,
+            @RequestParam(required = false) List<String> benchmarks) {
+        return new PortfolioPerformanceComparison(period, List.of());
+    }
+
+    @GetMapping("/positions/performance")
+    public List<PortfolioPositionPerformance> getPositionsPerformance(@RequestParam(required = false) Long portfolioId) {
+        if (portfolioId != null) {
+            Portfolio portfolio = portfolioPort.findByIdAndUserId(portfolioId, DEFAULT_USER)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Portfolio not found: " + portfolioId));
+            List<PortfolioHolding> holdings = ledgerService.calculateHoldings(portfolio.id(), DEFAULT_USER);
+            BigDecimal totalMarketValue = sum(holdings.stream().map(this::marketValue).toList());
+            return holdings.stream()
+                    .map(holding -> toPositionPerformance(holding, totalMarketValue))
+                    .toList();
+        }
+
+        List<PortfolioPosition> positions = positionPort.findByUserId(DEFAULT_USER);
+        BigDecimal totalMarketValue = sum(positions.stream().map(this::marketValue).toList());
+        return positions.stream()
+                .map(position -> toPositionPerformance(position, totalMarketValue))
+                .toList();
     }
 
     @Operation(summary = "GET Portfolio Dashboard endpoint", description = "Implements the GET operation for the Portfolio Dashboard API described in SPEC.md sections 7 and 8.")
@@ -217,6 +252,55 @@ public class PortfolioDashboardController {
                 unrealizedPnl);
     }
 
+    private PortfolioPositionPerformance toPositionPerformance(PortfolioHolding holding, BigDecimal totalMarketValue) {
+        BigDecimal currentPrice = priceRefreshService.getFreshLatest(holding.symbol().toUpperCase())
+                .map(PriceHistory::close)
+                .orElse(null);
+        BigDecimal marketValue = currentPrice == null ? BigDecimal.ZERO : holding.quantity().multiply(currentPrice);
+        return new PortfolioPositionPerformance(
+                holding.symbol(),
+                holding.symbol(),
+                null,
+                holding.averageCost(),
+                currentPrice,
+                marketValue,
+                percent(marketValue, totalMarketValue),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                currentPrice == null ? null : percent(marketValue.subtract(holding.costBasis()), holding.costBasis()));
+    }
+
+    private PortfolioPositionPerformance toPositionPerformance(PortfolioPosition position, BigDecimal totalMarketValue) {
+        BigDecimal currentPrice = currentPrice(position);
+        BigDecimal marketValue = position.quantity().multiply(currentPrice);
+        BigDecimal costBasis = position.quantity().multiply(position.avgCostPrice());
+        return new PortfolioPositionPerformance(
+                position.symbol(),
+                position.symbol(),
+                null,
+                position.avgCostPrice(),
+                currentPrice,
+                marketValue,
+                percent(marketValue, totalMarketValue),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                percent(marketValue.subtract(costBasis), costBasis));
+    }
+
+    private BigDecimal marketValue(PortfolioHolding holding) {
+        return priceRefreshService.getFreshLatest(holding.symbol().toUpperCase())
+                .map(price -> holding.quantity().multiply(price.close()))
+                .orElse(BigDecimal.ZERO);
+    }
+
     private TreeMap<LocalDate, BigDecimal> benchmarkHistory(String benchmark, String period) {
         String symbol = benchmarkSymbol(benchmark);
         TreeMap<LocalDate, BigDecimal> byDate = new TreeMap<>();
@@ -354,6 +438,37 @@ public class PortfolioDashboardController {
             }
         }
         return maxDrawdown.doubleValue();
+    }
+
+    public record PortfolioPerformanceComparison(String period, List<PortfolioComparisonSeries> series) {
+    }
+
+    public record PortfolioComparisonSeries(
+            String id,
+            String label,
+            String type,
+            String currency,
+            List<PortfolioComparisonPoint> points) {
+    }
+
+    public record PortfolioComparisonPoint(String date, BigDecimal value, BigDecimal returnPct) {
+    }
+
+    public record PortfolioPositionPerformance(
+            String symbol,
+            String company,
+            String addedDate,
+            BigDecimal costPrice,
+            BigDecimal currentPrice,
+            BigDecimal marketValue,
+            BigDecimal weight,
+            BigDecimal dailyReturn,
+            BigDecimal weeklyReturn,
+            BigDecimal oneMonthReturn,
+            BigDecimal threeMonthReturn,
+            BigDecimal sixMonthReturn,
+            BigDecimal oneYearReturn,
+            BigDecimal totalReturn) {
     }
 
     public record PortfolioSummary(

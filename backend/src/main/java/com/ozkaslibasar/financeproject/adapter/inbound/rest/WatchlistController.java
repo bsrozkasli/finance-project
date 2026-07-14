@@ -14,13 +14,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 
 @Tag(name = "Watchlists", description = "Watchlist management")
 @RestController
@@ -48,6 +52,33 @@ public class WatchlistController {
     @GetMapping
     public List<Watchlist> list() {
         return watchlistPort.findByUserId(DEFAULT_USER);
+    }
+
+    @GetMapping("/{id}/research-snapshot")
+    public WatchlistResearchSnapshot researchSnapshot(
+            @PathVariable long id,
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(required = false) List<String> symbols,
+            @RequestParam(defaultValue = "false") boolean refresh) {
+        Watchlist watchlist = get(id);
+        List<String> requestedSymbols = requestedSymbols(watchlist, symbols).stream()
+                .skip(Math.max(offset, 0))
+                .limit(Math.max(1, Math.min(limit, 50)))
+                .toList();
+        List<WatchlistResearchRow> rows = requestedSymbols.stream()
+                .map(this::emptyResearchRow)
+                .toList();
+        return new WatchlistResearchSnapshot(
+                watchlist.id(),
+                watchlist.name(),
+                watchlist.symbols().size(),
+                Math.max(1, Math.min(limit, 50)),
+                Math.max(offset, 0),
+                requestedSymbols,
+                rows,
+                new WatchlistResearchPolicy(50, 0, 0, true, false),
+                Instant.now());
     }
 
     @Operation(summary = "POST Watchlists endpoint", description = "Implements the POST operation for the Watchlists API described in SPEC.md sections 7 and 8.")
@@ -139,6 +170,27 @@ public class WatchlistController {
         watchlistPort.deleteByIdAndUserId(id, DEFAULT_USER);
     }
 
+    private List<String> requestedSymbols(Watchlist watchlist, List<String> symbols) {
+        List<String> source = symbols == null || symbols.isEmpty() ? watchlist.symbols() : symbols;
+        return source.stream()
+                .filter(symbol -> symbol != null && !symbol.isBlank())
+                .flatMap(symbol -> Arrays.stream(symbol.split(",")))
+                .map(symbol -> symbol.trim().toUpperCase(Locale.ROOT))
+                .filter(symbol -> !symbol.isBlank())
+                .distinct()
+                .toList();
+    }
+
+    private WatchlistResearchRow emptyResearchRow(String symbol) {
+        WatchlistResearchSection empty = new WatchlistResearchSection(
+                "EMPTY",
+                "none",
+                null,
+                "Research snapshot providers are unavailable for this symbol.",
+                Instant.now());
+        return new WatchlistResearchRow(symbol, empty, empty, empty, empty, empty, "EMPTY");
+    }
+
     private Watchlist get(long id) {
         return watchlistPort.findByIdAndUserId(id, DEFAULT_USER)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Watchlist not found: " + id));
@@ -149,6 +201,44 @@ public class WatchlistController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "symbol is required");
         }
         return symbol.trim().toUpperCase();
+    }
+
+    public record WatchlistResearchSnapshot(
+            Long watchlistId,
+            String watchlistName,
+            int totalSymbols,
+            int limit,
+            int offset,
+            List<String> requestedSymbols,
+            List<WatchlistResearchRow> rows,
+            WatchlistResearchPolicy policy,
+            Instant generatedAt) {
+    }
+
+    public record WatchlistResearchPolicy(
+            int maxLimit,
+            int providerConcurrencyLimit,
+            int providerTimeoutMillis,
+            boolean partialFailureEnabled,
+            boolean staleWhileRevalidateEnabled) {
+    }
+
+    public record WatchlistResearchRow(
+            String symbol,
+            WatchlistResearchSection price,
+            WatchlistResearchSection technical,
+            WatchlistResearchSection fundamentals,
+            WatchlistResearchSection earnings,
+            WatchlistResearchSection institutional,
+            String overallStatus) {
+    }
+
+    public record WatchlistResearchSection(
+            String status,
+            String source,
+            Object data,
+            String message,
+            Instant observedAt) {
     }
 
     public record CreateWatchlistRequest(String name) {

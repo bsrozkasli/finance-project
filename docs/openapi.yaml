@@ -3565,6 +3565,45 @@
                                                                                   }
                                                                 }
                                                     },
+                  "/api/v1/portfolio/performance/comparison":  {
+                                                                  "get":  {
+                                                                              "tags":  [
+                                                                                           "Portfolio Dashboard"
+                                                                                       ],
+                                                                              "summary":  "Compare portfolio performance series",
+                                                                              "description":  "Returns portfolio comparison series or an empty series array when real comparison data is unavailable.",
+                                                                              "responses":  {
+                                                                                                "200":  {
+                                                                                                            "description":  "Successful response"
+                                                                                                        }
+                                                                                            }
+                                                                          }
+                                                              },
+                  "/api/v1/portfolio/positions/performance":  {
+                                                                   "get":  {
+                                                                               "tags":  [
+                                                                                            "Portfolio Dashboard"
+                                                                                        ],
+                                                                               "summary":  "List portfolio position performance",
+                                                                               "description":  "Returns ledger position performance with nullable provider-derived fields when prices are unavailable.",
+                                                                               "parameters":  [
+                                                                                                  {
+                                                                                                      "name":  "portfolioId",
+                                                                                                      "in":  "query",
+                                                                                                      "required":  false,
+                                                                                                      "schema":  {
+                                                                                                                     "type":  "integer",
+                                                                                                                     "format":  "int64"
+                                                                                                                 }
+                                                                                                  }
+                                                                                              ],
+                                                                               "responses":  {
+                                                                                                 "200":  {
+                                                                                                             "description":  "Successful response"
+                                                                                                         }
+                                                                                             }
+                                                                           }
+                                                               },
                   "/api/v1/portfolio/allocation":  {
                                                        "get":  {
                                                                    "tags":  [
@@ -4669,6 +4708,31 @@
                                                                           }
                                                       }
                                          },
+                  "/api/v1/watchlists/{id}/research-snapshot":  {
+                                                                     "get":  {
+                                                                                 "tags":  [
+                                                                                              "Watchlists"
+                                                                                          ],
+                                                                                 "summary":  "Get watchlist research snapshot",
+                                                                                 "description":  "Returns per-symbol research sections. Missing provider data is represented with EMPTY sections and nullable data fields.",
+                                                                                 "parameters":  [
+                                                                                                    {
+                                                                                                        "name":  "id",
+                                                                                                        "in":  "path",
+                                                                                                        "required":  true,
+                                                                                                        "schema":  {
+                                                                                                                       "type":  "integer",
+                                                                                                                       "format":  "int64"
+                                                                                                                   }
+                                                                                                    }
+                                                                                                ],
+                                                                                 "responses":  {
+                                                                                                   "200":  {
+                                                                                                               "description":  "Successful response"
+                                                                                                           }
+                                                                                               }
+                                                                             }
+                                                                 },
                   "/api/v1/watchlists/{id}/symbols":  {
                                                           "post":  {
                                                                        "tags":  [
