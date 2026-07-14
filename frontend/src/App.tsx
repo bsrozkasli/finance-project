@@ -513,18 +513,20 @@ export default function App() {
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
               />
             } />
-            <Route path="/portfolios" element={
-              <PortfolioManagerView
-                stocks={stocks}
-                portfolios={portfolios}
-                onCreatePortfolio={handleCreatePortfolio}
-                onDeletePortfolio={handleDeletePortfolio}
-                activePortfolioId={activePortfolioId}
-                onSelectPortfolioId={saveActivePortfolioIdState}
-                onExecuteTrade={handleExecuteTrade}
-                onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
-              />
-            } />
+            {['/portfolio', '/portfolios'].map((path) => (
+              <Route key={path} path={path} element={
+                <PortfolioManagerView
+                  stocks={stocks}
+                  portfolios={portfolios}
+                  onCreatePortfolio={handleCreatePortfolio}
+                  onDeletePortfolio={handleDeletePortfolio}
+                  activePortfolioId={activePortfolioId}
+                  onSelectPortfolioId={saveActivePortfolioIdState}
+                  onExecuteTrade={handleExecuteTrade}
+                  onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+                />
+              } />
+            ))}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

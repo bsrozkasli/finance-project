@@ -576,7 +576,7 @@ Important backend settings:
 - `spring.cache.type=redis`
 - `agent-analysis.cache-ttl-minutes=15`
 - Actuator exposes `health` and `prometheus`
-- `WebConfig` allows the Vite dev server origin for `/api/**`
+- `WebConfig` allows Vite dev server origins `http://localhost:5173` and `http://127.0.0.1:5173` for `/api/**`
 
 ## 13. Testing Strategy
 

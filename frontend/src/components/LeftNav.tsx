@@ -23,7 +23,7 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
 
   const menuItems = [
     { path: '/', label: 'Overview', icon: BarChart3 },
-    { path: '/portfolios', label: 'Portfolio Management', icon: Briefcase },
+    { path: '/portfolios', aliases: ['/portfolio'], label: 'Portfolio Management', icon: Briefcase },
     { path: '/charts', label: 'Technical Chart', icon: TrendingUp },
     { path: '/watchlist', label: 'Watchlists', icon: LayoutList },
     { path: '/news', label: 'News Feed', icon: Newspaper },
@@ -39,7 +39,7 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
         </div>
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentPath === item.path || (currentPath.startsWith(item.path) && item.path !== '/');
+          const isActive = currentPath === item.path || item.aliases?.includes(currentPath) || (currentPath.startsWith(item.path) && item.path !== '/');
           return (
             <Link
               key={item.path}
