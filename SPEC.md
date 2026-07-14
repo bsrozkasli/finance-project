@@ -638,17 +638,25 @@ Required integration/smoke scenarios:
 ## 16. Logging
 
 - Backend should use level-appropriate Spring logging.
+- Backend request logs include `X-Request-ID` through MDC as `requestId`; the response must echo the same header.
+- Backend outbound data-service calls should propagate `X-Request-ID` through the shared `RestTemplate` interceptor.
 - Feign/default client logging is `BASIC`; avoid sensitive body logging.
+- Data-service request logs include `request_id`, `service`, `method`, `route`, `status`, `outcome`, and `duration_ms`.
 - Data-service should log provider failures, resolver fallback decisions, and analytics errors with symbol/provider/range context.
 - Avoid noisy logs inside high-frequency calculations unless debug logging is enabled.
+- Never log raw secrets, authorization headers, provider keys, `.env` values, or credentials.
 
 ## 17. Observability
 
 - Backend Actuator exposes `/actuator/health` and `/actuator/prometheus`.
+- Backend application HTTP metrics include `finance_http_server_requests_total` and `finance_http_server_request_duration_seconds` with bounded `route` labels.
 - Prometheus scrapes backend metrics through `prometheus.yml`.
-- Grafana is available locally for dashboards.
+- Data-service exposes `/metrics` with `data_service_http_requests_total`, `data_service_http_request_errors_total`, and `data_service_http_request_duration_seconds`.
 - Data-service exposes `/health/provider/yahoo`, `/health/provider/tiingo`, `/health/provider/finnhub`, `/health/providers`, and `/health/metrics`.
+- Provider resolver metrics track success, empty responses, errors, fallbacks, latency, blacklist state, and health status.
+- Grafana is available locally and is provisioned from `infra/grafana` with the `Finance Observability` dashboard.
 - Track provider availability, request latency, error rates, cache hit/miss rates where practical, and agent-analysis failures.
+- See `docs/OBSERVABILITY.md` for metric names, dashboard provisioning, and local verification steps.
 
 ## 18. Development Workflow
 
