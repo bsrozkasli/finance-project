@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
@@ -18,9 +19,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -107,8 +110,44 @@ class PortfolioManagementControllerTest {
         verify(transactionPort).deleteByIdAndPortfolioIdAndUserId(10L, 1L, "default");
     }
 
+    @Test
+    void shouldRejectPortfolioDeleteWhenActiveHoldingsExist() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(ledgerService.calculateHoldings(1L, "default")).thenReturn(List.of(holding("NVDA", "5", "120")));
+
+        mockMvc.perform(delete("/api/v1/portfolios/1"))
+                .andExpect(status().isConflict());
+
+        verify(portfolioPort, never()).deleteByIdAndUserId(1L, "default");
+    }
+
+    @Test
+    void shouldDeletePortfolioWhenItHasNoActiveHoldings() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(ledgerService.calculateHoldings(1L, "default")).thenReturn(List.of());
+
+        mockMvc.perform(delete("/api/v1/portfolios/1"))
+                .andExpect(status().isNoContent());
+
+        verify(portfolioPort).deleteByIdAndUserId(1L, "default");
+    }
+
     private Portfolio portfolio() {
         return new Portfolio(1L, "default", "ABD", "USD", null, true, null, null);
+    }
+
+    private PortfolioHolding holding(String symbol, String quantity, String averageCost) {
+        BigDecimal qty = new BigDecimal(quantity);
+        BigDecimal avg = new BigDecimal(averageCost);
+        return new PortfolioHolding(
+                1L,
+                symbol,
+                PortfolioAssetType.US_STOCK,
+                qty,
+                avg,
+                qty.multiply(avg),
+                BigDecimal.ZERO,
+                "USD");
     }
 
     private PortfolioTransaction transaction(

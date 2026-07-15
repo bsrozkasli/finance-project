@@ -32,7 +32,8 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
 
-        // Fast-changing data (prices) - 5 minutes
+        // Fast-changing data: latest prices must match frontend 30-60s polling. Historical candles can stay longer.
+        cacheConfigs.put("latestPriceCache", defaultConfig.entryTtl(Duration.ofSeconds(30)));
         cacheConfigs.put("priceCache", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
         // Medium-changing data

@@ -1,1046 +1,1093 @@
-import React, { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import type { FormEvent, MouseEvent } from 'react';
 import {
-  Briefcase,
-  Plus,
-  Minus,
-  Trash2,
-  TrendingUp,
-  PieChart,
-  Coins,
-  Layers,
-  Activity,
+  ArrowDownRight,
+  ArrowUpRight,
   BookOpen,
-  Download,
-  Upload
+  CalendarDays,
+  Plus,
+  Trash2,
+  X,
 } from 'lucide-react';
 import type { Stock, Portfolio, Trade } from '../types';
+import type { PortfolioPositionPerformance, PortfolioTransaction } from '../api/client';
+import { fetchPortfolioPositionsPerformance, fetchPortfolioTransactions } from '../api/client';
 
 interface PortfolioManagerViewProps {
   stocks: Stock[];
   portfolios: Portfolio[];
-  onCreatePortfolio: (name: string) => Promise<string>;
-  onDeletePortfolio: (id: string) => Promise<void>;
+  onUpdatePortfolios?: (updated: Portfolio[]) => void;
+  onCreatePortfolio?: (name: string) => Promise<string | void> | string | void;
+  onDeletePortfolio?: (id: string) => Promise<void> | void;
   activePortfolioId: string;
   onSelectPortfolioId: (id: string) => void;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
   onOpenTradingJournal?: () => void;
 }
 
+type AllocationMode = 'daily' | 'total' | 'allocation';
+type HoldingsTab = 'holdings' | 'transactions';
+type PerformanceRange = '1M' | '3M' | '6M' | '1Y' | '2Y';
+
+interface LocalPositionPerformance extends Omit<PortfolioPositionPerformance,
+  'currentPrice' | 'marketValue' | 'dailyReturn' | 'weeklyReturn' | 'oneMonthReturn' | 'threeMonthReturn' |
+  'sixMonthReturn' | 'oneYearReturn' | 'totalReturn'> {
+  currentPrice: number | null;
+  marketValue: number;
+  dailyReturn: number | null;
+  weeklyReturn: number | null;
+  oneMonthReturn: number | null;
+  threeMonthReturn: number | null;
+  sixMonthReturn: number | null;
+  oneYearReturn: number | null;
+  totalReturn: number | null;
+  quantity?: number;
+}
+
+const performanceRanges: PerformanceRange[] = ['1M', '3M', '6M', '1Y', '2Y'];
+const allocationModes: Array<{ id: AllocationMode; label: string }> = [
+  { id: 'daily', label: 'Daily' },
+  { id: 'total', label: 'Total' },
+  { id: 'allocation', label: 'Allocation' },
+];
+
+const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit' });
+const dateFormatter = new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+
+const numericPortfolioId = (id: string | undefined): number | undefined => {
+  if (!id) return undefined;
+  const parsed = Number(id);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const monthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+
+const parseDate = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
 export default function PortfolioManagerView({
   stocks,
   portfolios,
+  onUpdatePortfolios,
   onCreatePortfolio,
   onDeletePortfolio,
   activePortfolioId,
   onSelectPortfolioId,
-  onExecuteTrade,
   onOpenTradingJournal,
 }: PortfolioManagerViewProps) {
+  const [allocationMode, setAllocationMode] = useState<AllocationMode>('daily');
+  const [activeTab, setActiveTab] = useState<HoldingsTab>('holdings');
+  const [performanceRange, setPerformanceRange] = useState<PerformanceRange>('1M');
+  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; date: string; value: number; returnPct: number } | null>(null);
+  const [monthlyModalOpen, setMonthlyModalOpen] = useState(false);
+  const [positionPerformance, setPositionPerformance] = useState<PortfolioPositionPerformance[]>([]);
+  const [transactions, setTransactions] = useState<PortfolioTransaction[]>([]);
+  const [positionError, setPositionError] = useState(false);
+  const [transactionsError, setTransactionsError] = useState(false);
+  const [startMonth, setStartMonth] = useState('');
+  const [endMonth, setEndMonth] = useState('');
   const [newPortfolioName, setNewPortfolioName] = useState('');
-  const [selectedStockSymbol, setSelectedStockSymbol] = useState(stocks[0]?.symbol || '');
-  const [activePeriod, setActivePeriod] = useState<'1M' | '3M' | '6M' | '1Y'>('1M');
-  const [hoveredPoint, setHoveredPoint] = useState<{ x: number; y: number; date: string; value: number } | null>(null);
+  const [portfolioActionError, setPortfolioActionError] = useState('');
+  const [isCreatingPortfolio, setIsCreatingPortfolio] = useState(false);
+  const [isDeletingPortfolio, setIsDeletingPortfolio] = useState(false);
+  const [isCreatePortfolioOpen, setIsCreatePortfolioOpen] = useState(false);
+  const [isDeletePortfolioOpen, setIsDeletePortfolioOpen] = useState(false);
 
-  // States for inline transaction modal
-  const [tradeModalStock, setTradeModalStock] = useState<Stock | null>(null);
-  const [tradeModalType, setTradeModalType] = useState<'BUY' | 'SELL'>('BUY');
-  const [tradeModalQty, setTradeModalQty] = useState<number>(1);
-  const [tradeModalPrice, setTradeModalPrice] = useState<number>(0);
-  const [tradeModalNotes, setTradeModalNotes] = useState<string>('');
-  const [importingCsv, setImportingCsv] = useState(false);
-
-  // Find active portfolio
   const activePortfolio = useMemo(() => {
-    return portfolios.find(p => p.id === activePortfolioId) || portfolios[0];
-  }, [portfolios, activePortfolioId]);
+    return portfolios.find((portfolio) => portfolio.id === activePortfolioId) || (!activePortfolioId ? portfolios[0] : null);
+  }, [activePortfolioId, portfolios]);
 
-  // Handle adding a new portfolio
-  const handleCreatePortfolio = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const name = newPortfolioName.trim();
-    if (!name) return;
+  const activeInvestmentPortfolioId = useMemo(() => numericPortfolioId(activePortfolio?.id), [activePortfolio?.id]);
 
-    try {
-      const createdId = await onCreatePortfolio(name);
-      onSelectPortfolioId(createdId);
-      setNewPortfolioName('');
-    } catch (error) {
-      console.error('Failed to create portfolio', error);
-      alert('Portfolio could not be created. Please try again.');
-    }
-  };
+  const stockMap = useMemo(() => {
+    const map: Record<string, Stock> = {};
+    stocks.forEach((stock) => {
+      map[stock.symbol.toUpperCase()] = stock;
+    });
+    return map;
+  }, [stocks]);
 
-  // Handle deleting the current portfolio through the backend portfolio API.
-  const handleDeletePortfolio = async (id: string) => {
-    if (portfolios.length <= 1) {
-      alert('At least one portfolio is required.');
-      return;
-    }
-    if (confirm('Delete this portfolio?')) {
-      try {
-        await onDeletePortfolio(id);
-        const next = portfolios.find(p => p.id !== id);
-        if (next) onSelectPortfolioId(next.id);
-      } catch (error) {
-        console.error('Failed to delete portfolio', error);
-        alert('Portfolio could not be deleted. Please try again.');
-      }
-    }
-  };
+  useEffect(() => {
+    let cancelled = false;
 
-  const escapeCsvValue = (value: string | number) => {
-    const raw = String(value ?? '');
-    return /[",\n\r]/.test(raw) ? `"${raw.replace(/"/g, '""')}"` : raw;
-  };
-
-  const parseCsvLine = (line: string) => {
-    const values: string[] = [];
-    let current = '';
-    let quoted = false;
-
-    for (let index = 0; index < line.length; index += 1) {
-      const char = line[index];
-      const next = line[index + 1];
-
-      if (char === '"' && quoted && next === '"') {
-        current += '"';
-        index += 1;
-      } else if (char === '"') {
-        quoted = !quoted;
-      } else if (char === ',' && !quoted) {
-        values.push(current.trim());
-        current = '';
-      } else {
-        current += char;
-      }
-    }
-
-    values.push(current.trim());
-    return values;
-  };
-
-  const handleExportCsv = () => {
-    if (!activePortfolio) return;
-
-    const rows = [
-      ['symbol', 'type', 'quantity', 'price', 'notes'],
-      ...activePortfolio.holdings.map(holding => [
-        holding.symbol,
-        'BUY',
-        holding.quantity,
-        holding.costPrice,
-        `${activePortfolio.name} exported holding`,
-      ]),
-    ];
-    const csv = rows.map(row => row.map(escapeCsvValue).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${activePortfolio.name.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-holdings.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportCsv = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file || !activePortfolio) return;
-
-    setImportingCsv(true);
-    try {
-      const content = await file.text();
-      const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
-      const [headerLine, ...dataLines] = lines;
-      const headers = parseCsvLine(headerLine).map(header => header.trim().toLowerCase());
-      const indexOf = (name: string) => headers.indexOf(name);
-      const symbolIndex = indexOf('symbol');
-      const typeIndex = indexOf('type') >= 0 ? indexOf('type') : indexOf('action');
-      const quantityIndex = indexOf('quantity');
-      const priceIndex = indexOf('price');
-      const notesIndex = indexOf('notes');
-
-      if ([symbolIndex, typeIndex, quantityIndex, priceIndex].some(index => index < 0)) {
-        alert('CSV columns must include symbol, type, quantity, and price.');
+    const loadPortfolioDetails = async () => {
+      if (!activeInvestmentPortfolioId) {
+        setPositionPerformance([]);
+        setTransactions([]);
         return;
       }
 
-      let imported = 0;
-      for (const line of dataLines) {
-        const values = parseCsvLine(line);
-        const type = values[typeIndex]?.toUpperCase() === 'SELL' ? 'SELL' : 'BUY';
-        const quantity = Number(values[quantityIndex]);
-        const price = Number(values[priceIndex]);
-        const symbol = values[symbolIndex]?.trim().toUpperCase();
-        if (!symbol || !Number.isFinite(quantity) || !Number.isFinite(price) || quantity <= 0 || price < 0) {
-          continue;
-        }
+      const [positionsResult, transactionsResult] = await Promise.allSettled([
+        fetchPortfolioPositionsPerformance(activeInvestmentPortfolioId),
+        fetchPortfolioTransactions(activeInvestmentPortfolioId),
+      ]);
 
-        await Promise.resolve(onExecuteTrade({
-          symbol,
-          type,
-          quantity,
-          price,
-          notes: notesIndex >= 0 ? values[notesIndex] : `${symbol} CSV import`,
-          portfolioId: activePortfolio.id,
-          source: 'CSV',
-        }));
-        imported += 1;
+      if (cancelled) return;
+
+      if (positionsResult.status === 'fulfilled') {
+        setPositionPerformance(positionsResult.value);
+        setPositionError(false);
+      } else {
+        setPositionPerformance([]);
+        setPositionError(true);
       }
 
-      alert(`${imported} CSV transactions were imported.`);
-    } finally {
-      setImportingCsv(false);
-    }
-  };
-
-  // Handle opening inline trade modal for specific stock and direction
-  const handleOpenTradeModal = (symbol: string, direction: 'BUY' | 'SELL') => {
-    const stock = stocks.find(s => s.symbol === symbol);
-    if (!stock) return;
-
-    const holding = activePortfolio?.holdings.find(h => h.symbol === symbol);
-
-    setTradeModalStock(stock);
-    setTradeModalType(direction);
-    setTradeModalQty(direction === 'SELL' && holding ? holding.quantity : 1);
-    setTradeModalPrice(stock.price);
-    setTradeModalNotes('');
-  };
-
-  // Compute calculated values for active portfolio holdings
-  const holdingsWithMetrics = useMemo(() => {
-    if (!activePortfolio || !activePortfolio.holdings) return [];
-
-    return activePortfolio.holdings.map(h => {
-      const currentStock = stocks.find(s => s.symbol === h.symbol);
-      const currentPrice = currentStock ? currentStock.price : h.costPrice;
-      const totalCost = h.quantity * h.costPrice;
-      const totalValue = h.quantity * currentPrice;
-      const profitLoss = totalValue - totalCost;
-      const profitLossPercent = totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
-
-      return {
-        ...h,
-        currentPrice,
-        totalCost,
-        totalValue,
-        profitLoss,
-        profitLossPercent,
-        name: currentStock ? currentStock.name : h.symbol
-      };
-    });
-  }, [activePortfolio, stocks]);
-
-  // Aggregate Portfolio Stats
-  const portfolioSummary = useMemo(() => {
-    let totalValue = 0;
-    let totalCost = 0;
-
-    holdingsWithMetrics.forEach(h => {
-      totalValue += h.totalValue;
-      totalCost += h.totalCost;
-    });
-
-    const totalPNL = totalValue - totalCost;
-    const totalPNLPercent = totalCost > 0 ? (totalPNL / totalCost) * 100 : 0;
-
-    return {
-      totalValue,
-      totalCost,
-      totalPNL,
-      totalPNLPercent
+      if (transactionsResult.status === 'fulfilled') {
+        setTransactions(transactionsResult.value);
+        setTransactionsError(false);
+      } else {
+        setTransactions([]);
+        setTransactionsError(true);
+      }
     };
-  }, [holdingsWithMetrics]);
 
-  // Calculate asset allocation weights
-  const allocationWeights = useMemo(() => {
-    const total = portfolioSummary.totalValue || 1;
-    const list = holdingsWithMetrics.map(h => {
-      const weight = (h.totalValue / total) * 100;
+    void loadPortfolioDetails();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeInvestmentPortfolioId]);
+
+  const fallbackPositions = useMemo<LocalPositionPerformance[]>(() => {
+    if (!activePortfolio) return [];
+    const values = activePortfolio.holdings.map((holding) => {
+      const stock = stockMap[holding.symbol.toUpperCase()];
+      const currentPrice = typeof stock?.price === 'number' ? stock.price : null;
+      const marketValue = currentPrice == null ? 0 : holding.quantity * currentPrice;
+      const costValue = holding.quantity * holding.costPrice;
       return {
-        symbol: h.symbol,
-        value: h.totalValue,
-        weight,
-        name: h.name
+        holding,
+        stock,
+        currentPrice,
+        marketValue,
+        totalReturn: currentPrice == null || costValue <= 0 ? null : ((marketValue - costValue) / costValue) * 100,
       };
     });
-    // Sort descending by weight
-    return list.sort((a, b) => b.weight - a.weight);
-  }, [holdingsWithMetrics, portfolioSummary.totalValue]);
+    const totalValue = values.reduce((sum, item) => sum + item.marketValue, 0);
 
-  // Premium colors array for thematic representation
-  const thematicPalette = [
-    { bg: 'bg-primary', stroke: '#2563eb' },
-    { bg: 'bg-teal-500', stroke: '#14b8a6' },
-    { bg: 'bg-indigo-500', stroke: '#6366f1' },
-    { bg: 'bg-violet-500', stroke: '#8b5cf6' },
-    { bg: 'bg-emerald-500', stroke: '#10b981' },
-    { bg: 'bg-amber-500', stroke: '#f59e0b' },
-    { bg: 'bg-rose-500', stroke: '#f43f5e' },
-  ];
+    return values.map((item) => ({
+      symbol: item.holding.symbol,
+      company: item.stock?.name ?? item.holding.symbol,
+      addedDate: null,
+      costPrice: item.holding.costPrice,
+      currentPrice: item.currentPrice,
+      marketValue: item.marketValue,
+      weight: totalValue > 0 ? (item.marketValue / totalValue) * 100 : 0,
+      dailyReturn: item.stock?.changePercent ?? null,
+      weeklyReturn: null,
+      oneMonthReturn: null,
+      threeMonthReturn: null,
+      sixMonthReturn: null,
+      oneYearReturn: null,
+      totalReturn: item.totalReturn,
+      quantity: item.holding.quantity,
+    }));
+  }, [activePortfolio, stockMap]);
+  const displayedPositions = useMemo<LocalPositionPerformance[]>(() => {
+    if (positionPerformance.length === 0) return fallbackPositions;
+    return positionPerformance.map((position) => ({
+      ...position,
+      company: stockMap[position.symbol.toUpperCase()]?.name ?? position.company ?? position.symbol,
+      currentPrice: position.currentPrice,
+      marketValue: position.marketValue,
+      dailyReturn: position.dailyReturn ?? null,
+      weeklyReturn: position.weeklyReturn ?? null,
+      oneMonthReturn: position.oneMonthReturn ?? null,
+      threeMonthReturn: position.threeMonthReturn ?? null,
+      sixMonthReturn: position.sixMonthReturn ?? null,
+      oneYearReturn: position.oneYearReturn ?? null,
+      totalReturn: position.totalReturn ?? null,
+      quantity: activePortfolio?.holdings.find((holding) => holding.symbol === position.symbol)?.quantity,
+    }));
+  }, [activePortfolio?.holdings, fallbackPositions, positionPerformance, stockMap]);
 
-  // Calculate portfolio performance history
-  const performanceChartData = useMemo(() => {
-    if (holdingsWithMetrics.length === 0) return [];
+  const portfolioSummary = useMemo(() => {
+    const pricedPositions = displayedPositions.filter((position) => position.currentPrice != null);
+    const totalValue = pricedPositions.reduce((sum, position) => sum + position.marketValue, 0);
+    const totalCost = pricedPositions.reduce((sum, position) => sum + ((position.quantity ?? 1) * position.costPrice), 0);
+    const totalPnl = totalValue - totalCost;
+    const totalReturn = totalCost > 0 ? (totalPnl / totalCost) * 100 : null;
+    const largestWeight = displayedPositions.reduce((max, position) => Math.max(max, position.weight), 0);
 
-    // Get common history dates from the first available holding stock
-    const representativeStock = stocks.find(s => s.symbol === holdingsWithMetrics[0].symbol);
-    if (!representativeStock || !representativeStock.history) return [];
+    return { totalValue, totalCost, totalPnl, totalReturn, largestWeight };
+  }, [displayedPositions]);
 
-    let daysToTake = 30;
-    if (activePeriod === '3M') daysToTake = 90;
-    if (activePeriod === '6M') daysToTake = 180;
-    if (activePeriod === '1Y') daysToTake = 250; // max historical data length
+  const allPerformanceData = useMemo(() => {
+    if (!activePortfolio || activePortfolio.holdings.length === 0) return [];
+    const histories = activePortfolio.holdings.map((holding) => {
+      const stock = stockMap[holding.symbol.toUpperCase()];
+      if (!stock?.history?.length) return null;
+      const pricesByDate = new Map(stock.history.map((point) => [point.date.slice(0, 10), point.price]));
+      return { holding, pricesByDate };
+    });
+    if (histories.some((item) => item == null)) return [];
 
-    const historyLength = representativeStock.history.length;
-    const startIndex = Math.max(0, historyLength - daysToTake);
-    const dateSlices = representativeStock.history.slice(startIndex);
+    const typedHistories = histories as Array<{ holding: typeof activePortfolio.holdings[number]; pricesByDate: Map<string, number> }>;
+    const commonDates = Array.from(typedHistories[0].pricesByDate.keys())
+      .filter((date) => typedHistories.every((item) => item.pricesByDate.has(date)))
+      .sort();
 
-    // Compute portfolio value for each historic date
-    return dateSlices.map((slice) => {
-      const targetDate = slice.date;
-      let dateTotalValue = 0;
-      let dateTotalCost = 0;
-
-      holdingsWithMetrics.forEach(h => {
-        const holdingStock = stocks.find(s => s.symbol === h.symbol);
-        if (holdingStock && holdingStock.history) {
-          // Find matching date price or fallback to current
-          const histItem = holdingStock.history.find(item => item.date === targetDate);
-          const histPrice = histItem ? histItem.price : holdingStock.price;
-          dateTotalValue += h.quantity * histPrice;
-          dateTotalCost += h.quantity * h.costPrice;
-        } else {
-          dateTotalValue += h.quantity * h.costPrice;
-          dateTotalCost += h.quantity * h.costPrice;
-        }
+    return commonDates.map((date) => {
+      let value = 0;
+      let cost = 0;
+      typedHistories.forEach(({ holding, pricesByDate }) => {
+        const price = pricesByDate.get(date);
+        if (price == null) return;
+        value += holding.quantity * price;
+        cost += holding.quantity * holding.costPrice;
       });
-
-      const profit = dateTotalValue - dateTotalCost;
-      const returnPercent = dateTotalCost > 0 ? (profit / dateTotalCost) * 100 : 0;
-
       return {
-        date: targetDate,
-        value: dateTotalValue,
-        returnPercent,
+        date,
+        value,
+        returnPct: cost > 0 ? ((value - cost) / cost) * 100 : 0,
       };
     });
-  }, [holdingsWithMetrics, stocks, activePeriod]);
+  }, [activePortfolio, stockMap]);
 
-  // Compute performance SVG path
-  const performanceChartPath = useMemo(() => {
-    if (performanceChartData.length < 2) return { line: '', area: '', points: [], min: 0, max: 0 };
-    const values = performanceChartData.map(d => d.value);
-    const minVal = Math.min(...values);
-    const maxVal = Math.max(...values);
-    const range = maxVal - minVal || 1;
+  const rangedPerformanceData = useMemo(() => {
+    const days = performanceRange === '1M' ? 30 : performanceRange === '3M' ? 90 : performanceRange === '6M' ? 180 : performanceRange === '1Y' ? 365 : 730;
+    return allPerformanceData.slice(Math.max(0, allPerformanceData.length - days));
+  }, [allPerformanceData, performanceRange]);
 
+  const performanceChart = useMemo(() => {
     const width = 600;
-    const height = 180;
-    const paddingLeft = 10;
-    const paddingRight = 10;
-    const paddingTop = 15;
-    const paddingBottom = 15;
+    const height = 220;
+    const padding = { top: 20, right: 16, bottom: 32, left: 52 };
+    if (rangedPerformanceData.length < 2) {
+      return { width, height, padding, line: '', area: '', points: [] as Array<{ x: number; y: number; data: typeof rangedPerformanceData[number] }>, min: -5, max: 5 };
+    }
+    const returns = rangedPerformanceData.map((point) => point.returnPct);
+    const rawMin = Math.min(...returns);
+    const rawMax = Math.max(...returns);
+    const spread = Math.max(rawMax - rawMin, 8);
+    const min = Math.floor((rawMin - spread * 0.18) / 2) * 2;
+    const max = Math.ceil((rawMax + spread * 0.18) / 2) * 2;
+    const range = max - min || 1;
+    const drawableWidth = width - padding.left - padding.right;
+    const drawableHeight = height - padding.top - padding.bottom;
+    const points = rangedPerformanceData.map((point, index) => {
+      const x = padding.left + (index / Math.max(rangedPerformanceData.length - 1, 1)) * drawableWidth;
+      const y = padding.top + ((max - point.returnPct) / range) * drawableHeight;
+      return { x, y, data: point };
+    });
+    const line = points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');
+    const zeroY = padding.top + ((max - 0) / range) * drawableHeight;
+    const area = `${line} L ${points[points.length - 1].x} ${zeroY} L ${points[0].x} ${zeroY} Z`;
+    return { width, height, padding, line, area, points, min, max };
+  }, [rangedPerformanceData]);
 
-    const points = performanceChartData.map((d, idx) => {
-      const x = paddingLeft + (idx / (performanceChartData.length - 1)) * (width - paddingLeft - paddingRight);
-      const y = height - paddingBottom - ((d.value - minVal) / range) * (height - paddingTop - paddingBottom);
-      return { x, y, data: d };
+  const monthlyReturns = useMemo(() => {
+    const grouped = new Map<string, { label: string; first: number; last: number; sort: string }>();
+    allPerformanceData.forEach((point) => {
+      const date = parseDate(point.date);
+      if (!date) return;
+      const key = monthKey(date);
+      const label = monthFormatter.format(date);
+      const current = grouped.get(key);
+      if (!current) {
+        grouped.set(key, { label, first: point.value, last: point.value, sort: key });
+      } else {
+        current.last = point.value;
+      }
+    });
+    return Array.from(grouped.values()).map((item) => ({
+      ...item,
+      returnPct: item.first > 0 ? ((item.last - item.first) / item.first) * 100 : 0,
+    }));
+  }, [allPerformanceData]);
+
+  const monthOptions = useMemo(() => monthlyReturns.sort((a, b) => a.sort.localeCompare(b.sort)), [monthlyReturns]);
+
+  useEffect(() => {
+    if (monthOptions.length === 0) {
+      if (startMonth) setStartMonth('');
+      if (endMonth) setEndMonth('');
+      return;
+    }
+    const defaultStart = monthOptions[Math.max(0, monthOptions.length - 13)]?.sort ?? monthOptions[0].sort;
+    const defaultEnd = monthOptions[monthOptions.length - 1].sort;
+    const available = new Set(monthOptions.map((month) => month.sort));
+    const nextStart = !startMonth || !available.has(startMonth) || startMonth > defaultEnd ? defaultStart : startMonth;
+    const nextEnd = !endMonth || !available.has(endMonth) || endMonth < nextStart ? defaultEnd : endMonth;
+    if (nextStart !== startMonth) setStartMonth(nextStart);
+    if (nextEnd !== endMonth) setEndMonth(nextEnd);
+  }, [endMonth, monthOptions, startMonth]);
+
+  const startMonthOptions = useMemo(() => monthOptions.filter((month) => !endMonth || month.sort <= endMonth), [endMonth, monthOptions]);
+  const endMonthOptions = useMemo(() => monthOptions.filter((month) => !startMonth || month.sort >= startMonth), [monthOptions, startMonth]);
+
+  const filteredMonthlyReturns = useMemo(() => {
+    return monthOptions.filter((month) => (!startMonth || month.sort >= startMonth) && (!endMonth || month.sort <= endMonth));
+  }, [endMonth, monthOptions, startMonth]);
+
+  const healthMetrics = useMemo(() => {
+    const best = [...displayedPositions].filter((position) => position.totalReturn != null).sort((a, b) => (b.totalReturn ?? 0) - (a.totalReturn ?? 0))[0];
+    const worst = [...displayedPositions].filter((position) => position.totalReturn != null).sort((a, b) => (a.totalReturn ?? 0) - (b.totalReturn ?? 0))[0];
+    const largest = [...displayedPositions].sort((a, b) => b.weight - a.weight)[0];
+    const unpriced = activePortfolio?.holdings.filter((holding) => !stockMap[holding.symbol.toUpperCase()]).length ?? 0;
+    return { best, worst, largest, unpriced };
+  }, [activePortfolio?.holdings, displayedPositions, stockMap]);
+
+  const transactionRows = useMemo(() => {
+    const sortedAscending = [...transactions].sort((a, b) => {
+      const byDate = new Date(a.tradeDate).getTime() - new Date(b.tradeDate).getTime();
+      return byDate || a.id - b.id;
     });
 
-    const linePath = points.map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-    const areaPath = `${linePath} L ${points[points.length - 1].x} ${height - paddingBottom} L ${points[0].x} ${height - paddingBottom} Z`;
+    const accumulated = sortedAscending.reduce(
+      (state, transaction) => {
+        const quantity = transaction.quantity ?? 0;
+        const purchaseAmount = quantity * transaction.price + (transaction.fee ?? 0);
+        const sellAverageCost = state.runningQuantity > 0 ? state.runningCost / state.runningQuantity : 0;
+        const nextState = transaction.action === 'BUY' || transaction.action === 'MANUAL_VALUATION'
+          ? {
+              runningQuantity: state.runningQuantity + quantity,
+              runningCost: state.runningCost + purchaseAmount,
+            }
+          : transaction.action === 'SELL'
+            ? {
+                runningQuantity: Math.max(0, state.runningQuantity - quantity),
+                runningCost: Math.max(0, state.runningCost - sellAverageCost * quantity),
+              }
+            : {
+                runningQuantity: state.runningQuantity,
+                runningCost: state.runningCost,
+              };
+        const averageCost = nextState.runningQuantity > 0 ? nextState.runningCost / nextState.runningQuantity : 0;
+        return {
+          ...nextState,
+          rows: [...state.rows, { ...transaction, purchaseAmount, averageCost }],
+        };
+      },
+      { runningQuantity: 0, runningCost: 0, rows: [] as Array<PortfolioTransaction & { purchaseAmount: number; averageCost: number }> },
+    );
 
-    return { line: linePath, area: areaPath, points, min: minVal, max: maxVal };
-  }, [performanceChartData]);
+    return accumulated.rows.sort((a, b) => new Date(b.tradeDate).getTime() - new Date(a.tradeDate).getTime() || b.id - a.id);
+  }, [transactions]);
 
-  // Handle performance chart interactive hover
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!performanceChartPath.points || performanceChartPath.points.length === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 600;
+  const activeHasHoldings = (activePortfolio?.holdings.length ?? 0) > 0;
+  const deleteBlockReason = !activePortfolio
+    ? 'Select a portfolio before deleting.'
+    : portfolios.length <= 1
+      ? 'At least one portfolio must remain.'
+      : activeHasHoldings
+        ? 'Sell or transfer all holdings before deleting this portfolio.'
+        : '';
 
-    let closest = performanceChartPath.points[0];
-    let minDistance = Math.abs(closest.x - x);
+  const handleCreatePortfolio = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = newPortfolioName.trim();
+    setPortfolioActionError('');
 
-    for (let i = 1; i < performanceChartPath.points.length; i++) {
-      const dist = Math.abs(performanceChartPath.points[i].x - x);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closest = performanceChartPath.points[i];
-      }
+    if (name.length < 2 || name.length > 40) {
+      setPortfolioActionError('Portfolio name must be 2-40 characters.');
+      return;
+    }
+    if (portfolios.some((portfolio) => portfolio.name.trim().toLowerCase() === name.toLowerCase())) {
+      setPortfolioActionError('A portfolio with this name already exists.');
+      return;
     }
 
-    setHoveredPoint({
-      x: closest.x,
-      y: closest.y,
-      date: closest.data.date,
-      value: closest.data.value,
-    });
+    setIsCreatingPortfolio(true);
+    try {
+      if (onCreatePortfolio) {
+        const createdId = await Promise.resolve(onCreatePortfolio(name));
+        if (createdId) {
+          onSelectPortfolioId(String(createdId));
+        }
+      } else {
+        const newPortfolio: Portfolio = { id: `portfolio-${Date.now()}`, name, holdings: [] };
+        onUpdatePortfolios?.([...portfolios, newPortfolio]);
+        onSelectPortfolioId(newPortfolio.id);
+      }
+      setNewPortfolioName('');
+      setIsCreatePortfolioOpen(false);
+    } catch (error) {
+      setPortfolioActionError(error instanceof Error ? error.message : 'Portfolio could not be created.');
+    } finally {
+      setIsCreatingPortfolio(false);
+    }
   };
 
-  const handleMouseLeave = () => {
-    setHoveredPoint(null);
+  const handleDeletePortfolio = async () => {
+    if (!activePortfolio) return;
+    setPortfolioActionError('');
+
+    if (deleteBlockReason) {
+      setPortfolioActionError(deleteBlockReason);
+      return;
+    }
+
+    setIsDeletingPortfolio(true);
+    try {
+      if (onDeletePortfolio) {
+        await Promise.resolve(onDeletePortfolio(activePortfolio.id));
+      } else {
+        onUpdatePortfolios?.(portfolios.filter((portfolio) => portfolio.id !== activePortfolio.id));
+      }
+      const nextPortfolio = portfolios.find((portfolio) => portfolio.id !== activePortfolio.id);
+      if (nextPortfolio) {
+        onSelectPortfolioId(nextPortfolio.id);
+      }
+      setIsDeletePortfolioOpen(false);
+    } catch (error) {
+      setPortfolioActionError(error instanceof Error ? error.message : 'Portfolio could not be deleted.');
+    } finally {
+      setIsDeletingPortfolio(false);
+    }
+  };
+  const handlePerformanceMouseMove = (event: MouseEvent<SVGSVGElement>) => {
+    if (performanceChart.points.length === 0) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = ((event.clientX - rect.left) / Math.max(rect.width, 1)) * performanceChart.width;
+    const closest = performanceChart.points.reduce((best, point) => Math.abs(point.x - x) < Math.abs(best.x - x) ? point : best, performanceChart.points[0]);
+    setHoveredPoint({ x: closest.x, y: closest.y, date: closest.data.date, value: closest.data.value, returnPct: closest.data.returnPct });
   };
 
-  // Pre-calculate currency format helper based on portfolio content
-  const formatCurrency = (val: number) => `${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const formatCurrency = (value: number | null | undefined) => {
+    if (value == null || Number.isNaN(value)) return '-';
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
+  const formatReturn = (value: number | null | undefined) => {
+    if (value == null || Number.isNaN(value)) return '-';
+    return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
+  };
+
+  const formatDate = (value: string | null | undefined) => {
+    if (!value) return '-';
+    const date = parseDate(value);
+    return date ? dateFormatter.format(date) : value;
+  };
+
+  const returnColor = (value: number | null | undefined) => {
+    if (value == null || Number.isNaN(value)) return 'text-text-muted';
+    return value >= 0 ? 'text-bull-green' : 'text-bear-red';
+  };
+
+  const tileColor = (value: number | null | undefined) => {
+    if (allocationMode === 'allocation') return 'bg-primary/25 border-primary/35';
+    if (value == null || Number.isNaN(value)) return 'bg-bg-base/70 border-outline-variant/35';
+    return value >= 0 ? 'bg-bull-green/55 border-bull-green/50' : 'bg-bear-red/70 border-bear-red/60';
+  };
+
+  const chartColor = rangedPerformanceData[rangedPerformanceData.length - 1]?.returnPct < 0 ? '#ff3b5f' : '#14c8a6';
+  const latestMonthlyReturns = monthlyReturns.slice(-3).reverse();
+  const totalMonthlyReturn = filteredMonthlyReturns.length > 0 && filteredMonthlyReturns[0].first > 0
+    ? ((filteredMonthlyReturns[filteredMonthlyReturns.length - 1].last - filteredMonthlyReturns[0].first) / filteredMonthlyReturns[0].first) * 100
+    : null;
   return (
-    <div className="flex-1 flex flex-col bg-bg-primary overflow-hidden">
-
-      {/* 1. Header with Swappers & Creating New Portfolio */}
-      <div className="p-4 md:p-5 border-b border-outline-variant/30 bg-bg-card/30 shrink-0">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <span className="text-[10px] font-label-caps text-text-muted tracking-widest uppercase block mb-1">
-              PORTFOLIO ANALYSIS & TRACKING CENTER
-            </span>
-            <div className="flex items-center gap-3">
-              <h2 className="font-headline text-2xl font-bold text-text-primary tracking-tight">
-                {activePortfolio?.name || 'My Portfolio'}
-              </h2>
-
-              {/* Delete active portfolio button */}
-              {portfolios.length > 1 && (
-                <button
-                  onClick={() => handleDeletePortfolio(activePortfolio.id)}
-                  title="Delete Portfolio"
-                  className="p-1 text-text-muted hover:text-bear-red transition-colors rounded hover:bg-bg-card cursor-pointer"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+    <div className="flex-1 overflow-y-auto bg-bg-primary p-4 md:p-6 space-y-6">
+      <section className="bg-bg-card border border-outline-variant rounded-xl overflow-hidden shadow-md">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_560px] gap-6 p-6 md:p-8 min-h-72 items-center">
+          <div className="flex items-center gap-8">
+            <div className="hidden sm:flex h-28 w-28 items-end justify-center rounded-xl border border-outline-variant/25 bg-bg-base/35 p-4">
+              <div className="flex items-end gap-2">
+                <span className="h-10 w-8 rounded-t-md bg-bear-red/80" />
+                <span className="h-20 w-8 rounded-t-md bg-primary/80" />
+                <span className="h-14 w-8 rounded-t-md bg-warning-amber/80" />
+              </div>
             </div>
-          </div>
-
-          {/* Creation form, portfolio selector, and journal button */}
-          <div className="flex flex-wrap items-center gap-3">
-
-            {/* Direct Open Ledger journal link */}
-            {onOpenTradingJournal && (
-              <button
-                onClick={onOpenTradingJournal}
-                className="flex items-center gap-2 bg-primary/10 hover:bg-primary/15 text-primary px-3.5 py-2.5 rounded-xl text-xs font-bold font-sans shadow-sm transition-all cursor-pointer border border-primary/25"
-                title="Open Trading Journal"
-              >
-                <BookOpen className="w-4 h-4" />
-                <span>Trading Journal</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={!activePortfolio || activePortfolio.holdings.length === 0}
-              className="flex items-center gap-2 bg-bg-base hover:bg-bg-card text-text-secondary px-3.5 py-2.5 rounded-xl text-xs font-bold font-sans shadow-sm transition-all cursor-pointer border border-outline-variant/40 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Export active portfolio holdings as CSV"
-            >
-              <Download className="w-4 h-4" />
-              <span>CSV Export</span>
-            </button>
-
-            <label className="flex items-center gap-2 bg-bg-base hover:bg-bg-card text-text-secondary px-3.5 py-2.5 rounded-xl text-xs font-bold font-sans shadow-sm transition-all cursor-pointer border border-outline-variant/40">
-              <Upload className="w-4 h-4" />
-              <span>{importingCsv ? 'Importing...' : 'CSV Import'}</span>
-              <input
-                type="file"
-                accept=".csv,text/csv"
-                className="hidden"
-                disabled={importingCsv || !activePortfolio}
-                onChange={handleImportCsv}
-              />
-            </label>
-
-            {/* New Portfolio Creation Form */}
-            <form onSubmit={handleCreatePortfolio} className="flex gap-2 bg-surface-container-low border border-outline-variant/30 p-1.5 rounded-xl">
-              <input
-                type="text"
-                placeholder="New portfolio name..."
-                value={newPortfolioName}
-                onChange={(e) => setNewPortfolioName(e.target.value)}
-                className="bg-bg-base border-none rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none w-36 font-sans"
-              />
-              <button
-                type="submit"
-                className="bg-primary text-bg-base px-3 py-1.5 rounded-lg text-xs font-bold font-sans transition-opacity hover:opacity-95 flex items-center gap-1.5 cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Create Portfolio</span>
-              </button>
-            </form>
-
-            {/* Selector Dropdown */}
-            <div className="flex items-center gap-2 bg-surface-container-low border border-outline-variant/30 px-3 py-1.5 rounded-xl shadow-sm">
-              <Briefcase className="w-4 h-4 text-primary" />
-              <select
-                value={activePortfolioId}
-                onChange={(e) => onSelectPortfolioId(e.target.value)}
-                className="bg-transparent border-none text-xs font-bold text-text-secondary focus:outline-none pr-1 font-sans cursor-pointer"
-              >
-                {portfolios.map(p => (
-                  <option key={p.id} value={p.id} className="bg-bg-card text-text-primary">
-                    {p.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main Analytics & Ledger Dashboard Grid */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-
-        {/* Aggregated Totals row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="p-4 bg-bg-card border border-outline-variant/35 rounded-xl shadow-sm">
-            <span className="text-[10px] font-label-caps text-text-muted uppercase tracking-wider">TOTAL PORTFOLIO VALUE</span>
-            <div className="text-2xl font-black text-text-primary mt-1 font-data-mono">
-              {formatCurrency(portfolioSummary.totalValue)}
-            </div>
-            <div className="text-[10px] text-text-secondary mt-1">Current market value weighted by sector liquidity</div>
-          </div>
-          <div className="p-4 bg-bg-card border border-outline-variant/35 rounded-xl shadow-sm">
-            <span className="text-[10px] font-label-caps text-text-muted uppercase tracking-wider">TOTAL COST</span>
-            <div className="text-2xl font-black text-text-secondary mt-1 font-data-mono">
-              {formatCurrency(portfolioSummary.totalCost)}
-            </div>
-            <div className="text-[10px] text-text-secondary mt-1">Total invested capital</div>
-          </div>
-          <div className="p-4 bg-bg-card border border-outline-variant/35 rounded-xl shadow-sm flex flex-col justify-between">
             <div>
-              <span className="text-[10px] font-label-caps text-text-muted uppercase tracking-wider">TOTAL NET PROFIT / LOSS</span>
-              <div className={`text-2xl font-black mt-1 font-data-mono ${
-                portfolioSummary.totalPNL >= 0 ? 'text-bull-green' : 'text-bear-red'
-              }`}>
-                {portfolioSummary.totalPNL >= 0 ? 'UP +' : 'DOWN '}{formatCurrency(portfolioSummary.totalPNL)}
+              <div className="mb-2 flex items-center gap-2 text-xs font-bold text-text-muted">
+                <span>US</span>
+                <span>USD</span>
               </div>
-            </div>
-            <div className={`text-[11px] font-bold mt-1 font-data-mono ${
-              portfolioSummary.totalPNL >= 0 ? 'text-bull-green' : 'text-bear-red'
-            }`}>
-              {portfolioSummary.totalPNL >= 0 ? 'UP +' : 'DOWN '}
-              {portfolioSummary.totalPNLPercent.toFixed(2)}% Return Rate
+              <h1 className="font-headline text-5xl font-black tracking-tight text-text-primary">
+                {activePortfolio?.name || 'Portfolio'}
+              </h1>
+              <p className="mt-3 max-w-xl text-sm text-text-secondary">
+                Active portfolio performance, allocation, concentration, and ledger history.
+              </p>
+              <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end">
+                <label className="min-w-56 text-[10px] font-label-caps font-bold uppercase tracking-widest text-text-muted">
+                  Active Portfolio
+                  <select
+                    value={activePortfolio?.id ?? ''}
+                    onChange={(event) => onSelectPortfolioId(event.target.value)}
+                    className="mt-1 w-full rounded-lg border border-outline-variant/40 bg-bg-base px-3 py-2 text-xs font-bold text-text-primary focus:outline-none focus:border-primary"
+                    aria-label="Select active portfolio"
+                  >
+                    {!activePortfolio && <option value="">Select portfolio</option>}
+                    {portfolios.map((portfolio) => (
+                      <option key={portfolio.id} value={portfolio.id} className="bg-bg-card text-text-primary">
+                        {portfolio.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortfolioActionError('');
+                                    setIsCreatePortfolioOpen(true);
+                  }}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/25 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/15"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Create Portfolio</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPortfolioActionError('');
+                                    setIsDeletePortfolioOpen(true);
+                  }}
+                  disabled={!activePortfolio || isDeletingPortfolio}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-bear-red/30 bg-bear-red/10 px-3 text-xs font-bold text-bear-red hover:bg-bear-red/15 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Delete Portfolio</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Dynamic Split Screen: Left form & asset list, Right visual distribution and returns */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          {/* LEFT CONTAINER: Holdings Ledger and Add form */}
-          <div className="space-y-6">
-
-            {/* Holdings table list */}
-            <div className="bg-bg-card border border-outline-variant/35 rounded-xl overflow-hidden shadow-sm">
-              <div className="p-4 border-b border-outline-variant/30 flex justify-between items-center bg-bg-card/45">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-primary" />
-                  <span className="font-headline text-xs font-bold text-text-primary uppercase tracking-wider">
-                    Active Positions & Assets
-                  </span>
-                </div>
-                <span className="text-[10px] font-data-mono text-text-muted">
-                  {holdingsWithMetrics.length} Instruments
-                </span>
-              </div>
-
-              <div className="overflow-x-auto">
-                {holdingsWithMetrics.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-text-muted font-sans">
-                    This portfolio has no positions yet. Use the panel below to add one.</div>
-                ) : (
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-bg-base/35 border-b border-outline-variant/20">
-                        <th className="p-3 text-[10px] font-label-caps text-text-muted">Instrument</th>
-                        <th className="p-3 text-[10px] font-label-caps text-text-muted text-right">Quantity</th>
-                        <th className="p-3 text-[10px] font-label-caps text-text-muted text-right">Cost</th>
-                        <th className="p-3 text-[10px] font-label-caps text-text-muted text-right">Last Price</th>
-                        <th className="p-3 text-[10px] font-label-caps text-text-muted text-right">Value / P&L</th>
-                        <th className="p-3 text-[10px] font-label-caps text-text-muted text-center">Quick Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-outline-variant/15 font-sans">
-                      {holdingsWithMetrics.map(h => {
-                        const isBullish = h.profitLoss >= 0;
-                        return (
-                          <tr key={h.symbol} className="hover:bg-bg-base/20 transition-colors">
-                            <td className="p-3">
-                              <div className="font-data-mono text-xs font-bold text-text-primary">
-                                {h.symbol}
-                              </div>
-                              <div className="text-[9px] text-text-muted truncate max-w-[110px]" title={h.name}>
-                                {h.name}
-                              </div>
-                            </td>
-                            <td className="p-3 text-right font-data-mono text-xs text-text-primary">
-                              {h.quantity}
-                            </td>
-                            <td className="p-3 text-right font-data-mono text-xs text-text-secondary">
-                              {formatCurrency(h.costPrice)}
-                            </td>
-                            <td className="p-3 text-right font-data-mono text-xs text-text-primary">
-                              {formatCurrency(h.currentPrice)}
-                            </td>
-                            <td className="p-3 text-right font-data-mono text-xs">
-                              <div className="text-text-primary font-bold">{formatCurrency(h.totalValue)}</div>
-                              <span className={`text-[9px] font-bold block ${isBullish ? 'UP +' : 'DOWN '}`}>
-                                {isBullish ? 'UP +' : 'DOWN '}
-                                {h.profitLossPercent.toFixed(1)}%
-                              </span>
-                            </td>
-                            <td className="p-3 text-center">
-                              <div className="inline-flex items-center gap-1.5">
-                                {/* BUY ADD */}
-                                <button
-                                  onClick={() => handleOpenTradeModal(h.symbol, 'BUY')}
-                                  title="Add Shares (BUY)"
-                                  className="p-1 hover:bg-bull-green/10 rounded text-bull-green border border-bull-green/20 transition-all cursor-pointer"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </button>
-                                {/* SELL REDUCE */}
-                                <button
-                                  onClick={() => handleOpenTradeModal(h.symbol, 'SELL')}
-                                  title="Reduce Shares (SELL)"
-                                  className="p-1 hover:bg-amber-500/10 rounded text-amber-500 border border-amber-500/20 transition-all cursor-pointer"
-                                >
-                                  <Minus className="w-3 h-3" />
-                                </button>
-                                {/* CLOSE FULLY */}
-                                <button
-                                  onClick={() => handleOpenTradeModal(h.symbol, 'SELL')}
-                                  title="Close Position (Record Sell)"
-                                  className="p-1 hover:bg-bear-red/10 rounded text-bear-red border border-bear-red/20 transition-all cursor-pointer"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-
-            {/* MODERN TRADING CONTROL CENTER */}
-            <div className="bg-bg-card border border-outline-variant/35 rounded-xl p-5 shadow-sm space-y-4">
-              <div className="flex items-center gap-2 mb-2 border-b border-outline-variant/15 pb-2.5">
-                <Activity className="w-4 h-4 text-primary animate-pulse" />
-                <span className="font-headline text-xs font-bold text-text-primary uppercase tracking-wider">
-                  Trading & Portfolio Control Center
-                </span>
-              </div>
-
-              <p className="text-xs text-text-secondary leading-relaxed font-sans">
-                All portfolio buy, sell, cost reduction, and position increase actions must be recorded in the <span className="text-primary font-bold">Trading Journal</span>. No instrument should be removed directly without a journal entry.
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-
-                {/* Action 1: New Transaction Ticket */}
-                <div className="p-4 rounded-xl bg-bg-base/30 border border-outline-variant/15 hover:border-primary/30 transition-all flex flex-col justify-between space-y-3">
-                  <div>
-                    <p className="text-[11px] text-text-secondary leading-normal">
-                      Select a stock or instrument to create a journal-integrated BUY or SELL order.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <select
-                      value={selectedStockSymbol}
-                      onChange={(e) => setSelectedStockSymbol(e.target.value)}
-                      className="w-full bg-bg-base border border-outline-variant rounded-lg p-2 text-xs font-bold text-text-primary focus:outline-none focus:border-primary font-sans cursor-pointer"
-                    >
-                      {stocks.map(s => (
-                        <option key={s.symbol} value={s.symbol}>
-                          {s.symbol} - {s.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <button
-                      type="button"
-                      onClick={() => handleOpenTradeModal(selectedStockSymbol, 'BUY')}
-                      className="w-full py-2 bg-primary hover:opacity-95 text-bg-base text-xs font-bold rounded-lg shadow-sm transition-opacity flex items-center justify-center gap-1.5 cursor-pointer font-sans"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Create New Order</span>
-                    </button>
-                  </div>
-                </div>
-                {/* Action 2: Trading Journal */}
-                <div className="p-4 rounded-xl bg-bg-base/30 border border-outline-variant/15 hover:border-primary/30 transition-all flex flex-col justify-between space-y-3">
-                  <div>
-                    <span className="text-[10px] font-label-caps text-text-muted uppercase tracking-wider block mb-1">TRADING JOURNAL</span>
-                    <p className="text-[11px] text-text-secondary leading-normal">
-                      Review historical trades, cost records, investment theses, and performance details in the journal.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={onOpenTradingJournal}
-                    className="w-full py-2.5 bg-primary/10 hover:bg-primary/15 text-primary border border-primary/25 text-xs font-bold rounded-lg shadow-sm transition-colors flex items-center justify-center gap-1.5 cursor-pointer font-sans mt-auto"
-                  >
-                    <BookOpen className="w-3.5 h-3.5" />
-                    <span>Open Trading Journal</span>
-                  </button>
-                </div>
-                </div>
-
-              </div>
-            </div>
-
-
-          {/* RIGHT CONTAINER: Visual allocation distribution & returns chart */}
-          <div className="space-y-6">
-            {/* Asset Allocation Charts */}
-
-            <div className="bg-bg-card border border-outline-variant/35 rounded-xl p-5 shadow-sm">
-              <div className="flex items-center gap-2 mb-4 border-b border-outline-variant/15 pb-2.5">
-                <PieChart className="w-4 h-4 text-primary" />
-                <span className="font-headline text-xs font-bold text-text-primary uppercase tracking-wider">
-                  Thematic Asset Allocation</span>
-              </div>
-
-              {allocationWeights.length === 0 ? (
-                <div className="p-8 text-center text-xs text-text-muted font-sans">
-                  Add at least one stock position to draw sector allocation.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {/* Styled Stacked Thematic Allocation Bar */}
-                  <div className="w-full h-5 rounded-full overflow-hidden flex bg-surface-container-low shadow-sm">
-                    {allocationWeights.map((item, idx) => {
-                      const colorObj = thematicPalette[idx % thematicPalette.length];
-                      return (
-                        <div
-                          key={item.symbol}
-                          className={`${colorObj.bg} h-full transition-all duration-300`}
-                          style={{ width: `${item.weight}%` }}
-                          title={`${item.symbol}: %${item.weight.toFixed(1)}`}
-                        ></div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Allocation Weight Legend List */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    {allocationWeights.map((item, idx) => {
-                      const colorObj = thematicPalette[idx % thematicPalette.length];
-                      return (
-                        <div
-                          key={item.symbol}
-                          className="p-3 rounded-lg bg-bg-base/30 border border-outline-variant/15 flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <span className="w-3 h-3 rounded-md shrink-0" style={{ backgroundColor: colorObj.stroke }}></span>
-                            <div className="truncate">
-                              <span className="font-data-mono text-xs font-black text-text-primary block leading-none">
-                                {item.symbol}
-                              </span>
-                              <span className="text-[9px] text-text-muted truncate block mt-1" title={item.name}>
-                                {item.name}
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className="font-data-mono text-xs font-black text-text-primary block">
-                              %{item.weight.toFixed(1)}
-                            </span>
-                            <span className="text-[9px] text-text-secondary font-data-mono block mt-0.5">
-                              {formatCurrency(item.value)}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Portfolio performance chart */}
-            <div className="bg-bg-card border border-outline-variant/35 rounded-xl p-5 shadow-sm">
-              <div className="flex items-center justify-between mb-4 border-b border-outline-variant/15 pb-2.5">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-primary" />
-                  <span className="font-headline text-xs font-bold text-text-primary uppercase tracking-wider">
-                    Cumulative Portfolio Performance Chart</span>
-                </div>
-
-                {/* Period selection */}
-                <div className="flex items-center gap-1 bg-surface-container-low p-1 rounded-lg border border-outline-variant/30 shrink-0">
-                  {(['1M', '3M', '6M', '1Y'] as const).map((period) => (
-                    <button
-                      key={period}
-                      onClick={() => setActivePeriod(period)}
-                      className={`px-2.5 py-1 rounded text-[9px] font-bold font-data-mono transition-all cursor-pointer ${
-                        activePeriod === period
-                          ? 'bg-primary text-bg-base shadow-sm'
-                          : 'text-text-muted hover:text-text-primary'
-                      }`}
-                    >
-                      {period === '1Y' ? '1Y' : period}
-                    </button>
+          <div className="rounded-xl border border-bull-green/30 bg-bg-base/30 p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_1px_1fr] gap-5 items-center">
+              <div>
+                <div className="mb-4 text-[11px] font-label-caps font-bold uppercase tracking-widest text-text-muted">Recent Months</div>
+                <div className="space-y-3">
+                  {latestMonthlyReturns.length === 0 ? (
+                    <div className="text-xs text-text-muted">Monthly history is unavailable.</div>
+                  ) : latestMonthlyReturns.map((month) => (
+                    <div key={month.sort} className="flex items-center justify-between gap-4 text-sm font-bold">
+                      <span className="text-text-secondary">{month.label}</span>
+                      <span className={`rounded-full px-2 py-0.5 font-data-mono text-xs ${month.returnPct >= 0 ? 'bg-bull-green/10 text-bull-green' : 'bg-bear-red/10 text-bear-red'}`}>
+                        {formatReturn(month.returnPct)}
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
-
-              {allocationWeights.length === 0 ? (
-                <div className="p-8 text-center text-xs text-text-muted font-sans">
-                  Add assets to draw the performance and cumulative return chart.
+              <div className="hidden h-36 bg-outline-variant/25 sm:block" />
+              <div className="text-center">
+                <div className="text-[11px] font-label-caps font-bold uppercase tracking-widest text-text-muted">Total Return</div>
+                <div className={`mt-6 font-data-mono text-5xl font-black ${returnColor(portfolioSummary.totalReturn)}`}>
+                  {formatReturn(portfolioSummary.totalReturn)}
                 </div>
-              ) : (
-                <div className="relative mt-2">
-                  {hoveredPoint && (
-                    <div
-                      className="absolute bg-surface-container border border-outline-variant rounded-lg p-2 text-[10px] pointer-events-none shadow-lg z-20"
-                      style={{
-                        left: `${(hoveredPoint.x / 600) * 100}%`,
-                        top: `${(hoveredPoint.y / 180) * 100 - 35}%`,
-                        transform: 'translateX(-50%)'
-                      }}
-                    >
-                      <div className="font-bold text-text-muted">{hoveredPoint.date}</div>
-                      <div className="font-data-mono text-primary font-extrabold mt-0.5">
-                        {formatCurrency(hoveredPoint.value)}
-                      </div>
-                    </div>
-                  )}
-
-                  <svg
-                    className="w-full h-40 overflow-visible cursor-crosshair"
-                    viewBox="0 0 600 180"
-                    onMouseMove={handleMouseMove}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    <defs>
-                      <linearGradient id="performanceGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#2563eb" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="#2563eb" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Chart horizontal grid lines */}
-                    <line x1="0" y1="15" x2="600" y2="15" stroke="#424753" strokeOpacity="0.1" />
-                    <line x1="0" y1="90" x2="600" y2="90" stroke="#424753" strokeOpacity="0.1" />
-                    <line x1="0" y1="165" x2="600" y2="165" stroke="#424753" strokeOpacity="0.1" />
-
-                    {performanceChartPath.area && (
-                      <path d={performanceChartPath.area} fill="url(#performanceGrad)" />
-                    )}
-
-                    {performanceChartPath.line && (
-                      <path
-                        d={performanceChartPath.line}
-                        fill="none"
-                        stroke="#2563eb"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    )}
-
-                    {/* Interactive tracker dots */}
-                    {hoveredPoint && (
-                      <>
-                        <line
-                          x1={hoveredPoint.x}
-                          y1="0"
-                          x2={hoveredPoint.x}
-                          y2="180"
-                          stroke="#2563eb"
-                          strokeOpacity="0.4"
-                          strokeDasharray="2 2"
-                        />
-                        <circle
-                          cx={hoveredPoint.x}
-                          cy={hoveredPoint.y}
-                          r="5"
-                          fill="#2563eb"
-                          stroke="#ffffff"
-                          strokeWidth="1.5"
-                        />
-                      </>
-                    )}
-                  </svg>
-
-                  {/* Bounds indicator */}
-                  <div className="flex justify-between items-center text-[9px] font-data-mono text-text-muted mt-2 border-t border-outline-variant/10 pt-1.5">
-                    <span>MIN VALUE</span>
-                    <span>{performanceChartData[0]?.date} - {performanceChartData[performanceChartData.length - 1]?.date}</span>
-                    <span>MAX VALUE</span>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
-
+            <button
+              type="button"
+              onClick={() => setMonthlyModalOpen(true)}
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/15 bg-primary/10 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/15"
+            >
+              <CalendarDays className="h-4 w-4" />
+              <span>Monthly View</span>
+            </button>
           </div>
+        </div>
+      </section>
 
+      <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <MetricCard label="Portfolio Value" value={formatCurrency(portfolioSummary.totalValue)} tone="neutral" />
+        <MetricCard label="Best Performer" value={healthMetrics.best ? `${healthMetrics.best.symbol} ${formatReturn(healthMetrics.best.totalReturn)}` : '-'} tone="positive" />
+        <MetricCard label="Worst Performer" value={healthMetrics.worst ? `${healthMetrics.worst.symbol} ${formatReturn(healthMetrics.worst.totalReturn)}` : '-'} tone="negative" />
+        <MetricCard label="Largest Weight" value={healthMetrics.largest ? `${healthMetrics.largest.symbol} ${healthMetrics.largest.weight.toFixed(1)}%` : '-'} tone={portfolioSummary.largestWeight > 25 ? 'warning' : 'neutral'} />
+      </section>
+
+
+      <section className="bg-bg-card border border-outline-variant rounded-xl p-6 shadow-md">
+        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="font-headline text-xl font-bold text-text-primary">Performance Analysis (USD)</h2>
+            <p className="mt-1 text-sm text-text-secondary">USD-based cumulative performance</p>
+          </div>
+          <div className="flex rounded-xl border border-outline-variant/35 bg-bg-base p-1">
+            {performanceRanges.map((range) => (
+              <button
+                key={range}
+                onClick={() => setPerformanceRange(range)}
+                className={`min-w-16 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${performanceRange === range ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+              >
+                <span className="block">{range}</span>
+                <span className={`block font-data-mono text-[10px] ${returnColor(rangedPerformanceData[rangedPerformanceData.length - 1]?.returnPct)}`}>
+                  {formatReturn(rangedPerformanceData[rangedPerformanceData.length - 1]?.returnPct)}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
-      </div>
+        <div className="relative h-72">
+          {hoveredPoint && (
+            <div className="absolute z-20 rounded-lg border border-outline-variant bg-bg-primary px-3 py-2 text-xs shadow-lg" style={{ left: Math.min(hoveredPoint.x + 12, 430), top: Math.max(hoveredPoint.y - 26, 8) }}>
+              <div className="font-data-mono text-text-muted">{formatDate(hoveredPoint.date)}</div>
+              <div className="mt-1 font-data-mono font-bold text-text-primary">{formatCurrency(hoveredPoint.value)}</div>
+              <div className={`font-data-mono text-[11px] ${returnColor(hoveredPoint.returnPct)}`}>{formatReturn(hoveredPoint.returnPct)}</div>
+            </div>
+          )}
+          {performanceChart.points.length < 2 ? (
+            <div className="flex h-full items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
+              Performance history is unavailable for this portfolio.
+            </div>
+          ) : (
+            <svg
+              className="h-full w-full cursor-crosshair"
+              viewBox="0 0 600 220"
+              preserveAspectRatio="none"
+              aria-label="Portfolio performance analysis chart"
+              onMouseMove={handlePerformanceMouseMove}
+              onMouseLeave={() => setHoveredPoint(null)}
+            >
+              <defs>
+                <linearGradient id="portfolioPerformanceArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={chartColor} stopOpacity="0.25" />
+                  <stop offset="100%" stopColor={chartColor} stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {[0, 1, 2, 3].map((line) => {
+                const y = performanceChart.padding.top + (line / 3) * (220 - performanceChart.padding.top - performanceChart.padding.bottom);
+                const value = performanceChart.max - (line / 3) * (performanceChart.max - performanceChart.min);
+                return (
+                  <g key={line}>
+                    <line x1="52" y1={y} x2="584" y2={y} stroke="#424753" strokeOpacity="0.24" strokeDasharray="3 3" />
+                    <text x="44" y={y + 3} fill="#bec6e0" fontSize="9" fontFamily="JetBrains Mono" textAnchor="end">
+                      {formatReturn(value)}
+                    </text>
+                  </g>
+                );
+              })}
+              <path d={performanceChart.area} fill="url(#portfolioPerformanceArea)" />
+              <path d={performanceChart.line} fill="none" stroke={chartColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+              {hoveredPoint && (
+                <>
+                  <line x1={hoveredPoint.x} x2={hoveredPoint.x} y1="20" y2="188" stroke={chartColor} strokeOpacity="0.45" strokeDasharray="4 4" />
+                  <circle cx={hoveredPoint.x} cy={hoveredPoint.y} r="5" fill={chartColor} stroke="#171f33" strokeWidth="2" />
+                </>
+              )}
+            </svg>
+          )}
+        </div>
+      </section>
+      <section className="grid grid-cols-1 xl:grid-cols-[600px_minmax(0,1fr)] gap-6">
+        <div className="bg-bg-card border border-outline-variant rounded-xl p-6 shadow-md">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-headline text-2xl font-bold text-text-primary">Asset Allocation</h2>
+              <p className="mt-1 text-sm text-text-secondary">Weight and performance</p>
+            </div>
+            <div className="flex rounded-xl border border-outline-variant/35 bg-bg-base p-1">
+              {allocationModes.map((mode) => (
+                <button
+                  key={mode.id}
+                  onClick={() => setAllocationMode(mode.id)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {displayedPositions.length === 0 ? (
+            <div className="flex min-h-72 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
+              No holdings are available for allocation analysis.
+            </div>
+          ) : (
+            <div className="grid min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-4">
+              {[...displayedPositions].sort((a, b) => b.weight - a.weight).map((position, index) => {
+                const value = allocationMode === 'daily' ? position.dailyReturn : allocationMode === 'total' ? position.totalReturn : position.weight;
+                return (
+                  <div
+                    key={position.symbol}
+                    className={`flex min-h-24 flex-col items-center justify-center rounded-md border p-3 text-center ${tileColor(value)}`}
+                    style={{ gridColumn: index === 0 ? 'span 2' : undefined, gridRow: position.weight >= 18 ? 'span 2' : undefined }}
+                  >
+                    <div className="font-data-mono text-base font-black text-text-primary">{position.symbol}</div>
+                    <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">
+                      {allocationMode === 'allocation' ? `${position.weight.toFixed(1)}%` : formatReturn(value)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
-      {/* 4. Elegant Inline Transaction Modal for quick BUY/SELL adjustments */}
-      {tradeModalStock && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/75 backdrop-blur-md p-4 animate-fade-in font-sans">
-          <div className="bg-bg-primary border border-outline-variant rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-            {/* Header */}
-            <div className="p-4 border-b border-outline-variant bg-bg-card/45 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Coins className="w-4 h-4 text-primary" />
-                <h3 className="font-headline text-sm font-bold text-text-primary uppercase tracking-wide">
-                  Trade Stock: {tradeModalStock.symbol}
-                </h3>
-              </div>
+        <div className="bg-bg-card border border-outline-variant rounded-xl overflow-hidden shadow-md">
+          <div className="flex border-b border-outline-variant/30 bg-bg-card/45 px-5">
+            <button
+              onClick={() => setActiveTab('holdings')}
+              className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'holdings' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
+            >
+              Current Holdings
+            </button>
+            <button
+              onClick={() => setActiveTab('transactions')}
+              className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'transactions' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
+            >
+              Transaction History
+            </button>
+          </div>
+
+          {activeTab === 'holdings' ? (
+            <HoldingsTable positions={displayedPositions} formatCurrency={formatCurrency} formatDate={formatDate} formatReturn={formatReturn} returnColor={returnColor} />
+          ) : (
+            <TransactionTable rows={transactionRows} transactionsError={transactionsError} formatCurrency={formatCurrency} formatDate={formatDate} />
+          )}
+        </div>
+      </section>
+
+      {healthMetrics.unpriced > 0 && (
+        <div className="rounded-xl border border-outline-variant/35 bg-bg-card px-4 py-3 text-xs text-text-muted">
+          {healthMetrics.unpriced} holding(s) do not have refreshed market history and are excluded from some period-return calculations.
+        </div>
+      )}
+
+      {positionError && (
+        <div className="rounded-xl border border-warning-amber/35 bg-warning-amber/10 px-4 py-3 text-xs text-warning-amber">
+          Live position metrics are unavailable; local holding values are shown without fabricated period returns.
+        </div>
+      )}
+
+      {onOpenTradingJournal && (
+        <button
+          type="button"
+          onClick={onOpenTradingJournal}
+          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm font-bold text-primary shadow-lg backdrop-blur hover:bg-primary/15"
+        >
+          <BookOpen className="h-4 w-4" />
+          <span>Open Trading Journal</span>
+        </button>
+      )}
+
+      {isCreatePortfolioOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/75 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border border-outline-variant bg-bg-primary shadow-2xl">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 bg-bg-card/60 p-5">
+              <h2 className="font-headline text-lg font-bold text-text-primary">Create Portfolio</h2>
               <button
-                onClick={() => setTradeModalStock(null)}
-                className="p-1.5 hover:bg-bg-card rounded-lg text-text-secondary hover:text-text-primary transition-colors cursor-pointer border border-outline-variant/30"
+                type="button"
+                onClick={() => {
+                  setIsCreatePortfolioOpen(false);
+                  setPortfolioActionError('');
+                }}
+                className="rounded-lg bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
+                aria-label="Close create portfolio"
               >
-                <Plus className="w-4 h-4 rotate-45" />
+                <X className="h-4 w-4" />
               </button>
             </div>
-
-            {/* Form */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (tradeModalQty <= 0 || tradeModalPrice <= 0) {
-                  alert('Quantity and unit price must be greater than zero.');
-                  return;
-                }
-
-                // Check sell constraint
-                if (tradeModalType === 'SELL') {
-                  const owned = activePortfolio?.holdings.find(h => h.symbol === tradeModalStock.symbol);
-                  const ownedQty = owned ? owned.quantity : 0;
-                  if (tradeModalQty > ownedQty) {
-                    alert(`Insufficient quantity. You own ${ownedQty} shares of ${tradeModalStock.symbol}, but you are trying to sell ${tradeModalQty}.`);
-                    return;
-                  }
-                }
-
-                onExecuteTrade({
-                  symbol: tradeModalStock.symbol,
-                  type: tradeModalType,
-                  quantity: tradeModalQty,
-                  price: tradeModalPrice,
-                  notes: tradeModalNotes.trim() || `${tradeModalStock.symbol} ${tradeModalType === 'BUY' ? 'increase' : 'reduction'} trade.`,
-                  portfolioId: activePortfolio?.id
-                });
-
-                alert(`${tradeModalStock.symbol} trade was completed and saved to the journal.`);
-                setTradeModalStock(null);
-              }}
-              className="p-5 space-y-4 text-xs"
-            >
-              {/* Type Switcher */}
-              <div>
-                <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-                  Trade Type
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setTradeModalType('BUY')}
-                    className={`py-2 text-center rounded-lg font-bold border transition-all cursor-pointer ${
-                      tradeModalType === 'BUY'
-                        ? 'bg-bull-green/10 border-bull-green text-bull-green font-black'
-                        : 'bg-bg-base border-outline-variant/50 text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    Add Shares (BUY)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setTradeModalType('SELL')}
-                    className={`py-2 text-center rounded-lg font-bold border transition-all cursor-pointer ${
-                      tradeModalType === 'SELL'
-                        ? 'bg-bear-red/10 border-bear-red text-bear-red font-black'
-                        : 'bg-bg-base border-outline-variant/50 text-text-secondary hover:text-text-primary'
-                    }`}
-                  >
-                    Reduce Shares (SELL)
-                  </button>
-                </div>
-              </div>
-
-              {/* Qty & Price */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-                    Quantity</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={tradeModalQty}
-                    onChange={(e) => setTradeModalQty(Math.max(0.0001, parseFloat(e.target.value) || 0))}
-                    className="w-full bg-bg-base border border-outline-variant rounded-lg px-3 py-1.5 text-text-primary font-data-mono font-bold focus:outline-none focus:border-primary"
-                    required
-                  />
-                  {tradeModalType === 'SELL' && (
-                    <span className="text-[9px] text-text-muted mt-1 block font-semibold text-amber-500">
-                      Portfolio quantity: {activePortfolio?.holdings.find(h => h.symbol === tradeModalStock.symbol)?.quantity || 0} shares
-                    </span>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-                    Unit Trade Price</label>
-                  <input
-                    type="number"
-                    step="any"
-                    value={tradeModalPrice}
-                    onChange={(e) => setTradeModalPrice(Math.max(0.01, parseFloat(e.target.value) || 0))}
-                    className="w-full bg-bg-base border border-outline-variant rounded-lg px-3 py-1.5 text-text-primary font-data-mono font-bold focus:outline-none focus:border-primary"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Notes */}
-              <div>
-                <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-                  Investment Thesis / Trade Note</label>
-                <textarea
-                  placeholder="Example: Added to the position after a confirmed support bounce..."
-                  value={tradeModalNotes}
-                  onChange={(e) => setTradeModalNotes(e.target.value)}
-                  rows={2.5}
-                  className="w-full bg-bg-base border border-outline-variant rounded-lg p-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary"
+            <form onSubmit={handleCreatePortfolio} className="space-y-4 p-5">
+              <label className="block text-xs font-bold text-text-secondary">
+                Portfolio Name
+                <input
+                  autoFocus
+                  value={newPortfolioName}
+                  onChange={(event) => setNewPortfolioName(event.target.value)}
+                  maxLength={40}
+                  placeholder="Growth, Income, Hedge..."
+                  className="mt-1 w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary"
                 />
+              </label>
+              {portfolioActionError && (
+                <div className="rounded-lg border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
+                  {portfolioActionError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCreatePortfolioOpen(false)}
+                  className="rounded-lg border border-outline-variant/40 bg-bg-base px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingPortfolio}
+                  className="inline-flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>{isCreatingPortfolio ? 'Creating...' : 'Create Portfolio'}</span>
+                </button>
               </div>
-
-              {/* Total estimation */}
-              <div className="bg-bg-base/30 p-2.5 rounded border border-outline-variant/20 flex justify-between items-baseline font-data-mono">
-                <span className="text-text-muted text-[10px]">ESTIMATED ORDER VALUE:</span>
-                <span className="text-xs font-bold text-text-primary">
-                  {formatCurrency(tradeModalQty * tradeModalPrice)}
-                </span>
-              </div>
-
-              {/* Submit */}
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-primary hover:opacity-95 text-bg-base font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider cursor-pointer font-sans"
-              >
-                <span>Complete Trade and Save to Journal</span>
-              </button>
             </form>
           </div>
         </div>
       )}
 
+      {isDeletePortfolioOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/75 p-4 backdrop-blur-md">
+          <div className="w-full max-w-md overflow-hidden rounded-xl border border-outline-variant bg-bg-primary shadow-2xl">
+            <div className="flex items-center justify-between border-b border-outline-variant/30 bg-bg-card/60 p-5">
+              <h2 className="font-headline text-lg font-bold text-text-primary">Delete Portfolio</h2>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDeletePortfolioOpen(false);
+                  setPortfolioActionError('');
+                }}
+                className="rounded-lg bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
+                aria-label="Close delete portfolio"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="space-y-4 p-5">
+              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
+                <div className="text-[10px] font-label-caps font-bold uppercase tracking-widest text-text-muted">Selected Portfolio</div>
+                <div className="mt-2 font-data-mono text-lg font-black text-text-primary">{activePortfolio?.name || '-'}</div>
+              </div>
+              {deleteBlockReason ? (
+                <div className="rounded-lg border border-warning-amber/35 bg-warning-amber/10 px-3 py-2 text-xs font-semibold text-warning-amber">
+                  {deleteBlockReason}
+                </div>
+              ) : (
+                <div className="rounded-lg border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
+                  This action deletes the empty portfolio. Transaction history for this portfolio will no longer be shown.
+                </div>
+              )}
+              {portfolioActionError && (
+                <div className="rounded-lg border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
+                  {portfolioActionError}
+                </div>
+              )}
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDeletePortfolioOpen(false)}
+                  className="rounded-lg border border-outline-variant/40 bg-bg-base px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeletePortfolio}
+                  disabled={Boolean(deleteBlockReason) || isDeletingPortfolio}
+                  className="inline-flex items-center gap-2 rounded-lg border border-bear-red/30 bg-bear-red/10 px-4 py-2 text-xs font-bold text-bear-red hover:bg-bear-red/15 disabled:cursor-not-allowed disabled:opacity-45"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>{isDeletingPortfolio ? 'Deleting...' : 'Delete Portfolio'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {monthlyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-bg-base/75 p-4 backdrop-blur-md">
+          <div className="w-full max-w-3xl overflow-hidden rounded-xl border border-outline-variant bg-bg-primary shadow-2xl">
+            <div className="flex items-start justify-between border-b border-outline-variant/30 bg-bg-card/60 p-5">
+              <div>
+                <h2 className="font-headline text-lg font-bold text-text-primary">Monthly Performance</h2>
+                <span className="mt-2 inline-block rounded-full bg-primary/15 px-2 py-1 text-[10px] font-bold uppercase text-primary">
+                  {activePortfolio?.name || 'Portfolio'}
+                </span>
+              </div>
+              <button onClick={() => setMonthlyModalOpen(false)} className="rounded-lg bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
+                <div className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
+                  <CalendarDays className="h-4 w-4" />
+                  <span>Period Selection</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <label className="text-xs font-bold text-text-secondary">
+                    Start Month
+                    <select
+                      value={startMonth}
+                      onChange={(event) => setStartMonth(event.target.value)}
+                      disabled={startMonthOptions.length === 0}
+                      className="mt-1 w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {startMonthOptions.map((month) => (
+                        <option key={month.sort} value={month.sort} className="bg-bg-card text-text-primary">
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-bold text-text-secondary">
+                    End Month
+                    <select
+                      value={endMonth}
+                      onChange={(event) => setEndMonth(event.target.value)}
+                      disabled={endMonthOptions.length === 0}
+                      className="mt-1 w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {endMonthOptions.map((month) => (
+                        <option key={month.sort} value={month.sort} className="bg-bg-card text-text-primary">
+                          {month.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <h3 className="font-headline text-sm font-bold text-text-primary">Monthly Return</h3>
+                  <span className="text-xs text-text-muted">{filteredMonthlyReturns.length} months shown</span>
+                </div>
+                <div className="flex h-64 items-end gap-3 border-b border-outline-variant/25 px-2 pb-8 pt-4">
+                  {filteredMonthlyReturns.length === 0 ? (
+                    <div className="flex h-full w-full items-center justify-center text-xs text-text-muted">No monthly data in this range.</div>
+                  ) : filteredMonthlyReturns.map((month) => {
+                    const height = Math.min(100, Math.max(8, Math.abs(month.returnPct) * 4));
+                    return (
+                      <div key={month.sort} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
+                        <div className={`w-full max-w-8 rounded-t ${month.returnPct >= 0 ? 'bg-primary' : 'bg-bear-red'}`} style={{ height: `${height}%` }} title={`${month.label}: ${formatReturn(month.returnPct)}`} />
+                        <span className="-rotate-45 whitespace-nowrap text-[9px] text-text-muted">{month.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
+                <h3 className="font-headline text-sm font-bold text-text-primary">Total Return (Selected Range)</h3>
+                <div className="mt-4 h-4 rounded-full bg-bg-base">
+                  <div className="h-4 rounded-full bg-primary" style={{ width: `${Math.min(100, Math.max(2, Math.abs(totalMonthlyReturn ?? 0)))}%` }} />
+                </div>
+                <div className={`mt-4 rounded-xl border border-primary/25 bg-primary/10 p-4 font-data-mono text-2xl font-black ${returnColor(totalMonthlyReturn)}`}>
+                  {activePortfolio?.name || 'Portfolio'} {formatReturn(totalMonthlyReturn)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+function MetricCard({ label, value, tone }: { label: string; value: string; tone: 'neutral' | 'positive' | 'negative' | 'warning' }) {
+  const color = tone === 'positive' ? 'text-bull-green' : tone === 'negative' ? 'text-bear-red' : tone === 'warning' ? 'text-warning-amber' : 'text-text-primary';
+  return (
+    <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4 shadow-sm">
+      <div className="text-[10px] font-label-caps font-bold uppercase tracking-widest text-text-muted">{label}</div>
+      <div className={`mt-2 truncate font-data-mono text-lg font-black ${color}`}>{value}</div>
+    </div>
+  );
+}
+
+function HoldingsTable({
+  positions,
+  formatCurrency,
+  formatDate,
+  formatReturn,
+  returnColor,
+}: {
+  positions: LocalPositionPerformance[];
+  formatCurrency: (value: number | null | undefined) => string;
+  formatDate: (value: string | null | undefined) => string;
+  formatReturn: (value: number | null | undefined) => string;
+  returnColor: (value: number | null | undefined) => string;
+}) {
+  if (positions.length === 0) {
+    return <div className="p-8 text-center text-xs text-text-muted">No current holdings are available.</div>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[1100px] text-left text-xs">
+        <thead className="bg-bg-base/40 text-[10px] uppercase tracking-wider text-text-muted">
+          <tr>
+            <th className="px-4 py-3">Added Date</th>
+            <th className="px-4 py-3">Stock</th>
+            <th className="px-4 py-3 text-right">Cost</th>
+            <th className="px-4 py-3 text-right">Price</th>
+            <th className="px-4 py-3 text-right">Weight</th>
+            <th className="px-4 py-3 text-right">Daily</th>
+            <th className="px-4 py-3 text-right">Weekly</th>
+            <th className="px-4 py-3 text-right">1M</th>
+            <th className="px-4 py-3 text-right">3M</th>
+            <th className="px-4 py-3 text-right">6M</th>
+            <th className="px-4 py-3 text-right">1Y</th>
+            <th className="px-4 py-3 text-right">Total</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-outline-variant/20">
+          {positions.map((position) => (
+            <tr key={position.symbol} className="hover:bg-bg-base/25">
+              <td className="px-4 py-3 font-data-mono text-text-secondary">{formatDate(position.addedDate)}</td>
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full border border-outline-variant/50 bg-bg-base font-data-mono font-black text-primary">
+                    {position.symbol.slice(0, 1)}
+                  </div>
+                  <div>
+                    <div className="font-data-mono font-black text-text-primary">{position.symbol}</div>
+                    <div className="max-w-36 truncate text-[10px] text-text-muted">{position.company}</div>
+                  </div>
+                </div>
+              </td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(position.costPrice)}</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(position.currentPrice)}</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{position.weight.toFixed(2)}%</td>
+              <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.dailyReturn)}`}>{formatReturn(position.dailyReturn)}</td>
+              <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.weeklyReturn)}`}>{formatReturn(position.weeklyReturn)}</td>
+              <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.oneMonthReturn)}`}>{formatReturn(position.oneMonthReturn)}</td>
+              <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.threeMonthReturn)}`}>{formatReturn(position.threeMonthReturn)}</td>
+              <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.sixMonthReturn)}`}>{formatReturn(position.sixMonthReturn)}</td>
+              <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.oneYearReturn)}`}>{formatReturn(position.oneYearReturn)}</td>
+              <td className={`px-4 py-3 text-right font-data-mono font-black ${returnColor(position.totalReturn)}`}>{formatReturn(position.totalReturn)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TransactionTable({
+  rows,
+  transactionsError,
+  formatCurrency,
+  formatDate,
+}: {
+  rows: Array<PortfolioTransaction & { purchaseAmount: number; averageCost: number }>;
+  transactionsError: boolean;
+  formatCurrency: (value: number | null | undefined) => string;
+  formatDate: (value: string | null | undefined) => string;
+}) {
+  if (transactionsError) {
+    return <div className="p-8 text-center text-xs text-warning-amber">Transaction history is unavailable.</div>;
+  }
+  if (rows.length === 0) {
+    return <div className="p-8 text-center text-xs text-text-muted">No transaction history is available for this portfolio.</div>;
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[900px] text-left text-xs">
+        <thead className="bg-bg-base/40 text-[10px] uppercase tracking-wider text-text-muted">
+          <tr>
+            <th className="px-4 py-3">Date</th>
+            <th className="px-4 py-3">Action</th>
+            <th className="px-4 py-3">Stock</th>
+            <th className="px-4 py-3 text-right">Purchase Amount</th>
+            <th className="px-4 py-3 text-right">Average Cost</th>
+            <th className="px-4 py-3 text-right">Price at Transaction</th>
+            <th className="px-4 py-3">Notes</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-outline-variant/20">
+          {rows.map((row) => (
+            <tr key={row.id} className="hover:bg-bg-base/25">
+              <td className="px-4 py-3 font-data-mono text-text-secondary">{formatDate(row.tradeDate)}</td>
+              <td className="px-4 py-3">
+                <span className={`inline-flex min-w-24 items-center justify-center rounded-md border px-2 py-1 font-bold ${row.action === 'SELL' ? 'border-bear-red/35 bg-bear-red/10 text-bear-red' : 'border-bull-green/35 bg-bull-green/10 text-bull-green'}`}>
+                  {row.action === 'SELL' ? <ArrowDownRight className="mr-1 h-3 w-3" /> : <ArrowUpRight className="mr-1 h-3 w-3" />}
+                  {row.action}
+                </span>
+              </td>
+              <td className="px-4 py-3 font-data-mono font-black text-text-primary">{row.symbol ?? '-'}</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(row.purchaseAmount)}</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(row.averageCost)}</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(row.price)}</td>
+              <td className="px-4 py-3 text-text-secondary">{row.notes || '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

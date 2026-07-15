@@ -1,12 +1,13 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
-
+import com.ozkaslibasar.financeproject.domain.model.Watchlist;
+import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchSnapshot;
+import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
+import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchSnapshotUseCase;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import com.ozkaslibasar.financeproject.domain.model.Watchlist;
-import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -15,12 +16,15 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @Tag(name = "Watchlists", description = "Watchlist management")
 @RestController
@@ -31,6 +35,7 @@ public class WatchlistController {
     private static final String DEFAULT_USER = "default";
 
     private final WatchlistPort watchlistPort;
+    private final WatchlistResearchSnapshotUseCase researchSnapshotUseCase;
 
     @Operation(summary = "GET Watchlists endpoint", description = "Implements the GET operation for the Watchlists API described in SPEC.md sections 7 and 8.")
     @ApiResponses({
@@ -48,6 +53,30 @@ public class WatchlistController {
     @GetMapping
     public List<Watchlist> list() {
         return watchlistPort.findByUserId(DEFAULT_USER);
+    }
+
+    @Operation(summary = "GET Watchlist research snapshot", description = "Returns a paginated, partially degradable research snapshot for the selected watchlist.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Successful response"),
+            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
+            @ApiResponse(responseCode = "404", description = "Watchlist not found"),
+            @ApiResponse(responseCode = "429", description = "Provider rate limit exceeded for one or more sections"),
+            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
+    })
+    @GetMapping("/{id}/research-snapshot")
+    public WatchlistResearchSnapshot researchSnapshot(
+            @PathVariable long id,
+            @RequestParam(defaultValue = "25") int limit,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(required = false) String symbols,
+            @RequestParam(defaultValue = "false") boolean refresh) {
+        try {
+            return researchSnapshotUseCase.getSnapshot(DEFAULT_USER, id, limit, offset, parseSymbols(symbols), refresh);
+        } catch (NoSuchElementException ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage(), ex);
+        } catch (IllegalArgumentException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, ex.getMessage(), ex);
+        }
     }
 
     @Operation(summary = "POST Watchlists endpoint", description = "Implements the POST operation for the Watchlists API described in SPEC.md sections 7 and 8.")
@@ -142,6 +171,16 @@ public class WatchlistController {
     private Watchlist get(long id) {
         return watchlistPort.findByIdAndUserId(id, DEFAULT_USER)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Watchlist not found: " + id));
+    }
+
+    private List<String> parseSymbols(String symbols) {
+        if (symbols == null || symbols.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(symbols.split(","))
+                .map(String::trim)
+                .filter(symbol -> !symbol.isBlank())
+                .toList();
     }
 
     private String normalizeSymbol(String symbol) {

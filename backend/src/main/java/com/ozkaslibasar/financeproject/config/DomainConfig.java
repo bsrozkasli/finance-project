@@ -9,15 +9,21 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SymbolMappingPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
+import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
+import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchSnapshotUseCase;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,10 +60,30 @@ public class DomainConfig {
     }
 
     @Bean
+    public AssetResolutionService assetResolutionService(
+            SymbolMappingPort symbolMappingPort,
+            PriceChartClientPort priceChartClientPort) {
+        return new AssetResolutionService(symbolMappingPort, priceChartClientPort);
+    }
+
+    @Bean
     public PriceRefreshService priceRefreshService(
             PriceRepositoryPort priceRepositoryPort,
             FinancialDataPort financialDataPort) {
         return new PriceRefreshService(priceRepositoryPort, financialDataPort);
+    }
+
+    @Bean
+    public WatchlistResearchSnapshotUseCase watchlistResearchSnapshotUseCase(
+            WatchlistPort watchlistPort,
+            PriceRefreshService priceRefreshService,
+            TechnicalAnalysisPort technicalAnalysisPort,
+            ResearchDataPort researchDataPort) {
+        return new WatchlistResearchSnapshotUseCase(
+                watchlistPort,
+                priceRefreshService,
+                technicalAnalysisPort,
+                researchDataPort);
     }
 
     @Bean
@@ -96,3 +122,4 @@ public class DomainConfig {
         return new SmartReportUseCase(smartReportScorePort, smartReportMarketDataPort);
     }
 }
+

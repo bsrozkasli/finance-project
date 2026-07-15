@@ -9,15 +9,21 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.SymbolMappingPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
+import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
+import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchSnapshotUseCase;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,13 +81,31 @@ class DomainConfigWiringTest {
     private SmartReportMarketDataPort smartReportMarketDataPort;
 
     @Autowired
+    private SymbolMappingPort symbolMappingPort;
+
+    @Autowired
+    private WatchlistPort watchlistPort;
+
+    @Autowired
+    private TechnicalAnalysisPort technicalAnalysisPort;
+
+    @Autowired
+    private ResearchDataPort researchDataPort;
+
+    @Autowired
     private PriceIngestionService priceIngestionService;
 
     @Autowired
     private PriceNormalizationService priceNormalizationService;
 
     @Autowired
+    private AssetResolutionService assetResolutionService;
+
+    @Autowired
     private PriceRefreshService priceRefreshService;
+
+    @Autowired
+    private WatchlistResearchSnapshotUseCase watchlistResearchSnapshotUseCase;
 
     @Autowired
     private PortfolioLedgerService portfolioLedgerService;
@@ -104,6 +128,13 @@ class DomainConfigWiringTest {
     }
 
     @Test
+    void should_wireAssetResolutionService_with_dependencies() {
+        assertThat(assetResolutionService).isNotNull();
+        assertThat(ReflectionTestUtils.getField(assetResolutionService, "symbolMappingPort")).isSameAs(symbolMappingPort);
+        assertThat(ReflectionTestUtils.getField(assetResolutionService, "priceChartClientPort")).isSameAs(priceChartClientPort);
+    }
+
+    @Test
     void should_wirePriceNormalizationService() {
         assertThat(priceNormalizationService).isNotNull();
         assertThat(priceNormalizationService).isInstanceOf(PriceNormalizationService.class);
@@ -116,6 +147,14 @@ class DomainConfigWiringTest {
         assertThat(ReflectionTestUtils.getField(priceRefreshService, "financialDataPort")).isSameAs(financialDataPort);
     }
 
+    @Test
+    void should_wireWatchlistResearchSnapshotUseCase_with_dependencies() {
+        assertThat(watchlistResearchSnapshotUseCase).isNotNull();
+        assertThat(ReflectionTestUtils.getField(watchlistResearchSnapshotUseCase, "watchlistPort")).isSameAs(watchlistPort);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchSnapshotUseCase, "priceRefreshService")).isSameAs(priceRefreshService);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchSnapshotUseCase, "technicalAnalysisPort")).isSameAs(technicalAnalysisPort);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchSnapshotUseCase, "researchDataPort")).isSameAs(researchDataPort);
+    }
     @Test
     void should_wirePortfolioLedgerService_with_transactionPort() {
         assertThat(portfolioLedgerService).isNotNull();
@@ -179,11 +218,34 @@ class DomainConfigWiringTest {
         }
 
         @Bean
+        SymbolMappingPort symbolMappingPort() {
+            // Mock rationale: symbol mapping persistence port should not hit real DB in wiring test.
+            return mock(SymbolMappingPort.class);
+        }
+
+        @Bean
         FinancialDataPort financialDataPort() {
             // Mock rationale: external market provider I/O boundary is mocked in wiring test.
             return mock(FinancialDataPort.class);
         }
 
+        @Bean
+        WatchlistPort watchlistPort() {
+            // Mock rationale: watchlist persistence port should not hit real DB in wiring test.
+            return mock(WatchlistPort.class);
+        }
+
+        @Bean
+        TechnicalAnalysisPort technicalAnalysisPort() {
+            // Mock rationale: external technical-analysis provider is an I/O boundary.
+            return mock(TechnicalAnalysisPort.class);
+        }
+
+        @Bean
+        ResearchDataPort researchDataPort() {
+            // Mock rationale: external fundamentals/research provider is an I/O boundary.
+            return mock(ResearchDataPort.class);
+        }
         @Bean
         PortfolioTransactionPort portfolioTransactionPort() {
             // Mock rationale: persistence boundary is mocked to keep context test deterministic.
@@ -233,3 +295,4 @@ class DomainConfigWiringTest {
         }
     }
 }
+

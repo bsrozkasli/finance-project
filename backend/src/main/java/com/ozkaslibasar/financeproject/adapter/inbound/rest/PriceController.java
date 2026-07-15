@@ -42,7 +42,7 @@ public class PriceController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/{symbol}/latest")
-    @Cacheable(value = "priceCache", key = "'latest:' + #symbol.toUpperCase()")
+    @Cacheable(value = "latestPriceCache", key = "#symbol.toUpperCase()")
     public PriceResponseDto getLatestPrice(@PathVariable String symbol) {
         PriceHistory latest = priceRefreshService.getFreshLatest(symbol.toUpperCase(Locale.ROOT))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Price not found"));
