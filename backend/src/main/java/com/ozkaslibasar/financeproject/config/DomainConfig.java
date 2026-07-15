@@ -4,6 +4,7 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatem
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
@@ -12,6 +13,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
+import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
@@ -61,6 +63,13 @@ public class DomainConfig {
     @Bean
     public PortfolioLedgerService portfolioLedgerService(PortfolioTransactionPort transactionPort) {
         return new PortfolioLedgerService(transactionPort);
+    }
+
+    @Bean
+    public JournalTradeService journalTradeService(
+            JournalTradePort journalTradePort,
+            PriceRefreshService priceRefreshService) {
+        return new JournalTradeService(journalTradePort, priceRefreshService);
     }
 
     @Bean

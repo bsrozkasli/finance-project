@@ -4,6 +4,7 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatem
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
@@ -12,6 +13,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
+import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
@@ -52,6 +54,9 @@ class DomainConfigWiringTest {
     private PortfolioTransactionPort portfolioTransactionPort;
 
     @Autowired
+    private JournalTradePort journalTradePort;
+
+    @Autowired
     private YahooStatementClientAdapter yahooStatementClientAdapter;
 
     @Autowired
@@ -80,6 +85,9 @@ class DomainConfigWiringTest {
 
     @Autowired
     private PortfolioLedgerService portfolioLedgerService;
+
+    @Autowired
+    private JournalTradeService journalTradeService;
 
     @Autowired
     private AgentAnalysisUseCase agentAnalysisUseCase;
@@ -112,6 +120,13 @@ class DomainConfigWiringTest {
     void should_wirePortfolioLedgerService_with_transactionPort() {
         assertThat(portfolioLedgerService).isNotNull();
         assertThat(ReflectionTestUtils.getField(portfolioLedgerService, "transactionPort")).isSameAs(portfolioTransactionPort);
+    }
+
+    @Test
+    void should_wireJournalTradeService_with_tradePortAndPriceRefreshService() {
+        assertThat(journalTradeService).isNotNull();
+        assertThat(ReflectionTestUtils.getField(journalTradeService, "tradePort")).isSameAs(journalTradePort);
+        assertThat(ReflectionTestUtils.getField(journalTradeService, "priceRefreshService")).isSameAs(priceRefreshService);
     }
 
     @Test
@@ -173,6 +188,12 @@ class DomainConfigWiringTest {
         PortfolioTransactionPort portfolioTransactionPort() {
             // Mock rationale: persistence boundary is mocked to keep context test deterministic.
             return mock(PortfolioTransactionPort.class);
+        }
+
+        @Bean
+        JournalTradePort journalTradePort() {
+            // Mock rationale: persistence boundary is mocked to keep context test deterministic.
+            return mock(JournalTradePort.class);
         }
 
         @Bean
