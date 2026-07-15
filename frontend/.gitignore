@@ -23,7 +23,8 @@ dist-ssr
 *.sln
 *.sw?
 
-# Test artifacts
+# Generated test reports
 coverage
 playwright-report
 test-results
+

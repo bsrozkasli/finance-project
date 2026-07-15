@@ -81,6 +81,9 @@ public class PortfolioManagementController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deletePortfolio(@PathVariable Long portfolioId) {
         getPortfolio(portfolioId);
+        if (!ledgerService.calculateHoldings(portfolioId, DEFAULT_USER).isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Portfolio cannot be deleted while it has active holdings");
+        }
         portfolioPort.deleteByIdAndUserId(portfolioId, DEFAULT_USER);
     }
 

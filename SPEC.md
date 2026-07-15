@@ -180,6 +180,8 @@ Frontend:
 - Latest price derives from stored or fetched price history and may be cached.
 - Journal trades persist through `JournalTradePort`; controllers must not store journal state in memory.
 - Watchlists persist through `WatchlistPort`; controllers must not store watchlist state in memory.
+- Watchlist research snapshots aggregate price, technical, fundamentals, earnings, and institutional sections without fabricating data. Each section returns `OK`, `STALE`, `EMPTY`, `FAILED`, `RATE_LIMITED`, `INSUFFICIENT_DATA`, or `PENDING_REFRESH` so the frontend can render `N/A` per column while preserving the rest of the row.
+- Watchlist research snapshot requests must be bounded: default `limit=25`, maximum `limit=50`, `offset>=0`, and optional comma-separated `symbols` filtering for viewport-sized fetches.
 - Agent analysis results are cached and persisted for history/audit.
 - Portfolio calculations must distinguish quantity, cost basis, market value, allocation, daily return, total return, and unrealized PnL.
 - Financial, risk, and technical calculations belong in domain/data-service analytics services, not controllers.
@@ -245,6 +247,8 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
 | Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
 | Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
+| Portfolio dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative-return comparison for investment portfolios and benchmarks; values are derived from real refreshed price history and missing provider data returns empty points rather than fabricated values |
+| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level added date, cost, current price, weight, daily/weekly/1M/3M/6M/1Y/total returns for an investment portfolio; time-window returns are null when refreshed price history is missing or insufficient |
 | Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
 | Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |
 | Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
@@ -258,11 +262,12 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Watchlists | `POST /watchlists` | Create watchlist |
 | Watchlists | `POST /watchlists/{id}/symbols` | Add symbol |
 | Watchlists | `DELETE /watchlists/{id}/symbols/{symbol}` | Remove symbol |
+| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Paginated watchlist research snapshot with per-section provider status, partial failure handling, and viewport-sized symbol filtering |
 | Watchlists | `DELETE /watchlists/{id}` | Delete watchlist |
 | Investment portfolios | `GET /portfolios` | List user portfolios such as ABD, BIST, funds, or gold |
 | Investment portfolios | `POST /portfolios` | Create a portfolio with a base currency |
 | Investment portfolios | `PUT /portfolios/{id}` | Update portfolio metadata |
-| Investment portfolios | `DELETE /portfolios/{id}` | Delete a portfolio and its transaction ledger |
+| Investment portfolios | `DELETE /portfolios/{id}` | Delete an empty portfolio; returns `409 Conflict` while active holdings exist |
 | Portfolio ledger | `GET /portfolios/{id}/transactions` | List manual/CSV transaction ledger entries |
 | Portfolio ledger | `POST /portfolios/{id}/transactions` | Add BUY/SELL/dividend/cash/manual valuation transaction; optional journal note is linked, not used to delete history |
 | Portfolio ledger | `DELETE /portfolios/{id}/transactions/{transactionId}` | Delete one transaction entry and remove any linked journal trade for that transaction |
@@ -444,6 +449,7 @@ Endpoint-level error conditions, provider failure mappings, auth error targets, 
 - Missing single resources should return `404`.
 - Data-service endpoints must clearly report insufficient input data, especially for technical analysis with fewer than 30 candles.
 - Backend provider clients should use configured resilience where available: rate limiter, retry, circuit breaker, and bulkhead.
+- Aggregate market endpoints such as watchlist research snapshots must avoid unbounded fan-out. Provider calls are limited by a concurrency bulkhead, short timeout, and circuit breaker; one section failure must not fail the entire symbol row.
 - Frontend hooks should expose loading and error states without breaking the whole dashboard.
 
 HTTP status code contract:
@@ -523,6 +529,7 @@ Entity relationships and persistence semantics:
 - Latest and historical price reads use `PriceRefreshService`: local data first, provider refresh when needed, persist fetched rows, then return real data only.
 - Fetched historical prices are persisted after lazy loading.
 - Latest price, technical analysis, analyst data, fundamentals, research, reports, and agent-analysis responses may be cached to reduce provider/API load.
+- Watchlist research snapshot TTL expectations are data-type specific: latest price is short lived, technical data is intraday-lived, fundamentals/earnings/institutional data can be daily-lived, and stale values should be shown with status metadata while refresh happens where supported.
 - Technical analysis requires at least 30 candles.
 - Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.
 - New investment portfolio views should derive holdings from `PortfolioTransaction` ledger entries. BUY increases quantity/cost basis; SELL validates available quantity, reduces the holding, and records realized PnL. Journal entries are decision history and must not be deleted when a holding is sold.

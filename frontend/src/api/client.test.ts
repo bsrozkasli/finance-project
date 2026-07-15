@@ -39,13 +39,16 @@ import {
   fetchPortfolioHoldings,
   fetchPortfolioNews,
   fetchPortfolioPerformance,
+  fetchPortfolioPerformanceComparison,
   fetchPortfolioPositions,
+  fetchPortfolioPositionsPerformance,
   fetchPortfolioSummary,
   fetchPortfolioTransactions,
   fetchPriceHistory,
   fetchPriceTarget,
   fetchTechnicalAnalysis,
   fetchWatchlists,
+  fetchWatchlistResearchSnapshot,
   optimizePortfolio,
   removeSymbolFromWatchlist,
   updateInvestmentPortfolio,
@@ -186,8 +189,10 @@ describe('api client contract', () => {
     const position = { id: 11, ...positionRequest };
     const summary = { totalValue: 1000, cashBalance: 50, dailyPnL: 5, dailyPnLPercent: 0.5, totalPnL: 100, totalReturn: 10 };
     const performance = { period: '1M', series: [{ date: '2026-07-09', portfolioValue: 1000, benchmarkValue: 990 }] };
+    const comparison = { period: '6M', series: [{ id: '3', label: 'Growth', type: 'PORTFOLIO', currency: 'USD', points: [{ date: '2026-07-09', value: 1000, returnPct: 0 }] }] };
     const allocation = { bySector: [], byAsset: [], byCountry: [] };
     const enriched = { symbol: 'AAPL', company: 'Apple Inc.', shares: 2, avgCost: 190, currentPrice: 193, costBasis: 380, marketValue: 386, allocation: 50, dailyReturn: 1, totalReturn: 2, unrealizedPnL: 6 };
+    const positionPerformance = { symbol: 'AAPL', company: 'Apple Inc.', addedDate: '2026-01-02', costPrice: 190, currentPrice: 193, marketValue: 386, weight: 50, dailyReturn: 1, weeklyReturn: null, oneMonthReturn: 2, threeMonthReturn: 3, sixMonthReturn: 4, oneYearReturn: 5, totalReturn: 6 };
 
     server.use(
       respondJson('GET', '/portfolio/positions', [position]),
@@ -196,8 +201,10 @@ describe('api client contract', () => {
       respondNoContent('DELETE', '/portfolio/positions/11'),
       respondJson('GET', '/portfolio/summary', summary),
       respondJson('GET', '/portfolio/performance', performance, (request) => expectQuery(request, { period: '1M', benchmark: 'SPY' })),
+      respondJson('GET', '/portfolio/performance/comparison', comparison, (request) => expectQuery(request, { period: '6M', portfolioIds: '3,4', benchmarks: 'SP500,NASDAQ' })),
       respondJson('GET', '/portfolio/allocation', allocation),
       respondJson('GET', '/portfolio/positions/enriched', [enriched]),
+      respondJson('GET', '/portfolio/positions/performance', [positionPerformance], (request) => expectQuery(request, { portfolioId: '3' })),
     );
 
     await expect(fetchPortfolioPositions()).resolves.toEqual([position]);
@@ -206,8 +213,10 @@ describe('api client contract', () => {
     await expect(deletePortfolioPosition(11)).resolves.toBeUndefined();
     await expect(fetchPortfolioSummary()).resolves.toEqual(summary);
     await expect(fetchPortfolioPerformance('1M', 'SPY')).resolves.toEqual(performance);
+    await expect(fetchPortfolioPerformanceComparison('6M', [3, 4], ['SP500', 'NASDAQ'])).resolves.toEqual(comparison);
     await expect(fetchPortfolioAllocation()).resolves.toEqual(allocation);
     await expect(fetchEnrichedPositions()).resolves.toEqual([enriched]);
+    await expect(fetchPortfolioPositionsPerformance(3)).resolves.toEqual([positionPerformance]);
   });
 
   it('calls investment portfolio and ledger endpoints', async () => {
@@ -275,10 +284,29 @@ describe('api client contract', () => {
   it('calls watchlist endpoints with symbol mutation contracts', async () => {
     const watchlist = { id: 5, name: 'Core', symbols: ['AAPL'], createdAt: '2026-07-09T09:00:00Z' };
 
+    const snapshot = {
+      watchlistId: 5,
+      watchlistName: 'Core',
+      totalSymbols: 1,
+      limit: 25,
+      offset: 0,
+      requestedSymbols: ['AAPL'],
+      rows: [],
+      policy: {
+        maxLimit: 50,
+        providerConcurrencyLimit: 4,
+        providerTimeoutMillis: 4000,
+        partialFailureEnabled: true,
+        staleWhileRevalidateEnabled: true,
+      },
+      generatedAt: '2026-07-10T00:00:00Z',
+    };
+
     server.use(
       respondJson('GET', '/watchlists', [watchlist]),
       respondJson('POST', '/watchlists', watchlist, (request) => expectJsonBody(request, { name: 'Core' })),
       respondJson('POST', '/watchlists/5/symbols', watchlist, (request) => expectJsonBody(request, { symbol: 'AAPL' })),
+      respondJson('GET', '/watchlists/5/research-snapshot', snapshot, (request) => expectQuery(request, { limit: '25', offset: '0', symbols: 'AAPL,MSFT', refresh: 'true' })),
       respondNoContent('DELETE', '/watchlists/5/symbols/AAPL'),
       respondNoContent('DELETE', '/watchlists/5'),
     );
@@ -286,6 +314,7 @@ describe('api client contract', () => {
     await expect(fetchWatchlists()).resolves.toEqual([watchlist]);
     await expect(createWatchlist('Core')).resolves.toEqual(watchlist);
     await expect(addSymbolToWatchlist(5, 'AAPL')).resolves.toEqual(watchlist);
+    await expect(fetchWatchlistResearchSnapshot(5, { limit: 25, offset: 0, symbols: ['AAPL', 'MSFT'], refresh: true })).resolves.toEqual(snapshot);
     await expect(removeSymbolFromWatchlist(5, 'AAPL')).resolves.toBeUndefined();
     await expect(deleteWatchlist(5)).resolves.toBeUndefined();
   });

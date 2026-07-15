@@ -22,6 +22,13 @@ from app.routers.agent_analysis import router as agent_analysis_router
 from app.routers.backtest import router as backtest_router
 from app.routers.chat import router as chat_router
 from app.routers.health import router as health_router
+from app.observability import (
+    HTTP_REQUEST_DURATION_SECONDS,
+    HTTP_REQUEST_ERRORS_TOTAL,
+    HTTP_REQUESTS_TOTAL,
+    outcome_label,
+    route_label,
+)
 from app.routers.market_calendar import router as market_calendar_router
 from app.request_context import REQUEST_ID_HEADER, reset_request_id, set_request_id
 
@@ -53,6 +60,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
 @app.middleware("http")
 async def request_correlation_middleware(request: Request, call_next):
     request_id = request.headers.get(REQUEST_ID_HEADER) or str(uuid4())
@@ -60,29 +68,54 @@ async def request_correlation_middleware(request: Request, call_next):
     start = time.perf_counter()
     try:
         response = await call_next(request)
-        elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+        elapsed_seconds = time.perf_counter() - start
+        elapsed_ms = round(elapsed_seconds * 1000, 2)
+        route = route_label(request)
+        status = str(response.status_code)
+        outcome = outcome_label(response.status_code)
+        HTTP_REQUESTS_TOTAL.labels(request.method, route, status, outcome).inc()
+        HTTP_REQUEST_DURATION_SECONDS.labels(
+            request.method,
+            route,
+            status,
+            outcome,
+        ).observe(elapsed_seconds)
         logger.info(
-            "request_id=%s method=%s path=%s status=%s duration_ms=%s result=complete",
+            "event=http_request_complete service=data-service request_id=%s "
+            "method=%s route=%s status=%s outcome=%s duration_ms=%s",
             request_id,
             request.method,
-            request.url.path,
-            response.status_code,
+            route,
+            status,
+            outcome,
             elapsed_ms,
         )
         response.headers[REQUEST_ID_HEADER] = request_id
         return response
     except Exception:
-        elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
+        elapsed_seconds = time.perf_counter() - start
+        elapsed_ms = round(elapsed_seconds * 1000, 2)
+        route = route_label(request)
+        HTTP_REQUESTS_TOTAL.labels(request.method, route, "500", "ERROR").inc()
+        HTTP_REQUEST_ERRORS_TOTAL.labels(request.method, route).inc()
+        HTTP_REQUEST_DURATION_SECONDS.labels(
+            request.method,
+            route,
+            "500",
+            "ERROR",
+        ).observe(elapsed_seconds)
         logger.exception(
-            "request_id=%s method=%s path=%s duration_ms=%s result=error",
+            "event=http_request_error service=data-service request_id=%s "
+            "method=%s route=%s duration_ms=%s",
             request_id,
             request.method,
-            request.url.path,
+            route,
             elapsed_ms,
         )
         raise
     finally:
         reset_request_id(token)
+
 
 app.include_router(analysis_router)
 app.include_router(research_router)

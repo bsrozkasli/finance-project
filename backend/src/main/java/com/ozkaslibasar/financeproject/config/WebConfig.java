@@ -10,7 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 /**
  * Global Web MVC configuration.
  *
- * <p>Allows the Vite dev server at {@code http://localhost:5173} to communicate
+ * <p>Allows the Vite dev server at {@code http://localhost:5173} or {@code http://127.0.0.1:5173} to communicate
  * with the Spring Boot backend during development. In production, CORS origins
  * should be overridden via environment-specific configuration.</p>
  */
@@ -20,7 +20,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/api/**")
-                .allowedOrigins("http://localhost:5173")
+                .allowedOrigins("http://localhost:5173", "http://127.0.0.1:5173")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(false)

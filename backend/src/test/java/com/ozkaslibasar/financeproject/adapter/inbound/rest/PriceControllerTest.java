@@ -374,9 +374,9 @@ class PriceControllerTest {
 
         assertThat(latestCache).isNotNull();
         assertThat(historyCache).isNotNull();
-        assertThat(latestCache.value()).containsExactly("priceCache");
+        assertThat(latestCache.value()).containsExactly("latestPriceCache");
         assertThat(historyCache.value()).containsExactly("priceCache");
-        assertThat(latestCache.key()).contains("latest:");
+        assertThat(latestCache.key()).contains("#symbol.toUpperCase()");
         assertThat(historyCache.key()).contains("hist:").contains("#interval").contains("#range");
     }
 

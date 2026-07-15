@@ -11,7 +11,6 @@ import type {
 } from '../api/client';
 import {
   createInvestmentPortfolio,
-  deleteInvestmentPortfolio,
   fetchEnrichedPositions,
   fetchInvestmentPortfolios,
   fetchPortfolioAllocation,
@@ -35,7 +34,6 @@ interface PortfolioDetailState {
   error: string | null;
   setSelectedPortfolioId: (id: number) => void;
   createPortfolio: (request: CreateInvestmentPortfolioRequest) => Promise<InvestmentPortfolio>;
-  deletePortfolio: (id: number) => Promise<void>;
   reload: () => Promise<void>;
 }
 
@@ -146,17 +144,6 @@ export function useInvestmentPortfolio(
     return created;
   }, [loadSelectedData]);
 
-  const deletePortfolio = useCallback(async (id: number) => {
-    await deleteInvestmentPortfolio(id);
-    const remaining = portfolios.filter(portfolio => portfolio.id !== id);
-    const nextSelectedId = resolvePortfolioId(remaining, selectedPortfolioIdRef.current === id ? null : selectedPortfolioIdRef.current);
-    setPortfolios(remaining);
-    selectedPortfolioIdRef.current = nextSelectedId;
-    lastLoadedSelectionRef.current = nextSelectedId;
-    setSelectedPortfolioIdState(nextSelectedId);
-    await loadSelectedData(nextSelectedId);
-  }, [loadSelectedData, portfolios]);
-
   const selectedPortfolio = useMemo(
     () => portfolios.find(portfolio => portfolio.id === selectedPortfolioId) ?? null,
     [portfolios, selectedPortfolioId]
@@ -176,7 +163,6 @@ export function useInvestmentPortfolio(
     error,
     setSelectedPortfolioId,
     createPortfolio,
-    deletePortfolio,
     reload,
   };
 }
