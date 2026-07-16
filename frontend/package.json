@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "node scripts/run-with-timeout.cjs 180000 tsc -b && node scripts/run-with-timeout.cjs 180000 vite build",
     "lint": "node scripts/run-with-timeout.cjs 120000 eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run --config vitest.config.ts",
+    "test:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --coverage --config vitest.config.ts",
+    "e2e": "playwright test",
+    "e2e:integrated": "cross-env E2E_INTEGRATED=true playwright test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -22,17 +27,29 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.61.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "@vitest/coverage-v8": "^4.1.10",
+    "cross-env": "^10.1.0",
     "eslint": "^10.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
+    "jsdom": "^29.1.1",
+    "msw": "^2.15.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.10",
+    "vitest-canvas-mock": "^1.1.4",
+    "zod": "^4.4.3"
   }
 }

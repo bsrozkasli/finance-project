@@ -50,7 +50,6 @@ function PortfolioRoute({
   portfolios,
   activePortfolioId,
   onSelectPortfolioId,
-  onUpdatePortfolios,
   onCreatePortfolio,
   onDeletePortfolio,
   onExecuteTrade,
@@ -60,7 +59,6 @@ function PortfolioRoute({
   portfolios: Portfolio[];
   activePortfolioId: string;
   onSelectPortfolioId: (id: string) => void;
-  onUpdatePortfolios: (portfolios: Portfolio[]) => void;
   onCreatePortfolio: (name: string) => Promise<string>;
   onDeletePortfolio: (id: string) => Promise<void>;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void>;
@@ -85,7 +83,6 @@ function PortfolioRoute({
     <PortfolioManagerView
       stocks={stocks}
       portfolios={portfolios}
-      onUpdatePortfolios={onUpdatePortfolios}
       onCreatePortfolio={onCreatePortfolio}
       onDeletePortfolio={onDeletePortfolio}
       activePortfolioId={portfolioId ?? activePortfolioId}
@@ -295,9 +292,6 @@ export default function App() {
     return portfolios.find((p) => p.id === activePortfolioId) || portfolios[0] || null;
   }, [portfolios, activePortfolioId]);
 
-  // 2. State persistence helper triggers (Will eventually be API calls)
-  const savePortfoliosState = (updated: Portfolio[]) => setPortfolios(updated);
-
   const saveActivePortfolioIdState = (id: string) => {
     setActivePortfolioId(id);
   };
@@ -307,7 +301,7 @@ export default function App() {
     localStorage.setItem('nexus_volatility', v);
   };
 
-  // 4. Watchlist Handlers
+  // 4. Watchlist handlers
   const handleAddStockToWatchlist = async (watchlistId: string, symbol: string) => {
     const normalizedSymbol = symbol.trim().toUpperCase();
     const numericWatchlistId = Number(watchlistId);
@@ -321,11 +315,16 @@ export default function App() {
   };
 
   const handleAddWatchlist = async (name: string) => {
-    await createApiWatchlist(name);
+    const created = await createApiWatchlist(name);
+    return created.id.toString();
   };
 
   const handleCreatePortfolio = async (name: string) => {
-    const created = await createApiPortfolio({ name, baseCurrency: 'USD' });
+    const created = await createApiPortfolio({
+      name,
+      baseCurrency: 'USD',
+      defaultPortfolio: portfolios.length === 0,
+    });
     const id = String(created.id);
     setPortfolios(prev => [
       { id, name: created.name, holdings: [] },
@@ -335,7 +334,6 @@ export default function App() {
     setActivePortfolioId(id);
     return id;
   };
-
 
   const handleDeletePortfolio = async (id: string) => {
     const numericId = numericPortfolioId(id);
@@ -437,7 +435,7 @@ export default function App() {
       };
     });
 
-    savePortfoliosState(updatedPortfolios);
+    setPortfolios(updatedPortfolios);
   };
 
   const handleRemoveTrade = async (id: string) => {
@@ -504,25 +502,14 @@ export default function App() {
       };
     });
 
-    savePortfoliosState(updatedPortfolios);
+    setPortfolios(updatedPortfolios);
   };
-  // 6. Hard Reset to defaults
+  // 6. Reset local UI preferences only. Backend portfolio, journal, and watchlist data is not deleted.
   const handleResetDatabase = () => {
-    localStorage.removeItem('nexus_stocks');
-    localStorage.removeItem('nexus_watchlists');
-    localStorage.removeItem('nexus_portfolios');
-    localStorage.removeItem('nexus_active_portfolio_id');
     localStorage.removeItem('nexus_volatility');
-
-    setStocks([]);
-    setWatchlists([]);
-    setPortfolios([]);
-    setActivePortfolioId('port-1');
     setVolatility('normal');
-
     localStorage.setItem('nexus_volatility', 'normal');
-
-    alert('System was restored to factory defaults.');
+    alert('Local UI preferences were reset. Backend data was not deleted.');
   };
 
   // renderView is replaced by Routes
@@ -627,7 +614,6 @@ export default function App() {
               <PortfolioRoute
                 stocks={stocks}
                 portfolios={portfolios}
-                onUpdatePortfolios={savePortfoliosState}
                 onCreatePortfolio={handleCreatePortfolio}
                 onDeletePortfolio={handleDeletePortfolio}
                 activePortfolioId={activePortfolioId}
@@ -640,7 +626,6 @@ export default function App() {
               <PortfolioRoute
                 stocks={stocks}
                 portfolios={portfolios}
-                onUpdatePortfolios={savePortfoliosState}
                 onCreatePortfolio={handleCreatePortfolio}
                 onDeletePortfolio={handleDeletePortfolio}
                 activePortfolioId={activePortfolioId}
@@ -678,15 +663,8 @@ export default function App() {
         onClose={() => setIsManageAssetsOpen(false)}
         stocks={stocks}
         holdings={activePortfolio ? activePortfolio.holdings : []}
-        onUpdateHoldings={(updatedHoldings) => {
-          const updatedPortfolios = portfolios.map((p) => {
-            if (p.id === activePortfolioId) {
-              return { ...p, holdings: updatedHoldings };
-            }
-            return p;
-          });
-          savePortfoliosState(updatedPortfolios);
-        }}
+        portfolioId={activePortfolio?.id}
+        onExecuteTrade={handleExecuteTrade}
       />
 
       {/* Transaction order input modal */}
@@ -724,3 +702,4 @@ export default function App() {
     </div>
   );
 }
+

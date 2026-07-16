@@ -110,7 +110,7 @@ class PriceControllerTest {
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
                 .andExpect(status().isNotFound())
-                .andExpect(status().reason("Price not found"));
+                .andExpect(jsonPath("$.message").value("Price not found"));
 
         verify(priceRefreshService).getFreshLatest("AAPL");
         verify(restMapper, never()).toPriceResponseDto(any(PriceHistory.class));
@@ -374,9 +374,9 @@ class PriceControllerTest {
 
         assertThat(latestCache).isNotNull();
         assertThat(historyCache).isNotNull();
-        assertThat(latestCache.value()).containsExactly("priceCache");
+        assertThat(latestCache.value()).containsExactly("latestPriceCache");
         assertThat(historyCache.value()).containsExactly("priceCache");
-        assertThat(latestCache.key()).contains("latest:");
+        assertThat(latestCache.key()).contains("#symbol.toUpperCase()");
         assertThat(historyCache.key()).contains("hist:").contains("#interval").contains("#range");
     }
 

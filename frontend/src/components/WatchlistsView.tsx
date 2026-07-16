@@ -18,7 +18,7 @@ interface WatchlistsViewProps {
   stocks: Stock[];
   watchlists: Watchlist[];
   onAddStockToWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
-  onAddWatchlist: (name: string) => void | Promise<void>;
+  onAddWatchlist: (name: string) => void | Promise<string | void>;
   onOpenTradeModal: (symbol: string) => void;
   onSelectStock: (stock: Stock | null, symbol?: string, name?: string) => void;
 }
@@ -161,7 +161,8 @@ export default function WatchlistsView({
     setCreatingWatchlist(true);
     setActionError(null);
     try {
-      await Promise.resolve(onAddWatchlist(name));
+      const createdId = await Promise.resolve(onAddWatchlist(name));
+      if (createdId) setActiveWatchlistId(createdId);
       setNewWatchlistName('');
     } catch (error) {
       console.error('Failed to create watchlist', error);
@@ -632,4 +633,5 @@ function ResearchSource({
     </div>
   );
 }
+
 

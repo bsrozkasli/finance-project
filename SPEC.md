@@ -180,6 +180,8 @@ Frontend:
 - Latest price derives from stored or fetched price history and may be cached.
 - Journal trades persist through `JournalTradePort`; controllers must not store journal state in memory.
 - Watchlists persist through `WatchlistPort`; controllers must not store watchlist state in memory.
+- Watchlist research snapshots aggregate price, technical, fundamentals, earnings, and institutional sections without fabricating data. Each section returns `OK`, `STALE`, `EMPTY`, `FAILED`, `RATE_LIMITED`, `INSUFFICIENT_DATA`, or `PENDING_REFRESH` so the frontend can render `N/A` per column while preserving the rest of the row.
+- Watchlist research snapshot requests must be bounded: default `limit=25`, maximum `limit=50`, `offset>=0`, and optional comma-separated `symbols` filtering for viewport-sized fetches.
 - Agent analysis results are cached and persisted for history/audit.
 - Portfolio calculations must distinguish quantity, cost basis, market value, allocation, daily return, total return, and unrealized PnL.
 - Financial, risk, and technical calculations belong in domain/data-service analytics services, not controllers.
@@ -212,7 +214,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Assets | `DELETE /assets/{symbol}` | Delete asset |
 | Prices | `GET /prices/{symbol}/latest` | Latest price candle through DB-first refresh and `priceCache` |
 | Prices | `GET /prices/{symbol}/history?interval=&range=` | Historical candles with DB-first lazy loading, refresh, persistence, and `priceCache` |
-| Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators, including legacy `sma` plus additive `sma20`, `sma50`, and nullable `sma200` fields |
+| Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators |
 | Technical | `GET /technical/{symbol}/signals?interval=&range=` | Technical signal summary |
 | Agent analysis | `GET /agent-analysis/{ticker}` | Cached or computed multi-agent analysis |
 | Agent analysis | `DELETE /agent-analysis/{ticker}/cache` | Evict one ticker cache |
@@ -245,8 +247,8 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
 | Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
 | Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
-| Portfolio dashboard | `GET /portfolio/performance/comparison?period=&portfolioIds=&benchmarks=` | Multi-series comparison contract; degrades to an empty `series` array when no real comparison data is available |
-| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Ledger position performance; missing provider prices return nullable period fields rather than fabricated returns |
+| Portfolio dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative-return comparison for investment portfolios and benchmarks; values are derived from real refreshed price history and missing provider data returns empty points rather than fabricated values |
+| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level added date, cost, current price, weight, daily/weekly/1M/3M/6M/1Y/total returns for an investment portfolio; time-window returns are null when refreshed price history is missing or insufficient |
 | Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
 | Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |
 | Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
@@ -259,13 +261,13 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Watchlists | `GET /watchlists` | List watchlists |
 | Watchlists | `POST /watchlists` | Create watchlist |
 | Watchlists | `POST /watchlists/{id}/symbols` | Add symbol |
-| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Provider-backed research snapshot with per-section status/source/message, additive asset metadata fields, partial/EMPTY/FAILED sections when providers are unavailable, and no synthetic market data |
 | Watchlists | `DELETE /watchlists/{id}/symbols/{symbol}` | Remove symbol |
+| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Provider-backed paginated watchlist research snapshot with per-section status/source/message, partial failure handling, viewport-sized symbol filtering, and no synthetic market data |
 | Watchlists | `DELETE /watchlists/{id}` | Delete watchlist |
 | Investment portfolios | `GET /portfolios` | List user portfolios such as ABD, BIST, funds, or gold |
 | Investment portfolios | `POST /portfolios` | Create a portfolio with a base currency |
 | Investment portfolios | `PUT /portfolios/{id}` | Update portfolio metadata |
-| Investment portfolios | `DELETE /portfolios/{id}` | Delete a portfolio and its transaction ledger |
+| Investment portfolios | `DELETE /portfolios/{id}` | Delete an empty portfolio; returns `409 Conflict` while active holdings exist |
 | Portfolio ledger | `GET /portfolios/{id}/transactions` | List manual/CSV transaction ledger entries |
 | Portfolio ledger | `POST /portfolios/{id}/transactions` | Add BUY/SELL/dividend/cash/manual valuation transaction; optional journal note is linked, not used to delete history |
 | Portfolio ledger | `DELETE /portfolios/{id}/transactions/{transactionId}` | Delete one transaction entry and remove any linked journal trade for that transaction |
@@ -275,10 +277,9 @@ Data-service endpoints:
 
 | Area | Method and path | Purpose |
 | --- | --- | --- |
-| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |
-| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
-| Analysis | `GET /api/v1/technical/{symbol}` | Technical indicators |
-| Analysis | `GET /api/v1/technical/{symbol}/signals` | Signal summary |
+| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |`r`n| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
+| Analysis | `GET /api/v1/analysis/technical/{symbol}` | Technical indicators |
+| Analysis | `GET /api/v1/analysis/technical/{symbol}/signals` | Signal summary |
 | Analysis | `GET /api/v1/analysis/sentiment/{symbol}` | Sentiment analysis |
 | Analysis | `POST /api/v1/analysis/insight` | LLM insight |
 | Analysis | `GET /api/v1/analysis/full/{symbol}` | Combined analysis |
@@ -404,9 +405,6 @@ Company report (`GET /api/v1/reports/company/AAPL`):
   "symbol": "AAPL",
   "technical": {
     "rsi": 58.4,
-    "sma20": 184.8,
-    "sma50": 179.3,
-    "sma200": null,
     "signalAction": "HOLD",
     "signalConfidence": 64
   },
@@ -451,6 +449,7 @@ Endpoint-level error conditions, provider failure mappings, auth error targets, 
 - Missing single resources should return `404`.
 - Data-service endpoints must clearly report insufficient input data, especially for technical analysis with fewer than 30 candles.
 - Backend provider clients should use configured resilience where available: rate limiter, retry, circuit breaker, and bulkhead.
+- Aggregate market endpoints such as watchlist research snapshots must avoid unbounded fan-out. Provider calls are limited by a concurrency bulkhead, short timeout, and circuit breaker; one section failure must not fail the entire symbol row.
 - Frontend hooks should expose loading and error states without breaking the whole dashboard.
 
 HTTP status code contract:
@@ -530,6 +529,7 @@ Entity relationships and persistence semantics:
 - Latest and historical price reads use `PriceRefreshService`: local data first, provider refresh when needed, persist fetched rows, then return real data only.
 - Fetched historical prices are persisted after lazy loading.
 - Latest price, technical analysis, analyst data, fundamentals, research, reports, and agent-analysis responses may be cached to reduce provider/API load.
+- Watchlist research snapshot TTL expectations are data-type specific: latest price is short lived, technical data is intraday-lived, fundamentals/earnings/institutional data can be daily-lived, and stale values should be shown with status metadata while refresh happens where supported.
 - Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.
 - New investment portfolio views should derive holdings from `PortfolioTransaction` ledger entries. BUY increases quantity/cost basis; SELL validates available quantity, reduces the holding, and records realized PnL. Journal entries are decision history and must not be deleted when a holding is sold.
@@ -583,7 +583,7 @@ Important backend settings:
 - `spring.cache.type=redis`
 - `agent-analysis.cache-ttl-minutes=15`
 - Actuator exposes `health` and `prometheus`
-- `WebConfig` allows Vite dev server origins `http://localhost:5173` and `http://127.0.0.1:5173` for `/api/**`
+- `WebConfig` allows the Vite dev server origin for `/api/**`
 
 ## 13. Testing Strategy
 
@@ -645,25 +645,17 @@ Required integration/smoke scenarios:
 ## 16. Logging
 
 - Backend should use level-appropriate Spring logging.
-- Backend request logs include `X-Request-ID` through MDC as `requestId`; the response must echo the same header.
-- Backend outbound data-service calls should propagate `X-Request-ID` through the shared `RestTemplate` interceptor.
 - Feign/default client logging is `BASIC`; avoid sensitive body logging.
-- Data-service request logs include `request_id`, `service`, `method`, `route`, `status`, `outcome`, and `duration_ms`.
 - Data-service should log provider failures, resolver fallback decisions, and analytics errors with symbol/provider/range context.
 - Avoid noisy logs inside high-frequency calculations unless debug logging is enabled.
-- Never log raw secrets, authorization headers, provider keys, `.env` values, or credentials.
 
 ## 17. Observability
 
 - Backend Actuator exposes `/actuator/health` and `/actuator/prometheus`.
-- Backend application HTTP metrics include `finance_http_server_requests_total` and `finance_http_server_request_duration_seconds` with bounded `route` labels.
 - Prometheus scrapes backend metrics through `prometheus.yml`.
-- Data-service exposes `/metrics` with `data_service_http_requests_total`, `data_service_http_request_errors_total`, and `data_service_http_request_duration_seconds`.
+- Grafana is available locally for dashboards.
 - Data-service exposes `/health/provider/yahoo`, `/health/provider/tiingo`, `/health/provider/finnhub`, `/health/providers`, and `/health/metrics`.
-- Provider resolver metrics track success, empty responses, errors, fallbacks, latency, blacklist state, and health status.
-- Grafana is available locally and is provisioned from `infra/grafana` with the `Finance Observability` dashboard.
 - Track provider availability, request latency, error rates, cache hit/miss rates where practical, and agent-analysis failures.
-- See `docs/OBSERVABILITY.md` for metric names, dashboard provisioning, and local verification steps.
 
 ## 18. Development Workflow
 

@@ -522,7 +522,7 @@ class PortfolioPositionControllerTest {
                         .accept(APPLICATION_JSON)
                         .content(validCreateBody("AAPL", QTY_10_5, COST_190_25, "\"2026-06-30\"", "\"" + NOTES + "\"")))
                 .andExpect(status().isNotFound())
-                .andExpect(status().reason("Position not found: 404"));
+                .andExpect(jsonPath("$.message").value("Position not found: 404"));
 
         verify(positionPort).findByIdAndUserId(404L, DEFAULT_USER);
         verify(positionPort, never()).save(any(PortfolioPosition.class));
@@ -620,7 +620,7 @@ class PortfolioPositionControllerTest {
 
         mockMvc.perform(delete(BASE_PATH + "/404"))
                 .andExpect(status().isNotFound())
-                .andExpect(status().reason("Position not found: 404"));
+                .andExpect(jsonPath("$.message").value("Position not found: 404"));
 
         verify(positionPort).findByIdAndUserId(404L, DEFAULT_USER);
         verify(positionPort, never()).deleteByIdAndUserId(any(Long.class), any(String.class));

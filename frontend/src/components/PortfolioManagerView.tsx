@@ -16,7 +16,7 @@ import { fetchPortfolioPositionsPerformance, fetchPortfolioTransactions } from '
 interface PortfolioManagerViewProps {
   stocks: Stock[];
   portfolios: Portfolio[];
-  onUpdatePortfolios: (updated: Portfolio[]) => void;
+  onUpdatePortfolios?: (updated: Portfolio[]) => void;
   onCreatePortfolio?: (name: string) => Promise<string | void> | string | void;
   onDeletePortfolio?: (id: string) => Promise<void> | void;
   activePortfolioId: string;
@@ -398,7 +398,7 @@ export default function PortfolioManagerView({
         }
       } else {
         const newPortfolio: Portfolio = { id: `portfolio-${Date.now()}`, name, holdings: [] };
-        onUpdatePortfolios([...portfolios, newPortfolio]);
+        onUpdatePortfolios?.([...portfolios, newPortfolio]);
         onSelectPortfolioId(newPortfolio.id);
       }
       setNewPortfolioName('');
@@ -424,7 +424,7 @@ export default function PortfolioManagerView({
       if (onDeletePortfolio) {
         await Promise.resolve(onDeletePortfolio(activePortfolio.id));
       } else {
-        onUpdatePortfolios(portfolios.filter((portfolio) => portfolio.id !== activePortfolio.id));
+        onUpdatePortfolios?.(portfolios.filter((portfolio) => portfolio.id !== activePortfolio.id));
       }
       const nextPortfolio = portfolios.find((portfolio) => portfolio.id !== activePortfolio.id);
       if (nextPortfolio) {

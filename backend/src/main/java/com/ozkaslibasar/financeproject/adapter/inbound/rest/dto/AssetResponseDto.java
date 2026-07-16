@@ -20,4 +20,19 @@ public class AssetResponseDto {
 
     @Schema(description = "Asset type", example = "STOCK")
     private String type;
+
+    @Schema(description = "Exchange code when known", example = "NASDAQ")
+    private String exchange;
+
+    @Schema(description = "Trading currency when known", example = "USD")
+    private String currency;
+
+    @Schema(description = "Provider used for metadata resolution", example = "YAHOO")
+    private String provider;
+
+    @Schema(description = "Provider-specific symbol", example = "AAPL")
+    private String providerSymbol;
+
+    @Schema(description = "Metadata quality", example = "VERIFIED")
+    private String metadataStatus;
 }

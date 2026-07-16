@@ -27,6 +27,51 @@
                      }
                  ],
     "paths":  {
+                  "/api/v1/portfolios/{portfolioId}":  {
+                                                           "delete":  {
+                                                                          "tags":  [
+                                                                                       "Portfolios"
+                                                                                   ],
+                                                                          "summary":  "Delete an empty investment portfolio",
+                                                                          "description":  "Deletes a portfolio only when it has no active holdings. Returns 409 Conflict while derived holdings exist.",
+                                                                          "parameters":  [
+                                                                                             {
+                                                                                                 "name":  "portfolioId",
+                                                                                                 "in":  "path",
+                                                                                                 "required":  true,
+                                                                                                 "schema":  {
+                                                                                                                "type":  "integer",
+                                                                                                                "format":  "int64"
+                                                                                                            }
+                                                                                             }
+                                                                                         ],
+                                                                          "responses":  {
+                                                                                            "204":  {
+                                                                                                        "description":  "Portfolio deleted"
+                                                                                                    },
+                                                                                            "404":  {
+                                                                                                        "content":  {
+                                                                                                                        "application/json":  {
+                                                                                                                                                 "schema":  {
+                                                                                                                                                                "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                            }
+                                                                                                                                             }
+                                                                                                                    },
+                                                                                                        "description":  "Portfolio was not found"
+                                                                                                    },
+                                                                                            "409":  {
+                                                                                                        "content":  {
+                                                                                                                        "application/json":  {
+                                                                                                                                                 "schema":  {
+                                                                                                                                                                "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                            }
+                                                                                                                                             }
+                                                                                                                    },
+                                                                                                        "description":  "Portfolio has active holdings and cannot be deleted"
+                                                                                                    }
+                                                                                        }
+                                                                      }
+                                                       },
                   "/api/v1/assets":  {
                                          "get":  {
                                                      "tags":  [
@@ -3566,40 +3611,101 @@
                                                                 }
                                                     },
                   "/api/v1/portfolio/performance/comparison":  {
-                                                                  "get":  {
-                                                                              "tags":  [
-                                                                                           "Portfolio Dashboard"
-                                                                                       ],
-                                                                              "summary":  "Compare portfolio performance series",
-                                                                              "description":  "Returns portfolio comparison series or an empty series array when real comparison data is unavailable.",
-                                                                              "responses":  {
-                                                                                                "200":  {
-                                                                                                            "description":  "Successful response"
-                                                                                                        }
-                                                                                            }
-                                                                          }
-                                                              },
-                  "/api/v1/portfolio/positions/performance":  {
                                                                    "get":  {
                                                                                "tags":  [
                                                                                             "Portfolio Dashboard"
                                                                                         ],
-                                                                               "summary":  "List portfolio position performance",
-                                                                               "description":  "Returns ledger position performance with nullable provider-derived fields when prices are unavailable.",
+                                                                               "summary":  "Compare portfolio and benchmark cumulative returns",
+                                                                               "description":  "Returns normalized cumulative-return series for one or more investment portfolios and optional benchmarks. Missing provider data returns empty points instead of fabricated values.",
                                                                                "parameters":  [
                                                                                                   {
-                                                                                                      "name":  "portfolioId",
+                                                                                                      "name":  "portfolioIds",
                                                                                                       "in":  "query",
                                                                                                       "required":  false,
                                                                                                       "schema":  {
-                                                                                                                     "type":  "integer",
-                                                                                                                     "format":  "int64"
+                                                                                                                     "type":  "array",
+                                                                                                                     "items":  {
+                                                                                                                                   "type":  "integer",
+                                                                                                                                   "format":  "int64"
+                                                                                                                               }
+                                                                                                                 },
+                                                                                                      "style":  "form",
+                                                                                                      "explode":  false
+                                                                                                  },
+                                                                                                  {
+                                                                                                      "name":  "benchmarks",
+                                                                                                      "in":  "query",
+                                                                                                      "required":  false,
+                                                                                                      "schema":  {
+                                                                                                                     "type":  "array",
+                                                                                                                     "items":  {
+                                                                                                                                   "type":  "string"
+                                                                                                                               }
+                                                                                                                 },
+                                                                                                      "style":  "form",
+                                                                                                      "explode":  false
+                                                                                                  },
+                                                                                                  {
+                                                                                                      "name":  "period",
+                                                                                                      "in":  "query",
+                                                                                                      "required":  false,
+                                                                                                      "schema":  {
+                                                                                                                     "type":  "string",
+                                                                                                                     "enum":  [
+                                                                                                                                  "1M",
+                                                                                                                                  "3M",
+                                                                                                                                  "6M",
+                                                                                                                                  "YTD",
+                                                                                                                                  "1Y",
+                                                                                                                                  "ALL"
+                                                                                                                              ],
+                                                                                                                     "default":  "6M"
                                                                                                                  }
                                                                                                   }
                                                                                               ],
                                                                                "responses":  {
                                                                                                  "200":  {
                                                                                                              "description":  "Successful response"
+                                                                                                         },
+                                                                                                 "404":  {
+                                                                                                             "content":  {
+                                                                                                                             "application/json":  {
+                                                                                                                                                      "schema":  {
+                                                                                                                                                                     "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                 }
+                                                                                                                                                  }
+                                                                                                                         },
+                                                                                                             "description":  "Requested portfolio was not found"
+                                                                                                         },
+                                                                                                 "429":  {
+                                                                                                             "content":  {
+                                                                                                                             "application/json":  {
+                                                                                                                                                      "schema":  {
+                                                                                                                                                                     "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                 }
+                                                                                                                                                  }
+                                                                                                                         },
+                                                                                                             "description":  "Rate limit exceeded"
+                                                                                                         },
+                                                                                                 "502":  {
+                                                                                                             "content":  {
+                                                                                                                             "application/json":  {
+                                                                                                                                                      "schema":  {
+                                                                                                                                                                     "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                 }
+                                                                                                                                                  }
+                                                                                                                         },
+                                                                                                             "description":  "Invalid upstream provider response"
+                                                                                                         },
+                                                                                                 "503":  {
+                                                                                                             "content":  {
+                                                                                                                             "application/json":  {
+                                                                                                                                                      "schema":  {
+                                                                                                                                                                     "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                 }
+                                                                                                                                                  }
+                                                                                                                         },
+                                                                                                             "description":  "Required dependency unavailable"
                                                                                                          }
                                                                                              }
                                                                            }
@@ -4708,31 +4814,6 @@
                                                                           }
                                                       }
                                          },
-                  "/api/v1/watchlists/{id}/research-snapshot":  {
-                                                                     "get":  {
-                                                                                 "tags":  [
-                                                                                              "Watchlists"
-                                                                                          ],
-                                                                                 "summary":  "Get watchlist research snapshot",
-                                                                                 "description":  "Returns per-symbol research sections. Missing provider data is represented with EMPTY sections and nullable data fields.",
-                                                                                 "parameters":  [
-                                                                                                    {
-                                                                                                        "name":  "id",
-                                                                                                        "in":  "path",
-                                                                                                        "required":  true,
-                                                                                                        "schema":  {
-                                                                                                                       "type":  "integer",
-                                                                                                                       "format":  "int64"
-                                                                                                                   }
-                                                                                                    }
-                                                                                                ],
-                                                                                 "responses":  {
-                                                                                                   "200":  {
-                                                                                                               "description":  "Successful response"
-                                                                                                           }
-                                                                                               }
-                                                                             }
-                                                                 },
                   "/api/v1/watchlists/{id}/symbols":  {
                                                           "post":  {
                                                                        "tags":  [
@@ -5050,7 +5131,183 @@
                                                                                            }
                                                                                }
                                                              }
-                                              }
+                                              },
+                  "/api/v1/portfolio/positions/performance":  {
+                                                                  "get":  {
+                                                                              "tags":  [
+                                                                                           "Portfolio Dashboard"
+                                                                                       ],
+                                                                              "summary":  "Get active portfolio position performance metrics",
+                                                                              "description":  "Returns position-level cost, current price, weight, added date, and time-window returns for the selected investment portfolio. Time-window returns are null when refreshed price history is unavailable or insufficient.",
+                                                                              "parameters":  [
+                                                                                                 {
+                                                                                                     "name":  "portfolioId",
+                                                                                                     "in":  "query",
+                                                                                                     "required":  false,
+                                                                                                     "schema":  {
+                                                                                                                    "type":  "integer",
+                                                                                                                    "format":  "int64"
+                                                                                                                }
+                                                                                                 }
+                                                                                             ],
+                                                                              "responses":  {
+                                                                                                "200":  {
+                                                                                                            "description":  "Successful response"
+                                                                                                        },
+                                                                                                "404":  {
+                                                                                                            "content":  {
+                                                                                                                            "application/json":  {
+                                                                                                                                                     "schema":  {
+                                                                                                                                                                    "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                }
+                                                                                                                                                 }
+                                                                                                                        },
+                                                                                                            "description":  "Requested portfolio was not found"
+                                                                                                        },
+                                                                                                "429":  {
+                                                                                                            "content":  {
+                                                                                                                            "application/json":  {
+                                                                                                                                                     "schema":  {
+                                                                                                                                                                    "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                }
+                                                                                                                                                 }
+                                                                                                                        },
+                                                                                                            "description":  "Rate limit exceeded"
+                                                                                                        },
+                                                                                                "502":  {
+                                                                                                            "content":  {
+                                                                                                                            "application/json":  {
+                                                                                                                                                     "schema":  {
+                                                                                                                                                                    "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                }
+                                                                                                                                                 }
+                                                                                                                        },
+                                                                                                            "description":  "Invalid upstream provider response"
+                                                                                                        },
+                                                                                                "503":  {
+                                                                                                            "content":  {
+                                                                                                                            "application/json":  {
+                                                                                                                                                     "schema":  {
+                                                                                                                                                                    "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                }
+                                                                                                                                                 }
+                                                                                                                        },
+                                                                                                            "description":  "Required dependency unavailable"
+                                                                                                        }
+                                                                                            }
+                                                                          }
+                                                              },
+                  "/api/v1/watchlists/{id}/research-snapshot":  {
+                                                                    "get":  {
+                                                                                "tags":  [
+                                                                                             "Watchlists"
+                                                                                         ],
+                                                                                "summary":  "Fetch watchlist research snapshot",
+                                                                                "description":  "Returns a paginated, partially degradable research snapshot for a watchlist. Sections include per-provider status metadata so partial failures render as N/A instead of failing the entire response.",
+                                                                                "parameters":  [
+                                                                                                   {
+                                                                                                       "name":  "id",
+                                                                                                       "in":  "path",
+                                                                                                       "required":  true,
+                                                                                                       "schema":  {
+                                                                                                                      "type":  "integer",
+                                                                                                                      "format":  "int64"
+                                                                                                                  }
+                                                                                                   },
+                                                                                                   {
+                                                                                                       "name":  "limit",
+                                                                                                       "in":  "query",
+                                                                                                       "required":  false,
+                                                                                                       "schema":  {
+                                                                                                                      "type":  "integer",
+                                                                                                                      "default":  25,
+                                                                                                                      "maximum":  50
+                                                                                                                  }
+                                                                                                   },
+                                                                                                   {
+                                                                                                       "name":  "offset",
+                                                                                                       "in":  "query",
+                                                                                                       "required":  false,
+                                                                                                       "schema":  {
+                                                                                                                      "type":  "integer",
+                                                                                                                      "default":  0,
+                                                                                                                      "minimum":  0
+                                                                                                                  }
+                                                                                                   },
+                                                                                                   {
+                                                                                                       "name":  "symbols",
+                                                                                                       "in":  "query",
+                                                                                                       "required":  false,
+                                                                                                       "schema":  {
+                                                                                                                      "type":  "string"
+                                                                                                                  },
+                                                                                                       "description":  "Optional comma-separated symbol filter for viewport-sized snapshot requests."
+                                                                                                   },
+                                                                                                   {
+                                                                                                       "name":  "refresh",
+                                                                                                       "in":  "query",
+                                                                                                       "required":  false,
+                                                                                                       "schema":  {
+                                                                                                                      "type":  "boolean",
+                                                                                                                      "default":  false
+                                                                                                                  },
+                                                                                                       "description":  "Requests a fresher provider pass where supported."
+                                                                                                   }
+                                                                                               ],
+                                                                                "responses":  {
+                                                                                                  "200":  {
+                                                                                                              "description":  "Successful response",
+                                                                                                              "content":  {
+                                                                                                                              "application/json":  {
+                                                                                                                                                       "schema":  {
+                                                                                                                                                                      "$ref":  "#/components/schemas/WatchlistResearchSnapshot"
+                                                                                                                                                                  }
+                                                                                                                                                   }
+                                                                                                                          }
+                                                                                                          },
+                                                                                                  "400":  {
+                                                                                                              "description":  "Malformed or invalid request",
+                                                                                                              "content":  {
+                                                                                                                              "application/json":  {
+                                                                                                                                                       "schema":  {
+                                                                                                                                                                      "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                  }
+                                                                                                                                                   }
+                                                                                                                          }
+                                                                                                          },
+                                                                                                  "404":  {
+                                                                                                              "description":  "Watchlist not found",
+                                                                                                              "content":  {
+                                                                                                                              "application/json":  {
+                                                                                                                                                       "schema":  {
+                                                                                                                                                                      "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                  }
+                                                                                                                                                   }
+                                                                                                                          }
+                                                                                                          },
+                                                                                                  "429":  {
+                                                                                                              "description":  "Provider rate limit exceeded for one or more sections",
+                                                                                                              "content":  {
+                                                                                                                              "application/json":  {
+                                                                                                                                                       "schema":  {
+                                                                                                                                                                      "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                  }
+                                                                                                                                                   }
+                                                                                                                          }
+                                                                                                          },
+                                                                                                  "503":  {
+                                                                                                              "description":  "Required dependency unavailable",
+                                                                                                              "content":  {
+                                                                                                                              "application/json":  {
+                                                                                                                                                       "schema":  {
+                                                                                                                                                                      "$ref":  "#/components/schemas/ErrorResponse"
+                                                                                                                                                                  }
+                                                                                                                                                   }
+                                                                                                                          }
+                                                                                                          }
+                                                                                              }
+                                                                            }
+                                                                }
               },
     "components":  {
                        "securitySchemes":  {
@@ -5216,7 +5473,127 @@
                                        "ChatRequest":  {
                                                            "type":  "object",
                                                            "additionalProperties":  true
-                                                       }
+                                                       },
+                                       "WatchlistResearchSnapshot":  {
+                                                                         "type":  "object",
+                                                                         "properties":  {
+                                                                                            "watchlistId":  {
+                                                                                                                "type":  "integer",
+                                                                                                                "format":  "int64"
+                                                                                                            },
+                                                                                            "watchlistName":  {
+                                                                                                                  "type":  "string"
+                                                                                                              },
+                                                                                            "totalSymbols":  {
+                                                                                                                 "type":  "integer"
+                                                                                                             },
+                                                                                            "limit":  {
+                                                                                                          "type":  "integer"
+                                                                                                      },
+                                                                                            "offset":  {
+                                                                                                           "type":  "integer"
+                                                                                                       },
+                                                                                            "requestedSymbols":  {
+                                                                                                                     "type":  "array",
+                                                                                                                     "items":  {
+                                                                                                                                   "type":  "string"
+                                                                                                                               }
+                                                                                                                 },
+                                                                                            "rows":  {
+                                                                                                         "type":  "array",
+                                                                                                         "items":  {
+                                                                                                                       "$ref":  "#/components/schemas/WatchlistResearchRow"
+                                                                                                                   }
+                                                                                                     },
+                                                                                            "policy":  {
+                                                                                                           "$ref":  "#/components/schemas/WatchlistResearchPolicy"
+                                                                                                       },
+                                                                                            "generatedAt":  {
+                                                                                                                "type":  "string",
+                                                                                                                "format":  "date-time"
+                                                                                                            }
+                                                                                        }
+                                                                     },
+                                       "WatchlistResearchRow":  {
+                                                                    "type":  "object",
+                                                                    "properties":  {
+                                                                                       "symbol":  {
+                                                                                                      "type":  "string"
+                                                                                                  },
+                                                                                       "price":  {
+                                                                                                     "$ref":  "#/components/schemas/WatchlistResearchSection"
+                                                                                                 },
+                                                                                       "technical":  {
+                                                                                                         "$ref":  "#/components/schemas/WatchlistResearchSection"
+                                                                                                     },
+                                                                                       "fundamentals":  {
+                                                                                                            "$ref":  "#/components/schemas/WatchlistResearchSection"
+                                                                                                        },
+                                                                                       "earnings":  {
+                                                                                                        "$ref":  "#/components/schemas/WatchlistResearchSection"
+                                                                                                    },
+                                                                                       "institutional":  {
+                                                                                                             "$ref":  "#/components/schemas/WatchlistResearchSection"
+                                                                                                         },
+                                                                                       "overallStatus":  {
+                                                                                                             "$ref":  "#/components/schemas/WatchlistResearchStatus"
+                                                                                                         }
+                                                                                   }
+                                                                },
+                                       "WatchlistResearchSection":  {
+                                                                        "type":  "object",
+                                                                        "properties":  {
+                                                                                           "status":  {
+                                                                                                          "$ref":  "#/components/schemas/WatchlistResearchStatus"
+                                                                                                      },
+                                                                                           "source":  {
+                                                                                                          "type":  "string"
+                                                                                                      },
+                                                                                           "data":  {
+                                                                                                        "nullable":  true
+                                                                                                    },
+                                                                                           "message":  {
+                                                                                                           "type":  "string",
+                                                                                                           "nullable":  true
+                                                                                                       },
+                                                                                           "observedAt":  {
+                                                                                                              "type":  "string",
+                                                                                                              "format":  "date-time"
+                                                                                                          }
+                                                                                       }
+                                                                    },
+                                       "WatchlistResearchStatus":  {
+                                                                       "type":  "string",
+                                                                       "enum":  [
+                                                                                    "OK",
+                                                                                    "STALE",
+                                                                                    "EMPTY",
+                                                                                    "FAILED",
+                                                                                    "RATE_LIMITED",
+                                                                                    "INSUFFICIENT_DATA",
+                                                                                    "PENDING_REFRESH"
+                                                                                ]
+                                                                   },
+                                       "WatchlistResearchPolicy":  {
+                                                                       "type":  "object",
+                                                                       "properties":  {
+                                                                                          "maxLimit":  {
+                                                                                                           "type":  "integer"
+                                                                                                       },
+                                                                                          "providerConcurrencyLimit":  {
+                                                                                                                           "type":  "integer"
+                                                                                                                       },
+                                                                                          "providerTimeoutMillis":  {
+                                                                                                                        "type":  "integer"
+                                                                                                                    },
+                                                                                          "partialFailureEnabled":  {
+                                                                                                                        "type":  "boolean"
+                                                                                                                    },
+                                                                                          "staleWhileRevalidateEnabled":  {
+                                                                                                                              "type":  "boolean"
+                                                                                                                          }
+                                                                                      }
+                                                                   }
                                    }
                    }
 }

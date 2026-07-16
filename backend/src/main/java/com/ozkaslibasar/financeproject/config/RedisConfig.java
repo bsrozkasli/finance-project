@@ -1,5 +1,6 @@
 package com.ozkaslibasar.financeproject.config;
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -21,14 +22,18 @@ public class RedisConfig {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        GenericJackson2JsonRedisSerializer valueSerializer = new GenericJackson2JsonRedisSerializer()
+                .configure(objectMapper -> objectMapper.registerModule(new JavaTimeModule()));
+
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(60))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer()));
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(valueSerializer));
 
         Map<String, RedisCacheConfiguration> cacheConfigs = new HashMap<>();
 
-        // Fast-changing data (prices) - 5 minutes
+        // Fast-changing data: latest prices must match frontend 30-60s polling. Historical candles can stay longer.
+        cacheConfigs.put("latestPriceCache", defaultConfig.entryTtl(Duration.ofSeconds(30)));
         cacheConfigs.put("priceCache", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
         // Medium-changing data
