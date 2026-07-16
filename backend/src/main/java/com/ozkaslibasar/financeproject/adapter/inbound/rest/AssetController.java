@@ -11,6 +11,7 @@ import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.AssetMetadataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.AssetBatchRequestDto;
@@ -40,6 +41,7 @@ import java.util.List;
 public class AssetController {
 
     private final AssetRepositoryPort assetRepositoryPort;
+    private final AssetMetadataPort assetMetadataPort;
     private final PriceChartClientPort priceChartClientPort;
     private final PriceRepositoryPort priceRepositoryPort;
     private final RestMapper mapper;
@@ -115,11 +117,11 @@ public class AssetController {
             String symbol = rawSymbol.trim().toUpperCase();
 
             try {
-                // Resolve asset metadata from Yahoo Finance via PriceChartClientPort;
-                // fall back to a minimal STOCK asset when Yahoo has no data.
-                Asset assetToSave = priceChartClientPort.fetchAssetInfo(symbol)
+                Asset assetToSave = assetMetadataPort.fetchMetadata(symbol)
+                        .map(metadata -> new Asset(metadata.symbol(), metadata.name(), metadata.type()))
+                        .or(() -> priceChartClientPort.fetchAssetInfo(symbol))
                         .orElseGet(() -> {
-                            log.warn("Yahoo returned no info for '{}'; persisting with default STOCK type", symbol);
+                            log.warn("No verified provider metadata for '{}'; persisting minimal STOCK asset", symbol);
                             return new Asset(symbol, symbol, AssetType.STOCK);
                         });
 

@@ -20,7 +20,7 @@ interface WatchlistsViewProps {
   onAddStockToWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
   onAddWatchlist: (name: string) => void | Promise<void>;
   onOpenTradeModal: (symbol: string) => void;
-  onSelectStock: (stock: Stock) => void;
+  onSelectStock: (stock: Stock | null, symbol?: string, name?: string) => void;
 }
 
 const statusStyles: Record<WatchlistResearchStatus, { label: string; className: string }> = {
@@ -115,7 +115,8 @@ export default function WatchlistsView({
     if (!normalizedSearch) return researchRows;
     return researchRows.filter((row) => {
       const stock = stockBySymbol.get(row.symbol);
-      return row.symbol.includes(normalizedSearch) || stock?.name.toUpperCase().includes(normalizedSearch);
+      const displayName = row.name ?? stock?.name ?? "";
+      return row.symbol.includes(normalizedSearch) || displayName.toUpperCase().includes(normalizedSearch);
     });
   }, [normalizedSearch, researchRows, stockBySymbol]);
 
@@ -336,7 +337,7 @@ export default function WatchlistsView({
                         <div className="min-w-0">
                           <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
                           <div className="truncate text-[10px] text-text-muted">
-                            {stock?.name ?? 'Market data unavailable'}
+                            {row?.name ?? stock?.name ?? 'Metadata unavailable'}
                           </div>
                         </div>
                         <span className={`shrink-0 rounded-full border px-2 py-1 font-data-mono text-[9px] font-bold ${statusClass(row?.overallStatus ?? 'EMPTY')}`}>
@@ -443,7 +444,7 @@ export default function WatchlistsView({
                         >
                           <td className="px-4 py-4">
                             <div className="font-data-mono font-bold text-text-primary">{row.symbol}</div>
-                            <div className="max-w-40 truncate text-[10px] text-text-muted">{stock?.name ?? row.price.source}</div>
+                            <div className="max-w-40 truncate text-[10px] text-text-muted">{row.name ?? stock?.name ?? 'Metadata unavailable'}</div>
                           </td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatCurrency(row.price.data?.lastPrice)}</td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatVolume(row.price.data?.volume)}</td>
@@ -531,7 +532,7 @@ function SelectedInstrumentPanel({
   stock: Stock | null;
   symbol: string;
   onOpenTradeModal: (symbol: string) => void;
-  onSelectStock: (stock: Stock) => void;
+  onSelectStock: (stock: Stock | null, symbol?: string, name?: string) => void;
 }) {
   if (!symbol) {
     return (
@@ -563,15 +564,13 @@ function SelectedInstrumentPanel({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {stock ? (
-            <button
-              type="button"
-              onClick={() => onSelectStock(stock)}
-              className="rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary hover:border-primary/40"
-            >
-              Open Details
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => onSelectStock(stock, symbol, row?.name ?? undefined)}
+            className="rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary hover:border-primary/40"
+          >
+            Open Details
+          </button>
           <button
             type="button"
             onClick={() => onOpenTradeModal(symbol)}

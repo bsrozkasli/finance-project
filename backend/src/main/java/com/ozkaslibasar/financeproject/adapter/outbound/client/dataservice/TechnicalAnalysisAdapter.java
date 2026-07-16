@@ -72,6 +72,9 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
                     null,
                     null,
                     null,
+                    null,
+                    null,
+                    null,
                     response.getSignal().getAction(),
                     response.getSignal().getConfidence()
             ));
@@ -113,6 +116,9 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
                 indicators.getBbLower(),
                 indicators.getAtr(),
                 indicators.getSma(),
+                indicators.getSma20(),
+                indicators.getSma50(),
+                indicators.getSma200(),
                 indicators.getEma(),
                 null,
                 null
@@ -142,6 +148,12 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
         private Double bbLower;
         private Double atr;
         private Double sma;
+        @JsonProperty("sma20")
+        private Double sma20;
+        @JsonProperty("sma50")
+        private Double sma50;
+        @JsonProperty("sma200")
+        private Double sma200;
         private Double ema;
     }
 

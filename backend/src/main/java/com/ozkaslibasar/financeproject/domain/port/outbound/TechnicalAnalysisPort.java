@@ -20,6 +20,9 @@ public interface TechnicalAnalysisPort {
             Double bbLower,
             Double atr,
             Double sma,
+            Double sma20,
+            Double sma50,
+            Double sma200,
             Double ema,
             String action,
             Double confidence

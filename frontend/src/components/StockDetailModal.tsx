@@ -3,9 +3,13 @@ import { X, Sparkles, TrendingUp, AlertTriangle, RefreshCw, BarChart2, Briefcase
 import type { Stock } from '../types';
 import { useAnalystRatings } from '../hooks/useAnalystRatings';
 import { useSmartReport } from '../hooks/useSmartReport';
+import { useTechnicalAnalysis } from '../hooks/useTechnicalAnalysis';
+import { useWatchlistResearch } from '../hooks/useWatchlistResearch';
 
 interface StockDetailModalProps {
   stock: Stock | null;
+  symbol?: string | null;
+  name?: string | null;
   onClose: () => void;
   onOpenTradeModal: (symbol: string) => void;
 }
@@ -112,13 +116,16 @@ function CustomMarkdownParser({ text }: { text: string }) {
   );
 }
 
-export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: StockDetailModalProps) {
+export default function StockDetailModal({ stock, symbol, name, onClose, onOpenTradeModal }: StockDetailModalProps) {
   const [aiReport, setAiReport] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'analyst' | 'ai'>('overview');
-  const { data: analystData, loading: analystLoading, error: analystError, refetch: refetchAnalystData } = useAnalystRatings(stock?.symbol ?? null);
-  const { report: smartReport, loading: smartReportLoading, error: smartReportError } = useSmartReport(stock?.symbol ?? null);
+  const effectiveSymbol = stock?.symbol ?? symbol ?? null;
+  const { data: analystData, loading: analystLoading, error: analystError, refetch: refetchAnalystData } = useAnalystRatings(effectiveSymbol);
+  const { report: smartReport, loading: smartReportLoading, error: smartReportError } = useSmartReport(effectiveSymbol);
+  const { data: technicalData, loading: technicalLoading, error: technicalError } = useTechnicalAnalysis(effectiveSymbol, '1d', '6mo');
+  const { data: researchData } = useWatchlistResearch(effectiveSymbol);
 
   const analystTargetPrice = priceTargetValue(analystData?.priceTarget);
   const analystRating = useMemo(
@@ -126,11 +133,42 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
     [analystData?.recommendations, analystTargetPrice, stock?.analystRating]
   );
 
-  if (!stock) return null;
+  if (!effectiveSymbol) return null;
 
   const formatNullable = (value: number | null | undefined, digits = 2) => value == null ? '-' : value.toFixed(digits);
+  const formatMoney = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? '-' : `$${value.toFixed(2)}`;
+  const historyFromResearch = researchData.oneYear.map((point) => ({
+    date: point.timestamp.slice(0, 10),
+    price: point.close,
+    open: point.open,
+    high: point.high,
+    low: point.low,
+    close: point.close,
+    volume: point.volume,
+  }));
+  const displayHistory = stock?.history?.length ? stock.history : historyFromResearch;
+  const latestHistoryPoint = displayHistory.at(-1);
+  const currentPrice = stock?.price ?? latestHistoryPoint?.price ?? null;
   const targetPriceForUpside = analystTargetPrice ?? analystRating?.targetPrice ?? null;
-  const analystUpside = targetPriceForUpside == null ? '-' : (((targetPriceForUpside - stock.price) / stock.price) * 100).toFixed(1);
+  const analystUpside = targetPriceForUpside == null || currentPrice == null || currentPrice === 0 ? '-' : (((targetPriceForUpside - currentPrice) / currentPrice) * 100).toFixed(1);
+  const displayName = stock?.name ?? name ?? effectiveSymbol;
+  const displaySector = stock?.sector ?? 'STOCK';
+  const displayIndustry = stock?.industry || 'Provider-backed details';
+  const ratios = researchData.ratios;
+  const fundamentals = researchData.fundamentals;
+  const peRatio = ratios?.pe ?? stock?.pe ?? null;
+  const pbRatio = ratios?.pb ?? stock?.pb ?? null;
+  const debtEquity = ratios?.debtEquity ?? stock?.debtEquity ?? null;
+  const roe = ratios?.roe ?? fundamentals?.roe ?? stock?.roe ?? null;
+  const revenueGrowth = stock?.revenueGrowth ?? null;
+  const dividendYield = fundamentals?.dividendYield ?? stock?.divYield ?? null;
+  const rsiDisplay = technicalData?.rsi != null
+    ? technicalData.rsi.toFixed(1)
+    : stock?.technicals ? `${stock.technicals.rsi} - ${stock.technicals.rsiStatus}` : 'No data';
+  const macdDisplay = technicalData?.macd != null
+    ? `${technicalData.macd.toFixed(2)}${technicalData.macdSignal != null ? ` / ${technicalData.macdSignal.toFixed(2)}` : ''}`
+    : stock?.technicals ? `${stock.technicals.macd} - ${stock.technicals.macdStatus}` : 'No data';
+  const sma50Value = technicalData?.sma50 ?? stock?.technicals?.sma50 ?? null;
 
   const buildSmartReportText = () => {
     if (!smartReport) {
@@ -165,30 +203,29 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
   };
 
   // Calculate 52W Position Slider percentage  // Calculate 52W Position Slider percentage
-  const rangeMax = stock.high52W;
-  const rangeMin = stock.low52W;
-  const rangePercent = Math.min(
-    100,
-    Math.max(0, ((stock.price - rangeMin) / (rangeMax - rangeMin)) * 100)
-  );
+  const rangeMax = stock?.high52W ?? (displayHistory.length ? Math.max(...displayHistory.map((point) => point.high ?? point.price)) : null);
+  const rangeMin = stock?.low52W ?? (displayHistory.length ? Math.min(...displayHistory.map((point) => point.low ?? point.price)) : null);
+  const rangePercent = currentPrice == null || rangeMin == null || rangeMax == null || rangeMax === rangeMin
+    ? 0
+    : Math.min(100, Math.max(0, ((currentPrice - rangeMin) / (rangeMax - rangeMin)) * 100));
 
   // Generate SVG path for last 60 days of history
-  const miniHistory = stock.history.slice(-60);
-  const minPrice = Math.min(...miniHistory.map(h => h.price));
-  const maxPrice = Math.max(...miniHistory.map(h => h.price));
-  const priceDiff = maxPrice - minPrice || 1;
+  const miniHistory = displayHistory.slice(-60);
+  const minPrice = miniHistory.length ? Math.min(...miniHistory.map(h => h.price)) : null;
+  const maxPrice = miniHistory.length ? Math.max(...miniHistory.map(h => h.price)) : null;
+  const priceDiff = minPrice == null || maxPrice == null ? 1 : maxPrice - minPrice || 1;
 
   const chartWidth = 500;
   const chartHeight = 100;
 
   const points = miniHistory.map((h, i) => {
-    const x = (i / (miniHistory.length - 1)) * chartWidth;
-    const y = chartHeight - ((h.price - minPrice) / priceDiff) * (chartHeight - 10) - 5;
+    const x = miniHistory.length > 1 ? (i / (miniHistory.length - 1)) * chartWidth : chartWidth / 2;
+    const y = chartHeight - ((h.price - (minPrice ?? h.price)) / priceDiff) * (chartHeight - 10) - 5;
     return { x, y };
   });
 
   const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaPath = points.length > 0
+  const areaPath = points.length > 1
     ? `${linePath} L ${points[points.length - 1].x} ${chartHeight} L ${points[0].x} ${chartHeight} Z`
     : '';
 
@@ -200,15 +237,15 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
         <div className="p-5 border-b border-outline-variant flex items-center justify-between shrink-0 bg-bg-card/40">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center font-bold text-bg-base text-sm">
-              {stock.symbol}
+              {effectiveSymbol}
             </div>
             <div>
               <div className="flex items-baseline gap-2">
-                <h3 className="font-headline text-lg font-bold text-text-primary">{stock.name}</h3>
-                <span className="font-data-mono text-xs text-text-muted">({stock.symbol})</span>
+                <h3 className="font-headline text-lg font-bold text-text-primary">{displayName}</h3>
+                <span className="font-data-mono text-xs text-text-muted">({effectiveSymbol})</span>
               </div>
               <p className="text-xs text-text-secondary mt-0.5">
-                {stock.sector} - {stock.industry}
+                {displaySector} - {displayIndustry}
               </p>
             </div>
           </div>
@@ -279,11 +316,10 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                   <span className="text-[10px] font-label-caps text-text-muted block uppercase">Current Instrument Value</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="font-data-mono text-3xl font-bold text-text-primary">
-                      ${stock.price.toFixed(2)}
+                      {formatMoney(currentPrice)}
                     </span>
-                    <span className={`font-data-mono text-sm font-bold ${stock.change >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                      {stock.change >= 0 ? '+' : ''}
-                      {stock.changePercent.toFixed(2)}%
+                    <span className={`font-data-mono text-sm font-bold ${(stock?.change ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                      {stock?.changePercent != null ? `${stock.changePercent >= 0 ? '+' : ''}${stock.changePercent.toFixed(2)}%` : '-'}
                     </span>
                   </div>
                 </div>
@@ -291,9 +327,9 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                 {/* 52-Week Range Slider Widget */}
                 <div className="md:col-span-2">
                   <div className="flex justify-between text-[10px] font-label-caps text-text-secondary mb-1">
-                    <span>52W LOW: ${stock.low52W.toFixed(2)}</span>
+                    <span>52W LOW: {formatMoney(rangeMin)}</span>
                     <span className="text-primary font-bold">52W SPREAD</span>
-                    <span>52W HIGH: ${stock.high52W.toFixed(2)}</span>
+                    <span>52W HIGH: {formatMoney(rangeMax)}</span>
                   </div>
                   <div className="w-full h-2 bg-bg-base border border-outline-variant rounded-full relative">
                     {/* Pointer marker */}
@@ -312,7 +348,7 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                 <div className="flex justify-between items-center border-b border-outline-variant/20 pb-2">
                   <span className="text-[10px] font-label-caps text-text-muted uppercase">60-Day Price Trend</span>
                   <span className="text-[10px] font-data-mono text-text-muted">
-                    Min: ${minPrice.toFixed(2)} - Max: ${maxPrice.toFixed(2)}
+                    Min: {formatMoney(minPrice)} - Max: {formatMoney(maxPrice)}
                   </span>
                 </div>
                 <div className="h-28 w-full relative">
@@ -339,27 +375,27 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
                     <span className="text-[9px] font-label-caps text-text-muted block">P/E RATIO</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(stock.pe)}</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(peRatio)}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
                     <span className="text-[9px] font-label-caps text-text-muted block">P/B RATIO</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(stock.pb)}</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(pbRatio)}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
                     <span className="text-[9px] font-label-caps text-text-muted block">DEBT / EQUITY</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(stock.debtEquity)}</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(debtEquity)}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
                     <span className="text-[9px] font-label-caps text-text-muted block">ROE EFFICIENCY</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{stock.roe == null ? '-' : `%${stock.roe.toFixed(1)}`}</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{roe == null ? '-' : `${roe.toFixed(1)}%`}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
                     <span className="text-[9px] font-label-caps text-text-muted block">GROWTH % (YOY)</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{stock.revenueGrowth == null ? '-' : `%${stock.revenueGrowth.toFixed(1)}`}</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{revenueGrowth == null ? '-' : `${revenueGrowth.toFixed(1)}%`}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
                     <span className="text-[9px] font-label-caps text-text-muted block">DIVIDEND YIELD</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{stock.divYield == null ? '-' : `%${stock.divYield.toFixed(2)}`}</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{dividendYield == null ? '-' : `${dividendYield.toFixed(2)}%`}</span>
                   </div>
                 </div>
               </div>
@@ -392,19 +428,19 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
                     <div className="flex justify-between py-2 border-b border-outline-variant/20 items-center">
                       <span className="text-text-secondary font-medium">RSI Indicator (14-day):</span>
                       <span className="font-data-mono font-bold text-primary bg-primary/5 px-2 py-0.5 rounded">
-                        {stock.technicals ? `${stock.technicals.rsi} - ${stock.technicals.rsiStatus}` : 'No data'}
+                        {technicalLoading ? 'Loading...' : technicalError ? 'No data' : rsiDisplay}
                       </span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-outline-variant/20 items-center">
                       <span className="text-text-secondary font-medium">MACD Signal (12, 26, 9):</span>
                       <span className="font-data-mono font-bold text-bull-green bg-bull-green/5 px-2 py-0.5 rounded">
-                        {stock.technicals ? `${stock.technicals.macd} - ${stock.technicals.macdStatus}` : 'No data'}
+                        {technicalLoading ? 'Loading...' : technicalError ? 'No data' : macdDisplay}
                       </span>
                     </div>
                     <div className="flex justify-between py-2 items-center">
                       <span className="text-text-secondary font-medium">SMA 50-Day Support Level:</span>
                       <span className="font-data-mono font-bold text-text-primary">
-                        {stock.technicals ? `$${stock.technicals.sma50.toFixed(2)} (${stock.technicals.sma50Status})` : 'No data'}
+                        {technicalLoading ? 'Loading...' : sma50Value == null ? 'No data' : formatMoney(sma50Value)}
                       </span>
                     </div>
                   </div>
@@ -556,7 +592,7 @@ export default function StockDetailModal({ stock, onClose, onOpenTradeModal }: S
           </button>
           <button
             onClick={() => {
-              onOpenTradeModal(stock.symbol);
+              onOpenTradeModal(effectiveSymbol);
               onClose();
             }}
             className="px-5 py-2 bg-primary hover:bg-primary-container text-bg-base font-sans font-bold text-xs rounded-lg shadow-md shadow-primary/10 transition-all flex items-center gap-1.5"

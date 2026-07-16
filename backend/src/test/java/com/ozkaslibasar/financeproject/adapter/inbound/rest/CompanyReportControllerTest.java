@@ -400,6 +400,9 @@ class CompanyReportControllerTest {
                 bbLower,
                 atr,
                 sma,
+                sma,
+                null,
+                null,
                 ema,
                 action,
                 confidence

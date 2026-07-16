@@ -42,7 +42,10 @@ class TechnicalAnalysisService:
         frame["bb_upper"] = cls._first_series(bbands, "BBU_")
 
         frame["atr"] = ta.atr(frame["high"], frame["low"], frame["close"], length=14)
-        frame["sma"] = ta.sma(frame["close"], length=20)
+        frame["sma20"] = ta.sma(frame["close"], length=20)
+        frame["sma50"] = ta.sma(frame["close"], length=50)
+        frame["sma200"] = ta.sma(frame["close"], length=200)
+        frame["sma"] = frame["sma20"]
         frame["ema"] = ta.ema(frame["close"], length=20)
 
         last = frame.iloc[-1]
@@ -56,6 +59,9 @@ class TechnicalAnalysisService:
             bb_lower=cls._to_float(last.get("bb_lower")),
             atr=cls._to_float(last.get("atr")),
             sma=cls._to_float(last.get("sma")),
+            sma20=cls._to_float(last.get("sma20")),
+            sma50=cls._to_float(last.get("sma50")),
+            sma200=cls._to_float(last.get("sma200")),
             ema=cls._to_float(last.get("ema")),
         )
 

@@ -123,6 +123,9 @@ export interface TechnicalResult {
   bbLower?: number;
   atr?: number;
   sma?: number;
+  sma20?: number;
+  sma50?: number;
+  sma200?: number;
   ema?: number;
   signalAction?: string;
   signalConfidence?: number;
@@ -636,6 +639,9 @@ export interface WatchlistTechnicalSummary {
   macd: number | null;
   macdSignal: number | null;
   sma: number | null;
+  sma20?: number | null;
+  sma50?: number | null;
+  sma200?: number | null;
   ema: number | null;
   action: string | null;
   confidence: number | null;
@@ -681,6 +687,15 @@ export interface WatchlistInstitutionalSummary {
 
 export interface WatchlistResearchRow {
   symbol: string;
+  name?: string | null;
+  type?: string | null;
+  exchange?: string | null;
+  currency?: string | null;
+  sector?: string | null;
+  industry?: string | null;
+  marketCap?: number | null;
+  metadataStatus?: WatchlistResearchStatus;
+  metadataSource?: string | null;
   price: WatchlistResearchSection<WatchlistPriceSummary>;
   technical: WatchlistResearchSection<WatchlistTechnicalSummary>;
   fundamentals: WatchlistResearchSection<WatchlistFundamentalSummary>;

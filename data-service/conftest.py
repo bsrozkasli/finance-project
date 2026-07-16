@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import faulthandler
 import os
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parent
 TEST_CACHE = ROOT / ".test-cache"
@@ -35,3 +38,21 @@ os.environ.setdefault(
     "TRADINGAGENTS_MEMORY_LOG_PATH",
     str(TRADINGAGENTS_CACHE / "memory" / "trading_memory.md"),
 )
+
+
+def pytest_addoption(parser):
+    parser.addini(
+        "timeout",
+        "Maximum seconds a single test may run before pytest aborts the process.",
+        default="120",
+    )
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_call(item):
+    timeout = int(item.config.getini("timeout"))
+    faulthandler.dump_traceback_later(timeout, exit=True)
+    try:
+        yield
+    finally:
+        faulthandler.cancel_dump_traceback_later()

@@ -3,10 +3,13 @@ package com.ozkaslibasar.financeproject.config;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatementClientAdapter;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.AssetMetadataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
@@ -16,6 +19,7 @@ import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
+import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchService;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,10 +44,19 @@ class DomainConfigWiringTest {
     private AssetRepositoryPort assetRepositoryPort;
 
     @Autowired
+    private AssetMetadataPort assetMetadataPort;
+
+    @Autowired
     private PriceRepositoryPort priceRepositoryPort;
 
     @Autowired
     private PriceChartClientPort priceChartClientPort;
+
+    @Autowired
+    private TechnicalAnalysisPort technicalAnalysisPort;
+
+    @Autowired
+    private ResearchDataPort researchDataPort;
 
     @Autowired
     private FinancialDataPort financialDataPort;
@@ -86,6 +99,9 @@ class DomainConfigWiringTest {
 
     @Autowired
     private SmartReportUseCase smartReportUseCase;
+
+    @Autowired
+    private WatchlistResearchService watchlistResearchService;
 
     @Test
     void should_wirePriceIngestionService_with_allDependencies() {
@@ -133,6 +149,17 @@ class DomainConfigWiringTest {
                 .isSameAs(smartReportMarketDataPort);
     }
 
+
+    @Test
+    void should_wireWatchlistResearchService_withProviderPorts() {
+        assertThat(watchlistResearchService).isNotNull();
+        assertThat(ReflectionTestUtils.getField(watchlistResearchService, "assetRepositoryPort")).isSameAs(assetRepositoryPort);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchService, "assetMetadataPort")).isSameAs(assetMetadataPort);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchService, "priceRepositoryPort")).isSameAs(priceRepositoryPort);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchService, "priceChartClientPort")).isSameAs(priceChartClientPort);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchService, "technicalAnalysisPort")).isSameAs(technicalAnalysisPort);
+        assertThat(ReflectionTestUtils.getField(watchlistResearchService, "researchDataPort")).isSameAs(researchDataPort);
+    }
     @Test
     void should_injectSameBeanOnMultipleCalls() {
         PriceIngestionService first = applicationContext.getBean(PriceIngestionService.class);
@@ -151,6 +178,12 @@ class DomainConfigWiringTest {
             return mock(AssetRepositoryPort.class);
         }
 
+
+        @Bean
+        AssetMetadataPort assetMetadataPort() {
+            // Mock rationale: external asset metadata provider I/O boundary is mocked in wiring test.
+            return mock(AssetMetadataPort.class);
+        }
         @Bean
         PriceRepositoryPort priceRepositoryPort() {
             // Mock rationale: infrastructure persistence port should not hit real DB in wiring test.
@@ -163,6 +196,18 @@ class DomainConfigWiringTest {
             return mock(PriceChartClientPort.class);
         }
 
+
+        @Bean
+        TechnicalAnalysisPort technicalAnalysisPort() {
+            // Mock rationale: external data-service technical provider is an I/O boundary.
+            return mock(TechnicalAnalysisPort.class);
+        }
+
+        @Bean
+        ResearchDataPort researchDataPort() {
+            // Mock rationale: external data-service research provider is an I/O boundary.
+            return mock(ResearchDataPort.class);
+        }
         @Bean
         FinancialDataPort financialDataPort() {
             // Mock rationale: external market provider I/O boundary is mocked in wiring test.

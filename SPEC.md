@@ -212,7 +212,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Assets | `DELETE /assets/{symbol}` | Delete asset |
 | Prices | `GET /prices/{symbol}/latest` | Latest price candle through DB-first refresh and `priceCache` |
 | Prices | `GET /prices/{symbol}/history?interval=&range=` | Historical candles with DB-first lazy loading, refresh, persistence, and `priceCache` |
-| Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators |
+| Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators, including legacy `sma` plus additive `sma20`, `sma50`, and nullable `sma200` fields |
 | Technical | `GET /technical/{symbol}/signals?interval=&range=` | Technical signal summary |
 | Agent analysis | `GET /agent-analysis/{ticker}` | Cached or computed multi-agent analysis |
 | Agent analysis | `DELETE /agent-analysis/{ticker}/cache` | Evict one ticker cache |
@@ -259,7 +259,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Watchlists | `GET /watchlists` | List watchlists |
 | Watchlists | `POST /watchlists` | Create watchlist |
 | Watchlists | `POST /watchlists/{id}/symbols` | Add symbol |
-| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Research snapshot contract with partial/EMPTY sections when providers are unavailable; no synthetic market data |
+| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Provider-backed research snapshot with per-section status/source/message, additive asset metadata fields, partial/EMPTY/FAILED sections when providers are unavailable, and no synthetic market data |
 | Watchlists | `DELETE /watchlists/{id}/symbols/{symbol}` | Remove symbol |
 | Watchlists | `DELETE /watchlists/{id}` | Delete watchlist |
 | Investment portfolios | `GET /portfolios` | List user portfolios such as ABD, BIST, funds, or gold |
@@ -276,8 +276,9 @@ Data-service endpoints:
 | Area | Method and path | Purpose |
 | --- | --- | --- |
 | Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |
-| Analysis | `GET /api/v1/analysis/technical/{symbol}` | Technical indicators |
-| Analysis | `GET /api/v1/analysis/technical/{symbol}/signals` | Signal summary |
+| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
+| Analysis | `GET /api/v1/technical/{symbol}` | Technical indicators |
+| Analysis | `GET /api/v1/technical/{symbol}/signals` | Signal summary |
 | Analysis | `GET /api/v1/analysis/sentiment/{symbol}` | Sentiment analysis |
 | Analysis | `POST /api/v1/analysis/insight` | LLM insight |
 | Analysis | `GET /api/v1/analysis/full/{symbol}` | Combined analysis |
@@ -403,6 +404,9 @@ Company report (`GET /api/v1/reports/company/AAPL`):
   "symbol": "AAPL",
   "technical": {
     "rsi": 58.4,
+    "sma20": 184.8,
+    "sma50": 179.3,
+    "sma200": null,
     "signalAction": "HOLD",
     "signalConfidence": 64
   },
@@ -526,7 +530,7 @@ Entity relationships and persistence semantics:
 - Latest and historical price reads use `PriceRefreshService`: local data first, provider refresh when needed, persist fetched rows, then return real data only.
 - Fetched historical prices are persisted after lazy loading.
 - Latest price, technical analysis, analyst data, fundamentals, research, reports, and agent-analysis responses may be cached to reduce provider/API load.
-- Technical analysis requires at least 30 candles.
+- Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.
 - New investment portfolio views should derive holdings from `PortfolioTransaction` ledger entries. BUY increases quantity/cost basis; SELL validates available quantity, reduces the holding, and records realized PnL. Journal entries are decision history and must not be deleted when a holding is sold.
 - Journal stats are derived from persisted journal trades; open trades may be read-enriched with latest real prices, while closed trades are not refreshed on read. Journal trades may optionally reference `portfolioId` and `transactionId`.
@@ -711,7 +715,7 @@ Instruction priority for agents:
 - Frontend Axios base URL is hard-coded to `http://localhost:8080/api/v1`; if routing changes, update `frontend/src/api/client.ts` and `frontend/vite.config.ts` together.
 - Backend needs PostgreSQL and Redis for full local behavior.
 - Provider availability and rate limits affect response completeness.
-- Technical analysis requires at least 30 candles.
+- Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Testcontainers-based backend tests need Docker access.
 - Production readiness is limited by missing auth/user scoping.
 

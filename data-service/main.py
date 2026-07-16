@@ -17,6 +17,7 @@ from fastapi import FastAPI, Query, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.routers.analysis import router as analysis_router
+from app.routers.assets import router as assets_router
 from app.routers.research import router as research_router
 from app.routers.agent_analysis import router as agent_analysis_router
 from app.routers.backtest import router as backtest_router
@@ -118,6 +119,7 @@ async def request_correlation_middleware(request: Request, call_next):
 
 
 app.include_router(analysis_router)
+app.include_router(assets_router)
 app.include_router(research_router)
 app.include_router(agent_analysis_router)
 app.include_router(backtest_router)

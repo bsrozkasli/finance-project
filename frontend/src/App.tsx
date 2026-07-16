@@ -109,6 +109,8 @@ export default function App() {
 
   // Modal Open/Close States
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [selectedDetailSymbol, setSelectedDetailSymbol] = useState<string | null>(null);
+  const [selectedDetailName, setSelectedDetailName] = useState<string | null>(null);
   const [isManageAssetsOpen, setIsManageAssetsOpen] = useState(false);
   const [tradeModalSymbol, setTradeModalSymbol] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -130,6 +132,12 @@ export default function App() {
     reload: reloadJournalTrades,
   } = useJournalTrades();
 
+
+  const openStockDetails = (stock: Stock | null, symbol?: string, name?: string) => {
+    setSelectedStock(stock);
+    setSelectedDetailSymbol(stock?.symbol ?? symbol ?? null);
+    setSelectedDetailName(stock?.name ?? name ?? null);
+  };
   const trades = useMemo<Trade[]>(
     () => journalTrades.map(mapJournalTradeToUiTrade),
     [journalTrades]
@@ -525,7 +533,7 @@ export default function App() {
       {/* 1. Global Terminal Top Header */}
       <TopBar
         stocks={stocks}
-        onSelectStock={(s) => setSelectedStock(s)}
+        onSelectStock={(s) => openStockDetails(s)}
         onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
       />
 
@@ -547,7 +555,7 @@ export default function App() {
                 portfolios={portfolios}
                 activePortfolioId={activePortfolioId}
                 onSelectPortfolioId={saveActivePortfolioIdState}
-                onSelectStock={(s) => setSelectedStock(s)}
+                onSelectStock={(s) => openStockDetails(s)}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
                 onNavigateToNews={() => navigate('/news')}
                 news={news}
@@ -558,13 +566,13 @@ export default function App() {
             <Route path="/workspace" element={
               <ChartWorkspace
                 stocks={stocks}
-                onSelectStock={(s) => setSelectedStock(s)}
+                onSelectStock={(s) => openStockDetails(s)}
               />
             } />
             <Route path="/workspace/:symbol" element={
               <ChartWorkspace
                 stocks={stocks}
-                onSelectStock={(s) => setSelectedStock(s)}
+                onSelectStock={(s) => openStockDetails(s)}
               />
             } />
             <Route path="/watchlist" element={
@@ -574,7 +582,7 @@ export default function App() {
                 onAddStockToWatchlist={handleAddStockToWatchlist}
                 onAddWatchlist={handleAddWatchlist}
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
-                onSelectStock={(s) => setSelectedStock(s)}
+                onSelectStock={(s, symbol, name) => openStockDetails(s, symbol, name)}
               />
             } />
             <Route path="/news" element={
@@ -650,10 +658,16 @@ export default function App() {
       {/* --- Overlays & Modals --- */}
 
       {/* Stock Detailed Modal */}
-      {selectedStock && (
+      {(selectedStock || selectedDetailSymbol) && (
         <StockDetailModal
           stock={selectedStock}
-          onClose={() => setSelectedStock(null)}
+          symbol={selectedDetailSymbol}
+          name={selectedDetailName}
+          onClose={() => {
+            setSelectedStock(null);
+            setSelectedDetailSymbol(null);
+            setSelectedDetailName(null);
+          }}
           onOpenTradeModal={(sym) => setTradeModalSymbol(sym)}
         />
       )}

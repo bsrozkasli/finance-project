@@ -3,10 +3,13 @@ package com.ozkaslibasar.financeproject.config;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatementClientAdapter;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.AssetMetadataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
@@ -16,6 +19,7 @@ import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
+import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchService;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -80,6 +84,23 @@ public class DomainConfig {
                 agentAnalysisAiPort);
     }
 
+
+    @Bean
+    public WatchlistResearchService watchlistResearchService(
+            AssetRepositoryPort assetRepositoryPort,
+            AssetMetadataPort assetMetadataPort,
+            PriceRepositoryPort priceRepositoryPort,
+            PriceChartClientPort priceChartClientPort,
+            TechnicalAnalysisPort technicalAnalysisPort,
+            ResearchDataPort researchDataPort) {
+        return new WatchlistResearchService(
+                assetRepositoryPort,
+                assetMetadataPort,
+                priceRepositoryPort,
+                priceChartClientPort,
+                technicalAnalysisPort,
+                researchDataPort);
+    }
     @Bean
     public SmartReportUseCase smartReportUseCase(
             SmartReportScorePort smartReportScorePort,
