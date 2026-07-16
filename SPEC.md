@@ -262,7 +262,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Watchlists | `POST /watchlists` | Create watchlist |
 | Watchlists | `POST /watchlists/{id}/symbols` | Add symbol |
 | Watchlists | `DELETE /watchlists/{id}/symbols/{symbol}` | Remove symbol |
-| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Paginated watchlist research snapshot with per-section provider status, partial failure handling, and viewport-sized symbol filtering |
+| Watchlists | `GET /watchlists/{id}/research-snapshot?limit=&offset=&symbols=&refresh=` | Provider-backed paginated watchlist research snapshot with per-section status/source/message, partial failure handling, viewport-sized symbol filtering, and no synthetic market data |
 | Watchlists | `DELETE /watchlists/{id}` | Delete watchlist |
 | Investment portfolios | `GET /portfolios` | List user portfolios such as ABD, BIST, funds, or gold |
 | Investment portfolios | `POST /portfolios` | Create a portfolio with a base currency |
@@ -277,7 +277,7 @@ Data-service endpoints:
 
 | Area | Method and path | Purpose |
 | --- | --- | --- |
-| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |
+| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |`r`n| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
 | Analysis | `GET /api/v1/analysis/technical/{symbol}` | Technical indicators |
 | Analysis | `GET /api/v1/analysis/technical/{symbol}/signals` | Signal summary |
 | Analysis | `GET /api/v1/analysis/sentiment/{symbol}` | Sentiment analysis |
@@ -530,7 +530,7 @@ Entity relationships and persistence semantics:
 - Fetched historical prices are persisted after lazy loading.
 - Latest price, technical analysis, analyst data, fundamentals, research, reports, and agent-analysis responses may be cached to reduce provider/API load.
 - Watchlist research snapshot TTL expectations are data-type specific: latest price is short lived, technical data is intraday-lived, fundamentals/earnings/institutional data can be daily-lived, and stale values should be shown with status metadata while refresh happens where supported.
-- Technical analysis requires at least 30 candles.
+- Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.
 - New investment portfolio views should derive holdings from `PortfolioTransaction` ledger entries. BUY increases quantity/cost basis; SELL validates available quantity, reduces the holding, and records realized PnL. Journal entries are decision history and must not be deleted when a holding is sold.
 - Journal stats are derived from persisted journal trades; open trades may be read-enriched with latest real prices, while closed trades are not refreshed on read. Journal trades may optionally reference `portfolioId` and `transactionId`.
@@ -707,7 +707,7 @@ Instruction priority for agents:
 - Frontend Axios base URL is hard-coded to `http://localhost:8080/api/v1`; if routing changes, update `frontend/src/api/client.ts` and `frontend/vite.config.ts` together.
 - Backend needs PostgreSQL and Redis for full local behavior.
 - Provider availability and rate limits affect response completeness.
-- Technical analysis requires at least 30 candles.
+- Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Testcontainers-based backend tests need Docker access.
 - Production readiness is limited by missing auth/user scoping.
 

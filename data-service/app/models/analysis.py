@@ -14,6 +14,9 @@ class TechnicalIndicators(BaseModel):
     bb_lower: float | None = Field(default=None)
     atr: float | None = Field(default=None)
     sma: float | None = Field(default=None)
+    sma20: float | None = Field(default=None)
+    sma50: float | None = Field(default=None)
+    sma200: float | None = Field(default=None)
     ema: float | None = Field(default=None)
 
 

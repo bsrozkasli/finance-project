@@ -93,6 +93,9 @@ public class TechnicalController {
                 result.bbLower(),
                 result.atr(),
                 result.sma(),
+                result.sma20(),
+                result.sma50(),
+                result.sma200(),
                 result.ema(),
                 result.action(),
                 result.confidence());
@@ -110,6 +113,9 @@ public class TechnicalController {
             Double bbLower,
             Double atr,
             Double sma,
+            Double sma20,
+            Double sma50,
+            Double sma200,
             Double ema,
             String signalAction,
             Double signalConfidence) {

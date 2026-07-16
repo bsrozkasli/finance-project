@@ -122,4 +122,3 @@ public class DomainConfig {
         return new SmartReportUseCase(smartReportScorePort, smartReportMarketDataPort);
     }
 }
-

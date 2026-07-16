@@ -43,6 +43,9 @@ def test_compute_indicators_returns_expected_fields() -> None:
     assert indicators.atr is not None
     assert indicators.atr >= 0.0
     assert indicators.sma is not None
+    assert indicators.sma20 == indicators.sma
+    assert indicators.sma50 is not None
+    assert indicators.sma200 is None
     assert indicators.ema is not None
 
 
@@ -51,6 +54,12 @@ def test_compute_indicators_requires_minimum_candles() -> None:
 
     with pytest.raises(ValueError, match="At least"):
         TechnicalAnalysisService.compute_indicators(frame)
+
+
+def test_compute_indicators_returns_200_day_average_when_history_is_long_enough() -> None:
+    indicators = TechnicalAnalysisService.compute_indicators(_sample_ohlcv(size=220))
+
+    assert indicators.sma200 is not None
 
 
 def test_signal_action_and_confidence_are_valid() -> None:

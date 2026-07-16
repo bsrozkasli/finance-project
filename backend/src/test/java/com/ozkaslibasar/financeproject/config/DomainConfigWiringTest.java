@@ -295,4 +295,3 @@ class DomainConfigWiringTest {
         }
     }
 }
-
