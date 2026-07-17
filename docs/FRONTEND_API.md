@@ -1,6 +1,6 @@
 # Frontend API Contract
 
-This document maps frontend routes and API callers to the Spring backend contract. The frontend must call only the Spring backend base URL configured in `frontend/src/api/client.ts`:
+This document maps frontend routes and API callers to the Spring backend contract. Domain callers live under `frontend/src/api`; `client.ts` remains the compatibility barrel for existing imports, and `http.ts` owns the shared Axios instance. The frontend must call only the Spring backend base URL configured there:
 
 ```ts
 http://localhost:8080/api/v1

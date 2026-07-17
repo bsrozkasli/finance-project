@@ -6,7 +6,7 @@ Finance Project is a monorepo financial analysis platform with three runtimes: `
 
 Primary flow:
 
-1. The frontend calls `http://localhost:8080/api/v1` through `frontend/src/api/client.ts`.
+1. The frontend calls `http://localhost:8080/api/v1` through domain modules exported by `frontend/src/api/client.ts`.
 2. The backend validates and orchestrates requests, applies domain rules, persists data in PostgreSQL, caches selected results in Redis, and calls the FastAPI data-service or external providers when needed.
 3. The data-service performs analytics and provider access through `yfinance`, `pandas`, `pandas-ta`, portfolio services, and optional Azure OpenAI-backed agents.
 
@@ -127,7 +127,7 @@ Frontend rules:
 |   |-- app/models                  Pydantic models
 |   `-- tests                       pytest suite
 |-- frontend/                       Vite + React + TypeScript UI
-|   |-- src/api                     Axios client and API types
+|   |-- src/api                     Shared Axios transport, domain API modules, compatibility barrel, and API types
 |   |-- src/components              UI components
 |   |-- src/hooks                   Data hooks
 |   |-- src/pages                   Page composition
@@ -704,7 +704,7 @@ Instruction priority for agents:
 
 - Runtime ports are fixed for local development.
 - Backend API base path is `/api/v1`.
-- Frontend Axios base URL is hard-coded to `http://localhost:8080/api/v1`; if routing changes, update `frontend/src/api/client.ts` and `frontend/vite.config.ts` together.
+- Frontend Axios base URL is hard-coded in `frontend/src/api/http.ts` and re-exported by `client.ts`; if routing changes, update it and `frontend/vite.config.ts` together.
 - Backend needs PostgreSQL and Redis for full local behavior.
 - Provider availability and rate limits affect response completeness.
 - Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
