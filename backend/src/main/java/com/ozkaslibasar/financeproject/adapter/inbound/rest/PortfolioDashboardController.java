@@ -67,20 +67,22 @@ public class PortfolioDashboardController {
     @GetMapping("/summary")
     public PortfolioSummary getSummary() {
         List<PortfolioPosition> positions = positionPort.findByUserId(DEFAULT_USER);
-        BigDecimal totalValue = sum(positions.stream().map(this::marketValue).toList());
+        List<PositionValuation> valuations = positions.stream().map(this::valuation).toList();
+        BigDecimal totalValue = sumIfComplete(valuations.stream().map(PositionValuation::marketValue).toList());
         BigDecimal costBasis = sum(positions.stream()
                 .map(position -> position.quantity().multiply(position.avgCostPrice()))
                 .toList());
-        BigDecimal dailyPnl = sum(positions.stream().map(this::dailyPnl).toList());
-        BigDecimal previousValue = totalValue.subtract(dailyPnl);
-        BigDecimal totalPnl = totalValue.subtract(costBasis);
+        BigDecimal dailyPnl = sumIfComplete(positions.stream().map(this::dailyPnl).toList());
+        BigDecimal previousValue = totalValue == null || dailyPnl == null ? null : totalValue.subtract(dailyPnl);
+        BigDecimal totalPnl = totalValue == null ? null : totalValue.subtract(costBasis);
         return new PortfolioSummary(
                 totalValue,
                 BigDecimal.ZERO,
                 dailyPnl,
-                percent(dailyPnl, previousValue),
+                percentOrNull(dailyPnl, previousValue),
                 totalPnl,
-                percent(totalPnl, costBasis));
+                percentOrNull(totalPnl, costBasis),
+                totalValue != null);
     }
 
     @Operation(summary = "GET Portfolio Dashboard endpoint", description = "Implements the GET operation for the Portfolio Dashboard API described in SPEC.md sections 7 and 8.")
@@ -224,16 +226,15 @@ public class PortfolioDashboardController {
         Map<String, LocalDate> addedDates = earliestAddedDates(portfolio.id());
         Map<String, BigDecimal> currentPrices = new LinkedHashMap<>();
         Map<String, BigDecimal> marketValues = new LinkedHashMap<>();
-        BigDecimal totalMarketValue = BigDecimal.ZERO;
 
         for (PortfolioHolding holding : holdings) {
             String symbol = holding.symbol().toUpperCase();
-            BigDecimal currentPrice = currentPrice(symbol, holding.averageCost());
-            BigDecimal marketValue = holding.quantity().multiply(currentPrice);
+            BigDecimal currentPrice = currentPrice(symbol);
+            BigDecimal marketValue = currentPrice == null ? null : holding.quantity().multiply(currentPrice);
             currentPrices.put(symbol, currentPrice);
             marketValues.put(symbol, marketValue);
-            totalMarketValue = totalMarketValue.add(marketValue);
         }
+        BigDecimal totalMarketValue = sumIfComplete(new ArrayList<>(marketValues.values()));
 
         List<PortfolioPositionPerformance> positions = new ArrayList<>();
         for (PortfolioHolding holding : holdings) {
@@ -250,17 +251,21 @@ public class PortfolioDashboardController {
                     holding.averageCost(),
                     currentPrice,
                     marketValue,
-                    percent(marketValue, totalMarketValue),
+                    percentOrNull(marketValue, totalMarketValue),
                     dailyReturn(history),
                     returnSince(history, currentPrice, latestDate, latestDate == null ? null : latestDate.minusDays(7)),
                     returnSince(history, currentPrice, latestDate, latestDate == null ? null : latestDate.minusMonths(1)),
                     returnSince(history, currentPrice, latestDate, latestDate == null ? null : latestDate.minusMonths(3)),
                     returnSince(history, currentPrice, latestDate, latestDate == null ? null : latestDate.minusMonths(6)),
                     returnSince(history, currentPrice, latestDate, latestDate == null ? null : latestDate.minusYears(1)),
-                    percent(currentPrice.subtract(holding.averageCost()), holding.averageCost())));
+                    currentPrice == null
+                            ? null
+                            : percentOrNull(currentPrice.subtract(holding.averageCost()), holding.averageCost())));
         }
 
-        positions.sort(Comparator.comparing(PortfolioPositionPerformance::weight).reversed());
+        positions.sort(Comparator.comparing(
+                PortfolioPositionPerformance::weight,
+                Comparator.nullsLast(Comparator.reverseOrder())));
         return positions;
     }
 
@@ -280,11 +285,11 @@ public class PortfolioDashboardController {
     @GetMapping("/allocation")
     public PortfolioAllocation getAllocation() {
         List<EnrichedPosition> positions = getEnrichedPositions();
-        BigDecimal totalValue = sum(positions.stream().map(EnrichedPosition::marketValue).toList());
+        BigDecimal totalValue = sumIfComplete(positions.stream().map(EnrichedPosition::marketValue).toList());
         List<AllocationSlice> byAsset = positions.stream()
                 .map(position -> new AllocationSlice(
                         position.symbol(),
-                        percent(position.marketValue(), totalValue),
+                        percentOrNull(position.marketValue(), totalValue),
                         position.marketValue(),
                         null))
                 .toList();
@@ -307,17 +312,19 @@ public class PortfolioDashboardController {
     @GetMapping("/positions/enriched")
     public List<EnrichedPosition> getEnrichedPositions() {
         List<PortfolioPosition> positions = positionPort.findByUserId(DEFAULT_USER);
-        BigDecimal totalValue = sum(positions.stream().map(this::marketValue).toList());
-        return positions.stream()
-                .map(position -> toEnriched(position, totalValue))
+        List<PositionValuation> valuations = positions.stream().map(this::valuation).toList();
+        BigDecimal totalValue = sumIfComplete(valuations.stream().map(PositionValuation::marketValue).toList());
+        return valuations.stream()
+                .map(valuation -> toEnriched(valuation, totalValue))
                 .toList();
     }
 
-    private EnrichedPosition toEnriched(PortfolioPosition position, BigDecimal totalValue) {
-        BigDecimal currentPrice = currentPrice(position);
+    private EnrichedPosition toEnriched(PositionValuation valuation, BigDecimal totalValue) {
+        PortfolioPosition position = valuation.position();
+        BigDecimal currentPrice = valuation.currentPrice();
         BigDecimal costBasis = position.quantity().multiply(position.avgCostPrice());
-        BigDecimal marketValue = position.quantity().multiply(currentPrice);
-        BigDecimal unrealizedPnl = marketValue.subtract(costBasis);
+        BigDecimal marketValue = valuation.marketValue();
+        BigDecimal unrealizedPnl = marketValue == null ? null : marketValue.subtract(costBasis);
         return new EnrichedPosition(
                 position.symbol(),
                 position.symbol(),
@@ -326,9 +333,9 @@ public class PortfolioDashboardController {
                 currentPrice,
                 costBasis,
                 marketValue,
-                percent(marketValue, totalValue),
-                BigDecimal.ZERO,
-                percent(unrealizedPnl, costBasis),
+                percentOrNull(marketValue, totalValue),
+                null,
+                percentOrNull(unrealizedPnl, costBasis),
                 unrealizedPnl);
     }
 
@@ -424,13 +431,13 @@ public class PortfolioDashboardController {
         return date == null ? null : date.toString();
     }
 
-    private BigDecimal currentPrice(String symbol, BigDecimal fallback) {
+    private BigDecimal currentPrice(String symbol) {
         try {
             return priceRefreshService.getFreshLatest(symbol.toUpperCase())
                     .map(PriceHistory::close)
-                    .orElse(fallback);
+                    .orElse(null);
         } catch (Exception ignored) {
-            return fallback;
+            return null;
         }
     }
 
@@ -474,7 +481,7 @@ public class PortfolioDashboardController {
     }
 
     private BigDecimal percentOrNull(BigDecimal numerator, BigDecimal denominator) {
-        if (denominator == null || denominator.compareTo(BigDecimal.ZERO) == 0) {
+        if (numerator == null || denominator == null || denominator.compareTo(BigDecimal.ZERO) == 0) {
             return null;
         }
         return numerator.multiply(BigDecimal.valueOf(100)).divide(denominator, 4, RoundingMode.HALF_UP);
@@ -654,8 +661,10 @@ public class PortfolioDashboardController {
         return withBenchmark;
     }
 
-    private BigDecimal marketValue(PortfolioPosition position) {
-        return position.quantity().multiply(currentPrice(position));
+    private PositionValuation valuation(PortfolioPosition position) {
+        BigDecimal currentPrice = currentPrice(position.symbol());
+        BigDecimal marketValue = currentPrice == null ? null : position.quantity().multiply(currentPrice);
+        return new PositionValuation(position, currentPrice, marketValue);
     }
 
     private BigDecimal dailyPnl(PortfolioPosition position) {
@@ -665,24 +674,22 @@ public class PortfolioDashboardController {
                     .sorted(Comparator.comparing(PriceHistory::timestampAsInstant))
                     .toList();
             if (prices.size() < 2) {
-                return BigDecimal.ZERO;
+                return null;
             }
             BigDecimal previousClose = prices.get(prices.size() - 2).close();
             BigDecimal latestClose = prices.get(prices.size() - 1).close();
             return latestClose.subtract(previousClose).multiply(position.quantity());
         } catch (Exception ignored) {
-            return BigDecimal.ZERO;
+            return null;
         }
-    }
-
-    private BigDecimal currentPrice(PortfolioPosition position) {
-        return priceRefreshService.getFreshLatest(position.symbol().toUpperCase())
-                .map(PriceHistory::close)
-                .orElse(position.avgCostPrice());
     }
 
     private BigDecimal sum(List<BigDecimal> values) {
         return values.stream().reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal sumIfComplete(List<BigDecimal> values) {
+        return values.stream().anyMatch(value -> value == null) ? null : sum(values);
     }
 
     private BigDecimal percent(BigDecimal numerator, BigDecimal denominator) {
@@ -755,7 +762,8 @@ public class PortfolioDashboardController {
             BigDecimal dailyPnL,
             BigDecimal dailyPnLPercent,
             BigDecimal totalPnL,
-            BigDecimal totalReturn) {
+            BigDecimal totalReturn,
+            boolean pricingComplete) {
     }
 
     public record PortfolioPerformance(String period, List<PortfolioPerformancePoint> series,
@@ -816,5 +824,11 @@ public class PortfolioDashboardController {
             BigDecimal dailyReturn,
             BigDecimal totalReturn,
             BigDecimal unrealizedPnL) {
+    }
+
+    private record PositionValuation(
+            PortfolioPosition position,
+            BigDecimal currentPrice,
+            BigDecimal marketValue) {
     }
 }

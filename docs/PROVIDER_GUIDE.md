@@ -171,6 +171,7 @@ Provider health is exposed by the data-service health router.
 - Use an empty list (`[]`) when a collection-shaped provider result is unavailable: prices, news, analyst recommendations, EOD rows.
 - Use `null`, `None`, or `Optional.empty()` when a single optional object is unavailable: asset metadata, LLM insight, full analysis, provider-specific optional fields.
 - Use partial DTOs when the endpoint can still return useful verified data: company reports, fundamentals, enriched portfolio views.
+- Portfolio valuation endpoints keep holdings visible but return `null` for current price, market value, allocation, and PnL fields when no real current price exists. Average cost must never be substituted as market price.
 - Use neutral defaults only for explicitly defined derived values, such as sentiment when Finnhub recommendation data is unavailable.
 - Return `429 Too Many Requests` when a provider/client rate limit is reached and the request cannot be served from cache or degraded safely.
 - Return `502 Bad Gateway` when an upstream provider or data-service response is malformed or cannot be parsed.

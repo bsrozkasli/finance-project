@@ -101,8 +101,8 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
   const portfolioSummary = useMemo(() => {
     const formattedHoldings = holdings.map((holding) => {
       const stock = stockMap[holding.symbol];
-      const currentPrice = stock ? stock.price : holding.costPrice;
-      const value = holding.quantity * currentPrice;
+      const currentPrice = typeof stock?.price === 'number' ? stock.price : null;
+      const value = currentPrice == null ? null : holding.quantity * currentPrice;
       const cost = holding.quantity * holding.costPrice;
 
       return {
@@ -115,28 +115,32 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
       };
     });
 
-    const totals = formattedHoldings.reduce(
-      (acc, holding) => ({
-        currentTotalValue: acc.currentTotalValue + holding.value,
-        totalCostBasis: acc.totalCostBasis + holding.cost,
-      }),
-      { currentTotalValue: 0, totalCostBasis: 0 },
-    );
-    const totalProfitLoss = totals.currentTotalValue - totals.totalCostBasis;
-    const totalReturnPercent = totals.totalCostBasis > 0 ? (totalProfitLoss / totals.totalCostBasis) * 100 : 0;
+    const pricingComplete = formattedHoldings.every((holding) => holding.value != null);
+    const totalCostBasis = formattedHoldings.reduce((sum, holding) => sum + holding.cost, 0);
+    const currentTotalValue = pricingComplete
+      ? formattedHoldings.reduce((sum, holding) => sum + (holding.value ?? 0), 0)
+      : null;
+    const totalProfitLoss = currentTotalValue == null ? null : currentTotalValue - totalCostBasis;
+    const totalReturnPercent = totalProfitLoss == null || totalCostBasis <= 0 ? null : (totalProfitLoss / totalCostBasis) * 100;
 
     return {
-      totalValue: totals.currentTotalValue.toFixed(2),
-      totalReturn: totalReturnPercent.toFixed(2),
+      totalValue: currentTotalValue?.toFixed(2) ?? null,
+      totalReturn: totalReturnPercent?.toFixed(2) ?? null,
+      pricingComplete,
       formattedHoldings: formattedHoldings.map(({ symbol, quantity, costPrice, currentPrice, value }) => ({ symbol, quantity, costPrice, currentPrice, value })),
     };
   }, [holdings, stockMap]);
 
   const handleGenerateReport = async (type: 'macro' | 'risk' | 'recommendations') => {
     setReportType(type);
-    setIsLoading(true);
     setErrorMessage('');
     setReportText('');
+    if (!portfolioSummary.pricingComplete) {
+      setIsLoading(false);
+      setErrorMessage('Portfolio report requires a real market price for every holding.');
+      return;
+    }
+    setIsLoading(true);
 
     try {
       const response = await fetch('/api/gemini/portfolio-report', {
@@ -294,12 +298,12 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
             <span className="text-[10px] font-label-caps text-text-muted tracking-wider uppercase">Portfolio Ratios for Analysis</span>
             <div className="flex justify-between py-1 border-b border-outline-variant/20">
               <span className="text-text-secondary">Total Asset Value:</span>
-              <span className="font-data-mono font-bold text-text-primary">${portfolioSummary.totalValue}</span>
+              <span className="font-data-mono font-bold text-text-primary">{portfolioSummary.totalValue == null ? '-' : `$${portfolioSummary.totalValue}`}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-outline-variant/20">
               <span className="text-text-secondary">Total Return / P&L:</span>
-              <span className={`font-data-mono font-bold ${parseFloat(portfolioSummary.totalReturn) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                {portfolioSummary.totalReturn}%
+              <span className={`font-data-mono font-bold ${portfolioSummary.totalReturn == null ? 'text-text-muted' : Number(portfolioSummary.totalReturn) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                {portfolioSummary.totalReturn == null ? '-' : `${portfolioSummary.totalReturn}%`}
               </span>
             </div>
             <div className="flex justify-between py-1">
