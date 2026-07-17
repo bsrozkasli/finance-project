@@ -1,4 +1,5 @@
 export { apiClient } from './http';
+export * from './errors';
 export * from './assets';
 export * from './journal';
 export * from './market';

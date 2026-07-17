@@ -70,7 +70,7 @@ describe('app market-data hooks', () => {
 
     const { result } = renderHook(() => useAssetMarketData([asset]));
 
-    await waitFor(() => expect(result.current.error).toContain('503'));
+    await waitFor(() => expect(result.current.error).toBe('provider unavailable'));
 
     expect(result.current.loading).toBe(false);
     expect(result.current.stocks).toEqual([]);

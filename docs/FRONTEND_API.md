@@ -83,6 +83,14 @@ Frontend routes are user-facing SPA routes served by Vite/React Router. They are
 | `useNotifications()` | `GET /notifications`, `POST /notifications/read-all` | matched |
 | `ChartTerminal` | `GET /prices/{symbol}/history?interval=&range=` | matched |
 
+## Boundary And Error Contract
+
+- `frontend/src/api/client.ts` is a compatibility barrel. Domain API modules own endpoint functions, and `frontend/src/api/http.ts` owns the shared Axios transport and fixed Spring base URL.
+- CI runs `npm run check:api-boundaries` to keep the barrel export-only and prevent domain modules from importing Axios directly.
+- Spring error bodies are typed as `BackendErrorResponse` in `frontend/src/api/errors.ts`.
+- The expected backend error body remains `{"timestamp","status","error","message","path"}`.
+- CI runs `npm run check:bundle` after build to fail on frontend JS bundle regressions above the documented budget.
+
 ## Contract Notes
 
 - Frontend route parameters such as `:symbol` must be normalized to uppercase before API calls when the value represents a market symbol.

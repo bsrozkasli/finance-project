@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fetchBatchPriceHistory } from '../api/client';
+import { getApiErrorMessage } from '../api/errors';
 import type { Asset, PriceHistory } from '../api/types';
 import type { Stock } from '../types';
-
-const errorMessage = (error: unknown) => error instanceof Error ? error.message : 'Failed to load asset prices';
 
 export const mapAssetsToStocks = (
   assets: Asset[],
@@ -88,7 +87,7 @@ export function useAssetMarketData(assets: Asset[]) {
       } catch (loadError) {
         if (!cancelled) {
           setStocks([]);
-          setError(errorMessage(loadError));
+          setError(getApiErrorMessage(loadError, 'Failed to load asset prices'));
         }
       } finally {
         if (!cancelled) setLoading(false);
