@@ -24,6 +24,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.nullValue;
@@ -139,10 +140,22 @@ class PortfolioDashboardControllerTest {
                 when(portfolioPort.findByUserId("default")).thenReturn(List.of(
                                 portfolio(10L, "ALFA", "USD"),
                                 portfolio(20L, "BETA", "USD")));
-                when(ledgerService.calculateHoldings(10L, "default"))
-                                .thenReturn(List.of(holding(10L, "AAPL", "2")));
-                when(ledgerService.calculateHoldings(20L, "default"))
-                                .thenReturn(List.of(holding(20L, "MSFT", "1")));
+                List<PortfolioTransaction> alfaTransactions = List.of(
+                                transaction(10L, "AAPL", first.toLocalDate().toString(), "100"));
+                List<PortfolioTransaction> betaTransactions = List.of(
+                                transaction(20L, "MSFT", first.toLocalDate().toString(), "50"));
+                when(transactionPort.findByPortfolioIdAndUserId(10L, "default")).thenReturn(alfaTransactions);
+                when(transactionPort.findByPortfolioIdAndUserId(20L, "default")).thenReturn(betaTransactions);
+                when(ledgerService.calculateHoldingsByDate(
+                                alfaTransactions, List.of(first.toLocalDate(), second.toLocalDate())))
+                                .thenReturn(Map.of(
+                                                first.toLocalDate(), List.of(holding(10L, "AAPL", "2")),
+                                                second.toLocalDate(), List.of(holding(10L, "AAPL", "2"))));
+                when(ledgerService.calculateHoldingsByDate(
+                                betaTransactions, List.of(first.toLocalDate(), second.toLocalDate())))
+                                .thenReturn(Map.of(
+                                                first.toLocalDate(), List.of(holding(20L, "MSFT", "1")),
+                                                second.toLocalDate(), List.of(holding(20L, "MSFT", "1"))));
                 when(priceRefreshService.getFreshHistory("AAPL", "1d", "6mo"))
                                 .thenReturn(List.of(price("AAPL", "100", first), price("AAPL", "110", second)));
                 when(priceRefreshService.getFreshHistory("MSFT", "1d", "6mo"))
@@ -169,6 +182,37 @@ class PortfolioDashboardControllerTest {
         }
 
         @Test
+        void shouldValuePortfolioWithQuantitiesHeldOnEachPriceDate() throws Exception {
+                LocalDate firstDate = LocalDate.now().minusDays(2);
+                LocalDate secondDate = LocalDate.now().minusDays(1);
+                LocalDateTime first = firstDate.atTime(16, 0);
+                LocalDateTime second = secondDate.atTime(16, 0);
+                List<PortfolioTransaction> transactions = List.of(
+                                transaction(10L, "AAPL", firstDate.toString(), "100"),
+                                transaction(10L, "AAPL", secondDate.toString(), "100"));
+
+                when(portfolioPort.findByUserId("default")).thenReturn(List.of(portfolio(10L, "ALFA", "USD")));
+                when(transactionPort.findByPortfolioIdAndUserId(10L, "default")).thenReturn(transactions);
+                when(ledgerService.calculateHoldingsByDate(transactions, List.of(firstDate, secondDate)))
+                                .thenReturn(Map.of(
+                                                firstDate, List.of(holding(10L, "AAPL", "1")),
+                                                secondDate, List.of(holding(10L, "AAPL", "2"))));
+                when(priceRefreshService.getFreshHistory("AAPL", "1d", "6mo"))
+                                .thenReturn(List.of(
+                                                price("AAPL", "100", first),
+                                                price("AAPL", "100", second)));
+
+                mockMvc.perform(get("/api/v1/portfolio/performance/comparison")
+                                .param("portfolioIds", "10")
+                                .param("period", "6M"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.series[0].points[0].date").value(firstDate.toString()))
+                                .andExpect(jsonPath("$.series[0].points[0].value").value(100))
+                                .andExpect(jsonPath("$.series[0].points[1].date").value(secondDate.toString()))
+                                .andExpect(jsonPath("$.series[0].points[1].value").value(200));
+        }
+
+        @Test
         void shouldRejectUnknownComparisonPortfolio() throws Exception {
                 when(portfolioPort.findByUserId("default")).thenReturn(List.of(portfolio(10L, "ALFA", "USD")));
 
@@ -181,8 +225,9 @@ class PortfolioDashboardControllerTest {
         @Test
         void shouldReturnComparisonSeriesWithEmptyPointsWhenHistoryIsUnavailable() throws Exception {
                 when(portfolioPort.findByUserId("default")).thenReturn(List.of(portfolio(10L, "ALFA", "USD")));
-                when(ledgerService.calculateHoldings(10L, "default"))
-                                .thenReturn(List.of(holding(10L, "AAPL", "2")));
+                List<PortfolioTransaction> transactions = List.of(
+                                transaction(10L, "AAPL", LocalDate.now().minusDays(1).toString(), "100"));
+                when(transactionPort.findByPortfolioIdAndUserId(10L, "default")).thenReturn(transactions);
                 when(priceRefreshService.getFreshHistory("AAPL", "1d", "6mo")).thenReturn(List.of());
 
                 mockMvc.perform(get("/api/v1/portfolio/performance/comparison")

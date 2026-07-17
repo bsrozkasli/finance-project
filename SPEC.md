@@ -247,7 +247,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
 | Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
 | Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
-| Portfolio dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative-return comparison for investment portfolios and benchmarks; values are derived from real refreshed price history and missing provider data returns empty points rather than fabricated values |
+| Portfolio dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative-return comparison for investment portfolios and benchmarks; portfolio values use transaction-ledger quantities held on each price date, including history for positions later sold; missing provider data returns empty points rather than fabricated values |
 | Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level added date, cost, current price, weight, daily/weekly/1M/3M/6M/1Y/total returns for an investment portfolio; time-window returns are null when refreshed price history is missing or insufficient |
 | Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
 | Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |

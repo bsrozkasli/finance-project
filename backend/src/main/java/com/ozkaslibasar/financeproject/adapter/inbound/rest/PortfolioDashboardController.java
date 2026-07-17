@@ -498,8 +498,9 @@ public class PortfolioDashboardController {
     }
 
     private ComparisonSeries portfolioComparisonSeries(Portfolio portfolio, String period) {
-        List<PortfolioHolding> holdings = ledgerService.calculateHoldings(portfolio.id(), DEFAULT_USER);
-        List<ComparisonPoint> points = portfolioComparisonPoints(holdings, period);
+        List<PortfolioTransaction> transactions = transactionPort.findByPortfolioIdAndUserId(
+                portfolio.id(), DEFAULT_USER);
+        List<ComparisonPoint> points = portfolioComparisonPoints(transactions, period);
         return new ComparisonSeries(
                 portfolio.id().toString(),
                 portfolio.name(),
@@ -508,20 +509,28 @@ public class PortfolioDashboardController {
                 points);
     }
 
-    private List<ComparisonPoint> portfolioComparisonPoints(List<PortfolioHolding> holdings, String period) {
-        if (holdings.isEmpty()) {
+    private List<ComparisonPoint> portfolioComparisonPoints(
+            List<PortfolioTransaction> transactions,
+            String period) {
+        List<String> tradedSymbols = transactions.stream()
+                .filter(transaction -> transaction.action() == PortfolioTransactionAction.BUY)
+                .map(PortfolioTransaction::symbol)
+                .filter(symbol -> symbol != null && !symbol.isBlank())
+                .distinct()
+                .toList();
+        if (tradedSymbols.isEmpty()) {
             return List.of();
         }
 
         Map<String, TreeMap<LocalDate, BigDecimal>> histories = new LinkedHashMap<>();
-        for (PortfolioHolding holding : holdings) {
+        for (String symbol : tradedSymbols) {
             List<PriceHistory> prices = priceRefreshService.getFreshHistory(
-                    holding.symbol().toUpperCase(),
+                    symbol.toUpperCase(),
                     "1d",
                     periodToRange(period));
             TreeMap<LocalDate, BigDecimal> byDate = filterHistoryForPeriod(closeByDate(prices), period);
             if (!byDate.isEmpty()) {
-                histories.put(holding.symbol().toUpperCase(), byDate);
+                histories.put(symbol.toUpperCase(), byDate);
             }
         }
         if (histories.isEmpty()) {
@@ -533,24 +542,28 @@ public class PortfolioDashboardController {
             history.keySet().forEach(date -> dates.putIfAbsent(date, BigDecimal.ZERO));
         }
 
+        Map<LocalDate, List<PortfolioHolding>> holdingsByDate = ledgerService.calculateHoldingsByDate(
+                transactions,
+                new ArrayList<>(dates.keySet()));
         Map<String, BigDecimal> lastCloseBySymbol = new LinkedHashMap<>();
         List<ComparisonPoint> points = new ArrayList<>();
         BigDecimal initialValue = null;
         for (LocalDate date : dates.keySet()) {
+            for (Map.Entry<String, TreeMap<LocalDate, BigDecimal>> entry : histories.entrySet()) {
+                BigDecimal close = entry.getValue().get(date);
+                if (close != null) {
+                    lastCloseBySymbol.put(entry.getKey(), close);
+                }
+            }
             BigDecimal value = BigDecimal.ZERO;
             boolean hasAnyValue = false;
-            for (PortfolioHolding holding : holdings) {
+            for (PortfolioHolding holding : holdingsByDate.getOrDefault(date, List.of())) {
                 String symbol = holding.symbol().toUpperCase();
                 TreeMap<LocalDate, BigDecimal> history = histories.get(symbol);
                 if (history == null) {
                     continue;
                 }
-                BigDecimal close = history.get(date);
-                if (close != null) {
-                    lastCloseBySymbol.put(symbol, close);
-                } else {
-                    close = lastCloseBySymbol.get(symbol);
-                }
+                BigDecimal close = lastCloseBySymbol.get(symbol);
                 if (close == null) {
                     continue;
                 }
