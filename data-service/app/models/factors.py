@@ -7,11 +7,11 @@ from pydantic import BaseModel, Field
 
 
 class FactorScores(BaseModel):
-    value_score: int = Field(ge=0, le=100, default=0)
-    growth_score: int = Field(ge=0, le=100, default=0)
-    quality_score: int = Field(ge=0, le=100, default=0)
-    momentum_score: int = Field(ge=0, le=100, default=0)
-    low_volatility_score: int = Field(ge=0, le=100, default=0)
+    value_score: Optional[int] = Field(default=None, ge=0, le=100)
+    growth_score: Optional[int] = Field(default=None, ge=0, le=100)
+    quality_score: Optional[int] = Field(default=None, ge=0, le=100)
+    momentum_score: Optional[int] = Field(default=None, ge=0, le=100)
+    low_volatility_score: Optional[int] = Field(default=None, ge=0, le=100)
     value_components: dict[str, Optional[float]] = Field(default_factory=dict)
     growth_components: dict[str, Optional[float]] = Field(default_factory=dict)
     quality_components: dict[str, Optional[float]] = Field(default_factory=dict)
@@ -22,7 +22,7 @@ class FactorScores(BaseModel):
 class FactorAnalysisResponse(BaseModel):
     symbol: str
     scores: FactorScores
-    dominant_factor: str
+    dominant_factor: Optional[str] = None
     calculated_at: datetime
 
 

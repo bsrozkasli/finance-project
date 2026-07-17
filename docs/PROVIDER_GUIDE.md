@@ -66,6 +66,8 @@ Failure behavior:
 - `get_asset_info(...)` returns `None` / `Optional.empty()` when metadata is missing.
 - `get_financial_statements(...)` returns an empty `FinancialStatements(symbol=...)`.
 - Backend asset batch-add falls back to a minimal `STOCK` asset when Yahoo metadata is unavailable.
+- Factor analysis returns `null` for unavailable factor scores and components. Available
+  components are reweighted; a measured zero is never treated as missing.
 - No caller may invent prices, fundamentals, metadata, or earnings values.
 
 ## 4. Finnhub

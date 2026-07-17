@@ -27,7 +27,8 @@ fixed ports, persistence semantics, and provider degradation rules remain stable
 3. Extract portfolio dashboard calculations into focused use cases. Pending.
 4. Move frontend remote-data orchestration from `App.tsx` into feature hooks. Pending.
 5. Split `api/client.ts` into compatible domain modules behind a barrel export. Pending.
-6. Separate data-service provider access from pure factor calculations. Pending.
+6. Separate data-service provider access from pure factor calculations. Missing-data
+   semantics and provider-failure degradation completed; extraction remains pending.
 7. Add architecture tests and CI thresholds for dependency and bundle regressions. Pending.
 
 ## Next Slice
