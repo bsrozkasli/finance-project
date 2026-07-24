@@ -1,0 +1,18 @@
+{
+  "datasets": [
+    {
+      "name": "us_stocks_ohlcv",
+      "handle": "asadullahcreative/us-stock-market-historical-ohlcv-dataset",
+      "version": 1,
+      "license": "Apache-2.0",
+      "role": "asset_ohlcv"
+    },
+    {
+      "name": "spy_ohlcv",
+      "handle": "aliraza948/spdr-s-and-p-500-etf-spy",
+      "version": 1,
+      "license": "CC-BY-4.0",
+      "role": "benchmark_ohlcv"
+    }
+  ]
+}
