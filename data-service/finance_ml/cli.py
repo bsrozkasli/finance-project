@@ -51,7 +51,11 @@ def main() -> int:
             print(download_dataset(specification, destination))
         return 0
     if args.command == "prepare":
-        print(prepare_csv_snapshot(args.stocks_csv, "us_stocks_ohlcv-v1", workspace.prepared_dir / "stocks.parquet"))
+        print(
+            prepare_csv_snapshot(
+                args.stocks_csv, "sp500_constituent_ohlcv-v1", workspace.prepared_dir / "stocks.parquet", 120
+            )
+        )
         print(prepare_csv_snapshot(args.spy_csv, "spy_ohlcv-v1", workspace.prepared_dir / "spy.parquet"))
         return 0
     if args.command == "features":

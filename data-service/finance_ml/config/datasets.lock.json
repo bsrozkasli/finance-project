@@ -1,10 +1,10 @@
 {
   "datasets": [
     {
-      "name": "us_stocks_ohlcv",
-      "handle": "asadullahcreative/us-stock-market-historical-ohlcv-dataset",
+      "name": "sp500_constituent_ohlcv",
+      "handle": "jacksaleeby/s-and-p500-historical-data",
       "version": 1,
-      "license": "Apache-2.0",
+      "license": "CC-BY-SA-4.0",
       "role": "asset_ohlcv"
     },
     {

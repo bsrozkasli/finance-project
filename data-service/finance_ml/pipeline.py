@@ -23,6 +23,7 @@ from finance_ml.core.evaluation import classification_metrics
 from finance_ml.core.features import FEATURE_COLUMNS, build_feature_frame
 from finance_ml.core.splits import TemporalPlan, build_temporal_plan, fold_masks
 from finance_ml.models.calibration import SigmoidCalibrator
+from finance_ml.core.universe import select_longest_history_universe
 from finance_ml.models.factories import (
     ModelCandidate,
     fit_xgboost,
@@ -101,11 +102,16 @@ def initialise_workspace(root: Path) -> WorkspacePaths:
     return paths
 
 
-def prepare_csv_snapshot(csv_path: Path, source_dataset: str, destination: Path) -> dict[str, object]:
-    """Validate, adjust, and persist one raw Kaggle CSV file."""
+def prepare_csv_snapshot(
+    csv_path: Path, source_dataset: str, destination: Path, symbol_limit: int | None = None
+) -> dict[str, object]:
+    """Validate, optionally bound, and persist one raw Kaggle CSV file."""
 
     raw_frame = pd.read_csv(csv_path)
-    return write_prepared_snapshot(normalize_market_frame(raw_frame, source_dataset), destination)
+    prepared = normalize_market_frame(raw_frame, source_dataset)
+    if symbol_limit is not None:
+        prepared = select_longest_history_universe(prepared, symbol_limit)
+    return write_prepared_snapshot(prepared, destination)
 
 
 def build_and_store_features(
