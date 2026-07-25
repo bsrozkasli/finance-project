@@ -25,11 +25,8 @@ def download_dataset(specification: DatasetSpecification, destination: Path) -> 
 
     destination.mkdir(parents=True, exist_ok=True)
     try:
-        downloaded = kagglehub.dataset_download(
-            specification.handle,
-            version=specification.version,
-            output_dir=str(destination),
-        )
+        versioned_handle = f"{specification.handle}/versions/{specification.version}"
+        downloaded = kagglehub.dataset_download(versioned_handle, output_dir=str(destination))
     except Exception as error:  # kagglehub exception hierarchy is not stable
         raise KaggleDownloadError(
             f"Unable to download Kaggle dataset {specification.handle} v{specification.version}"
