@@ -303,7 +303,7 @@ Data-service endpoints:
 | Research | `GET /api/v1/research/valuation/{symbol}` | Valuation |
 | Research | `GET /api/v1/research/risk/{symbol}` | Risk analytics |
 | Research | `GET /api/v1/research/earnings/{symbol}` | Earnings |
-| Research | `GET /api/v1/research/factors/{symbol}` | Factor analysis |
+| Research | `GET /api/v1/research/factors/{symbol}` | Factor analysis; unavailable factor/component values and `dominant_factor` are `null`, while a measured zero remains `0` |
 | Research | `GET /api/v1/research/institutional-scores/{symbol}` | Institutional scores |
 | Research | `GET /api/v1/research/composite/{symbol}` | Composite investment score |
 
