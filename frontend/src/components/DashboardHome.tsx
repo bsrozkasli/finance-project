@@ -220,10 +220,10 @@ export default function DashboardHome({
         totalReturn: position.costPrice > 0 ? ((stock.price - position.costPrice) / position.costPrice) * 100 : position.totalReturn,
       };
     });
-    const totalValue = live.reduce((sum, position) => sum + position.marketValue, 0);
+    const totalValue = live.reduce((sum, position) => sum + (position.marketValue ?? 0), 0);
     return live.map((position) => ({
       ...position,
-      weight: totalValue > 0 ? (position.marketValue / totalValue) * 100 : 0,
+      weight: totalValue > 0 && position.marketValue != null ? (position.marketValue / totalValue) * 100 : position.weight,
     }));
   }, [activePortfolio?.holdings, fallbackPositionPerformance, positionPerformance, stockMap]);
 

@@ -20,17 +20,18 @@ class TechnicalWorkspaceService:
     @classmethod
     def canonicalize(cls, history: pd.DataFrame, interval: str) -> pd.DataFrame:
         frame = history.copy()
+        frame["_source_order"] = range(len(frame.index))
         frame.columns = [str(column).lower() for column in frame.columns]
         timestamp_column = "datetime" if "datetime" in frame.columns else "date"
         if timestamp_column not in frame.columns:
             raise ValueError("Historical data has no timestamp column")
         frame["timestamp"] = pd.to_datetime(frame[timestamp_column], utc=True, errors="coerce")
         frame = frame.dropna(subset=["timestamp", "open", "high", "low", "close", "volume"])
-        frame = frame.sort_values("timestamp")
+        frame = frame.sort_values(["timestamp", "_source_order"], kind="mergesort")
         if interval == "1d":
             frame["session_date"] = frame["timestamp"].dt.date
             frame = frame.groupby("session_date", as_index=False, sort=True).tail(1)
-        return frame.sort_values("timestamp").reset_index(drop=True)
+        return frame.drop(columns=["_source_order"]).sort_values("timestamp").reset_index(drop=True)
 
     @classmethod
     def build(cls, history: pd.DataFrame, symbol: str, interval: str, range_value: str) -> TechnicalWorkspaceResponse:
