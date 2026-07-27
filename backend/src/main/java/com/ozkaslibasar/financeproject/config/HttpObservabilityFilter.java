@@ -63,6 +63,15 @@ public class HttpObservabilityFilter extends OncePerRequestFilter {
                     .increment();
             sample.stop(Timer.builder("finance_http_server_request_duration_seconds")
                     .description("Backend HTTP request latency")
+                    .publishPercentileHistogram()
+                    .serviceLevelObjectives(
+                            java.time.Duration.ofMillis(50),
+                            java.time.Duration.ofMillis(100),
+                            java.time.Duration.ofMillis(250),
+                            java.time.Duration.ofMillis(500),
+                            java.time.Duration.ofSeconds(1),
+                            java.time.Duration.ofSeconds(2),
+                            java.time.Duration.ofSeconds(5))
                     .tag("method", method)
                     .tag("route", route)
                     .tag("status", status)

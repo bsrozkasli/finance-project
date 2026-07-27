@@ -14,3 +14,27 @@ scrape_configs:
     scrape_interval: 5s
     static_configs:
       - targets: ['data-service:8000']
+
+  - job_name: 'postgres'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'redis'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  - job_name: 'prometheus'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  - job_name: 'grafana'
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['grafana:3000']

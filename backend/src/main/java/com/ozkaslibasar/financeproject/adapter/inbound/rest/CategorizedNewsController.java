@@ -10,6 +10,9 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.finnhub.dto.Finnh
 import com.ozkaslibasar.financeproject.adapter.outbound.client.tiingo.TiingoClient;
 import com.ozkaslibasar.financeproject.adapter.outbound.client.tiingo.dto.TiingoNewsDto;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,6 +42,8 @@ public class CategorizedNewsController {
     private final FinnhubClient finnhubClient;
     private final TiingoClient tiingoClient;
     private final PortfolioPositionPort portfolioPositionPort;
+    private final PortfolioPort portfolioPort;
+    private final PortfolioTransactionPort portfolioTransactionPort;
     private final WatchlistPort watchlistPort;
 
     @Operation(summary = "GET News endpoint", description = "Implements the GET operation for the News API described in SPEC.md sections 7 and 8.")
@@ -81,13 +86,28 @@ public class CategorizedNewsController {
             @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
-    @GetMapping("/portfolio")
-    public List<CategorizedNewsItem> getPortfolioNews() {
-        Set<String> symbols = new LinkedHashSet<>();
-        portfolioPositionPort.findByUserId(DEFAULT_USER).forEach(position -> symbols.add(position.symbol()));
-        return fetchNews(symbols, "PORTFOLIO");
+    @GetMapping("/macro")
+    public List<CategorizedNewsItem> getMacroNews() {
+        return finnhubClient.getMarketNews("general").stream()
+                .map(item -> new CategorizedNewsItem(stableId(item.getUrl()), "ECONOMY", item.getDatetime(), item.getHeadline(), item.getImage(), null,
+                        item.getSource(), item.getSummary(), item.getUrl(), "NEUTRAL", "HIGH", List.of()))
+                .toList();
     }
-
+    @GetMapping("/portfolio")
+    public List<CategorizedNewsItem> getPortfolioNews(@RequestParam(required = false) Long portfolioId) {
+        return fetchNews(ledgerSymbols(portfolioId), "PORTFOLIO");
+    }
+    private Set<String> ledgerSymbols(Long portfolioId) {
+        Set<String> symbols = new LinkedHashSet<>();
+        PortfolioLedgerService ledger = new PortfolioLedgerService(portfolioTransactionPort);
+        portfolioPort.findByUserId(DEFAULT_USER).stream()
+                .filter(portfolio -> portfolioId == null || portfolio.id().equals(portfolioId))
+                .forEach(portfolio -> ledger.calculateHoldings(portfolio.id(), DEFAULT_USER).forEach(holding -> symbols.add(holding.symbol().toUpperCase(Locale.ROOT))));
+        if (symbols.isEmpty()) {
+            portfolioPositionPort.findByUserId(DEFAULT_USER).forEach(position -> symbols.add(position.symbol().toUpperCase(Locale.ROOT)));
+        }
+        return symbols;
+    }
     private List<CategorizedNewsItem> fetchNews(Set<String> requestedSymbols, String category) {
         Set<String> symbols = requestedSymbols.isEmpty() ? defaultSymbols() : requestedSymbols;
         List<CategorizedNewsItem> news = new ArrayList<>();

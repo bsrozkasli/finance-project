@@ -20,6 +20,62 @@ class TechnicalIndicators(BaseModel):
     ema: float | None = Field(default=None)
 
 
+class TechnicalCandle(BaseModel):
+    timestamp: str
+    open: float
+    high: float
+    low: float
+    close: float
+    volume: float
+
+
+class TechnicalSeriesPoint(BaseModel):
+    timestamp: str
+    value: float | None = None
+
+
+class TechnicalLevel(BaseModel):
+    kind: str
+    price: float
+    strength: float
+    touches: int
+
+
+class TechnicalWorkspaceResponse(BaseModel):
+    symbol: str
+    interval: str
+    range: str
+    timestamp: str
+    candles: list[TechnicalCandle] = Field(default_factory=list)
+    overlays: dict[str, list[TechnicalSeriesPoint]] = Field(default_factory=dict)
+    oscillators: dict[str, list[TechnicalSeriesPoint]] = Field(default_factory=dict)
+    levels: list[TechnicalLevel] = Field(default_factory=list)
+    patterns: list[dict[str, object]] = Field(default_factory=list)
+    data_quality: dict[str, object] = Field(default_factory=dict)
+
+
+class TechnicalCopilotRequest(BaseModel):
+    symbol: str
+    prompt: str = Field(min_length=1, max_length=2000)
+    workspace: TechnicalWorkspaceResponse
+
+
+class TechnicalOverlay(BaseModel):
+    kind: str
+    label: str
+    price: float | None = None
+    start_timestamp: str | None = None
+    end_timestamp: str | None = None
+    color: str | None = None
+
+
+class TechnicalCopilotResponse(BaseModel):
+    symbol: str
+    answer: str
+    overlays: list[TechnicalOverlay] = Field(default_factory=list)
+    caveats: list[str] = Field(default_factory=list)
+    generated_at: datetime
+
 class TechnicalAnalysisResponse(BaseModel):
     symbol: str
     timestamp: str

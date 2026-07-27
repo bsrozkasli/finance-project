@@ -131,6 +131,34 @@ export interface TechnicalResult {
   signalConfidence?: number;
 }
 
+export interface TechnicalWorkspace {
+  symbol: string;
+  interval: string;
+  range: string;
+  timestamp: string;
+  candles: Array<{ timestamp: string; open: number; high: number; low: number; close: number; volume: number }>;
+  overlays: Record<string, Array<{ timestamp: string; value: number | null }>>;
+  oscillators: Record<string, Array<{ timestamp: string; value: number | null }>>;
+  levels: Array<{ kind: string; price: number; strength: number; touches: number }>;
+  dataQuality?: Record<string, unknown>;
+}
+
+export interface TechnicalCopilotResponse {
+  symbol: string;
+  answer: string;
+  overlays: Array<{ kind: string; label: string; price?: number | null; startTimestamp?: string | null; endTimestamp?: string | null; color?: string | null }>;
+  caveats: string[];
+  generatedAt: string;
+}
+
+export const fetchTechnicalCopilot = async (symbol: string, prompt: string, interval = '1d', range = '1y'): Promise<TechnicalCopilotResponse> => {
+  const response = await apiClient.post<TechnicalCopilotResponse>(`/technical/${symbol}/copilot`, { prompt, interval, range });
+  return response.data;
+};
+export const fetchTechnicalWorkspace = async (symbol: string, interval = '1d', range = '1y'): Promise<TechnicalWorkspace> => {
+  const response = await apiClient.get<TechnicalWorkspace>(`/technical/${symbol}/workspace`, { params: { interval, range } });
+  return response.data;
+};
 export interface CompanyReport {
   symbol: string;
   technical?: TechnicalResult;
@@ -177,6 +205,14 @@ export const fetchTechnicalAnalysis = async (
   return response.data;
 };
 
+export const fetchTechnicalSignals = async (
+  symbol: string,
+  interval = '1d',
+  range = '3mo'
+): Promise<TechnicalResult> => {
+  const response = await apiClient.get<TechnicalResult>(`/technical/${symbol}/signals`, { params: { interval, range } });
+  return response.data;
+};
 export const fetchCompanyReport = async (symbol: string): Promise<CompanyReport> => {
   const response = await apiClient.get<CompanyReport>(`/reports/company/${symbol}`);
   return response.data;
@@ -900,12 +936,32 @@ export interface EconomicEvent {
   previous?: unknown;
 }
 
+export interface CalendarEarningsEvent {
+  symbol: string;
+  date?: string | null;
+  epsEstimate?: number | null;
+  epsActual?: number | null;
+  revenueEstimate?: number | null;
+  revenueActual?: number | null;
+  time?: string | null;
+  portfolioRelated?: boolean | null;
+  sectorLeader?: boolean | null;
+}
+
 export interface MarketCalendarResponse {
-  earnings: EarningsResult[];
+  earnings: CalendarEarningsEvent[];
   economicEvents: EconomicEvent[];
   cachedAt?: string;
 }
+export const fetchMarketCalendar = async (symbols?: string[]): Promise<MarketCalendarResponse> => {
+  const response = await apiClient.get<MarketCalendarResponse>('/calendar', { params: symbols?.length ? { symbols: symbols.join(',') } : {} });
+  return response.data;
+};
 
+export const fetchMacroNews = async (): Promise<CategorizedNewsItem[]> => {
+  const response = await apiClient.get<CategorizedNewsItem[]>('/news/macro');
+  return response.data;
+};
 export const fetchEconomicEvents = async (): Promise<EconomicEvent[]> => {
   const response = await apiClient.get<EconomicEvent[]>('/calendar/economic-events');
   return response.data;
@@ -957,5 +1013,94 @@ export const fetchAllNews = async (
 
 export const fetchPortfolioNews = async (): Promise<CategorizedNewsItem[]> => {
   const response = await apiClient.get<CategorizedNewsItem[]>('/news/portfolio');
+  return response.data;
+};
+
+export interface AssetResearchSection<T> {
+  status: 'OK' | 'EMPTY' | 'FAILED';
+  source: string;
+  data: T | null;
+  message: string | null;
+  observedAt: string;
+}
+
+export interface CompanyProfile {
+  symbol: string;
+  name: string;
+  exchange: string | null;
+  currency: string | null;
+  sector: string | null;
+  industry: string | null;
+  marketCap: number | null;
+  description: string | null;
+  website: string | null;
+  logoUrl: string | null;
+  country: string | null;
+  quoteType: string | null;
+  fullTimeEmployees: number | null;
+}
+
+export interface MarketQuote {
+  symbol: string;
+  marketState: 'PRE_MARKET' | 'REGULAR' | 'POST_MARKET' | 'CLOSED' | 'UNKNOWN' | null;
+  exchangeTimezone: string | null;
+  previousClose: number | null;
+  regularPrice: number | null;
+  regularChange: number | null;
+  regularChangePercent: number | null;
+  regularTimestamp: string | null;
+  preMarketPrice: number | null;
+  preMarketChange: number | null;
+  preMarketChangePercent: number | null;
+  preMarketTimestamp: string | null;
+  postMarketPrice: number | null;
+  postMarketChange: number | null;
+  postMarketChangePercent: number | null;
+  postMarketTimestamp: string | null;
+  delayed: boolean | null;
+}
+
+export interface AssetResearchDetail {
+  symbol: string;
+  profile: AssetResearchSection<CompanyProfile>;
+  market: AssetResearchSection<MarketQuote>;
+  generatedAt: string;
+}
+
+export const fetchAssetResearchDetail = async (symbol: string): Promise<AssetResearchDetail> => {
+  const response = await apiClient.get<AssetResearchDetail>(`/assets/${symbol}/detail`);
+  return response.data;
+};
+
+export interface AssetMarketBatch {
+  quotes: Record<string, AssetResearchSection<MarketQuote>>;
+  generatedAt: string;
+}
+
+export interface AssetProfileBatch {
+  profiles: Record<string, AssetResearchSection<CompanyProfile>>;
+  generatedAt: string;
+}
+
+export const fetchBatchLatestPrices = async (symbols: string[]): Promise<AssetMarketBatch> => {
+  const response = await apiClient.post<AssetMarketBatch>('/prices/batch-latest', { symbols });
+  return response.data;
+};
+
+export const fetchBatchAssetProfiles = async (symbols: string[]): Promise<AssetProfileBatch> => {
+  const response = await apiClient.post<AssetProfileBatch>('/assets/batch-profiles', { symbols });
+  return response.data;
+};
+export interface MarketSession {
+  exchange: string;
+  state: 'PRE_MARKET' | 'REGULAR' | 'POST_MARKET' | 'CLOSED' | 'UNKNOWN';
+  timezone: string;
+  nextOpen?: string | null;
+  nextClose?: string | null;
+  source?: string;
+}
+
+export const fetchMarketSessions = async (exchanges = ['XNYS', 'XIST']): Promise<MarketSession[]> => {
+  const response = await apiClient.get<MarketSession[]>('/market/sessions', { params: { exchanges: exchanges.join(',') } });
   return response.data;
 };

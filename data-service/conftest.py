@@ -5,6 +5,7 @@ from __future__ import annotations
 import faulthandler
 import os
 import sys
+import threading
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parent
 TEST_CACHE = ROOT / ".test-cache"
 TRADINGAGENTS_CACHE = TEST_CACHE / "tradingagents"
+SESSION_TIMEOUT_TIMER = None
 
 for path in (
     TEST_CACHE,
@@ -46,6 +48,24 @@ def pytest_addoption(parser):
         "Maximum seconds a single test may run before pytest aborts the process.",
         default="120",
     )
+
+
+def pytest_sessionstart(session):
+    global SESSION_TIMEOUT_TIMER
+    timeout = int(session.config.getini("timeout"))
+
+    def abort_session():
+        faulthandler.dump_traceback()
+        os._exit(124)
+
+    SESSION_TIMEOUT_TIMER = threading.Timer(timeout, abort_session)
+    SESSION_TIMEOUT_TIMER.daemon = True
+    SESSION_TIMEOUT_TIMER.start()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    if SESSION_TIMEOUT_TIMER is not None:
+        SESSION_TIMEOUT_TIMER.cancel()
 
 
 @pytest.hookimpl(hookwrapper=True)

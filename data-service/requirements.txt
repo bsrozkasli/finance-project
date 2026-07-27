@@ -16,6 +16,7 @@ httpx[test]
 anthropic==0.28.0
 python-dotenv>=1.0.1
 redis>=5.0.0
+
 tenacity>=8.3.0
 PyPortfolioOpt>=1.5.5
 cvxpy>=1.5.2
@@ -23,4 +24,3 @@ prometheus-fastapi-instrumentator==7.0.0
 prometheus-client>=0.20.0
 langchain-openai>=0.2.0
 langchain-core>=0.3.0
-

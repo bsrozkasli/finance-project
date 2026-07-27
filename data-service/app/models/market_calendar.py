@@ -26,16 +26,26 @@ class EarningsEvent(BaseModel):
     revenue_estimate: float | None = None
     revenue_actual: float | None = None
     time: str | None = None
+    company_name: str | None = None
+    exchange: str | None = None
+    sector: str | None = None
+    portfolio_related: bool | None = None
+    sector_leader: bool | None = None
 
 
 class EconomicEvent(BaseModel):
     event: str
-    date: Date | None = None
+    date: datetime | None = None
     country: str | None = None
     impact: str | None = None
     actual: str | float | None = None
     estimate: str | float | None = None
     previous: str | float | None = None
+    event_type: str | None = None
+    currency: str | None = None
+    unit: str | None = None
+    source: str | None = None
+    source_url: str | None = None
 
 
 class MarketCalendar(BaseModel):

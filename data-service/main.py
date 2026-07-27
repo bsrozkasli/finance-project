@@ -31,6 +31,7 @@ from app.observability import (
     route_label,
 )
 from app.routers.market_calendar import router as market_calendar_router
+from app.routers.market_sessions import router as market_sessions_router
 from app.request_context import REQUEST_ID_HEADER, reset_request_id, set_request_id
 
 logger = logging.getLogger(__name__)
@@ -126,6 +127,7 @@ app.include_router(backtest_router)
 app.include_router(chat_router)
 app.include_router(health_router)
 app.include_router(market_calendar_router)
+app.include_router(market_sessions_router)
 
 
 @app.get("/api/v1/prices/{symbol}", summary="OHLCV price history via provider chain")

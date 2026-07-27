@@ -21,6 +21,8 @@ import {
   fetchAnalystRecommendations,
   fetchAssetPrice,
   fetchAssets,
+  fetchBatchAssetProfiles,
+  fetchBatchLatestPrices,
   fetchBatchPriceHistory,
   fetchCompanyReport,
   fetchEarnings,
@@ -145,11 +147,13 @@ describe('api client contract', () => {
     server.use(
       respondJson('GET', '/assets', [asset]),
       respondJson('POST', '/assets/batch', [asset], (request) => expectJsonBody(request, { symbols: ['AAPL', 'MSFT'] })),
+      respondJson('POST', '/assets/batch-profiles', { profiles: {}, generatedAt: '2026-07-24T12:00:00Z' }, (request) => expectJsonBody(request, { symbols: ['AAPL'] })),
       respondNoContent('DELETE', '/assets/AAPL'),
     );
 
     await expect(fetchAssets()).resolves.toEqual([asset]);
     await expect(addAssetBatch(['AAPL', 'MSFT'])).resolves.toEqual([asset]);
+    await expect(fetchBatchAssetProfiles(['AAPL'])).resolves.toEqual({ profiles: {}, generatedAt: '2026-07-24T12:00:00Z' });
     await expect(deleteAsset('AAPL')).resolves.toBeUndefined();
   });
 
@@ -158,11 +162,13 @@ describe('api client contract', () => {
       respondJson('GET', '/prices/AAPL/latest', price),
       respondJson('GET', '/prices/AAPL/history', [price], (request) => expectQuery(request, { interval: '1d', range: '1mo' })),
       respondJson('POST', '/prices/batch-history', { AAPL: [price] }, (request) => expectJsonBody(request, { symbols: ['AAPL'], interval: '1d', range: '1y' })),
+      respondJson('POST', '/prices/batch-latest', { quotes: {}, generatedAt: '2026-07-24T12:00:00Z' }, (request) => expectJsonBody(request, { symbols: ['AAPL'] })),
     );
 
     await expect(fetchAssetPrice('AAPL')).resolves.toEqual(price);
     await expect(fetchPriceHistory('AAPL', '1d', '1mo')).resolves.toEqual([price]);
     await expect(fetchBatchPriceHistory(['AAPL'], '1d', '1y')).resolves.toEqual({ AAPL: [price] });
+    await expect(fetchBatchLatestPrices(['AAPL'])).resolves.toEqual({ quotes: {}, generatedAt: '2026-07-24T12:00:00Z' });
   });
 
   it('calls analyst, technical, and report endpoints', async () => {

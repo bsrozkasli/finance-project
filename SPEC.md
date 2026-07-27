@@ -211,8 +211,10 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Assets | `GET /assets` | List tracked assets |
 | Assets | `GET /assets/{symbol}` | Fetch one asset |
 | Assets | `POST /assets/batch` | Add symbols in batch; Yahoo metadata first, fallback `STOCK` |
+| Assets | `POST /assets/batch-profiles` | Fetch partially degradable company profiles and logos with a 24-hour cache |
 | Assets | `DELETE /assets/{symbol}` | Delete asset |
 | Prices | `GET /prices/{symbol}/latest` | Latest price candle through DB-first refresh and `priceCache` |
+| Prices | `POST /prices/batch-latest` | Fetch normalized regular/extended-hours quotes with per-symbol degradation and a 30-second cache |
 | Prices | `GET /prices/{symbol}/history?interval=&range=` | Historical candles with DB-first lazy loading, refresh, persistence, and `priceCache` |
 | Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators |
 | Technical | `GET /technical/{symbol}/signals?interval=&range=` | Technical signal summary |
@@ -277,7 +279,11 @@ Data-service endpoints:
 
 | Area | Method and path | Purpose |
 | --- | --- | --- |
-| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |`r`n| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
+| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |
+| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
+| Assets | `GET /api/v1/assets/{symbol}/detail` | Provider-backed company profile and regular/pre-market/post-market quote sections; each section reports status/source/timestamp and degrades independently |
+| Data-service assets | `GET /api/v1/assets/{symbol}/profile` | Extended company profile with nullable overview, website, country, sector, industry, logo, and employee count |
+| Data-service assets | `GET /api/v1/assets/{symbol}/market-quote` | Nullable regular/pre-market/post-market snapshot with market state, timestamps, delay flag, and no fabricated quote values |
 | Analysis | `GET /api/v1/analysis/technical/{symbol}` | Technical indicators |
 | Analysis | `GET /api/v1/analysis/technical/{symbol}/signals` | Signal summary |
 | Analysis | `GET /api/v1/analysis/sentiment/{symbol}` | Sentiment analysis |
@@ -529,6 +535,7 @@ Entity relationships and persistence semantics:
 - Latest and historical price reads use `PriceRefreshService`: local data first, provider refresh when needed, persist fetched rows, then return real data only.
 - Fetched historical prices are persisted after lazy loading.
 - Latest price, technical analysis, analyst data, fundamentals, research, reports, and agent-analysis responses may be cached to reduce provider/API load.
+- Frontend live polling requests only the deduplicated portfolio/watchlist symbol union every 30 seconds while the document is visible; historical candles and profiles are not part of this polling loop.
 - Watchlist research snapshot TTL expectations are data-type specific: latest price is short lived, technical data is intraday-lived, fundamentals/earnings/institutional data can be daily-lived, and stale values should be shown with status metadata while refresh happens where supported.
 - Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.

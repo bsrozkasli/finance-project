@@ -137,6 +137,7 @@ const renderView = (extraProps: Partial<Parameters<typeof WatchlistsView>[0]> = 
     stocks={[makeStock('AAPL', 210), makeStock('MSFT', 320, -0.4)]}
     watchlists={watchlists}
     onAddStockToWatchlist={vi.fn()}
+    onRemoveStockFromWatchlist={vi.fn()}
     onAddWatchlist={vi.fn()}
     onOpenTradeModal={vi.fn()}
     onSelectStock={vi.fn()}
@@ -182,5 +183,34 @@ describe('WatchlistsView', () => {
     await user.click(screen.getByRole('button', { name: 'Add symbol' }));
 
     expect(onAddStockToWatchlist).toHaveBeenCalledWith('1', 'NVDA');
+  });
+
+  it('removes a symbol and refreshes the research snapshot', async () => {
+    const user = userEvent.setup();
+    const reload = vi.fn();
+    const onRemoveStockFromWatchlist = vi.fn().mockResolvedValue(undefined);
+    mockedUseWatchlistResearchSnapshot.mockReturnValue({
+      snapshot,
+      loading: false,
+      error: null,
+      reload,
+    });
+
+    renderView({ onRemoveStockFromWatchlist });
+    await user.click(screen.getByRole('button', { name: 'Remove AAPL from watchlist' }));
+
+    expect(onRemoveStockFromWatchlist).toHaveBeenCalledWith('1', 'AAPL');
+    expect(reload).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the symbol visible and reports a failed delete', async () => {
+    const user = userEvent.setup();
+    const onRemoveStockFromWatchlist = vi.fn().mockRejectedValue(new Error('delete failed'));
+    renderView({ onRemoveStockFromWatchlist });
+
+    await user.click(screen.getByRole('button', { name: 'Remove AAPL from watchlist' }));
+
+    expect(screen.getByText('Could not remove AAPL.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove AAPL from watchlist' })).toBeInTheDocument();
   });
 });

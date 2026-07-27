@@ -1,13 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { CalendarEvent, News, Stock, Trade, Watchlist, Portfolio } from './types';
-import type { CategorizedNewsItem, EconomicEvent, JournalTrade } from './api/client';
+import type { CategorizedNewsItem, JournalTrade } from './api/client';
 import type { PriceHistory } from './api/types';
-import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction, fetchBatchPriceHistory, fetchEconomicEvents, fetchPortfolioNews } from './api/client';
+import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction, fetchBatchPriceHistory, fetchEconomicEvents, fetchMarketCalendar, fetchMacroNews, fetchPortfolioNews } from './api/client';
+import { canonicalizePriceHistory } from './utils/marketData';
 
 import { useAssets } from './hooks/useAssets';
 import { useInvestmentPortfolio } from './hooks/useInvestmentPortfolio';
 import { useWatchlists } from './hooks/useWatchlists';
+import { selectDisplayQuote, useMarketOverviewData } from './hooks/useMarketOverviewData';
 import { useJournalTrades } from './hooks/useJournalTrades';
 
 // Component Imports
@@ -121,7 +123,27 @@ export default function App() {
     setSelectedPortfolioId: setApiPortfolioId,
     reload: reloadInvestmentPortfolio,
   } = useInvestmentPortfolio(numericPortfolioId(activePortfolioId) ?? null);
-  const { watchlists: apiWatchlists, createList: createApiWatchlist, addSymbol: addApiWatchlistSymbol } = useWatchlists();
+  const {
+    watchlists: apiWatchlists,
+    createList: createApiWatchlist,
+    addSymbol: addApiWatchlistSymbol,
+    removeSymbol: removeApiWatchlistSymbol,
+  } = useWatchlists();
+  const liveMarketSymbols = useMemo(() => {
+    const symbols = new Set<string>();
+    apiHoldings.forEach((holding) => symbols.add(holding.symbol.trim().toUpperCase()));
+    apiWatchlists.forEach((watchlist) => watchlist.symbols?.forEach((symbol) => symbols.add(symbol.trim().toUpperCase())));
+    return [...symbols].filter(Boolean).sort();
+  }, [apiHoldings, apiWatchlists]);
+  const profileSymbols = useMemo(
+    () => assets.map((asset) => asset.symbol.trim().toUpperCase()).filter(Boolean).sort(),
+    [assets],
+  );
+  const { quotes: liveQuoteSections, profiles: companyProfileSections } = useMarketOverviewData(
+    liveMarketSymbols,
+    profileSymbols,
+  );
+
   const {
     trades: journalTrades,
     addTrade: addJournalTradeRecord,
@@ -159,7 +181,7 @@ export default function App() {
           const history = historyBySymbol[asset.symbol] ?? historyBySymbol[asset.symbol.toUpperCase()] ?? [];
           if (!history.length) return null;
 
-          const sorted = [...history].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          const sorted = canonicalizePriceHistory(history);
           const last = sorted[sorted.length - 1];
           const previous = sorted.length > 1 ? sorted[sorted.length - 2] : null;
           const price = last.close;
@@ -216,6 +238,40 @@ export default function App() {
     return () => { cancelled = true; };
   }, [assets]);
 
+  const stockSymbolsKey = useMemo(() => stocks.map((stock) => stock.symbol).sort().join(','), [stocks]);
+
+  useEffect(() => {
+    if (!stockSymbolsKey) return;
+    setStocks((current) => current.map((stock) => {
+      const profile = companyProfileSections[stock.symbol]?.data;
+      const quote = liveQuoteSections[stock.symbol]?.data;
+      const displayQuote = quote ? selectDisplayQuote(quote) : null;
+      if (!profile && !displayQuote) return stock;
+      return {
+        ...stock,
+        name: profile?.name ?? stock.name,
+        sector: profile?.sector ?? stock.sector,
+        industry: profile?.industry ?? stock.industry,
+        logoUrl: profile?.logoUrl ?? stock.logoUrl,
+        price: displayQuote?.price ?? stock.price,
+        close: displayQuote?.price ?? stock.close,
+        change: displayQuote?.change ?? stock.change,
+        changePercent: displayQuote?.changePercent == null
+          ? stock.changePercent
+          : displayQuote.changePercent * 100,
+        priceUpdatedAt: displayQuote?.timestamp ?? stock.priceUpdatedAt,
+        marketState: displayQuote?.marketState ?? stock.marketState,
+        priceDelayed: displayQuote?.delayed ?? stock.priceDelayed,
+      };
+    }));
+  }, [companyProfileSections, liveQuoteSections, stockSymbolsKey]);
+
+  useEffect(() => {
+    if (!selectedStock) return;
+    const updated = stocks.find((stock) => stock.symbol === selectedStock.symbol);
+    if (updated && updated !== selectedStock) setSelectedStock(updated);
+  }, [selectedStock, stocks]);
+
   useEffect(() => {
     if (apiWatchlists && apiWatchlists.length > 0) {
       const mapped: Watchlist[] = apiWatchlists.map(w => ({
@@ -264,7 +320,7 @@ export default function App() {
       url: item.url,
     });
 
-    const mapEvent = (item: EconomicEvent, index: number): CalendarEvent => ({
+    const mapEvent = (item: { event: string; date?: string | null; impact?: string }, index: number): CalendarEvent => ({
       id: String(index),
       title: item.event,
       date: item.date?.slice(0, 10) || '',
@@ -273,14 +329,26 @@ export default function App() {
     });
 
     const loadMarketContext = async () => {
-      const [newsResult, eventsResult] = await Promise.allSettled([
+      const [newsResult, macroNewsResult, eventsResult, calendarResult] = await Promise.allSettled([
         fetchPortfolioNews(),
+        fetchMacroNews(),
         fetchEconomicEvents(),
+        fetchMarketCalendar(),
       ]);
 
       if (cancelled) return;
-      setNews(newsResult.status === 'fulfilled' ? newsResult.value.map(mapNews) : []);
-      setCalendarEvents(eventsResult.status === 'fulfilled' ? eventsResult.value.map(mapEvent) : []);
+      const portfolioNews = newsResult.status === 'fulfilled' ? newsResult.value : [];
+      const macroNews = macroNewsResult.status === 'fulfilled' ? macroNewsResult.value : [];
+      setNews([...portfolioNews, ...macroNews].map(mapNews));
+      const economicEvents = eventsResult.status === 'fulfilled' ? eventsResult.value : [];
+      const earnings = calendarResult.status === 'fulfilled' ? calendarResult.value.earnings.map((item) => ({
+        event: `${item.symbol} earnings${item.time ? ` (${item.time})` : ''}`,
+        date: item.date,
+        impact: item.portfolioRelated || item.sectorLeader ? 'HIGH' : 'MEDIUM',
+      })) : [];
+      setCalendarEvents([...economicEvents, ...earnings].map(mapEvent));
+
+
     };
 
     void loadMarketContext();
@@ -317,6 +385,12 @@ export default function App() {
   const handleAddWatchlist = async (name: string) => {
     const created = await createApiWatchlist(name);
     return created.id.toString();
+  };
+
+  const handleRemoveStockFromWatchlist = async (watchlistId: string, symbol: string) => {
+    const numericWatchlistId = Number(watchlistId);
+    if (!Number.isFinite(numericWatchlistId)) return;
+    await removeApiWatchlistSymbol(numericWatchlistId, symbol.trim().toUpperCase());
   };
 
   const handleCreatePortfolio = async (name: string) => {
@@ -567,6 +641,7 @@ export default function App() {
                 stocks={stocks}
                 watchlists={watchlists}
                 onAddStockToWatchlist={handleAddStockToWatchlist}
+                onRemoveStockFromWatchlist={handleRemoveStockFromWatchlist}
                 onAddWatchlist={handleAddWatchlist}
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
                 onSelectStock={(s, symbol, name) => openStockDetails(s, symbol, name)}
@@ -654,6 +729,7 @@ export default function App() {
             setSelectedDetailName(null);
           }}
           onOpenTradeModal={(sym) => setTradeModalSymbol(sym)}
+          position={activePortfolio?.holdings.find((holding) => holding.symbol === (selectedStock?.symbol ?? selectedDetailSymbol ?? '')) ?? null}
         />
       )}
 
