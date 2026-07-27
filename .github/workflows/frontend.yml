@@ -40,9 +40,17 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      - name: Check frontend API boundaries
+        working-directory: frontend
+        run: npm run check:api-boundaries
+
       - name: Build frontend
         working-directory: frontend
         run: npm run build
+
+      - name: Check frontend bundle budget
+        working-directory: frontend
+        run: npm run check:bundle
 
       - name: Run frontend unit and coverage tests
         working-directory: frontend

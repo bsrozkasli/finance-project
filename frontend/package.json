@@ -5,14 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/run-with-timeout.cjs 180000 tsc -b && node scripts/run-with-timeout.cjs 180000 vite build",
+    "build": "node scripts/run-with-timeout.cjs 120000 tsc -b && node scripts/run-with-timeout.cjs 120000 vite build",
     "lint": "node scripts/run-with-timeout.cjs 120000 eslint .",
+    "check:api-boundaries": "node scripts/check-api-boundaries.cjs",
+    "check:bundle": "node scripts/check-bundle-size.cjs",
     "preview": "vite preview",
-    "test": "vitest run --config vitest.config.ts",
+    "test": "node scripts/run-with-timeout.cjs 120000 vitest run --config vitest.config.ts",
     "test:watch": "vitest --config vitest.config.ts",
-    "test:coverage": "vitest run --coverage --config vitest.config.ts",
-    "e2e": "playwright test",
-    "e2e:integrated": "cross-env E2E_INTEGRATED=true playwright test"
+    "test:coverage": "node scripts/run-with-timeout.cjs 120000 vitest run --coverage --config vitest.config.ts",
+    "e2e": "node scripts/run-with-timeout.cjs 120000 playwright test",
+    "e2e:integrated": "cross-env E2E_INTEGRATED=true node scripts/run-with-timeout.cjs 120000 playwright test"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.0",
