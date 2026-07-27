@@ -109,22 +109,16 @@ export default function DashboardHome({
   // Calculations for active portfolio metrics
   const portfolioMetrics = useMemo(() => {
     if (!activePortfolio) {
-      return { totalValue: 0, totalProfitLoss: 0, totalReturnPercent: 0, positions: [], holdingsCount: 0 };
+      return { totalValue: null, totalProfitLoss: null, totalReturnPercent: null, positions: [], holdingsCount: 0 };
     }
-
-    let currentTotalValue = 0;
-    let totalCostBasis = 0;
 
     const calculatedPositions = activePortfolio.holdings.map((h) => {
       const stock = stockMap[h.symbol];
-      const currentPrice = stock ? stock.price : h.costPrice;
-      const value = h.quantity * currentPrice;
+      const currentPrice = typeof stock?.price === 'number' ? stock.price : null;
+      const value = currentPrice == null ? null : h.quantity * currentPrice;
       const cost = h.quantity * h.costPrice;
-      const profitLoss = value - cost;
-      const profitLossPercent = cost > 0 ? (profitLoss / cost) * 100 : 0;
-
-      currentTotalValue += value;
-      totalCostBasis += cost;
+      const profitLoss = value == null ? null : value - cost;
+      const profitLossPercent = profitLoss == null || cost <= 0 ? null : (profitLoss / cost) * 100;
 
       return {
         ...h,
@@ -136,8 +130,15 @@ export default function DashboardHome({
       };
     });
 
-    const totalProfitLoss = currentTotalValue - totalCostBasis;
-    const totalReturnPercent = totalCostBasis > 0 ? (totalProfitLoss / totalCostBasis) * 100 : 0;
+    const pricingComplete = calculatedPositions.every((position) => position.value != null);
+    const totalCostBasis = calculatedPositions.reduce((sum, position) => sum + position.quantity * position.costPrice, 0);
+    const currentTotalValue = pricingComplete
+      ? calculatedPositions.reduce((sum, position) => sum + (position.value ?? 0), 0)
+      : null;
+    const totalProfitLoss = currentTotalValue == null ? null : currentTotalValue - totalCostBasis;
+    const totalReturnPercent = totalProfitLoss == null || totalCostBasis <= 0
+      ? null
+      : (totalProfitLoss / totalCostBasis) * 100;
 
     return {
       totalValue: currentTotalValue,
@@ -191,7 +192,7 @@ export default function DashboardHome({
       costPrice: pos.costPrice,
       currentPrice: pos.currentPrice,
       marketValue: pos.value,
-      weight: totalValue > 0 ? (pos.value / totalValue) * 100 : 0,
+      weight: totalValue != null && totalValue > 0 && pos.value != null ? (pos.value / totalValue) * 100 : null,
       dailyReturn: null,
       weeklyReturn: null,
       oneMonthReturn: null,
@@ -218,7 +219,11 @@ export default function DashboardHome({
 
   const allocationData = useMemo(() => {
     const source = displayedPositionPerformance.length > 0 ? displayedPositionPerformance : fallbackPositionPerformance;
-    return source
+    const pricedSource = source.filter(
+      (position): position is PortfolioPositionPerformance & { marketValue: number; weight: number } =>
+        position.marketValue != null && position.weight != null,
+    );
+    return pricedSource
       .map((pos) => {
         const selectedReturn = allocationMode === 'daily'
           ? pos.dailyReturn
@@ -553,7 +558,7 @@ export default function DashboardHome({
           </span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="font-data-mono text-2xl font-bold text-text-primary">
-              ${portfolioMetrics.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatCurrency(portfolioMetrics.totalValue)}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-muted">
@@ -568,13 +573,14 @@ export default function DashboardHome({
             TOTAL PROFIT / LOSS (P/L)
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalProfitLoss >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalProfitLoss >= 0 ? '+' : ''}
-              ${portfolioMetrics.totalProfitLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className={`font-data-mono text-2xl font-bold ${returnColor(portfolioMetrics.totalProfitLoss)}`}>
+              {formatCurrency(portfolioMetrics.totalProfitLoss)}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-1 text-[11px]">
-            {portfolioMetrics.totalProfitLoss >= 0 ? (
+            {portfolioMetrics.totalProfitLoss == null ? (
+              <span className="text-text-muted font-semibold">Market price unavailable</span>
+            ) : portfolioMetrics.totalProfitLoss >= 0 ? (
               <span className="text-bull-green flex items-center font-semibold">
                 <ArrowUpRight className="w-3.5 h-3.5" /> Net Gain</span>
             ) : (
@@ -590,9 +596,8 @@ export default function DashboardHome({
             TOTAL RETURN RATE
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalReturnPercent >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalReturnPercent >= 0 ? '+' : ''}
-              {portfolioMetrics.totalReturnPercent.toFixed(2)}%
+            <span className={`font-data-mono text-2xl font-bold ${returnColor(portfolioMetrics.totalReturnPercent)}`}>
+              {formatReturn(portfolioMetrics.totalReturnPercent)}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-secondary">
@@ -858,7 +863,7 @@ export default function DashboardHome({
           <div className="min-h-72 flex-1">
             {allocationData.length === 0 ? (
               <div className="flex h-full min-h-56 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
-                No assets have been added.
+                {activePortfolio?.holdings.length ? 'Allocation is unavailable until every holding has a real market price.' : 'No assets have been added.'}
               </div>
             ) : (
               <div className="grid h-full min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-3">
@@ -1081,7 +1086,7 @@ export default function DashboardHome({
                         </td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-secondary">{formatCurrency(pos.costPrice)}</td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}</td>
-                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{pos.weight.toFixed(2)}%</td>
+                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{pos.weight == null ? '-' : `${pos.weight.toFixed(2)}%`}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.dailyReturn)}`}>{formatReturn(pos.dailyReturn)}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.weeklyReturn)}`}>{formatReturn(pos.weeklyReturn)}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.oneMonthReturn)}`}>{formatReturn(pos.oneMonthReturn)}</td>

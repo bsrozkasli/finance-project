@@ -245,12 +245,12 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `POST /portfolio/positions` | Create position |
 | Portfolio positions | `PUT /portfolio/positions/{id}` | Update position |
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
-| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
+| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available; price-derived fields are `null` and `pricingComplete=false` when any current price is unavailable |
 | Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
 | Portfolio dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative-return comparison for investment portfolios and benchmarks; values are derived from real refreshed price history and missing provider data returns empty points rather than fabricated values |
-| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level added date, cost, current price, weight, daily/weekly/1M/3M/6M/1Y/total returns for an investment portfolio; time-window returns are null when refreshed price history is missing or insufficient |
-| Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
-| Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |
+| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level added date, cost, current price, weight, daily/weekly/1M/3M/6M/1Y/total returns for an investment portfolio; price-derived fields are `null` when current price is unavailable and time-window returns are `null` when history is missing or insufficient |
+| Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices; values and amounts are `null` rather than cost-based when real prices are incomplete |
+| Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL; the position remains present with nullable price-derived fields when pricing is unavailable |
 | Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
 | Portfolio analytics | `POST /portfolio/rebalance-check` | Rebalance analysis |
 | Journal | `GET /journal/trades?page=&size=&sort=` | Paged journal trades; open trades are enriched with latest real price at read time |
@@ -363,7 +363,8 @@ Portfolio summary (`GET /api/v1/portfolio/summary`):
   "dailyPnL": 850.25,
   "dailyPnLPercent": 0.68,
   "totalPnL": 14500.5,
-  "totalReturn": 13.12
+  "totalReturn": 13.12,
+  "pricingComplete": true
 }
 ```
 

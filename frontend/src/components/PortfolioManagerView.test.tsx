@@ -236,6 +236,38 @@ describe('PortfolioManagerView', () => {
     const deleteButtons = screen.getAllByRole('button', { name: 'Delete Portfolio' });
     expect(deleteButtons[deleteButtons.length - 1]).toBeDisabled();
   });
+  it('keeps an unpriced holding visible without fabricating allocation values', async () => {
+    server.use(
+      http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([
+        {
+          symbol: 'AAPL',
+          company: 'Apple Inc.',
+          addedDate: '2026-01-02',
+          costPrice: 100,
+          currentPrice: null,
+          marketValue: null,
+          weight: null,
+          dailyReturn: null,
+          weeklyReturn: null,
+          oneMonthReturn: null,
+          threeMonthReturn: null,
+          sixMonthReturn: null,
+          oneYearReturn: null,
+          totalReturn: null,
+        },
+      ])),
+      http.get(apiUrl('/portfolios/:portfolioId/transactions'), () => HttpResponse.json([])),
+    );
+
+    renderPortfolio(portfolio, []);
+
+    await waitFor(() => {
+      expect(screen.getByText('Allocation is unavailable until every holding has a real market price.')).toBeInTheDocument();
+    });
+    expect(screen.getAllByText('AAPL').length).toBeGreaterThan(0);
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+  });
+
   it('does not fabricate allocation or holding rows for an empty portfolio', () => {
     server.use(
       http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([])),

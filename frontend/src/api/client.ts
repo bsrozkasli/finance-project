@@ -185,12 +185,13 @@ export const fetchCompanyReport = async (symbol: string): Promise<CompanyReport>
 // Portfolio Summary
 
 export interface PortfolioSummary {
-  totalValue: number;
+  totalValue: number | null;
   cashBalance: number;
-  dailyPnL: number;
-  dailyPnLPercent: number;
-  totalPnL: number;
-  totalReturn: number;
+  dailyPnL: number | null;
+  dailyPnLPercent: number | null;
+  totalPnL: number | null;
+  totalReturn: number | null;
+  pricingComplete: boolean;
 }
 
 export interface PortfolioPerformancePoint {
@@ -230,21 +231,21 @@ export interface PortfolioPositionPerformance {
   company: string;
   addedDate?: string | null;
   costPrice: number;
-  currentPrice: number;
-  marketValue: number;
-  weight: number;
+  currentPrice: number | null;
+  marketValue: number | null;
+  weight: number | null;
   dailyReturn?: number | null;
   weeklyReturn?: number | null;
   oneMonthReturn?: number | null;
   threeMonthReturn?: number | null;
   sixMonthReturn?: number | null;
   oneYearReturn?: number | null;
-  totalReturn: number;
+  totalReturn: number | null;
 }
 export interface AllocationSlice {
   name: string;
-  value: number;
-  amount: number;
+  value: number | null;
+  amount: number | null;
   color?: string;
 }
 
@@ -259,13 +260,13 @@ export interface EnrichedPosition {
   company: string;
   shares: number;
   avgCost: number;
-  currentPrice: number;
+  currentPrice: number | null;
   costBasis: number;
-  marketValue: number;
-  allocation: number;
-  dailyReturn: number;
-  totalReturn: number;
-  unrealizedPnL: number;
+  marketValue: number | null;
+  allocation: number | null;
+  dailyReturn: number | null;
+  totalReturn: number | null;
+  unrealizedPnL: number | null;
 }
 
 
