@@ -64,7 +64,7 @@ feign:
   circuitbreaker:
     enabled: true
 
-# Resilience4j â€” finnhubApi instance (30 req/s free tier limit)
+# Resilience4j finnhubApi instance (30 req/s free tier limit)
 resilience4j:
   ratelimiter:
     instances:
@@ -109,6 +109,15 @@ management:
     health:
       show-details: always
   metrics:
+    tags:
+      application: finance-project
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        finance.http.server.request.duration.seconds: true
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,5s
+        finance.http.server.request.duration.seconds: 50ms,100ms,250ms,500ms,1s,2s,5s
     export:
       prometheus:
         enabled: true

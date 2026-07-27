@@ -3,12 +3,12 @@ import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-do
 import type { Stock, Trade, Watchlist, Portfolio } from './types';
 import type { JournalTrade } from './api/client';
 import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction } from './api/client';
-
 import { useAssets } from './hooks/useAssets';
 import { useAssetMarketData } from './hooks/useAssetMarketData';
 import { useInvestmentPortfolio } from './hooks/useInvestmentPortfolio';
 import { useMarketContext } from './hooks/useMarketContext';
 import { useWatchlists } from './hooks/useWatchlists';
+import { selectDisplayQuote, useMarketOverviewData } from './hooks/useMarketOverviewData';
 import { useJournalTrades } from './hooks/useJournalTrades';
 
 // Component Imports
@@ -112,7 +112,7 @@ export default function App() {
   const [isTradingJournalOpen, setIsTradingJournalOpen] = useState(false);
 
   const { assets, addAssets } = useAssets();
-  const { stocks } = useAssetMarketData(assets);
+  const { stocks: baseStocks } = useAssetMarketData(assets);
   const { news, calendarEvents } = useMarketContext();
   const {
     portfolios: apiPortfolios,
@@ -121,7 +121,55 @@ export default function App() {
     setSelectedPortfolioId: setApiPortfolioId,
     reload: reloadInvestmentPortfolio,
   } = useInvestmentPortfolio(numericPortfolioId(activePortfolioId) ?? null);
-  const { watchlists: apiWatchlists, createList: createApiWatchlist, addSymbol: addApiWatchlistSymbol } = useWatchlists();
+  const {
+    watchlists: apiWatchlists,
+    createList: createApiWatchlist,
+    addSymbol: addApiWatchlistSymbol,
+    removeSymbol: removeApiWatchlistSymbol,
+  } = useWatchlists();
+  const liveMarketSymbols = useMemo(() => {
+    const symbols = new Set<string>();
+    apiHoldings.forEach((holding) => symbols.add(holding.symbol.trim().toUpperCase()));
+    apiWatchlists.forEach((watchlist) => watchlist.symbols?.forEach((symbol) => symbols.add(symbol.trim().toUpperCase())));
+    return [...symbols].filter(Boolean).sort();
+  }, [apiHoldings, apiWatchlists]);
+  const profileSymbols = useMemo(
+    () => assets.map((asset) => asset.symbol.trim().toUpperCase()).filter(Boolean).sort(),
+    [assets],
+  );
+  const { quotes: liveQuoteSections, profiles: companyProfileSections } = useMarketOverviewData(
+    liveMarketSymbols,
+    profileSymbols,
+  );
+
+  const stocks = useMemo<Stock[]>(() => baseStocks.map((stock) => {
+    const profile = companyProfileSections[stock.symbol]?.data;
+    const quote = liveQuoteSections[stock.symbol]?.data;
+    const displayQuote = quote ? selectDisplayQuote(quote) : null;
+    if (!profile && !displayQuote) return stock;
+    return {
+      ...stock,
+      name: profile?.name ?? stock.name,
+      sector: profile?.sector ?? stock.sector,
+      industry: profile?.industry ?? stock.industry,
+      logoUrl: profile?.logoUrl ?? stock.logoUrl,
+      price: displayQuote?.price ?? stock.price,
+      close: displayQuote?.price ?? stock.close,
+      change: displayQuote?.change ?? stock.change,
+      changePercent: displayQuote?.changePercent == null
+        ? stock.changePercent
+        : displayQuote.changePercent * 100,
+      priceUpdatedAt: displayQuote?.timestamp ?? stock.priceUpdatedAt,
+      marketState: displayQuote?.marketState ?? stock.marketState,
+      priceDelayed: displayQuote?.delayed ?? stock.priceDelayed,
+    };
+  }), [baseStocks, companyProfileSections, liveQuoteSections]);
+
+  useEffect(() => {
+    if (!selectedStock) return;
+    const updated = stocks.find((stock) => stock.symbol === selectedStock.symbol);
+    if (updated && updated !== selectedStock) setSelectedStock(updated);
+  }, [selectedStock, stocks]);
   const {
     trades: journalTrades,
     addTrade: addJournalTradeRecord,
@@ -204,6 +252,12 @@ export default function App() {
   const handleAddWatchlist = async (name: string) => {
     const created = await createApiWatchlist(name);
     return created.id.toString();
+  };
+
+  const handleRemoveStockFromWatchlist = async (watchlistId: string, symbol: string) => {
+    const numericWatchlistId = Number(watchlistId);
+    if (!Number.isFinite(numericWatchlistId)) return;
+    await removeApiWatchlistSymbol(numericWatchlistId, symbol.trim().toUpperCase());
   };
 
   const handleCreatePortfolio = async (name: string) => {
@@ -454,6 +508,7 @@ export default function App() {
                 stocks={stocks}
                 watchlists={watchlists}
                 onAddStockToWatchlist={handleAddStockToWatchlist}
+                onRemoveStockFromWatchlist={handleRemoveStockFromWatchlist}
                 onAddWatchlist={handleAddWatchlist}
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
                 onSelectStock={(s, symbol, name) => openStockDetails(s, symbol, name)}
@@ -541,6 +596,7 @@ export default function App() {
             setSelectedDetailName(null);
           }}
           onOpenTradeModal={(sym) => setTradeModalSymbol(sym)}
+          position={activePortfolio?.holdings.find((holding) => holding.symbol === (selectedStock?.symbol ?? selectedDetailSymbol ?? '')) ?? null}
         />
       )}
 

@@ -1,4 +1,3 @@
-import type { EarningsResult } from './research';
 import { apiClient } from './http';
 
 export interface MacroSnapshot {
@@ -28,13 +27,44 @@ export interface EconomicEvent {
   previous?: unknown;
 }
 
+export interface CalendarEarningsEvent {
+  symbol: string;
+  date?: string | null;
+  epsEstimate?: number | null;
+  epsActual?: number | null;
+  revenueEstimate?: number | null;
+  revenueActual?: number | null;
+  time?: string | null;
+  portfolioRelated?: boolean | null;
+  sectorLeader?: boolean | null;
+}
+
 export interface MarketCalendarResponse {
-  earnings: EarningsResult[];
+  earnings: CalendarEarningsEvent[];
   economicEvents: EconomicEvent[];
   cachedAt?: string;
 }
 
+export const fetchMarketCalendar = async (symbols?: string[]): Promise<MarketCalendarResponse> => {
+  const response = await apiClient.get<MarketCalendarResponse>('/calendar', { params: symbols?.length ? { symbols: symbols.join(',') } : {} });
+  return response.data;
+};
+
 export const fetchEconomicEvents = async (): Promise<EconomicEvent[]> => {
   const response = await apiClient.get<EconomicEvent[]>('/calendar/economic-events');
+  return response.data;
+};
+
+export interface MarketSession {
+  exchange: string;
+  state: 'PRE_MARKET' | 'REGULAR' | 'POST_MARKET' | 'CLOSED' | 'UNKNOWN';
+  timezone: string;
+  nextOpen?: string | null;
+  nextClose?: string | null;
+  source?: string;
+}
+
+export const fetchMarketSessions = async (exchanges = ['XNYS', 'XIST']): Promise<MarketSession[]> => {
+  const response = await apiClient.get<MarketSession[]>('/market/sessions', { params: { exchanges: exchanges.join(',') } });
   return response.data;
 };

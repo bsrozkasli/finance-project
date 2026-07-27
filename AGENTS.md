@@ -198,22 +198,32 @@ Coverage expectations per change:
 ### 6.2 Running tests
 
 ```bash
-# Backend — from backend/
-./mvnw test                         # Unix/macOS
-./mvnw.cmd test                     # Windows PowerShell
+# Backend - from backend/; hard stop after 120 seconds
+node ../scripts/run-with-timeout.cjs 120000 ./mvnw test      # Unix/macOS
+node ../scripts/run-with-timeout.cjs 120000 ./mvnw.cmd test  # Windows PowerShell
 
-# Data-service — from data-service/
-python -m pytest
+# Data-service - from data-service/; hard stop after 120 seconds
+node ../scripts/run-with-timeout.cjs 120000 python -m pytest
 
-# Frontend — from frontend/
+# Frontend - from frontend/; package scripts include 120 second limits
 npm run lint
 npm run build
 
-# Infrastructure validation
-docker compose config --quiet
+# Infrastructure validation - from repo root; hard stop after 120 seconds
+node scripts/run-with-timeout.cjs 120000 docker compose config --quiet
 ```
 
 All commands for touched runtimes must pass before a PR is ready for review.
+
+### 6.3 Command timeout policy
+
+- No non-interactive command may run longer than 120 seconds.
+- Codex/tool calls must set `timeout_ms` to `120000` or less unless the user explicitly approves a longer one in that turn.
+- Backend Maven test runs must use `scripts/run-with-timeout.cjs`; Surefire also has a 120 second fork timeout.
+- Data-service pytest runs must use `scripts/run-with-timeout.cjs`; pytest also has a 120 second session timeout and a 120 second per-test timeout.
+- Frontend lint, build, unit test, coverage, and e2e scripts must use `scripts/run-with-timeout.cjs` with `120000` ms.
+- If a full suite times out, stop and report the timeout. Do not rerun the same full suite repeatedly; run targeted tests for the changed area instead.
+- Long-running dev servers are the only exception, and only when the user explicitly asks to start one.
 
 ---
 

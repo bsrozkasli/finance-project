@@ -33,6 +33,30 @@ services:
       - app-network
     restart: unless-stopped
 
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: finance_postgres_exporter
+    environment:
+      DATA_SOURCE_NAME: postgresql://${DB_USERNAME:-finance_user}:${DB_PASSWORD:?DB_PASSWORD must be set in .env}@postgres:5432/${DB_NAME:-financedb}?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.61.0
+    container_name: finance_redis_exporter
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
   data-service:
     build:
       context: ./data-service
@@ -70,6 +94,9 @@ services:
     container_name: finance_grafana
     ports:
       - "3000:3000"
+    environment:
+      GF_METRICS_ENABLED: true
+      GF_METRICS_DISABLE_TOTAL_STATS: false
     volumes:
       - grafana_data:/var/lib/grafana
       - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro

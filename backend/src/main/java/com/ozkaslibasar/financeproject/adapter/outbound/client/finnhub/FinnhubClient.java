@@ -113,6 +113,20 @@ public class FinnhubClient implements SmartReportMarketDataPort {
         }
     }
 
+    @RateLimiter(name = "finnhubApi")
+    @Retry(name = "finnhubApi")
+    @CircuitBreaker(name = "finnhubApi")
+    @Bulkhead(name = "finnhubApi")
+    public List<FinnhubNewsDto> getMarketNews(String category) {
+        try {
+            String url = BASE_URL + "/news?category=" + URLEncoder.encode(category, StandardCharsets.UTF_8) + "&token=" + apiKey;
+            List<FinnhubNewsDto> result = restTemplate.exchange(url, HttpMethod.GET, null, new ParameterizedTypeReference<List<FinnhubNewsDto>>() {}).getBody();
+            return result != null ? result : Collections.emptyList();
+        } catch (Exception e) {
+            log.error("FinnhubClient.getMarketNews failed: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
     /**
      * Fetches financial metrics for the given symbol (52-week high/low, beta, P/E, etc.).
      *

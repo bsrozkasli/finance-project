@@ -2,6 +2,7 @@ package com.ozkaslibasar.financeproject.config;
 
 import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatementClientAdapter;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.AssetDetailDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
@@ -18,6 +19,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPor
 import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
+import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
@@ -45,6 +47,10 @@ public class DomainConfig {
      * <p>This is the primary ingestion service used by the scheduler.
      * It delegates to {@link PriceChartClientPort} (Yahoo Finance) for price data.</p>
      */
+    @Bean
+    public AssetResearchDetailUseCase assetResearchDetailUseCase(AssetDetailDataPort assetDetailDataPort) {
+        return new AssetResearchDetailUseCase(assetDetailDataPort);
+    }
     @Bean
     public PriceIngestionService priceIngestionService(
             AssetRepositoryPort assetRepositoryPort,

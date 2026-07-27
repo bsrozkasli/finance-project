@@ -9,7 +9,7 @@ fallback behavior, health checks, and the rules for adding a new provider.
 | Provider | Data type | API key | Role |
 |---|---|---|---|
 | PostgreSQL | Persisted OHLCV price history, assets, reports, cached domain data | No | Primary local source for data already fetched and validated |
-| Yahoo Finance / yfinance | OHLCV, asset metadata, fundamentals, earnings, corporate actions, Yahoo news | No | Primary external market-data provider |
+| Yahoo Finance / yfinance | OHLCV, company profile, regular/pre-market/post-market quotes, fundamentals, earnings, corporate actions, Yahoo news | No | Primary external market-data provider |
 | Finnhub | Company news, sentiment, analyst recommendations, price targets, metrics, insider data | `FINNHUB_API_KEY` | Primary news, sentiment, and analyst provider |
 | Tiingo | End-of-day prices, basic metadata, news | `TIINGO_API_KEY` optional | Fallback for OHLCV and secondary news source |
 | Azure OpenAI | Agent analysis, chat, LLM insight, sentiment explanation | `AZURE_OPENAI_*` | Optional LLM provider for AI-generated analysis |
@@ -55,7 +55,7 @@ Yahoo Finance is the default no-key market data source.
 |---|---|
 | API key | Not required |
 | Rate limit | Unofficial and unstable; keep usage conservative, roughly 2,000 requests/day or lower for local/dev workloads |
-| Returned data | OHLCV, asset metadata, financial statements, earnings/fundamentals, corporate actions, Yahoo news |
+| Returned data | OHLCV, company profile, regular/pre-market/post-market quotes, financial statements, earnings/fundamentals, corporate actions, Yahoo news |
 | Data-service adapter | `app.providers.yahoo_provider.YahooProvider` |
 | Backend adapter | `adapter.outbound.client.yahoo.YahooFinancePriceAdapter`, `YahooStatementClientAdapter` |
 | Domain port | `PriceChartClientPort`, `FinancialStatementClientPort`, `FinancialDataPort` through composite adapters |
@@ -68,7 +68,9 @@ Failure behavior:
 - Backend asset batch-add falls back to a minimal `STOCK` asset when Yahoo metadata is unavailable.
 - Factor analysis returns `null` for unavailable factor scores and components. Available
   components are reweighted; a measured zero is never treated as missing.
-- No caller may invent prices, fundamentals, metadata, or earnings values.
+- Extended-hours prices are provider-backed and nullable. The UI must display provider timestamps and delay state; `UNKNOWN` market state is preferred over a local market-hours guess.
+- Backend market quotes are cached per normalized symbol for 30 seconds; company profiles and logo URLs are cached for 24 hours.
+- Batch quote/profile reads degrade per symbol so one Yahoo failure does not discard successful symbols; no paid logo provider is used.- No caller may invent prices, fundamentals, metadata, or earnings values.
 
 ## 4. Finnhub
 

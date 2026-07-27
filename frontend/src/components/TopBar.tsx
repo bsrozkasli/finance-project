@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Search, Terminal, Clock, BookOpen } from 'lucide-react';
 import type { Stock } from '../types';
+import CompanyLogo from './CompanyLogo';
+import { fetchMarketSessions, type MarketSession } from '../api/client';
 
 interface TopBarProps {
   stocks: Stock[];
@@ -16,6 +18,7 @@ export default function TopBar({
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Stock[]>([]);
   const [utcTime, setUtcTime] = useState('');
+  const [sessions, setSessions] = useState<MarketSession[]>([]);
 
   // Live UTC Clock
   useEffect(() => {
@@ -39,6 +42,20 @@ export default function TopBar({
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const values = await fetchMarketSessions();
+        if (!cancelled) setSessions(values);
+      } catch {
+        if (!cancelled) setSessions([]);
+      }
+    };
+    void load();
+    const interval = window.setInterval(load, 60_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, []);
   // Handle Search Input
   useEffect(() => {
     if (searchQuery.trim().length === 0) {
@@ -101,16 +118,19 @@ export default function TopBar({
                 }}
                 className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-bg-card text-left transition-colors group"
               >
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-data-mono text-sm font-bold text-primary group-hover:text-text-primary">
-                      {stock.symbol}
-                    </span>
-                    <span className="text-xs text-text-secondary truncate max-w-[200px]">
-                      {stock.name}
-                    </span>
+                <div className="flex min-w-0 items-center gap-3">
+                  <CompanyLogo symbol={stock.symbol} logoUrl={stock.logoUrl} className="h-8 w-8" />
+                  <div className="min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-data-mono text-sm font-bold text-primary group-hover:text-text-primary">
+                        {stock.symbol}
+                      </span>
+                      <span className="text-xs text-text-secondary truncate max-w-[200px]">
+                        {stock.name}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-text-muted">{stock.sector}</span>
                   </div>
-                  <span className="text-[10px] text-text-muted">{stock.sector}</span>
                 </div>
                 <div className="text-right font-data-mono text-xs">
                   <div className="text-text-primary font-bold">${stock.price.toFixed(2)}</div>
@@ -142,11 +162,13 @@ export default function TopBar({
 
         {/* Market Status Indicators */}
         <div className="hidden lg:flex items-center gap-3 bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/30">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-warning-amber pulse-live"></span>
-            <span className="font-label-caps text-[10px] text-text-secondary uppercase">
-              MARKET CLOSED
-            </span>
+          <div className="flex items-center gap-3">
+            {sessions.length === 0 ? <span className="font-label-caps text-[10px] text-text-secondary uppercase">MARKET STATUS UNKNOWN</span> : sessions.map((session) => (
+              <span key={session.exchange} className="flex items-center gap-1.5" title={`${session.exchange} ${session.timezone}`}>
+                <span className={`w-2 h-2 rounded-full ${session.state === 'REGULAR' ? 'bg-bull-green' : session.state === 'UNKNOWN' ? 'bg-warning-amber' : 'bg-text-muted'}`}></span>
+                <span className="font-label-caps text-[10px] text-text-secondary uppercase">{session.exchange} {session.state.replace('_', ' ')}</span>
+              </span>
+            ))}
           </div>
           <div className="h-3 w-[1px] bg-outline-variant"></div>
           <div className="flex items-center gap-2 text-text-muted">
@@ -156,7 +178,6 @@ export default function TopBar({
             </span>
           </div>
         </div>
-
         {/* Live Feed Status */}
         <div className="hidden sm:flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-bull-green pulse-live"></span>

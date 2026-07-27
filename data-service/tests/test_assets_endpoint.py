@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from app.providers.base import AssetInfo
+from app.providers.base import AssetInfo, MarketQuote
 from main import app
 
 
@@ -40,3 +40,48 @@ def test_asset_info_rejects_symbol_only_metadata(monkeypatch):
     response = TestClient(app).get("/api/v1/assets/PANW/info")
 
     assert response.status_code == 404
+class ResolverWithProfileAndQuote(ResolverWithMetadata):
+    def get_asset_info(self, symbol: str):
+        return AssetInfo(
+            symbol=symbol,
+            name="Apple Inc.",
+            exchange="NASDAQ",
+            currency="USD",
+            sector="Technology",
+            industry="Consumer Electronics",
+            market_cap=3_000,
+            description="Designs consumer electronics and services.",
+            website="https://www.apple.com",
+            country="United States",
+            quote_type="EQUITY",
+            full_time_employees=164000,
+        )
+
+    def get_market_quote(self, symbol: str):
+        return MarketQuote(
+            symbol=symbol,
+            market_state="POST_MARKET",
+            regular_price=210.0,
+            pre_market_price=211.0,
+            post_market_price=212.0,
+            post_market_change_percent=0.01,
+            delayed=True,
+        )
+
+
+def test_asset_profile_and_market_quote_preserve_provider_fields(monkeypatch):
+    from app.routers import assets
+
+    monkeypatch.setattr(assets, "get_resolver", lambda: ResolverWithProfileAndQuote())
+    client = TestClient(app)
+
+    profile = client.get("/api/v1/assets/AAPL/profile")
+    quote = client.get("/api/v1/assets/AAPL/market-quote")
+
+    assert profile.status_code == 200
+    assert profile.json()["description"] == "Designs consumer electronics and services."
+    assert profile.json()["website"] == "https://www.apple.com"
+    assert quote.status_code == 200
+    assert quote.json()["market_state"] == "POST_MARKET"
+    assert quote.json()["post_market_price"] == 212.0
+    assert quote.json()["delayed"] is True

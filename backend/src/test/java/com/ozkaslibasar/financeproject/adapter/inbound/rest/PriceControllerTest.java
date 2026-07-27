@@ -1,7 +1,9 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
+import com.ozkaslibasar.financeproject.domain.model.AssetMarketBatch;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -16,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -53,6 +56,9 @@ class PriceControllerTest {
 
     @MockitoBean
     private PriceRefreshService priceRefreshService;
+
+    @MockitoBean
+    private AssetResearchDetailUseCase assetResearchDetailUseCase;
 
     @MockitoSpyBean
     private RestMapper restMapper;
@@ -362,6 +368,19 @@ class PriceControllerTest {
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept("text/csv"))
                 .andExpect(status().isNotAcceptable());
+    }
+
+    @Test
+    void shouldReturnPartialBatchLatestPayload() throws Exception {
+        when(assetResearchDetailUseCase.getMarketBatch(List.of("AAPL", "MSFT")))
+                .thenReturn(new AssetMarketBatch(Map.of(), Instant.parse("2026-07-24T12:00:00Z")));
+
+        mockMvc.perform(post(BASE_PRICES_PATH + "/batch-latest")
+                        .contentType(APPLICATION_JSON)
+                        .content("{\"symbols\":[\"AAPL\",\"MSFT\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quotes").isMap())
+                .andExpect(jsonPath("$.generatedAt").value("2026-07-24T12:00:00Z"));
     }
 
     @Test

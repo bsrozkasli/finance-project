@@ -34,6 +34,8 @@ public class RedisConfig {
 
         // Fast-changing data: latest prices must match frontend 30-60s polling. Historical candles can stay longer.
         cacheConfigs.put("latestPriceCache", defaultConfig.entryTtl(Duration.ofSeconds(30)));
+        cacheConfigs.put("marketQuoteCache", defaultConfig.entryTtl(Duration.ofSeconds(30)));
+        cacheConfigs.put("assetProfileCache", defaultConfig.entryTtl(Duration.ofHours(24)));
         cacheConfigs.put("priceCache", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
         // Medium-changing data

@@ -66,3 +66,8 @@ export const fetchPortfolioNews = async (): Promise<CategorizedNewsItem[]> => {
   const response = await apiClient.get<CategorizedNewsItem[]>('/news/portfolio');
   return response.data;
 };
+
+export const fetchMacroNews = async (): Promise<CategorizedNewsItem[]> => {
+  const response = await apiClient.get<CategorizedNewsItem[]>('/news/macro');
+  return response.data;
+};

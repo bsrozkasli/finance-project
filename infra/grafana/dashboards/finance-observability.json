@@ -1,216 +1,1044 @@
 {
-  "annotations": {
-    "list": []
-  },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
-  "id": null,
-  "links": [],
-  "liveNow": false,
-  "panels": [
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "finance-prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 0
-      },
-      "id": 1,
-      "targets": [
-        {
-          "expr": "sum by (route, status) (rate(finance_http_server_requests_total[5m]))",
-          "legendFormat": "{{route}} {{status}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Backend Requests",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "finance-prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 2,
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(finance_http_server_request_duration_seconds_bucket[5m])))",
-          "legendFormat": "p95 {{route}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Backend Latency p95",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "finance-prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 8
-      },
-      "id": 3,
-      "targets": [
-        {
-          "expr": "sum by (route, status) (rate(data_service_http_requests_total[5m]))",
-          "legendFormat": "{{route}} {{status}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Data-service Requests",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "finance-prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 8
-      },
-      "id": 4,
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.95, sum by (le, route) (rate(data_service_http_request_duration_seconds_bucket[5m])))",
-          "legendFormat": "p95 {{route}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Data-service Latency p95",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "finance-prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 16
-      },
-      "id": 5,
-      "targets": [
-        {
-          "expr": "sum by (provider, operation) (rate(market_provider_success_total[5m]))",
-          "legendFormat": "success {{provider}} {{operation}}",
-          "refId": "A"
-        },
-        {
-          "expr": "sum by (provider, operation) (rate(market_provider_error_total[5m]))",
-          "legendFormat": "error {{provider}} {{operation}}",
-          "refId": "B"
-        },
-        {
-          "expr": "sum by (provider, operation) (rate(market_provider_empty_total[5m]))",
-          "legendFormat": "empty {{provider}} {{operation}}",
-          "refId": "C"
-        }
-      ],
-      "title": "Provider Results",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "finance-prometheus"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 16
-      },
-      "id": 6,
-      "targets": [
-        {
-          "expr": "market_provider_blacklisted",
-          "legendFormat": "{{provider}} blacklisted",
-          "refId": "A"
-        },
-        {
-          "expr": "sum by (operation, from_provider, to_provider) (rate(market_provider_fallback_total[5m]))",
-          "legendFormat": "fallback {{operation}} {{from_provider}} -> {{to_provider}}",
-          "refId": "B"
-        }
-      ],
-      "title": "Provider Health And Fallbacks",
-      "type": "timeseries"
-    }
-  ],
-  "refresh": "30s",
-  "schemaVersion": 39,
-  "style": "dark",
-  "tags": [
-    "finance",
-    "observability"
-  ],
-  "templating": {
-    "list": []
-  },
-  "time": {
-    "from": "now-1h",
-    "to": "now"
-  },
-  "timepicker": {},
-  "timezone": "",
-  "title": "Finance Observability",
-  "uid": "finance-observability",
-  "version": 1,
-  "weekStart": ""
+    "annotations":  {
+                        "list":  [
+
+                                 ]
+                    },
+    "editable":  true,
+    "fiscalYearStartMonth":  0,
+    "graphTooltip":  0,
+    "id":  null,
+    "links":  [
+                  {
+                      "targetBlank":  true,
+                      "title":  "Prometheus Targets",
+                      "url":  "http://localhost:9090/targets"
+                  }
+              ],
+    "liveNow":  false,
+    "panels":  [
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  8,
+                                       "x":  0,
+                                       "h":  5
+                                   },
+                       "id":  1,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{job}}",
+                                           "expr":  "up{job=~\"spring-backend|python-data-service|postgres|redis|prometheus|grafana\"}",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Service Target Health",
+                       "type":  "stat",
+                       "description":  "1 means Prometheus can scrape the target."
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "reqps"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  8,
+                                       "x":  8,
+                                       "h":  5
+                                   },
+                       "id":  2,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{method}} {{uri}} {{status}}",
+                                           "expr":  "sum by (method, uri, status) (rate(http_server_requests_seconds_count{job=\"spring-backend\",uri!~\"/actuator.*\"}[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Backend HTTP Throughput",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  0,
+                                       "w":  8,
+                                       "x":  16,
+                                       "h":  5
+                                   },
+                       "id":  3,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "p95 {{uri}}",
+                                           "expr":  "histogram_quantile(0.95, sum by (le, uri) (rate(http_server_requests_seconds_bucket{job=\"spring-backend\",uri!~\"/actuator.*\"}[5m])))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Backend HTTP p95 Latency",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "reqps"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  5,
+                                       "w":  8,
+                                       "x":  0,
+                                       "h":  5
+                                   },
+                       "id":  4,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{method}} {{uri}} {{status}}",
+                                           "expr":  "sum by (method, uri, status) (rate(http_server_requests_seconds_count{job=\"spring-backend\",status=~\"4..|5..\",uri!~\"/actuator.*\"}[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "{{method}} {{route}} {{status}}",
+                                           "expr":  "sum by (method, route, status) (rate(finance_http_server_requests_total{status=~\"4..|5..\",route!~\"/actuator.*\"}[5m])) or sum by (method, route, status) (rate(finance_http_server_requests_total_total{status=~\"4..|5..\",route!~\"/actuator.*\"}[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Backend Errors By Route",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "reqps"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  5,
+                                       "w":  8,
+                                       "x":  8,
+                                       "h":  5
+                                   },
+                       "id":  5,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{method}} {{route}} {{status}}",
+                                           "expr":  "sum by (method, route, status) (rate(data_service_http_requests_total{job=\"python-data-service\"}[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Data-service HTTP Throughput",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  5,
+                                       "w":  8,
+                                       "x":  16,
+                                       "h":  5
+                                   },
+                       "id":  6,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "p95 {{route}}",
+                                           "expr":  "histogram_quantile(0.95, sum by (le, route) (rate(data_service_http_request_duration_seconds_bucket{job=\"python-data-service\"}[5m])))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Data-service HTTP p95 Latency",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "reqps"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  10,
+                                       "w":  8,
+                                       "x":  0,
+                                       "h":  5
+                                   },
+                       "id":  7,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{method}} {{route}} {{status}}",
+                                           "expr":  "sum by (method, route, status) (rate(data_service_http_requests_total{job=\"python-data-service\",status=~\"4..|5..\"}[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "unhandled {{method}} {{route}}",
+                                           "expr":  "sum by (method, route) (rate(data_service_http_request_errors_total{job=\"python-data-service\"}[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Data-service Errors By Route",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "ops"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  10,
+                                       "w":  8,
+                                       "x":  8,
+                                       "h":  5
+                                   },
+                       "id":  8,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{provider}} {{operation}} {{result}}",
+                                           "expr":  "sum by (provider, operation, result) (rate(provider_request_total[5m])) or sum by (provider, operation, result) (rate(provider_request_total_total[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Backend External Provider Requests",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  10,
+                                       "w":  8,
+                                       "x":  16,
+                                       "h":  5
+                                   },
+                       "id":  9,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "avg {{endpoint}} {{result}}",
+                                           "expr":  "sum by (endpoint, result) (rate(dataservice_request_latency_seconds_sum[5m])) / clamp_min(sum by (endpoint, result) (rate(dataservice_request_latency_seconds_count[5m])), 1)",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "avg {{endpoint}} {{result}}",
+                                           "expr":  "sum by (endpoint, result) (rate(dataservice_request_latency_seconds_seconds_sum[5m])) / clamp_min(sum by (endpoint, result) (rate(dataservice_request_latency_seconds_seconds_count[5m])), 1)",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Backend Data-service Latency",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "ops"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  15,
+                                       "w":  8,
+                                       "x":  0,
+                                       "h":  6
+                                   },
+                       "id":  10,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "success {{provider}} {{operation}}",
+                                           "expr":  "sum by (provider, operation) (rate(market_provider_success_total{job=\"python-data-service\"}[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "error {{provider}} {{operation}}",
+                                           "expr":  "sum by (provider, operation) (rate(market_provider_error_total{job=\"python-data-service\"}[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "C",
+                                           "legendFormat":  "empty {{provider}} {{operation}}",
+                                           "expr":  "sum by (provider, operation) (rate(market_provider_empty_total{job=\"python-data-service\"}[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Market Provider Outcomes",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  15,
+                                       "w":  8,
+                                       "x":  8,
+                                       "h":  6
+                                   },
+                       "id":  11,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "p95 {{provider}} {{operation}} {{result}}",
+                                           "expr":  "histogram_quantile(0.95, sum by (le, provider, operation, result) (rate(market_provider_latency_seconds_bucket{job=\"python-data-service\"}[5m])))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Market Provider p95 Latency",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  15,
+                                       "w":  8,
+                                       "x":  16,
+                                       "h":  6
+                                   },
+                       "id":  12,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "fallback {{operation}} {{from_provider}} -\u003e {{to_provider}}",
+                                           "expr":  "sum by (operation, from_provider, to_provider) (rate(market_provider_fallback_total{job=\"python-data-service\"}[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "blacklisted {{provider}}",
+                                           "expr":  "market_provider_blacklisted{job=\"python-data-service\"}",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "C",
+                                           "legendFormat":  "health {{provider}} {{status}}",
+                                           "expr":  "market_provider_health_status{job=\"python-data-service\"}",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Provider Fallbacks And Blacklist",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "ops"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  21,
+                                       "w":  8,
+                                       "x":  0,
+                                       "h":  5
+                                   },
+                       "id":  13,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "backend success",
+                                           "expr":  "rate(agent_analysis_success_total[5m])",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "backend failure",
+                                           "expr":  "rate(agent_analysis_failure_total[5m])",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "C",
+                                           "legendFormat":  "cache {{result}}",
+                                           "expr":  "sum by (result) (rate(agent_analysis_cache_total[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "D",
+                                           "legendFormat":  "data-service failure",
+                                           "expr":  "rate(agent_analysis_failures_total{job=\"python-data-service\"}[5m])",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Agent Analysis Results And Cache",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  21,
+                                       "w":  8,
+                                       "x":  8,
+                                       "h":  5
+                                   },
+                       "id":  14,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "backend avg",
+                                           "expr":  "rate(agent_analysis_latency_seconds_sum[5m]) / clamp_min(rate(agent_analysis_latency_seconds_count[5m]), 1)",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "data-service p95",
+                                           "expr":  "histogram_quantile(0.95, sum by (le) (rate(agent_analysis_latency_seconds_bucket{job=\"python-data-service\"}[5m])))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "C",
+                                           "legendFormat":  "facade avg",
+                                           "expr":  "rate(agent_execution_time_seconds_sum[5m]) / clamp_min(rate(agent_execution_time_seconds_count[5m]), 1)",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Agent Latency",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "ops"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  21,
+                                       "w":  8,
+                                       "x":  16,
+                                       "h":  5
+                                   },
+                       "id":  15,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "backend {{type}}",
+                                           "expr":  "sum by (type) (rate(agent_azure_tokens_total[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "data-service tokens",
+                                           "expr":  "rate(agent_azure_tokens_total{job=\"python-data-service\"}[5m])",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Azure OpenAI Token Rate",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  26,
+                                       "w":  8,
+                                       "x":  0,
+                                       "h":  5
+                                   },
+                       "id":  16,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "pg up",
+                                           "expr":  "pg_up{job=\"postgres\"}",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "connections",
+                                           "expr":  "sum(pg_stat_database_numbackends{job=\"postgres\"})",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "PostgreSQL Health And Connections",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "ops"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  26,
+                                       "w":  8,
+                                       "x":  8,
+                                       "h":  5
+                                   },
+                       "id":  17,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "commits",
+                                           "expr":  "sum(rate(pg_stat_database_xact_commit{job=\"postgres\"}[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "rollbacks",
+                                           "expr":  "sum(rate(pg_stat_database_xact_rollback{job=\"postgres\"}[5m]))",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "C",
+                                           "legendFormat":  "tuples fetched",
+                                           "expr":  "sum(rate(pg_stat_database_tup_fetched{job=\"postgres\"}[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "PostgreSQL Activity",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "short"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  26,
+                                       "w":  8,
+                                       "x":  16,
+                                       "h":  5
+                                   },
+                       "id":  18,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "redis up",
+                                           "expr":  "redis_up{job=\"redis\"}",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "clients",
+                                           "expr":  "redis_connected_clients{job=\"redis\"}",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "C",
+                                           "legendFormat":  "commands/sec",
+                                           "expr":  "rate(redis_commands_processed_total{job=\"redis\"}[5m])",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Redis Health And Commands",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "bytes"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  31,
+                                       "w":  8,
+                                       "x":  0,
+                                       "h":  5
+                                   },
+                       "id":  19,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "used",
+                                           "expr":  "redis_memory_used_bytes{job=\"redis\"}",
+                                           "range":  true
+                                       },
+                                       {
+                                           "refId":  "B",
+                                           "legendFormat":  "max",
+                                           "expr":  "redis_memory_max_bytes{job=\"redis\"}",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Redis Memory",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "s"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  31,
+                                       "w":  8,
+                                       "x":  8,
+                                       "h":  5
+                                   },
+                       "id":  20,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{job}}",
+                                           "expr":  "scrape_duration_seconds{job=~\"spring-backend|python-data-service|postgres|redis|prometheus|grafana\"}",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Prometheus Scrape Duration",
+                       "type":  "timeseries"
+                   },
+                   {
+                       "datasource":  {
+                                          "type":  "prometheus",
+                                          "uid":  "finance-prometheus"
+                                      },
+                       "fieldConfig":  {
+                                           "defaults":  {
+                                                            "unit":  "reqps"
+                                                        },
+                                           "overrides":  [
+
+                                                         ]
+                                       },
+                       "gridPos":  {
+                                       "y":  31,
+                                       "w":  8,
+                                       "x":  16,
+                                       "h":  5
+                                   },
+                       "id":  21,
+                       "options":  {
+                                       "legend":  {
+                                                      "placement":  "bottom",
+                                                      "showLegend":  true,
+                                                      "displayMode":  "list"
+                                                  },
+                                       "tooltip":  {
+                                                       "sort":  "none",
+                                                       "mode":  "single"
+                                                   }
+                                   },
+                       "targets":  [
+                                       {
+                                           "refId":  "A",
+                                           "legendFormat":  "{{status_code}}",
+                                           "expr":  "sum by (status_code) (rate(grafana_http_request_duration_seconds_count{job=\"grafana\"}[5m]))",
+                                           "range":  true
+                                       }
+                                   ],
+                       "title":  "Grafana HTTP Requests",
+                       "type":  "timeseries"
+                   }
+               ],
+    "refresh":  "15s",
+    "schemaVersion":  39,
+    "style":  "dark",
+    "tags":  [
+                 "finance",
+                 "observability",
+                 "prometheus",
+                 "grafana"
+             ],
+    "templating":  {
+                       "list":  [
+
+                                ]
+                   },
+    "time":  {
+                 "to":  "now",
+                 "from":  "now-1h"
+             },
+    "timepicker":  {
+
+                   },
+    "timezone":  "",
+    "title":  "Finance Observability",
+    "uid":  "finance-observability",
+    "version":  2,
+    "weekStart":  ""
 }
