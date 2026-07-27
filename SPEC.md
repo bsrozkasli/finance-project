@@ -587,6 +587,7 @@ The backend loads root `.env` at startup through `dotenv-java` in `FinanceProjec
 | `AZURE_OPENAI_API_VERSION` | Optional | `2024-05-01-preview` | Azure API version |
 | `DATA_SERVICE_URL` | Optional | `http://localhost:8000` | Spring-to-FastAPI URL |
 | `FLYWAY_BASELINE_ON_MIGRATE` | Optional | `true` | One-time compatibility baseline for databases previously managed by Hibernate; set to `false` after every existing environment has a Flyway history table |
+| `FLYWAY_OUT_OF_ORDER` | Optional | `true` | Allows the idempotent pre-V3 journal schema repair migration to be applied safely on databases that already reached later Flyway versions |
 
 Important backend settings:
 

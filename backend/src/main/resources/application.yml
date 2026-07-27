@@ -28,6 +28,7 @@ spring:
     baseline-version: 4
     clean-disabled: true
     validate-on-migrate: true
+    out-of-order: ${FLYWAY_OUT_OF_ORDER:true}
 
   data:
     mongodb:

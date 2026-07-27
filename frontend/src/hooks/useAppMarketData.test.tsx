@@ -92,10 +92,12 @@ describe('app market-data hooks', () => {
     // Mock both Spring endpoints to verify partial response preservation without live I/O.
     server.use(
       http.get(apiUrl('/news/portfolio'), () => HttpResponse.json([news])),
+      http.get(apiUrl('/news/macro'), () => HttpResponse.json([])),
       http.get(
         apiUrl('/calendar/economic-events'),
         () => HttpResponse.json({ message: 'calendar unavailable' }, { status: 503 }),
       ),
+      http.get(apiUrl('/calendar'), () => HttpResponse.json({ earnings: [], economicEvents: [] })),
     );
 
     const { result } = renderHook(() => useMarketContext());
@@ -118,9 +120,11 @@ describe('app market-data hooks', () => {
     // Mock both Spring endpoints so event mapping is independent of external providers.
     server.use(
       http.get(apiUrl('/news/portfolio'), () => HttpResponse.json([])),
+      http.get(apiUrl('/news/macro'), () => HttpResponse.json([])),
       http.get(apiUrl('/calendar/economic-events'), () => HttpResponse.json([
         { event: 'CPI', date: '2026-07-09T12:30:00Z', impact: 'HIGH' },
       ])),
+      http.get(apiUrl('/calendar'), () => HttpResponse.json({ earnings: [], economicEvents: [] })),
     );
 
     const { result } = renderHook(() => useMarketContext());
