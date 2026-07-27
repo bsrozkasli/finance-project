@@ -1,0 +1,29 @@
+[dataset]
+market = "us_stocks_relative_to_spy"
+target = "asset adjusted close t+5 / adjusted open t+1 - 1 exceeds SPY equivalent"
+
+[training]
+horizon_sessions = 5
+warmup_sessions = 200
+holdout_sessions = 252
+fold_count = 5
+validation_sessions = 126
+embargo_sessions = 5
+calibration_sessions = 126
+random_seed = 42
+
+[strategy]
+rebalance_sessions = 5
+probability_threshold = 0.55
+max_positions = 10
+transaction_cost_bps = 10.0
+
+[xgboost]
+tree_method = "hist"
+device = "cpu"
+max_estimators = 500
+learning_rates = [0.03, 0.05]
+max_depths = [3, 5]
+min_child_weights = [5, 10]
+subsamples = [0.8]
+colsample_bytrees = [0.8]

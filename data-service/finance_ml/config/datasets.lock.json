@@ -1,0 +1,18 @@
+{
+  "datasets": [
+    {
+      "name": "sp500_constituent_ohlcv",
+      "handle": "jacksaleeby/s-and-p500-historical-data",
+      "version": 1,
+      "license": "CC-BY-SA-4.0",
+      "role": "asset_ohlcv"
+    },
+    {
+      "name": "spy_ohlcv",
+      "handle": "aliraza948/spdr-s-and-p-500-etf-spy",
+      "version": 1,
+      "license": "CC-BY-4.0",
+      "role": "benchmark_ohlcv"
+    }
+  ]
+}
