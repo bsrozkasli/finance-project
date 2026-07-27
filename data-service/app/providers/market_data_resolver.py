@@ -30,6 +30,7 @@ from app.request_context import get_request_id
 from app.providers.base import (
     AnalystRecommendation,
     AssetInfo,
+    MarketQuote,
     FinancialStatements,
     IMarketDataProvider,
     NewsItem,
@@ -210,6 +211,33 @@ class MarketDataResolver:
                 self._record_fallback_to_next(operation, providers, index)
         return None
 
+    def get_market_quote(self, symbol: str) -> Optional[MarketQuote]:
+        """Try providers that support quote snapshots until one returns data."""
+        operation = "market_quote"
+        providers = self._active_providers()
+        for index, provider in enumerate(providers):
+            quote_method = getattr(provider, "get_market_quote", None)
+            if quote_method is None:
+                continue
+            start = time.perf_counter()
+            try:
+                quote = quote_method(symbol)
+                if quote is not None:
+                    self._record_success(provider.provider_name, operation)
+                    self._observe_latency(provider.provider_name, operation, "success", start)
+                    return quote
+                self._record_empty(provider.provider_name, operation)
+                self._observe_latency(provider.provider_name, operation, "empty", start)
+                self._record_fallback_to_next(operation, providers, index)
+            except Exception as exc:
+                logger.error(
+                    "%s operation=market_quote provider=%s symbol=%s result=error reason=%s",
+                    _request_log_context(), provider.provider_name, symbol, exc,
+                )
+                self._record_failure(provider.provider_name, operation, str(exc))
+                self._observe_latency(provider.provider_name, operation, "error", start)
+                self._record_fallback_to_next(operation, providers, index)
+        return None
     def get_news(
         self,
         symbol: str,

@@ -62,6 +62,10 @@ export interface Stock {
     sellPercent: number;
   } | null;
   alerts: string[];
+  logoUrl?: string | null;
+  priceUpdatedAt?: string | null;
+  marketState?: string | null;
+  priceDelayed?: boolean | null;
 }
 
 export interface Holding {

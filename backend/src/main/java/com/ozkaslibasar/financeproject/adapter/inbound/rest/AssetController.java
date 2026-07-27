@@ -8,10 +8,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.AssetResponseDto;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
 import com.ozkaslibasar.financeproject.domain.model.Asset;
+import com.ozkaslibasar.financeproject.domain.model.AssetProfileBatch;
+import com.ozkaslibasar.financeproject.domain.model.AssetResearchDetail;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
+import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.AssetBatchRequestDto;
 import lombok.RequiredArgsConstructor;
@@ -41,10 +44,23 @@ public class AssetController {
 
     private final AssetRepositoryPort assetRepositoryPort;
     private final AssetResolutionService assetResolutionService;
+    private final AssetResearchDetailUseCase assetResearchDetailUseCase;
     private final PriceChartClientPort priceChartClientPort;
     private final PriceRepositoryPort priceRepositoryPort;
     private final RestMapper mapper;
 
+    @PostMapping("/batch-profiles")
+    public AssetProfileBatch getAssetProfiles(@RequestBody AssetBatchRequestDto request) {
+        return assetResearchDetailUseCase.getProfileBatch(request == null ? List.of() : request.getSymbols());
+    }
+
+    @GetMapping("/{symbol}/detail")
+    public AssetResearchDetail getAssetResearchDetail(@PathVariable String symbol) {
+        if (symbol == null || symbol.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Symbol must not be blank");
+        }
+        return assetResearchDetailUseCase.getDetail(symbol);
+    }
     @Operation(summary = "GET Assets endpoint", description = "Implements the GET operation for the Assets API described in SPEC.md sections 7 and 8.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Successful response"),
@@ -64,6 +80,7 @@ public class AssetController {
         var assets = assetRepositoryPort.findAll();
         return mapper.toAssetResponseDtoList(assets);
     }
+
 
     @Operation(summary = "GET Assets endpoint", description = "Implements the GET operation for the Assets API described in SPEC.md sections 7 and 8.")
     @ApiResponses({

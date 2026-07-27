@@ -41,9 +41,21 @@ class FactorAnalysisService:
     @staticmethod
     def _safe_div(a: Optional[float], b: Optional[float]) -> Optional[float]:
         """Return *a / b*, or ``None`` when division is impossible."""
-        if a is None or b is None or b == 0:
+        if a is None or b is None or b == 0 or not np.isfinite(a) or not np.isfinite(b):
             return None
-        return a / b
+        result = a / b
+        return float(result) if np.isfinite(result) else None
+
+    @staticmethod
+    def _as_finite_float(value: object) -> Optional[float]:
+        """Convert provider values to finite floats while preserving real zeroes."""
+        if value is None:
+            return None
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return None
+        return numeric if np.isfinite(numeric) else None
 
     @staticmethod
     def _safe_info(ticker: yf.Ticker) -> dict:
@@ -54,6 +66,18 @@ class FactorAnalysisService:
         except Exception:
             logger.warning("Failed to fetch .info for %s", ticker.ticker, exc_info=True)
             return {}
+
+    @staticmethod
+    def _safe_download(symbol: str, start: datetime, end: datetime) -> pd.DataFrame:
+        """Return provider price history, or an empty DataFrame on failure."""
+        try:
+            frame = yf.download(symbol, start=start, end=end, progress=False)
+            if not isinstance(frame, pd.DataFrame) or frame.empty:
+                return pd.DataFrame()
+            return frame
+        except Exception:
+            logger.warning("Failed to download price history for %s", symbol, exc_info=True)
+            return pd.DataFrame()
 
     @staticmethod
     def _safe_df(ticker: yf.Ticker, attr: str) -> pd.DataFrame:
@@ -96,7 +120,7 @@ class FactorAnalysisService:
         When *lower_is_better* is ``True`` the scale is inverted so that
         *low* → 100 and *high* → 0.
         """
-        if value is None:
+        if value is None or not np.isfinite(value):
             return None
         if lower_is_better:
             if value <= low:
@@ -112,8 +136,10 @@ class FactorAnalysisService:
             return (value - low) / (high - low) * 100.0
 
     @staticmethod
-    def _weighted_avg(scores: list[Optional[float]], weights: list[float]) -> int:
+    def _weighted_avg(scores: list[Optional[float]], weights: list[float]) -> Optional[int]:
         """Compute a weighted average of available scores, ignoring ``None``."""
+        if len(scores) != len(weights):
+            raise ValueError("scores and weights must have the same length")
         total_weight = 0.0
         total_score = 0.0
         for s, w in zip(scores, weights):
@@ -121,7 +147,7 @@ class FactorAnalysisService:
                 total_score += s * w
                 total_weight += w
         if total_weight == 0:
-            return 0
+            return None
         return int(round(total_score / total_weight))
 
     # ==================================================================
@@ -138,8 +164,8 @@ class FactorAnalysisService:
         # Price data for momentum & volatility
         end = datetime.now()
         start = end - timedelta(days=365)
-        price_df = yf.download(symbol, start=start, end=end, progress=False)
-        market_df = yf.download(_MARKET_BENCHMARK, start=start, end=end, progress=False)
+        price_df = cls._safe_download(symbol, start, end)
+        market_df = cls._safe_download(_MARKET_BENCHMARK, start, end)
 
         value_score, value_comp = cls._compute_value(info)
         growth_score, growth_comp = cls._compute_growth(info)
@@ -167,7 +193,12 @@ class FactorAnalysisService:
             "momentum": momentum_score,
             "low_volatility": vol_score,
         }
-        dominant = max(factor_map, key=factor_map.get)  # type: ignore[arg-type]
+        available_factor_scores: dict[str, int] = {
+            name: score for name, score in factor_map.items() if score is not None
+        }
+        dominant = (
+            max(available_factor_scores, key=available_factor_scores.__getitem__) if available_factor_scores else None
+        )
 
         return FactorAnalysisResponse(
             symbol=symbol.upper(),
@@ -224,7 +255,7 @@ class FactorAnalysisService:
     # ==================================================================
 
     @classmethod
-    def _compute_value(cls, info: dict) -> tuple[int, dict[str, Optional[float]]]:
+    def _compute_value(cls, info: dict) -> tuple[Optional[int], dict[str, Optional[float]]]:
         """Score value attractiveness from valuation multiples."""
 
         pe = info.get("trailingPE")
@@ -234,13 +265,13 @@ class FactorAnalysisService:
         fcf = info.get("freeCashflow")
         market_cap = info.get("marketCap")
         fcf_yield = cls._safe_div(
-            float(fcf) if fcf is not None else None,
-            float(market_cap) if market_cap is not None else None,
+            cls._as_finite_float(fcf),
+            cls._as_finite_float(market_cap),
         )
 
-        pe_val = float(pe) if pe is not None else None
-        pb_val = float(pb) if pb is not None else None
-        ev_val = float(ev_ebitda) if ev_ebitda is not None else None
+        pe_val = cls._as_finite_float(pe)
+        pb_val = cls._as_finite_float(pb)
+        ev_val = cls._as_finite_float(ev_ebitda)
 
         pe_score = cls._linear_score(pe_val, 10.0, 35.0, lower_is_better=True)
         pb_score = cls._linear_score(pb_val, 1.0, 5.0, lower_is_better=True)
@@ -254,8 +285,7 @@ class FactorAnalysisService:
             "fcf_yield": fcf_yield,
         }
 
-        available = [s for s in [pe_score, pb_score, ev_score, fcf_score] if s is not None]
-        score = int(round(sum(available) / len(available))) if available else 0
+        score = cls._weighted_avg([pe_score, pb_score, ev_score, fcf_score], [0.25, 0.25, 0.25, 0.25])
 
         return score, components
 
@@ -264,16 +294,16 @@ class FactorAnalysisService:
     # ==================================================================
 
     @classmethod
-    def _compute_growth(cls, info: dict) -> tuple[int, dict[str, Optional[float]]]:
+    def _compute_growth(cls, info: dict) -> tuple[Optional[int], dict[str, Optional[float]]]:
         """Score growth profile from revenue/earnings growth rates."""
 
         rev_growth = info.get("revenueGrowth")
         earn_growth = info.get("earningsGrowth")
         qtr_growth = info.get("earningsQuarterlyGrowth")
 
-        rev_val = float(rev_growth) if rev_growth is not None else None
-        earn_val = float(earn_growth) if earn_growth is not None else None
-        qtr_val = float(qtr_growth) if qtr_growth is not None else None
+        rev_val = cls._as_finite_float(rev_growth)
+        earn_val = cls._as_finite_float(earn_growth)
+        qtr_val = cls._as_finite_float(qtr_growth)
 
         rev_score = cls._linear_score(rev_val, -0.10, 0.30)
         earn_score = cls._linear_score(earn_val, -0.20, 0.30)
@@ -298,7 +328,7 @@ class FactorAnalysisService:
     # ==================================================================
 
     @classmethod
-    def _compute_quality(cls, info: dict) -> tuple[int, dict[str, Optional[float]]]:
+    def _compute_quality(cls, info: dict) -> tuple[Optional[int], dict[str, Optional[float]]]:
         """Score financial quality from profitability and leverage metrics."""
 
         roe = info.get("returnOnEquity")
@@ -306,10 +336,10 @@ class FactorAnalysisService:
         op_margin = info.get("operatingMargins")
         de = info.get("debtToEquity")  # yfinance reports as %, e.g. 150 = 1.5x
 
-        roe_val = float(roe) if roe is not None else None
-        roa_val = float(roa) if roa is not None else None
-        op_val = float(op_margin) if op_margin is not None else None
-        de_val = float(de) if de is not None else None
+        roe_val = cls._as_finite_float(roe)
+        roa_val = cls._as_finite_float(roa)
+        op_val = cls._as_finite_float(op_margin)
+        de_val = cls._as_finite_float(de)
 
         roe_score = cls._linear_score(roe_val, 0.0, 0.25)
         roa_score = cls._linear_score(roa_val, 0.0, 0.15)
@@ -337,7 +367,7 @@ class FactorAnalysisService:
     # ==================================================================
 
     @classmethod
-    def _compute_momentum(cls, price_df: pd.DataFrame) -> tuple[int, dict[str, Optional[float]]]:
+    def _compute_momentum(cls, price_df: pd.DataFrame) -> tuple[Optional[int], dict[str, Optional[float]]]:
         """Score price momentum from trailing returns over multiple windows."""
 
         components: dict[str, Optional[float]] = {
@@ -348,13 +378,17 @@ class FactorAnalysisService:
         }
 
         if price_df.empty or len(price_df) < 22:
-            return 0, components
+            return None, components
 
         # Handle multi-level columns from yfinance
         if isinstance(price_df.columns, pd.MultiIndex):
             close = price_df["Close"].iloc[:, 0]
         else:
             close = price_df["Close"]
+
+        close = pd.to_numeric(close, errors="coerce").dropna()
+        if len(close) < 22:
+            return None, components
 
         current = float(close.iloc[-1])
         n = len(close)
@@ -398,7 +432,7 @@ class FactorAnalysisService:
         cls,
         price_df: pd.DataFrame,
         market_df: pd.DataFrame,
-    ) -> tuple[int, dict[str, Optional[float]]]:
+    ) -> tuple[Optional[int], dict[str, Optional[float]]]:
         """Score low-volatility characteristics (vol, drawdown, beta)."""
 
         components: dict[str, Optional[float]] = {
@@ -408,7 +442,7 @@ class FactorAnalysisService:
         }
 
         if price_df.empty or len(price_df) < 30:
-            return 0, components
+            return None, components
 
         # Handle multi-level columns
         if isinstance(price_df.columns, pd.MultiIndex):
@@ -416,7 +450,13 @@ class FactorAnalysisService:
         else:
             close = price_df["Close"]
 
-        daily_ret = close.pct_change().dropna()
+        close = pd.to_numeric(close, errors="coerce").dropna()
+        if len(close) < 30:
+            return None, components
+
+        daily_ret = close.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
+        if len(daily_ret) < 2:
+            return None, components
         ann_vol = float(np.std(daily_ret, ddof=1)) * np.sqrt(252)
 
         # Max drawdown
@@ -433,16 +473,18 @@ class FactorAnalysisService:
             else:
                 mkt_close = market_df["Close"]
 
-            mkt_ret = mkt_close.pct_change().dropna()
+            mkt_close = pd.to_numeric(mkt_close, errors="coerce").dropna()
+            mkt_ret = mkt_close.pct_change().replace([np.inf, -np.inf], np.nan).dropna()
             # Align
             min_len = min(len(daily_ret), len(mkt_ret))
-            a_ret = np.asarray(daily_ret)[-min_len:]
-            m_ret = np.asarray(mkt_ret)[-min_len:]
+            if min_len > 1:
+                a_ret = np.asarray(daily_ret)[-min_len:]
+                m_ret = np.asarray(mkt_ret)[-min_len:]
 
-            mkt_var = float(np.var(m_ret, ddof=1))
-            if mkt_var > 0 and min_len > 1:
-                cov_val = float(np.cov(a_ret, m_ret, ddof=1)[0, 1])
-                beta = cov_val / mkt_var
+                mkt_var = float(np.var(m_ret, ddof=1))
+                if np.isfinite(mkt_var) and mkt_var > 0:
+                    cov_val = float(np.cov(a_ret, m_ret, ddof=1)[0, 1])
+                    beta = cls._safe_div(cov_val, mkt_var)
 
         components["annualized_volatility"] = round(ann_vol, 6)
         components["max_drawdown"] = round(max_dd, 6)

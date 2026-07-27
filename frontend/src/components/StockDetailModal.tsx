@@ -4,7 +4,12 @@ import type { Stock } from '../types';
 import { useAnalystRatings } from '../hooks/useAnalystRatings';
 import { useSmartReport } from '../hooks/useSmartReport';
 import { useTechnicalAnalysis } from '../hooks/useTechnicalAnalysis';
+import { useTechnicalWorkspace } from '../hooks/useTechnicalWorkspace';
+import { fetchTechnicalCopilot, type TechnicalCopilotResponse } from '../api/client';
 import { useWatchlistResearch } from '../hooks/useWatchlistResearch';
+import { useAssetResearchDetail } from '../hooks/useAssetResearchDetail';
+import AssetDetailChart from './AssetDetailChart';
+import CompanyLogo from './CompanyLogo';
 
 interface StockDetailModalProps {
   stock: Stock | null;
@@ -12,6 +17,7 @@ interface StockDetailModalProps {
   name?: string | null;
   onClose: () => void;
   onOpenTradeModal: (symbol: string) => void;
+  position?: { quantity: number; costPrice: number } | null;
 }
 
 // Lightweight Markdown to HTML component to guarantee seamless compile without external packages
@@ -116,16 +122,21 @@ function CustomMarkdownParser({ text }: { text: string }) {
   );
 }
 
-export default function StockDetailModal({ stock, symbol, name, onClose, onOpenTradeModal }: StockDetailModalProps) {
+export default function StockDetailModal({ stock, symbol, name, onClose, onOpenTradeModal, position = null }: StockDetailModalProps) {
   const [aiReport, setAiReport] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'analyst' | 'ai'>('overview');
+  const [copilotPrompt, setCopilotPrompt] = useState('Explain the current trend and the strongest support/resistance levels.');
+  const [copilotResponse, setCopilotResponse] = useState<TechnicalCopilotResponse | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
   const effectiveSymbol = stock?.symbol ?? symbol ?? null;
   const { data: analystData, loading: analystLoading, error: analystError, refetch: refetchAnalystData } = useAnalystRatings(effectiveSymbol);
   const { report: smartReport, loading: smartReportLoading, error: smartReportError } = useSmartReport(effectiveSymbol);
   const { data: technicalData, loading: technicalLoading, error: technicalError } = useTechnicalAnalysis(effectiveSymbol, '1d', '6mo');
+  const { data: technicalWorkspace, loading: workspaceLoading, error: workspaceError } = useTechnicalWorkspace(effectiveSymbol, '1d', '1y');
   const { data: researchData } = useWatchlistResearch(effectiveSymbol);
+  const { data: assetDetail, loading: assetDetailLoading, error: assetDetailError } = useAssetResearchDetail(effectiveSymbol);
 
   const analystTargetPrice = priceTargetValue(analystData?.priceTarget);
   const analystRating = useMemo(
@@ -137,6 +148,11 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
 
   const formatNullable = (value: number | null | undefined, digits = 2) => value == null ? '-' : value.toFixed(digits);
   const formatMoney = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? '-' : `$${value.toFixed(2)}`;
+  const formatQuoteTimestamp = (value: string | null | undefined) => {
+    if (!value) return 'Timestamp unavailable';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? 'Timestamp unavailable' : date.toLocaleString();
+  };
   const historyFromResearch = researchData.oneYear.map((point) => ({
     date: point.timestamp.slice(0, 10),
     price: point.close,
@@ -148,12 +164,15 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
   }));
   const displayHistory = stock?.history?.length ? stock.history : historyFromResearch;
   const latestHistoryPoint = displayHistory.at(-1);
-  const currentPrice = stock?.price ?? latestHistoryPoint?.price ?? null;
+  const profile = assetDetail?.profile.data;
+  const quote = assetDetail?.market.data;
+  const currentPrice = stock?.price ?? quote?.regularPrice ?? latestHistoryPoint?.price ?? null;
   const targetPriceForUpside = analystTargetPrice ?? analystRating?.targetPrice ?? null;
   const analystUpside = targetPriceForUpside == null || currentPrice == null || currentPrice === 0 ? '-' : (((targetPriceForUpside - currentPrice) / currentPrice) * 100).toFixed(1);
-  const displayName = stock?.name ?? name ?? effectiveSymbol;
-  const displaySector = stock?.sector ?? 'STOCK';
-  const displayIndustry = stock?.industry || 'Provider-backed details';
+  const displayName = profile?.name ?? stock?.name ?? name ?? effectiveSymbol;
+  const displaySector = profile?.sector ?? stock?.sector ?? 'STOCK';
+  const displayIndustry = (profile?.industry ?? stock?.industry) || 'Provider-backed details';
+  const marketChangePercent = stock?.changePercent ?? (quote?.regularChangePercent == null ? null : quote.regularChangePercent * 100);
   const ratios = researchData.ratios;
   const fundamentals = researchData.fundamentals;
   const peRatio = ratios?.pe ?? stock?.pe ?? null;
@@ -185,6 +204,12 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
     return `# Backend Smart Investment Report: ${smartReport.symbol}\n\n## Summary\n- **Overall score:** ${smartReport.overallScore.toFixed(0)} / 100\n- **Grade:** ${smartReport.grade}\n- **Recommendation:** ${smartReport.recommendation}\n\n## Score Breakdown\n${breakdown}\n\n## Analyst Context\n- **Consensus:** ${analystRating?.consensus ?? 'Unavailable'}\n- **Target price:** ${targetPriceText}\n- **Upside/downside:** ${analystUpside}%\n\nThis report is generated from backend provider data. Missing provider fields remain unavailable instead of being fabricated.`;
   };
 
+  const handleTechnicalCopilot = async () => {
+    setCopilotLoading(true);
+    try { setCopilotResponse(await fetchTechnicalCopilot(effectiveSymbol, copilotPrompt, '1d', '1y')); }
+    catch (reason) { setCopilotResponse({ symbol: effectiveSymbol, answer: reason instanceof Error ? reason.message : 'Technical copilot unavailable', overlays: [], caveats: ['AI provider unavailable.'], generatedAt: new Date().toISOString() }); }
+    finally { setCopilotLoading(false); }
+  };
   const handleGenerateReport = () => {
     setIsLoading(false);
     setErrorMessage('');
@@ -209,26 +234,6 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
     ? 0
     : Math.min(100, Math.max(0, ((currentPrice - rangeMin) / (rangeMax - rangeMin)) * 100));
 
-  // Generate SVG path for last 60 days of history
-  const miniHistory = displayHistory.slice(-60);
-  const minPrice = miniHistory.length ? Math.min(...miniHistory.map(h => h.price)) : null;
-  const maxPrice = miniHistory.length ? Math.max(...miniHistory.map(h => h.price)) : null;
-  const priceDiff = minPrice == null || maxPrice == null ? 1 : maxPrice - minPrice || 1;
-
-  const chartWidth = 500;
-  const chartHeight = 100;
-
-  const points = miniHistory.map((h, i) => {
-    const x = miniHistory.length > 1 ? (i / (miniHistory.length - 1)) * chartWidth : chartWidth / 2;
-    const y = chartHeight - ((h.price - (minPrice ?? h.price)) / priceDiff) * (chartHeight - 10) - 5;
-    return { x, y };
-  });
-
-  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
-  const areaPath = points.length > 1
-    ? `${linePath} L ${points[points.length - 1].x} ${chartHeight} L ${points[0].x} ${chartHeight} Z`
-    : '';
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/75 backdrop-blur-md p-4 animate-fade-in">
       <div className="bg-bg-primary border border-outline-variant rounded-2xl w-full max-w-4xl h-[85vh] overflow-hidden flex flex-col shadow-2xl">
@@ -236,10 +241,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
         {/* Header section */}
         <div className="p-5 border-b border-outline-variant flex items-center justify-between shrink-0 bg-bg-card/40">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary-container flex items-center justify-center font-bold text-bg-base text-sm">
-              {effectiveSymbol}
-            </div>
-            <div>
+            <CompanyLogo symbol={effectiveSymbol} logoUrl={profile?.logoUrl ?? stock?.logoUrl} className="h-10 w-10" />            <div>
               <div className="flex items-baseline gap-2">
                 <h3 className="font-headline text-lg font-bold text-text-primary">{displayName}</h3>
                 <span className="font-data-mono text-xs text-text-muted">({effectiveSymbol})</span>
@@ -309,6 +311,30 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6 animate-fade-in">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg">
+                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Market Session</div>
+                  <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">{quote?.marketState ?? 'UNKNOWN'}</div>
+                  <div className="mt-1 text-[10px] text-text-muted">{quote?.delayed ? 'Provider-delayed quote' : quote ? formatQuoteTimestamp(quote.regularTimestamp) : assetDetailLoading ? 'Loading provider quote' : assetDetailError ?? assetDetail?.market.message ?? 'Quote unavailable'}</div>
+                </div>
+                <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg">
+                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Pre Market</div>
+                  <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">{formatMoney(quote?.preMarketPrice)}</div>
+                  <div className="mt-1 text-[10px] text-text-muted">{quote?.preMarketChangePercent == null ? 'Unavailable' : `${(quote.preMarketChangePercent * 100).toFixed(2)}%`}</div>
+                </div>
+                <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg">
+                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Post Market</div>
+                  <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">{formatMoney(quote?.postMarketPrice)}</div>
+                  <div className="mt-1 text-[10px] text-text-muted">{quote?.postMarketChangePercent == null ? 'Unavailable' : `${(quote.postMarketChangePercent * 100).toFixed(2)}%`}</div>
+                </div>
+              </div>
+
+              {profile?.description ? <p className="text-sm leading-relaxed text-text-secondary">{profile.description}</p> : null}
+              {profile?.website ? <a className="text-xs text-primary hover:underline" href={profile.website} target="_blank" rel="noreferrer">{profile.website}</a> : null}
+              <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg text-xs text-text-secondary">
+                <span className="font-label-caps uppercase text-[9px] text-text-muted">Portfolio Position</span>
+                <span className="ml-2 font-data-mono font-bold text-text-primary">{position ? `${position.quantity} shares at ${formatMoney(position.costPrice)}` : 'Not held in active portfolio'}</span>
+              </div>
               {/* Main Price Widget with 52W range */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-bg-card/25 border border-outline-variant/40 p-4 rounded-xl">
                 {/* Price tag */}
@@ -318,8 +344,8 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                     <span className="font-data-mono text-3xl font-bold text-text-primary">
                       {formatMoney(currentPrice)}
                     </span>
-                    <span className={`font-data-mono text-sm font-bold ${(stock?.change ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                      {stock?.changePercent != null ? `${stock.changePercent >= 0 ? '+' : ''}${stock.changePercent.toFixed(2)}%` : '-'}
+                    <span className={`font-data-mono text-sm font-bold ${(marketChangePercent ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                      {marketChangePercent != null ? `${marketChangePercent >= 0 ? '+' : ''}${(marketChangePercent * 100).toFixed(2)}%` : '-'}
                     </span>
                   </div>
                 </div>
@@ -343,30 +369,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                 </div>
               </div>
 
-              {/* Price Trend Custom Area Chart (60 days) */}
-              <div className="bg-bg-card border border-outline-variant/30 rounded-xl p-4 space-y-3">
-                <div className="flex justify-between items-center border-b border-outline-variant/20 pb-2">
-                  <span className="text-[10px] font-label-caps text-text-muted uppercase">60-Day Price Trend</span>
-                  <span className="text-[10px] font-data-mono text-text-muted">
-                    Min: {formatMoney(minPrice)} - Max: {formatMoney(maxPrice)}
-                  </span>
-                </div>
-                <div className="h-28 w-full relative">
-                  <svg className="w-full h-full overflow-visible" viewBox={`0 0 ${chartWidth} ${chartHeight}`} preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="modalChartGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="var(--color-primary, #00ffff)" stopOpacity="0.25" />
-                        <stop offset="100%" stopColor="var(--color-primary, #00ffff)" stopOpacity="0.0" />
-                      </linearGradient>
-                    </defs>
-                    {/* Area fill */}
-                    <path d={areaPath} fill="url(#modalChartGrad)" />
-                    {/* Trend Line */}
-                    <path d={linePath} fill="none" stroke="var(--color-primary, #00ffff)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-
+              <AssetDetailChart bars={researchData.oneYear} symbol={effectiveSymbol} />
               {/* Ratios Metrics Grid */}
               <div>
                 <h4 className="text-[10px] font-label-caps text-text-muted tracking-wider uppercase border-b border-outline-variant/30 pb-1.5 mb-3">
@@ -416,10 +419,10 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                   <div className="bg-bg-base/40 border border-outline-variant/20 rounded-lg p-5 flex flex-col items-center justify-center text-center">
                     <span className="text-[9px] font-label-caps text-text-muted mb-2">OVERALL SIGNAL</span>
                     <span className="px-3 py-1 bg-bull-green/10 text-bull-green font-bold text-sm rounded-full tracking-wide">
-                      No data
+                      {technicalLoading ? 'Loading...' : technicalData?.signalAction ?? 'No data'}
                     </span>
                     <p className="text-[11px] text-text-secondary mt-3 leading-relaxed">
-                      No directional forecast is shown when the technical signal provider has no data.
+                      {technicalData?.signalConfidence == null ? 'No directional forecast is shown when the technical signal provider has no data.' : `Signal confidence ${(technicalData.signalConfidence * 100).toFixed(0)}%.`}
                     </p>
                   </div>
 
@@ -446,6 +449,28 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                   </div>
                 </div>
 
+                <div className="bg-bg-base/40 border border-outline-variant/20 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] font-label-caps text-text-muted uppercase">Calculated Support / Resistance</span>
+                    <span className="text-[10px] text-text-muted">{workspaceLoading ? 'Loading' : workspaceError ? 'Unavailable' : `${technicalWorkspace?.candles.length ?? 0} candles`}</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {(technicalWorkspace?.levels ?? []).map((level) => (
+                      <div key={`${level.kind}-${level.price}`} className="flex items-center justify-between border border-outline-variant/20 px-3 py-2 rounded">
+                        <span className={`text-[10px] font-bold ${level.kind === 'SUPPORT' ? 'text-bull-green' : 'text-bear-red'}`}>{level.kind}</span>
+                        <span className="font-data-mono text-xs text-text-primary">{formatMoney(level.price)}</span>
+                        <span className="text-[9px] text-text-muted">{level.touches} touch{level.touches === 1 ? '' : 'es'}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {!workspaceLoading && !workspaceError && (technicalWorkspace?.levels.length ?? 0) === 0 ? <p className="text-[10px] text-text-muted">No provider-backed levels were calculated for this range.</p> : null}
+                </div>
+                <div className="bg-bg-card border border-primary/20 rounded-lg p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold text-primary"><Sparkles className="w-4 h-4" /> Technical Copilot</div>
+                  <textarea value={copilotPrompt} onChange={(event) => setCopilotPrompt(event.target.value)} className="w-full min-h-20 bg-bg-base border border-outline-variant/40 rounded p-2 text-xs text-text-primary" />
+                  <button type="button" onClick={() => void handleTechnicalCopilot()} disabled={copilotLoading || !copilotPrompt.trim()} className="px-3 py-2 bg-primary text-bg-base rounded text-xs font-bold disabled:opacity-50">{copilotLoading ? 'Analyzing...' : 'Analyze chart'}</button>
+                  {copilotResponse ? <div className="space-y-2 text-xs text-text-secondary"><p>{copilotResponse.answer}</p>{copilotResponse.overlays.length ? <div className="flex flex-wrap gap-2">{copilotResponse.overlays.map((overlay) => <span key={`${overlay.kind}-${overlay.price}`} className="border border-primary/30 px-2 py-1 rounded font-data-mono">{overlay.label}{overlay.price == null ? '' : ` ${formatMoney(overlay.price)}`}</span>)}</div> : null}{copilotResponse.caveats.map((caveat) => <p key={caveat} className="text-[10px] text-warning-amber">{caveat}</p>)}</div> : null}
+                </div>
                 {/* Educational Box */}
                 <div className="p-4 bg-primary-container/5 border border-primary/10 rounded-lg text-xs text-text-secondary leading-relaxed">
                   <strong>Technical Analysis Note:</strong> RSI below 30 is commonly interpreted as oversold, while RSI above 70 is commonly interpreted as overbought. MACD is a lagging indicator used to confirm trend direction.

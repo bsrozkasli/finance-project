@@ -6,7 +6,7 @@ Finance Project is a monorepo financial analysis platform with three runtimes: `
 
 Primary flow:
 
-1. The frontend calls `http://localhost:8080/api/v1` through `frontend/src/api/client.ts`.
+1. The frontend calls `http://localhost:8080/api/v1` through domain modules exported by `frontend/src/api/client.ts`.
 2. The backend validates and orchestrates requests, applies domain rules, persists data in PostgreSQL, caches selected results in Redis, and calls the FastAPI data-service or external providers when needed.
 3. The data-service performs analytics and provider access through `yfinance`, `pandas`, `pandas-ta`, portfolio services, and optional Azure OpenAI-backed agents.
 
@@ -127,7 +127,7 @@ Frontend rules:
 |   |-- app/models                  Pydantic models
 |   `-- tests                       pytest suite
 |-- frontend/                       Vite + React + TypeScript UI
-|   |-- src/api                     Axios client and API types
+|   |-- src/api                     Shared Axios transport, domain API modules, compatibility barrel, and API types
 |   |-- src/components              UI components
 |   |-- src/hooks                   Data hooks
 |   |-- src/pages                   Page composition
@@ -211,8 +211,10 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Assets | `GET /assets` | List tracked assets |
 | Assets | `GET /assets/{symbol}` | Fetch one asset |
 | Assets | `POST /assets/batch` | Add symbols in batch; Yahoo metadata first, fallback `STOCK` |
+| Assets | `POST /assets/batch-profiles` | Fetch partially degradable company profiles and logos with a 24-hour cache |
 | Assets | `DELETE /assets/{symbol}` | Delete asset |
 | Prices | `GET /prices/{symbol}/latest` | Latest price candle through DB-first refresh and `priceCache` |
+| Prices | `POST /prices/batch-latest` | Fetch normalized regular/extended-hours quotes with per-symbol degradation and a 30-second cache |
 | Prices | `GET /prices/{symbol}/history?interval=&range=` | Historical candles with DB-first lazy loading, refresh, persistence, and `priceCache` |
 | Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators |
 | Technical | `GET /technical/{symbol}/signals?interval=&range=` | Technical signal summary |
@@ -245,13 +247,12 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | Portfolio positions | `POST /portfolio/positions` | Create position |
 | Portfolio positions | `PUT /portfolio/positions/{id}` | Update position |
 | Portfolio positions | `DELETE /portfolio/positions/{id}` | Delete position |
-| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available |
+| Portfolio dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; daily PnL is derived from the latest two real closes when available; price-derived fields are `null` and `pricingComplete=false` when any current price is unavailable |
 | Portfolio dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance series derived from refreshed real price history; optional benchmark fills normalized `benchmarkValue`; returns an empty series when no real price history exists |
-| Portfolio dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative-return comparison for investment portfolios and benchmarks; values are derived from real refreshed price history and missing provider data returns empty points rather than fabricated values |
-| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level added date, cost, current price, weight, daily/weekly/1M/3M/6M/1Y/total returns for an investment portfolio; time-window returns are null when refreshed price history is missing or insufficient |
-| Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices |
-| Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL |
-| Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
+| Portfolio dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative-return comparison for investment portfolios and benchmarks; portfolio values use transaction-ledger quantities held on each price date, including history for positions later sold; missing provider data returns empty points rather than fabricated values |
+| Portfolio dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level added date, cost, current price, weight, daily/weekly/1M/3M/6M/1Y/total returns for an investment portfolio; price-derived fields are `null` when current price is unavailable and time-window returns are `null` when refreshed price history is missing or insufficient |
+| Portfolio dashboard | `GET /portfolio/allocation` | Allocation slices; values and amounts are `null` rather than cost-based when real prices are incomplete |
+| Portfolio dashboard | `GET /portfolio/positions/enriched` | Positions enriched with latest real price and PnL; the position remains present with nullable price-derived fields when pricing is unavailable || Portfolio analytics | `POST /portfolio/optimize` | Portfolio optimization |
 | Portfolio analytics | `POST /portfolio/rebalance-check` | Rebalance analysis |
 | Journal | `GET /journal/trades?page=&size=&sort=` | Paged journal trades; open trades are enriched with latest real price at read time |
 | Journal | `GET /journal/trades/stats` | Journal stats derived from persisted trades with open-trade latest price enrichment |
@@ -277,7 +278,11 @@ Data-service endpoints:
 
 | Area | Method and path | Purpose |
 | --- | --- | --- |
-| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |`r`n| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
+| Prices | `GET /api/v1/prices/{symbol}` | OHLCV price history through provider chain |
+| Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain asset metadata; returns 404 when metadata is unavailable or only repeats the symbol |
+| Assets | `GET /api/v1/assets/{symbol}/detail` | Provider-backed company profile and regular/pre-market/post-market quote sections; each section reports status/source/timestamp and degrades independently |
+| Data-service assets | `GET /api/v1/assets/{symbol}/profile` | Extended company profile with nullable overview, website, country, sector, industry, logo, and employee count |
+| Data-service assets | `GET /api/v1/assets/{symbol}/market-quote` | Nullable regular/pre-market/post-market snapshot with market state, timestamps, delay flag, and no fabricated quote values |
 | Analysis | `GET /api/v1/analysis/technical/{symbol}` | Technical indicators |
 | Analysis | `GET /api/v1/analysis/technical/{symbol}/signals` | Signal summary |
 | Analysis | `GET /api/v1/analysis/sentiment/{symbol}` | Sentiment analysis |
@@ -304,7 +309,7 @@ Data-service endpoints:
 | Research | `GET /api/v1/research/valuation/{symbol}` | Valuation |
 | Research | `GET /api/v1/research/risk/{symbol}` | Risk analytics |
 | Research | `GET /api/v1/research/earnings/{symbol}` | Earnings |
-| Research | `GET /api/v1/research/factors/{symbol}` | Factor analysis |
+| Research | `GET /api/v1/research/factors/{symbol}` | Factor analysis; unavailable factor/component values and `dominant_factor` are `null`, while a measured zero remains `0` |
 | Research | `GET /api/v1/research/institutional-scores/{symbol}` | Institutional scores |
 | Research | `GET /api/v1/research/composite/{symbol}` | Composite investment score |
 
@@ -363,7 +368,8 @@ Portfolio summary (`GET /api/v1/portfolio/summary`):
   "dailyPnL": 850.25,
   "dailyPnLPercent": 0.68,
   "totalPnL": 14500.5,
-  "totalReturn": 13.12
+  "totalReturn": 13.12,
+  "pricingComplete": true
 }
 ```
 
@@ -498,8 +504,10 @@ Core backend domain models:
 Persistent tables include:
 
 - `assets`
-- `price_histories`
+- `price_history`
 - `portfolio_positions`
+- `portfolios`
+- `portfolio_transactions`
 - `journal_trades`
 - `journal_trade_tags`
 - `watchlists`
@@ -508,6 +516,7 @@ Persistent tables include:
 - `fundamental_snapshots`
 - `financial_statements`
 - `agent_analysis_history`
+- `symbol_mapping`
 
 Frontend API models include `Asset`, `PriceHistory`, `NewsItem`, `CategorizedNewsItem`, `PortfolioPosition`, `EnrichedPosition`, `PortfolioSummary`, `PortfolioPerformanceResponse`, `PortfolioAllocation`, `JournalTrade`, `JournalStats`, `Watchlist`, `FundamentalsData`, `FinancialRatios`, `EarningsResult`, `InsiderActivity`, `InstitutionalHolder`, `TechnicalResult`, `CompanyReport`, `AnalystRecommendation`, and PriceTarget.
 
@@ -529,6 +538,7 @@ Entity relationships and persistence semantics:
 - Latest and historical price reads use `PriceRefreshService`: local data first, provider refresh when needed, persist fetched rows, then return real data only.
 - Fetched historical prices are persisted after lazy loading.
 - Latest price, technical analysis, analyst data, fundamentals, research, reports, and agent-analysis responses may be cached to reduce provider/API load.
+- Frontend live polling requests only the deduplicated portfolio/watchlist symbol union every 30 seconds while the document is visible; historical candles and profiles are not part of this polling loop.
 - Watchlist research snapshot TTL expectations are data-type specific: latest price is short lived, technical data is intraday-lived, fundamentals/earnings/institutional data can be daily-lived, and stale values should be shown with status metadata while refresh happens where supported.
 - Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.
@@ -576,9 +586,12 @@ The backend loads root `.env` at startup through `dotenv-java` in `FinanceProjec
 | `AZURE_OPENAI_DEPLOYMENT_NAME` | Optional; required for LLM/agent/chat success | empty | Azure deployment name |
 | `AZURE_OPENAI_API_VERSION` | Optional | `2024-05-01-preview` | Azure API version |
 | `DATA_SERVICE_URL` | Optional | `http://localhost:8000` | Spring-to-FastAPI URL |
+| `FLYWAY_BASELINE_ON_MIGRATE` | Optional | `true` | One-time compatibility baseline for databases previously managed by Hibernate; set to `false` after every existing environment has a Flyway history table |
+| `FLYWAY_OUT_OF_ORDER` | Optional | `true` | Allows the idempotent pre-V3 journal schema repair migration to be applied safely on databases that already reached later Flyway versions |
 
 Important backend settings:
 
+- `spring.jpa.hibernate.ddl-auto=validate`; Flyway owns schema creation and upgrades
 - `spring.jpa.open-in-view=false`
 - `spring.cache.type=redis`
 - `agent-analysis.cache-ttl-minutes=15`
@@ -704,7 +717,7 @@ Instruction priority for agents:
 
 - Runtime ports are fixed for local development.
 - Backend API base path is `/api/v1`.
-- Frontend Axios base URL is hard-coded to `http://localhost:8080/api/v1`; if routing changes, update `frontend/src/api/client.ts` and `frontend/vite.config.ts` together.
+- Frontend Axios base URL is hard-coded in `frontend/src/api/http.ts` and re-exported by `client.ts`; if routing changes, update it and `frontend/vite.config.ts` together.
 - Backend needs PostgreSQL and Redis for full local behavior.
 - Provider availability and rate limits affect response completeness.
 - Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.

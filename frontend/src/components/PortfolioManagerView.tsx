@@ -33,7 +33,7 @@ interface LocalPositionPerformance extends Omit<PortfolioPositionPerformance,
   'currentPrice' | 'marketValue' | 'dailyReturn' | 'weeklyReturn' | 'oneMonthReturn' | 'threeMonthReturn' |
   'sixMonthReturn' | 'oneYearReturn' | 'totalReturn'> {
   currentPrice: number | null;
-  marketValue: number;
+  marketValue: number | null;
   dailyReturn: number | null;
   weeklyReturn: number | null;
   oneMonthReturn: number | null;
@@ -154,17 +154,18 @@ export default function PortfolioManagerView({
     const values = activePortfolio.holdings.map((holding) => {
       const stock = stockMap[holding.symbol.toUpperCase()];
       const currentPrice = typeof stock?.price === 'number' ? stock.price : null;
-      const marketValue = currentPrice == null ? 0 : holding.quantity * currentPrice;
+      const marketValue = currentPrice == null ? null : holding.quantity * currentPrice;
       const costValue = holding.quantity * holding.costPrice;
       return {
         holding,
         stock,
         currentPrice,
         marketValue,
-        totalReturn: currentPrice == null || costValue <= 0 ? null : ((marketValue - costValue) / costValue) * 100,
+        totalReturn: marketValue == null || costValue <= 0 ? null : ((marketValue - costValue) / costValue) * 100,
       };
     });
-    const totalValue = values.reduce((sum, item) => sum + item.marketValue, 0);
+    const pricingComplete = values.every((item) => item.marketValue != null);
+    const totalValue = pricingComplete ? values.reduce((sum, item) => sum + (item.marketValue ?? 0), 0) : null;
 
     return values.map((item) => ({
       symbol: item.holding.symbol,
@@ -173,7 +174,7 @@ export default function PortfolioManagerView({
       costPrice: item.holding.costPrice,
       currentPrice: item.currentPrice,
       marketValue: item.marketValue,
-      weight: totalValue > 0 ? (item.marketValue / totalValue) * 100 : 0,
+      weight: totalValue != null && totalValue > 0 && item.marketValue != null ? (item.marketValue / totalValue) * 100 : null,
       dailyReturn: item.stock?.changePercent ?? null,
       weeklyReturn: null,
       oneMonthReturn: null,
@@ -202,16 +203,27 @@ export default function PortfolioManagerView({
     }));
   }, [activePortfolio?.holdings, fallbackPositions, positionPerformance, stockMap]);
 
+  const allocationPositions = useMemo(
+    () => displayedPositions.filter(
+      (position): position is LocalPositionPerformance & { weight: number } => position.weight != null,
+    ),
+    [displayedPositions],
+  );
+
   const portfolioSummary = useMemo(() => {
-    const pricedPositions = displayedPositions.filter((position) => position.currentPrice != null);
-    const totalValue = pricedPositions.reduce((sum, position) => sum + position.marketValue, 0);
-    const totalCost = pricedPositions.reduce((sum, position) => sum + ((position.quantity ?? 1) * position.costPrice), 0);
-    const totalPnl = totalValue - totalCost;
-    const totalReturn = totalCost > 0 ? (totalPnl / totalCost) * 100 : null;
-    const largestWeight = displayedPositions.reduce((max, position) => Math.max(max, position.weight), 0);
+    const pricingComplete = displayedPositions.every((position) => position.marketValue != null);
+    const totalValue = pricingComplete
+      ? displayedPositions.reduce((sum, position) => sum + (position.marketValue ?? 0), 0)
+      : null;
+    const totalCost = pricingComplete
+      ? displayedPositions.reduce((sum, position) => sum + ((position.quantity ?? 1) * position.costPrice), 0)
+      : null;
+    const totalPnl = totalValue == null || totalCost == null ? null : totalValue - totalCost;
+    const totalReturn = totalCost != null && totalPnl != null && totalCost > 0 ? (totalPnl / totalCost) * 100 : null;
+    const largestWeight = allocationPositions.reduce((max, position) => Math.max(max, position.weight), 0);
 
     return { totalValue, totalCost, totalPnl, totalReturn, largestWeight };
-  }, [displayedPositions]);
+  }, [allocationPositions, displayedPositions]);
 
   const allPerformanceData = useMemo(() => {
     if (!activePortfolio || activePortfolio.holdings.length === 0) return [];
@@ -324,10 +336,10 @@ export default function PortfolioManagerView({
   const healthMetrics = useMemo(() => {
     const best = [...displayedPositions].filter((position) => position.totalReturn != null).sort((a, b) => (b.totalReturn ?? 0) - (a.totalReturn ?? 0))[0];
     const worst = [...displayedPositions].filter((position) => position.totalReturn != null).sort((a, b) => (a.totalReturn ?? 0) - (b.totalReturn ?? 0))[0];
-    const largest = [...displayedPositions].sort((a, b) => b.weight - a.weight)[0];
-    const unpriced = activePortfolio?.holdings.filter((holding) => !stockMap[holding.symbol.toUpperCase()]).length ?? 0;
+    const largest = [...allocationPositions].sort((a, b) => b.weight - a.weight)[0];
+    const unpriced = displayedPositions.filter((position) => position.currentPrice == null).length;
     return { best, worst, largest, unpriced };
-  }, [activePortfolio?.holdings, displayedPositions, stockMap]);
+  }, [allocationPositions, displayedPositions]);
 
   const transactionRows = useMemo(() => {
     const sortedAscending = [...transactions].sort((a, b) => {
@@ -685,9 +697,13 @@ export default function PortfolioManagerView({
             <div className="flex min-h-72 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
               No holdings are available for allocation analysis.
             </div>
+          ) : allocationPositions.length === 0 ? (
+            <div className="flex min-h-72 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
+              Allocation is unavailable until every holding has a real market price.
+            </div>
           ) : (
             <div className="grid min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-4">
-              {[...displayedPositions].sort((a, b) => b.weight - a.weight).map((position, index) => {
+              {[...allocationPositions].sort((a, b) => b.weight - a.weight).map((position, index) => {
                 const value = allocationMode === 'daily' ? position.dailyReturn : allocationMode === 'total' ? position.totalReturn : position.weight;
                 return (
                   <div
@@ -1021,7 +1037,7 @@ function HoldingsTable({
               </td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(position.costPrice)}</td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(position.currentPrice)}</td>
-              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{position.weight.toFixed(2)}%</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{position.weight == null ? '-' : `${position.weight.toFixed(2)}%`}</td>
               <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.dailyReturn)}`}>{formatReturn(position.dailyReturn)}</td>
               <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.weeklyReturn)}`}>{formatReturn(position.weeklyReturn)}</td>
               <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.oneMonthReturn)}`}>{formatReturn(position.oneMonthReturn)}</td>

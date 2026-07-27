@@ -2,6 +2,7 @@ package com.ozkaslibasar.financeproject.config;
 
 import com.ozkaslibasar.financeproject.adapter.outbound.client.yahoo.YahooStatementClientAdapter;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.AssetDetailDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
@@ -198,6 +199,12 @@ class DomainConfigWiringTest {
     @SpringBootConfiguration
     @Import(DomainConfig.class)
     static class TestApplication {
+
+        @Bean
+        AssetDetailDataPort assetDetailDataPort() {
+            // Mock rationale: provider-backed asset detail boundary should not hit data-service in wiring tests.
+            return mock(AssetDetailDataPort.class);
+        }
 
         @Bean
         AssetRepositoryPort assetRepositoryPort() {

@@ -8,16 +8,19 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   TrendingUp,
 } from 'lucide-react';
 import type { WatchlistResearchRow, WatchlistResearchStatus } from '../api/client';
 import { useWatchlistResearchSnapshot } from '../hooks/useWatchlistResearchSnapshot';
 import type { Stock, Watchlist } from '../types';
+import CompanyLogo from './CompanyLogo';
 
 interface WatchlistsViewProps {
   stocks: Stock[];
   watchlists: Watchlist[];
   onAddStockToWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
+  onRemoveStockFromWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
   onAddWatchlist: (name: string) => void | Promise<string | void>;
   onOpenTradeModal: (symbol: string) => void;
   onSelectStock: (stock: Stock | null, symbol?: string, name?: string) => void;
@@ -78,6 +81,7 @@ export default function WatchlistsView({
   stocks,
   watchlists,
   onAddStockToWatchlist,
+  onRemoveStockFromWatchlist,
   onAddWatchlist,
   onOpenTradeModal,
   onSelectStock,
@@ -88,6 +92,7 @@ export default function WatchlistsView({
   const [newWatchlistName, setNewWatchlistName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [addingTicker, setAddingTicker] = useState(false);
+  const [removingSymbol, setRemovingSymbol] = useState<string | null>(null);
   const [creatingWatchlist, setCreatingWatchlist] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -172,6 +177,23 @@ export default function WatchlistsView({
     }
   };
 
+  const handleRemoveTicker = async (symbol: string) => {
+    if (!activeWatchlist || removingSymbol) return;
+    setRemovingSymbol(symbol);
+    setActionError(null);
+    try {
+      await Promise.resolve(onRemoveStockFromWatchlist(activeWatchlist.id, symbol));
+      if (selectedDisplaySymbol === symbol) {
+        setSelectedSymbol(activeSymbols.find((candidate) => candidate !== symbol) ?? '');
+      }
+      await reloadResearchSnapshot();
+    } catch (error) {
+      console.error('Failed to remove symbol from watchlist', error);
+      setActionError(`Could not remove ${symbol}.`);
+    } finally {
+      setRemovingSymbol(null);
+    }
+  };
   const handleSelectWatchlist = (watchlistId: string) => {
     setActiveWatchlistId(watchlistId);
     setSelectedSymbol('');
@@ -324,34 +346,51 @@ export default function WatchlistsView({
                   const row = researchRows.find((item) => item.symbol === symbol);
                   const active = selectedDisplaySymbol === symbol;
                   return (
-                    <button
+                    <div
                       key={symbol}
-                      type="button"
-                      onClick={() => setSelectedSymbol(symbol)}
-                      className={`w-full rounded-lg border p-3 text-left transition-colors ${
+                      className={`flex w-full items-stretch rounded-lg border transition-colors ${
                         active
                           ? 'border-primary bg-primary/10'
                           : 'border-outline-variant/30 bg-bg-base/40 hover:border-primary/40'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
-                          <div className="truncate text-[10px] text-text-muted">
-                            {row?.name ?? stock?.name ?? 'Metadata unavailable'}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSymbol(symbol)}
+                        className="min-w-0 flex-1 p-3 text-left"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <CompanyLogo symbol={symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
+                            <div className="min-w-0">
+                              <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
+                              <div className="truncate text-[10px] text-text-muted">
+                                {row?.name ?? stock?.name ?? 'Metadata unavailable'}
+                              </div>
+                            </div>
                           </div>
+                          <span className={`shrink-0 rounded-full border px-2 py-1 font-data-mono text-[9px] font-bold ${statusClass(row?.overallStatus ?? 'EMPTY')}`}>
+                            {statusLabel(row?.overallStatus ?? 'EMPTY')}
+                          </span>
                         </div>
-                        <span className={`shrink-0 rounded-full border px-2 py-1 font-data-mono text-[9px] font-bold ${statusClass(row?.overallStatus ?? 'EMPTY')}`}>
-                          {statusLabel(row?.overallStatus ?? 'EMPTY')}
-                        </span>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between font-data-mono text-xs">
-                        <span className="text-text-primary">{formatCurrency(row?.price.data?.lastPrice ?? stock?.price)}</span>
-                        <span className={stock && stock.changePercent < 0 ? 'text-bear-red' : 'text-bull-green'}>
-                          {stock ? formatPercentPoints(stock.changePercent) : 'N/A'}
-                        </span>
-                      </div>
-                    </button>
+                        <div className="mt-3 flex items-center justify-between font-data-mono text-xs">
+                          <span className="text-text-primary">{formatCurrency(row?.price.data?.lastPrice ?? stock?.price)}</span>
+                          <span className={stock && stock.changePercent < 0 ? 'text-bear-red' : 'text-bull-green'}>
+                            {stock ? formatPercentPoints(stock.changePercent) : 'N/A'}
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleRemoveTicker(symbol)}
+                        disabled={removingSymbol !== null}
+                        aria-label={`Remove ${symbol} from watchlist`}
+                        title={`Remove ${symbol}`}
+                        className="flex w-10 shrink-0 items-center justify-center border-l border-outline-variant/30 text-text-muted hover:text-bear-red disabled:opacity-50"
+                      >
+                        {removingSymbol === symbol ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </button>
+                    </div>
                   );
                 })
               )}
@@ -444,8 +483,13 @@ export default function WatchlistsView({
                           }`}
                         >
                           <td className="px-4 py-4">
-                            <div className="font-data-mono font-bold text-text-primary">{row.symbol}</div>
-                            <div className="max-w-40 truncate text-[10px] text-text-muted">{row.name ?? stock?.name ?? 'Metadata unavailable'}</div>
+                            <div className="flex items-center gap-2">
+                              <CompanyLogo symbol={row.symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
+                              <div className="min-w-0">
+                                <div className="font-data-mono font-bold text-text-primary">{row.symbol}</div>
+                                <div className="max-w-40 truncate text-[10px] text-text-muted">{row.name ?? stock?.name ?? 'Metadata unavailable'}</div>
+                              </div>
+                            </div>
                           </td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatCurrency(row.price.data?.lastPrice)}</td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatVolume(row.price.data?.volume)}</td>

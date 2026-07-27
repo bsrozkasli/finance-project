@@ -58,3 +58,9 @@ postgres_data/
 temp_scripts/raw_data.json
 data-service/.test-cache/
 data-service/pytest-cache-files-*/
+
+### Local ML research artifacts ###
+data-service/.ml-workdir/
+data-service/.ml-data/
+data-service/mlruns/
+data-service/mlflow.db

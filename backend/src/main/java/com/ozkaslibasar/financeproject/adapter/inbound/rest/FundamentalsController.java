@@ -94,52 +94,37 @@ public class FundamentalsController {
                 finalMarket == null ? null : finalMarket.dividendYield());
     }
 
-    @Operation(summary = "GET Fundamentals endpoint", description = "Implements the GET operation for the Fundamentals API described in SPEC.md sections 7 and 8.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Successful response"),
-            @ApiResponse(responseCode = "201", description = "Resource created when the endpoint creates persistent state"),
-            @ApiResponse(responseCode = "204", description = "Command completed without response body"),
-            @ApiResponse(responseCode = "400", description = "Malformed or invalid request"),
-            @ApiResponse(responseCode = "404", description = "Requested resource was not found"),
-            @ApiResponse(responseCode = "409", description = "Request conflicts with existing state"),
-            @ApiResponse(responseCode = "422", description = "Business rule violation"),
-            @ApiResponse(responseCode = "429", description = "Rate limit exceeded"),
-            @ApiResponse(responseCode = "502", description = "Invalid upstream provider response"),
-            @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
-    })
     @GetMapping("/{symbol}/ratios")
     @Cacheable(value = "fundamentalCache", key = "'ratios:' + #symbol.toUpperCase()")
     public FinancialRatios getRatios(@PathVariable String symbol) {
         String normalized = symbol.toUpperCase();
-        // Non-critical providers: degrade to null on failure so partial ratios are returned.
         SmartReportMarketDataPort.CompanyMetrics market = null;
+        ResearchDataPort.FundamentalMetrics research = null;
+        ResearchDataPort.ValuationMetrics valuation = null;
         try {
             market = marketDataPort.fetchCompanyMetrics(normalized).orElse(null);
         } catch (Exception e) {
             log.warn("Market metrics unavailable for ratios {}: {}", normalized, e.getMessage());
         }
-        ResearchDataPort.FundamentalMetrics research = null;
         try {
             research = researchDataPort.fetchFundamental(normalized)
                     .map(ResearchDataPort.FundamentalResearch::metrics)
                     .orElse(null);
+            valuation = researchDataPort.fetchValuation(normalized).orElse(null);
         } catch (Exception e) {
             log.warn("Research metrics unavailable for ratios {}: {}", normalized, e.getMessage());
         }
-        final SmartReportMarketDataPort.CompanyMetrics finalMarket = market;
-        final ResearchDataPort.FundamentalMetrics finalResearch = research;
         return new FinancialRatios(
-                finalMarket == null ? null : finalMarket.peRatio(),
-                finalMarket == null ? null : finalMarket.pbRatio(),
-                null,
-                null,
-                finalMarket != null && finalMarket.debtToEquity() != null ? finalMarket.debtToEquity() : finalResearch == null ? null : finalResearch.debtToEquity(),
-                finalResearch == null ? null : finalResearch.currentRatio(),
-                finalResearch == null ? null : finalResearch.quickRatio(),
-                finalMarket != null && finalMarket.roe() != null ? finalMarket.roe() : finalResearch == null ? null : finalResearch.roe(),
-                finalResearch == null ? null : finalResearch.roa());
+                valuation != null && valuation.pe() != null ? valuation.pe() : market == null ? null : market.peRatio(),
+                valuation != null && valuation.pb() != null ? valuation.pb() : market == null ? null : market.pbRatio(),
+                valuation == null ? null : valuation.ps(),
+                valuation == null ? null : valuation.evEbitda(),
+                market != null && market.debtToEquity() != null ? market.debtToEquity() : research == null ? null : research.debtToEquity(),
+                research == null ? null : research.currentRatio(),
+                research == null ? null : research.quickRatio(),
+                market != null && market.roe() != null ? market.roe() : research == null ? null : research.roe(),
+                research == null ? null : research.roa());
     }
-
     @Operation(summary = "GET Fundamentals endpoint", description = "Implements the GET operation for the Fundamentals API described in SPEC.md sections 7 and 8.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Successful response"),
