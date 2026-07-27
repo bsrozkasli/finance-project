@@ -498,8 +498,10 @@ Core backend domain models:
 Persistent tables include:
 
 - `assets`
-- `price_histories`
+- `price_history`
 - `portfolio_positions`
+- `portfolios`
+- `portfolio_transactions`
 - `journal_trades`
 - `journal_trade_tags`
 - `watchlists`
@@ -508,6 +510,7 @@ Persistent tables include:
 - `fundamental_snapshots`
 - `financial_statements`
 - `agent_analysis_history`
+- `symbol_mapping`
 
 Frontend API models include `Asset`, `PriceHistory`, `NewsItem`, `CategorizedNewsItem`, `PortfolioPosition`, `EnrichedPosition`, `PortfolioSummary`, `PortfolioPerformanceResponse`, `PortfolioAllocation`, `JournalTrade`, `JournalStats`, `Watchlist`, `FundamentalsData`, `FinancialRatios`, `EarningsResult`, `InsiderActivity`, `InstitutionalHolder`, `TechnicalResult`, `CompanyReport`, `AnalystRecommendation`, and PriceTarget.
 
@@ -576,9 +579,11 @@ The backend loads root `.env` at startup through `dotenv-java` in `FinanceProjec
 | `AZURE_OPENAI_DEPLOYMENT_NAME` | Optional; required for LLM/agent/chat success | empty | Azure deployment name |
 | `AZURE_OPENAI_API_VERSION` | Optional | `2024-05-01-preview` | Azure API version |
 | `DATA_SERVICE_URL` | Optional | `http://localhost:8000` | Spring-to-FastAPI URL |
+| `FLYWAY_BASELINE_ON_MIGRATE` | Optional | `true` | One-time compatibility baseline for databases previously managed by Hibernate; set to `false` after every existing environment has a Flyway history table |
 
 Important backend settings:
 
+- `spring.jpa.hibernate.ddl-auto=validate`; Flyway owns schema creation and upgrades
 - `spring.jpa.open-in-view=false`
 - `spring.cache.type=redis`
 - `agent-analysis.cache-ttl-minutes=15`
