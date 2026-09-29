@@ -3,14 +3,16 @@
 ## Archive Metadata
 
 - Archive date: `2026-09-29`
-- Archive root: `C:\tmp\finance-project-legacy-docs-2026-09-29`
+- Archive root: `archive/legacy-docs-2026-09-29`
 - Last source commit containing every archived file: `77fec5f`
 - Operation: files were moved with their repository-relative paths preserved
-- Recovery: copy a file from the archive root back to the same relative path,
-  or read it from Git with `git show 77fec5f:<relative-path>`
+- Recovery: copy a file from the repository archive root back to the same
+  relative path, or read it from Git with
+  `git show 77fec5f:<relative-path>`
 
-The archive is outside Git and is temporary. Git history remains the durable
-fallback. No file under `data-service/external/TradingAgents` was moved or
+The archive is retained inside the repository so legacy claims remain available
+without mixing them with active documentation. Git history remains an additional
+recovery path. No file under `data-service/external/TradingAgents` was moved or
 modified.
 
 ## Archived Files
