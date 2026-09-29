@@ -12,7 +12,7 @@ Before writing frontend UI code:
 2. Read every relevant screen.
 3. Read the Stitch design system.
 4. Read Stitch design tokens.
-5. Read `FRONTEND_ROADMAP.md`.
+5. Read the approved product foundation and the current scoped task or story.
 6. Compare Stitch with the current frontend.
 7. Create an implementation plan.
 8. Only then edit code.

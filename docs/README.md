@@ -1,7 +1,15 @@
 # Documentation Index
 
-This directory contains architecture, API, provider, workflow, and operating
-guides for the finance-project monorepo.
+This directory contains product-foundation, architecture, API, provider,
+workflow, and operating guides for the finance-project monorepo.
+
+## Product Documentation
+
+| Document | Purpose |
+|---|---|
+| `superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md` | Approved evidence-driven investment-platform foundation |
+| `superpowers/plans/2026-09-29-product-documentation-reconstruction.md` | Execution plan for the current-state baseline, PRD, epics, and stories |
+| `LEGACY_ARCHIVE_MANIFEST.md` | Recoverable inventory and location of archived legacy documents |
 
 ## Core Documentation
 
@@ -11,7 +19,6 @@ guides for the finance-project monorepo.
 | `PROVIDER_GUIDE.md` | External provider priority, fallback behavior, health endpoints, and provider onboarding |
 | `openapi.yaml` | Generated OpenAPI specification for the backend API |
 | `architecture.md` | System architecture and data-flow diagrams |
-| `AGENT_ANALYSIS_ARCHITECTURE.md` | Multi-agent analysis architecture |
 | `AGENT_WORKFLOW.md` | Agent execution workflow |
 
 ## Engineering Rules
@@ -29,9 +36,7 @@ guides for the finance-project monorepo.
 
 | Document | Purpose |
 |---|---|
-| `IMPLEMENTATION_PLAN.md` | Implementation roadmap and sequencing |
 | `KNOWN_ISSUES.md` | Known issues and follow-up items |
-| `STITCH_UI_GUIDE.md` | UI guide for Stitch-generated views |
 
 ## Architecture Decision Records
 

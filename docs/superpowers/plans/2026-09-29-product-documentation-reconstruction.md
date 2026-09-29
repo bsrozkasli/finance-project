@@ -395,12 +395,13 @@ git commit -m "docs(frontend): audit current user workflows"
 - Create: `docs/product/evidence/cross-runtime.md`
 - Create: `docs/product/evidence/legacy-document-conflicts.md`
 - Inspect read-only: `SPEC.md`
-- Inspect read-only: `requirements.md`
-- Inspect read-only: `FRONTEND_ROADMAP.md`
-- Inspect read-only: `docs/AUTH_SPEC.md`
+- Inspect read-only: `docs/LEGACY_ARCHIVE_MANIFEST.md`
+- Inspect from source commit `77fec5f`: `requirements.md`
+- Inspect from source commit `77fec5f`: `FRONTEND_ROADMAP.md`
+- Inspect from source commit `77fec5f`: `docs/AUTH_SPEC.md`
 - Inspect read-only: `docs/FRONTEND_API.md`
 - Inspect read-only: `docs/architecture.md`
-- Inspect read-only: `docs/SYSTEM_REFACTOR_ROADMAP.md`
+- Inspect from source commit `77fec5f`: `docs/SYSTEM_REFACTOR_ROADMAP.md`
 - Inspect read-only: `docs/adr/`
 
 **Interfaces:**
@@ -417,7 +418,13 @@ For each flow, cite frontend API method/type, Spring endpoint/DTO, data-service 
 
 - [ ] **Step 3: Build the legacy conflict ledger**
 
-Assign each contradiction a `DOC-CONFLICT-NNN` ID and record claim A, claim B, stronger evidence, disposition (`Retain`, `Correct Later`, `Historical`, or `Unresolved`), and affected artifact. Include at minimum authentication scope, product universe, MongoDB status, roadmap-vs-implementation, and PEG behavior.
+Assign each contradiction a `DOC-CONFLICT-NNN` ID and record claim A, claim B,
+stronger evidence, disposition (`Retain`, `Correct Later`, `Historical`, or
+`Unresolved`), and affected artifact. Use
+`docs/LEGACY_ARCHIVE_MANIFEST.md` as the archive index and read archived claims
+with `git show 77fec5f:<relative-path>`. Include at minimum authentication
+scope, product universe, MongoDB status, roadmap-vs-implementation, and PEG
+behavior.
 
 - [ ] **Step 4: Validate cross-runtime evidence and conflicts**
 
