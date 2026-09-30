@@ -8,7 +8,7 @@ workflow, and operating guides for the finance-project monorepo.
 | Document | Purpose |
 |---|---|
 | `superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md` | Approved evidence-driven investment-platform foundation |
-| `superpowers/plans/2026-09-29-product-documentation-reconstruction.md` | Execution plan for the current-state baseline, PRD, epics, and stories |
+| `superpowers/plans/2026-09-29-product-documentation-reconstruction.md` | Seven-plan execution index for the current-state baseline, PRD, epics, and stories |
 | `LEGACY_ARCHIVE_MANIFEST.md` | Recoverable inventory and location of archived legacy documents |
 
 ## Core Documentation
