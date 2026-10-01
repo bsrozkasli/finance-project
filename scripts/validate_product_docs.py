@@ -181,6 +181,27 @@ def _field_values(text: str) -> dict[str, str]:
     return values
 
 
+def _record_blocks(text: str, prefix: str) -> list[tuple[str, str]]:
+    lines = text.splitlines()
+    records: list[tuple[str, str]] = []
+    for index, line in enumerate(lines):
+        heading = re.match(r"^(#{2,6})\s+", line)
+        if not heading:
+            continue
+        identifiers = [identifier for identifier in extract_ids(line) if identifier.startswith(prefix)]
+        if not identifiers:
+            continue
+        level = len(heading.group(1))
+        end = len(lines)
+        for candidate_index in range(index + 1, len(lines)):
+            candidate = re.match(r"^(#{2,6})\s+", lines[candidate_index])
+            if candidate and len(candidate.group(1)) <= level:
+                end = candidate_index
+                break
+        records.append((sorted(identifiers)[0], "\n".join(lines[index:end])))
+    return records
+
+
 def _is_policy(path: Path) -> bool:
     return path.name == "CONTRIBUTING.md"
 
@@ -208,11 +229,23 @@ def _validate_required_sections(path: Path, text: str) -> list[ValidationError]:
 
 
 def _validate_evidence(path: Path, text: str) -> list[ValidationError]:
-    if _is_policy(path) or not EVIDENCE_LEVEL_PATTERN.search(text):
+    if _is_policy(path) or "evidence" not in {part.lower() for part in path.parts}:
         return []
 
-    values = _field_values(text)
+    records = _record_blocks(text, "CAP-CUR-")
+    if not records:
+        return []
+
     errors: list[ValidationError] = []
+    record_fields = (
+        "summary",
+        "evidence level",
+        "contract",
+        "evidence locator",
+        "verification",
+        "limitations",
+        "legacy claims",
+    )
     required_fields = {
         "commit": "EVIDENCE_COMMIT",
         "evidence locator": "EVIDENCE_LOCATOR",
@@ -222,11 +255,25 @@ def _validate_evidence(path: Path, text: str) -> list[ValidationError]:
         "verification": "EVIDENCE_VERIFICATION",
         "limitations": "EVIDENCE_LIMITATIONS",
     }
-    for field, code in required_fields.items():
-        if not values.get(field):
-            errors.append(
-                _error(code, path, f"E2/E3 evidence requires a non-empty '{field}'")
-            )
+    for identifier, block in records:
+        values = _field_values(block)
+        for field in record_fields:
+            if not values.get(field):
+                errors.append(
+                    _error(
+                        "MISSING_EVIDENCE_FIELD",
+                        path,
+                        f"{identifier} requires a non-empty '{field}' field",
+                    )
+                )
+
+        if not EVIDENCE_LEVEL_PATTERN.search(block):
+            continue
+        for field, code in required_fields.items():
+            if not values.get(field):
+                errors.append(
+                    _error(code, path, f"E2/E3 evidence requires a non-empty '{field}'")
+                )
     return errors
 
 
@@ -282,15 +329,23 @@ def _validate_prd_degradation(path: Path, text: str) -> list[ValidationError]:
 def _validate_conflict(path: Path, text: str) -> list[ValidationError]:
     if "conflict" not in path.name.lower() and "DOC-CONFLICT-" not in text:
         return []
-    if re.search(r"(?im)^\s*(?:[-*]?\s*)?(?:\*\*)?Disposition(?:\*\*)?\s*[:|]", text):
-        return []
-    return [
-        _error(
-            "CONFLICT_DISPOSITION",
-            path,
-            "every conflict record requires an explicit disposition",
-        )
-    ]
+    records = _record_blocks(text, "DOC-CONFLICT-")
+    if not records:
+        records = [("conflict", text)]
+    errors: list[ValidationError] = []
+    for identifier, block in records:
+        if not re.search(
+            r"(?im)^\s*(?:[-*]?\s*)?(?:\*\*)?Disposition(?:\*\*)?\s*[:|]",
+            block,
+        ):
+            errors.append(
+                _error(
+                    "CONFLICT_DISPOSITION",
+                    path,
+                    f"{identifier} requires an explicit disposition",
+                )
+            )
+    return errors
 
 
 def _validate_story_ownership(path: Path, text: str) -> list[ValidationError]:

@@ -130,6 +130,29 @@ class ValidateProductDocsTests(unittest.TestCase):
 
             self.assertIn("EVIDENCE_LOCATOR", self.codes(root))
 
+    def test_rejects_evidence_record_without_legacy_claims(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "evidence/backend.md",
+                """
+                # Backend Evidence
+                ## Audit Metadata
+                ## Evidence Records
+                ### CAP-CUR-BE-001
+                - Summary: backend endpoint evidence
+                - Evidence Level: E1 - Documented Claim
+                - Contract: endpoint contract
+                - Evidence Locator: docs/current.md#endpoint
+                - Verification: documentation review
+                - Limitations: runtime not executed
+                ## Limitations
+                """,
+            )
+
+            self.assertIn("MISSING_EVIDENCE_FIELD", self.codes(root))
+
     def test_rejects_target_requirement_marked_implemented(self) -> None:
         with self.fixture() as directory:
             root = Path(directory)
