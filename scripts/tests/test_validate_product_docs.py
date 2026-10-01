@@ -186,6 +186,26 @@ class ValidateProductDocsTests(unittest.TestCase):
 
             self.assertIn("CONFLICT_DISPOSITION", self.codes(root))
 
+    def test_policy_artifact_is_not_capability_evidence(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CONTRIBUTING.md",
+                """
+                # Authoring Contract
+                ## Artifact Taxonomy
+                ## Stable IDs and Statuses
+                ## Evidence Contract
+                ## Authoring Workflow
+                - Evidence Level: E2 - Implementation Verified
+                """,
+            )
+
+            errors = validate_product_docs(root)
+
+            self.assertNotIn("EVIDENCE_LOCATOR", {error.code for error in errors})
+
     def test_complete_mode_requires_canonical_artifacts(self) -> None:
         with self.fixture() as directory:
             root = Path(directory)
