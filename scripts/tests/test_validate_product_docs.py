@@ -183,6 +183,66 @@ class ValidateProductDocsTests(unittest.TestCase):
 
             self.assertNotIn("UNKNOWN_REFERENCE", self.codes(root))
 
+    def test_epic_story_plan_accepts_forward_same_owner_story_references(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "epics/EPIC-000-verification.md",
+                """
+                # EPIC-000 Verification
+                ## Outcome
+                ## Problem
+                ## Scope
+                ## Out of Scope
+                ## Requirements
+                ## Dependencies
+                ## Risks
+                ## Success Evidence
+                ## Story Plan
+                1. STORY-000-01 audit backend.
+                2. STORY-000-02 audit data-service.
+                """,
+            )
+
+            self.assertNotIn("UNKNOWN_REFERENCE", self.codes(root))
+
+    def test_epic_forward_story_exception_stays_in_owner_story_plan(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "epics/EPIC-000-verification.md",
+                """
+                # EPIC-000 Verification
+                ## Outcome
+                ## Problem
+                ## Scope
+                ## Out of Scope
+                ## Requirements
+                ## Dependencies
+                ## Risks
+                - STORY-000-03 is not a plan item.
+                ## Success Evidence
+                ## Story Plan
+                1. STORY-000-01 audit backend.
+                2. STORY-001-01 belongs to another epic.
+                """,
+            )
+
+            errors = validate_product_docs(root)
+
+            self.assertEqual(
+                {"STORY-000-03", "STORY-001-01"},
+                {
+                    identifier
+                    for error in errors
+                    if error.code == "UNKNOWN_REFERENCE"
+                    for identifier in ("STORY-000-03", "STORY-001-01")
+                    if identifier in error.message
+                },
+            )
+
     def test_rejects_e2_without_locator(self) -> None:
         with self.fixture() as directory:
             root = Path(directory)

@@ -437,6 +437,22 @@ def _validate_story_ownership(path: Path, text: str) -> list[ValidationError]:
     return []
 
 
+def _planned_story_ids(path: Path, text: str) -> set[str]:
+    if path.parent.name != "epics":
+        return set()
+    owner = re.match(r"EPIC-(\d{3})-", path.name)
+    section = re.search(r"(?ms)^## Story Plan\s*\n(.*?)(?=^## |\Z)", text)
+    if not owner or not section:
+        return set()
+    return {
+        identifier
+        for line in section.group(1).splitlines()
+        if re.match(r"^\s*(?:\d+\.|[-*])\s+", line)
+        for identifier in extract_ids(line)
+        if identifier.startswith(f"STORY-{owner.group(1)}-")
+    }
+
+
 def _validate_complete(root: Path, files: list[Path]) -> list[ValidationError]:
     errors: list[ValidationError] = []
     canonical = ("CURRENT_STATE_BASELINE.md", "PRD.md", "CAPABILITY_GAP_MAP.md")
@@ -537,7 +553,7 @@ def validate_product_docs(root: Path, complete: bool = False) -> list[Validation
             continue
         text = path.read_text(encoding="utf-8")
         declared_here = set(declarations_by_file.get(path, []))
-        allowed_forward = forward_epic_owners if path == gap_path else set()
+        allowed_forward = forward_epic_owners if path == gap_path else _planned_story_ids(path, text)
         for identifier in sorted(extract_references(text) - known_ids - declared_here - allowed_forward):
             errors.append(
                 _error(
