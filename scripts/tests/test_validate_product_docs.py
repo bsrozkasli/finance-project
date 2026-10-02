@@ -105,6 +105,84 @@ class ValidateProductDocsTests(unittest.TestCase):
 
             self.assertIn("UNKNOWN_REFERENCE", self.codes(root))
 
+    def test_gap_map_requires_one_primary_row_per_requirement(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Executive Summary
+                ## Product Scope
+                ## Functional Requirements
+                | `CAP-TGT-001` | Approved |
+                | `PRD-FR-001` | Approved |
+                ## Non-Functional Requirements
+                | `PRD-NFR-001` | `CAP-TGT-001` | Approved |
+                ## Testing Strategy
+                ## Degradation
+                """,
+            )
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | OQ-1 | None | fixture | Blocked |
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | OQ-1 | None | fixture | Blocked |
+                ## Traceability
+                """,
+            )
+
+            codes = self.codes(root)
+            self.assertIn("GAP_DUPLICATE_REQUIREMENT", codes)
+            self.assertIn("GAP_MISSING_REQUIREMENT", codes)
+            self.assertNotIn("UNKNOWN_REFERENCE", codes)
+
+    def test_gap_map_rejects_invalid_class_or_owner(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Maybe | Missing behavior | `EPIC-099` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+
+            codes = self.codes(root)
+            self.assertIn("GAP_CLASS", codes)
+            self.assertIn("GAP_EPIC_OWNER", codes)
+
+    def test_gap_map_accepts_forward_epic_owner_until_epic_artifact_exists(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+
+            self.assertNotIn("UNKNOWN_REFERENCE", self.codes(root))
+
     def test_rejects_e2_without_locator(self) -> None:
         with self.fixture() as directory:
             root = Path(directory)
@@ -273,8 +351,11 @@ class ValidateProductDocsTests(unittest.TestCase):
                 """
                 # Capability Gap Map
                 ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | None | None | fixture | Ready |
+                | `PRD-NFR-001` | `CAP-TGT-001` | None | Verification | Missing proof | `EPIC-001` | None | None | fixture | Ready |
                 ## Traceability
-                | `CAP-TGT-001` | `PRD-FR-001` | `EPIC-001` |
                 """,
             )
             self.write(root, "README.md", "# Product Documentation\n")

@@ -51,6 +51,10 @@ STORY_SECTIONS = (
     "Traceability",
     "Definition of Done",
 )
+GAP_CLASSES = frozenset(
+    {"None", "Verification", "Documentation", "Behavior", "Data", "Architecture", "Compliance", "Deferred"}
+)
+GAP_READINESS = frozenset({"Ready", "Blocked", "Deferred"})
 
 
 @dataclass(frozen=True)
@@ -348,6 +352,56 @@ def _validate_conflict(path: Path, text: str) -> list[ValidationError]:
     return errors
 
 
+def _gap_rows(text: str) -> list[tuple[str, list[str]]]:
+    section = re.search(r"(?ms)^## Gap Map\s*\n(.*?)(?=^## |\Z)", text)
+    if not section:
+        return []
+    rows: list[tuple[str, list[str]]] = []
+    for line in section.group(1).splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+        if cells and re.fullmatch(r"PRD-(?:FR|NFR)-\d{3}", cells[0]):
+            rows.append((cells[0], cells))
+    return rows
+
+
+def _validate_gap_map(path: Path, text: str, prd_text: str) -> list[ValidationError]:
+    rows = _gap_rows(text)
+    required = {
+        identifier
+        for identifier in _definition_ids(path.with_name("PRD.md"), prd_text)
+        if identifier.startswith(("PRD-FR-", "PRD-NFR-"))
+    }
+    counts: defaultdict[str, int] = defaultdict(int)
+    errors: list[ValidationError] = []
+    for identifier, cells in rows:
+        counts[identifier] += 1
+        if len(cells) != 10 or any(not cell for cell in cells):
+            errors.append(_error("GAP_ROW_FIELDS", path, f"{identifier} requires ten non-empty primary fields"))
+            continue
+        target, current, gap_class, statement, owner, dependency, risk, acceptance, readiness = cells[1:]
+        if not re.fullmatch(r"CAP-TGT-\d{3}", target):
+            errors.append(_error("GAP_TARGET", path, f"{identifier} requires one target capability"))
+        if current != "None" and not re.fullmatch(r"CAP-CUR-(?:BE|DS|FE|XR)-\d{3}(?:,\s*CAP-CUR-(?:BE|DS|FE|XR)-\d{3})*", current):
+            errors.append(_error("GAP_CURRENT", path, f"{identifier} requires current evidence IDs or None"))
+        if gap_class not in GAP_CLASSES:
+            errors.append(_error("GAP_CLASS", path, f"{identifier} has invalid class {gap_class}"))
+        if not re.fullmatch(r"EPIC-0(?:0\d|10)", owner):
+            errors.append(_error("GAP_EPIC_OWNER", path, f"{identifier} requires one EPIC-000 through EPIC-010 owner"))
+        if readiness not in GAP_READINESS:
+            errors.append(_error("GAP_READINESS", path, f"{identifier} has invalid readiness {readiness}"))
+        if not statement or not dependency or not risk or not acceptance:
+            errors.append(_error("GAP_ROW_FIELDS", path, f"{identifier} has an empty required field"))
+
+    for identifier in sorted(required):
+        if counts[identifier] == 0:
+            errors.append(_error("GAP_MISSING_REQUIREMENT", path, f"{identifier} has no primary gap row"))
+        elif counts[identifier] > 1:
+            errors.append(_error("GAP_DUPLICATE_REQUIREMENT", path, f"{identifier} has {counts[identifier]} primary rows"))
+    return errors
+
+
 def _validate_story_ownership(path: Path, text: str) -> list[ValidationError]:
     parts = list(path.parts)
     try:
@@ -465,12 +519,26 @@ def validate_product_docs(root: Path, complete: bool = False) -> list[Validation
                 )
 
     known_ids = set(definitions_by_id)
+    gap_path = root / "CAPABILITY_GAP_MAP.md"
+    if gap_path.is_file():
+        prd_path = root / "PRD.md"
+        prd_text = prd_path.read_text(encoding="utf-8") if prd_path.is_file() else ""
+        gap_text = gap_path.read_text(encoding="utf-8")
+        errors.extend(_validate_gap_map(gap_path, gap_text, prd_text))
+        forward_epic_owners = {
+            cells[5]
+            for _, cells in _gap_rows(gap_text)
+            if len(cells) == 10 and re.fullmatch(r"EPIC-0(?:0\d|10)", cells[5])
+        }
+    else:
+        forward_epic_owners = set()
     for path in files:
         if _is_policy(path) or _is_review_artifact(path):
             continue
         text = path.read_text(encoding="utf-8")
         declared_here = set(declarations_by_file.get(path, []))
-        for identifier in sorted(extract_references(text) - known_ids - declared_here):
+        allowed_forward = forward_epic_owners if path == gap_path else set()
+        for identifier in sorted(extract_references(text) - known_ids - declared_here - allowed_forward):
             errors.append(
                 _error(
                     "UNKNOWN_REFERENCE",
