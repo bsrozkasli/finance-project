@@ -3,10 +3,11 @@
 This directory contains product-foundation, architecture, API, provider,
 workflow, and operating guides for the finance-project monorepo.
 
-## Product Documentation
+## Product Definition and Delivery
 
 | Document | Purpose |
 |---|---|
+| [Product documentation index](product/README.md) | Reading order for current evidence, target requirements, gaps, epics, and verification stories |
 | `superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md` | Approved evidence-driven investment-platform foundation |
 | `superpowers/plans/2026-09-29-product-documentation-reconstruction.md` | Seven-plan execution index for the current-state baseline, PRD, epics, and stories |
 | `LEGACY_ARCHIVE_MANIFEST.md` | Recoverable inventory and location of archived legacy documents |
