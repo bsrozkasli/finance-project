@@ -31,6 +31,20 @@ class ValidateProductDocsTests(unittest.TestCase):
     def codes(self, root: Path, complete: bool = False) -> set[str]:
         return {error.code for error in validate_product_docs(root, complete=complete)}
 
+    def test_research_epic_preserves_target_date_selection_rule(self) -> None:
+        path = Path(__file__).resolve().parents[2] / "docs/product/epics/EPIC-003-end-to-end-asset-research.md"
+        text = path.read_text(encoding="utf-8")
+
+        self.assertIn("fiscal date nearest 24 months", text)
+        self.assertIn("between two eligible fiscal dates by distance from 24 months", text)
+
+    def test_research_epic_preserves_etf_substitution_gate(self) -> None:
+        path = Path(__file__).resolve().parents[2] / "docs/product/epics/EPIC-003-end-to-end-asset-research.md"
+        text = path.read_text(encoding="utf-8")
+
+        self.assertIn("only when rights prevent", text)
+        self.assertIn("lower Evidence Strength", text)
+
     def test_rejects_duplicate_ids(self) -> None:
         with self.fixture() as directory:
             root = Path(directory)
