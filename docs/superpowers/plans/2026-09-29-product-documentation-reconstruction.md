@@ -16,14 +16,17 @@
 |---|---|
 | Plan set | Product Documentation Reconstruction |
 | Total plans | 7 |
-| Overall status | In progress |
-| Current executable plan | Plan 1 — Governance and Validation |
-| Existing advanced draft | Plan 4 — `docs/product/PRD.md` and review artifacts |
+| Overall status | Complete — product-documentation foundation, not feature delivery or release approval |
+| Current executable plan | None in this seven-plan set; epic-specific planning is the next handoff |
+| Existing advanced draft | Reconciled and committed by Plan 4; the PRD remains a target contract |
 | Execution rule | A plan may complete only after its exit criteria and handoff inputs are verified. |
 | Product discussion language | Turkish |
 | Product artifact language | English |
 
-The existing PRD is an in-progress draft, not evidence that Plans 1-3 are complete. Plan 4 must resume and reconcile that draft after the governance, evidence, and baseline dependencies exist.
+The initial PRD draft was reconciled only after governance, evidence, and
+baseline dependencies were established. Completion here means the documentation
+chain validates; it does not promote target behavior into `SPEC.md` or approve
+external, regulated, or paid release.
 
 ## Dependency Graph
 
@@ -41,28 +44,31 @@ Plans execute in this order. A downstream draft may exist, but it cannot be fina
 
 ## Child Plans
 
-| Plan | File | Former tasks | Outcome | Status |
+| Plan | File | Former tasks | Outcome | Status and evidence |
 |---:|---|---:|---|---|
-| 1 | [`2026-09-30-product-documentation-01-governance.md`](2026-09-30-product-documentation-01-governance.md) | 1-2 | Validator and normative authoring contract | Not started |
-| 2 | [`2026-09-30-product-documentation-02-brownfield-evidence.md`](2026-09-30-product-documentation-02-brownfield-evidence.md) | 3-6 | Runtime evidence and legacy conflict ledger | Not started |
-| 3 | [`2026-09-30-product-documentation-03-current-state-baseline.md`](2026-09-30-product-documentation-03-current-state-baseline.md) | 7 | Canonical evidence-backed current state | Not started |
-| 4 | [`2026-09-30-product-documentation-04-prd-and-gap-map.md`](2026-09-30-product-documentation-04-prd-and-gap-map.md) | 8-9 | Final PRD and total capability gap map | In progress; blocked by Plans 1-3 |
-| 5 | [`2026-09-30-product-documentation-05-epic-000-verification.md`](2026-09-30-product-documentation-05-epic-000-verification.md) | 10 | `EPIC-000` and six verification stories | Not started |
-| 6 | [`2026-09-30-product-documentation-06-delivery-epics.md`](2026-09-30-product-documentation-06-delivery-epics.md) | 11-13 | `EPIC-001` through `EPIC-010` catalog | Not started |
-| 7 | [`2026-09-30-product-documentation-07-publication.md`](2026-09-30-product-documentation-07-publication.md) | 14 | Indexes, complete validation, and handoff | Not started |
+| 1 | [`2026-09-30-product-documentation-01-governance.md`](2026-09-30-product-documentation-01-governance.md) | 1-2 | Validator and normative authoring contract | Complete — `243ca06`, `10a99ba`, `532e2f2`; `CONTRIBUTING.md` and validator tests. |
+| 2 | [`2026-09-30-product-documentation-02-brownfield-evidence.md`](2026-09-30-product-documentation-02-brownfield-evidence.md) | 3-6 | Runtime evidence and legacy conflict ledger | Complete — `d82aa7d`, `82b7836`, `1a5e3b5`, `e1171d5`; five evidence annexes. |
+| 3 | [`2026-09-30-product-documentation-03-current-state-baseline.md`](2026-09-30-product-documentation-03-current-state-baseline.md) | 7 | Canonical evidence-backed current state | Complete — `bde81a7`, `42ed333`; baseline and verification result. |
+| 4 | [`2026-09-30-product-documentation-04-prd-and-gap-map.md`](2026-09-30-product-documentation-04-prd-and-gap-map.md) | 8-9 | Final PRD and total capability gap map | Complete — `740ed63`, `2389a4d`, `2d26394`; target requirements and one-owner gap map. |
+| 5 | [`2026-09-30-product-documentation-05-epic-000-verification.md`](2026-09-30-product-documentation-05-epic-000-verification.md) | 10 | `EPIC-000` and six verification stories | Complete — `a4ca4dc`, `93376ee`; current-state verification package. |
+| 6 | [`2026-09-30-product-documentation-06-delivery-epics.md`](2026-09-30-product-documentation-06-delivery-epics.md) | 11-13 | `EPIC-001` through `EPIC-010` catalog | Complete — `068b2bf`, `8938b44`, `8cf1cdc`, `0cf4e78`, `4c35862`; delivery catalog and 26-test gate. |
+| 7 | [`2026-09-30-product-documentation-07-publication.md`](2026-09-30-product-documentation-07-publication.md) | 14 | Indexes, complete validation, and handoff | Complete — `26b998f`, `23b71cd`, this closure record; 27-test and complete-mode gate below. |
 
-## Existing Work Preserved
+## Kickoff Work Preserved
 
-| Artifact | State | Owning plan | Treatment |
+These rows record how pre-existing work was handled, not a second source of
+current product requirements.
+
+| Artifact | Kickoff state | Owning plan | Final treatment |
 |---|---|---:|---|
-| `docs/product/PRD.md` | Uncommitted draft | 4 | Continue and reconcile; do not recreate or overwrite. |
-| `docs/product/reconcile-foundation.md` | Review evidence | 4 | Consume and preserve with explicit finding dispositions. |
-| `docs/product/reconcile-finance-risk.md` | Review evidence | 4 | Consume and preserve with explicit finding dispositions. |
-| `docs/product/review-brownfield.md` | Review evidence | 4 | Consume; preserves the no-separate-Product-Brief decision. |
-| `docs/product/review-finance.md` | Review evidence | 4 | Consume and resolve blocker/high finance findings. |
-| `docs/product/review-rubric.md` | Review evidence | 4 | Consume and resolve readiness/security/measurement findings. |
-| `docs/README.md` | Existing uncommitted edit | 7 | Inspect and continue; do not overwrite. |
-| `data-service/external/TradingAgents` | User-owned dirty state | None | Never modify or stage. |
+| `docs/product/PRD.md` | Uncommitted draft | 4 | Reconciled and committed as the canonical target PRD. |
+| `docs/product/reconcile-foundation.md` | Review evidence | 4 | Preserved as a review input with finding dispositions. |
+| `docs/product/reconcile-finance-risk.md` | Review evidence | 4 | Preserved as a finance/risk review input. |
+| `docs/product/review-brownfield.md` | Review evidence | 4 | Preserved; no duplicate Product Brief was created. |
+| `docs/product/review-finance.md` | Review evidence | 4 | Preserved with finance finding dispositions. |
+| `docs/product/review-rubric.md` | Review evidence | 4 | Preserved with readiness/security/measurement findings. |
+| `docs/README.md` | Existing uncommitted edit | 7 | Product-index link committed as a narrow hunk; concurrent user documentation migration remains unstaged. |
+| `data-service/external/TradingAgents` | User-owned dirty state | None | Left unmodified and unstaged. |
 
 ## Plan Set Locked Decisions
 
@@ -132,7 +138,7 @@ An existing file alone never implies `Complete`. Status updates must cite artifa
 
 ## Plan-Set Completion Evidence
 
-Run after Plan 7:
+Final branch checks run on 2026-10-02 (Europe/Istanbul):
 
 ```powershell
 python -m unittest discover -s scripts/tests -p "test_*.py" -v
@@ -142,17 +148,30 @@ git log --oneline main..HEAD
 git status --short --branch
 ```
 
-Expected: validator tests PASS, complete product-document validation exits `0`, no whitespace errors exist, commits are atomic, statuses reflect actual evidence, and the only unrelated working-tree entry is the pre-existing `data-service/external/TradingAgents` modification.
+| Check | Observed result |
+|---|---|
+| Validator unit suite | 27/27 passed, including broken-index-link rejection. |
+| `--complete` product validation | Exit `0`; canonical baseline, PRD, gap map, eleven epics, six `EPIC-000` stories, and both indexes exist with valid governed references and local index targets. |
+| Product index links | 32 unique targets resolved; no duplicate target or missing file. |
+| `git diff --check main...HEAD` | Exit `0`; no committed whitespace errors. |
+| Scoped stage | No unintended staged path. `docs/README.md` contributed only the product-index hunk in `26b998f`. |
+| Working tree | Concurrent user documentation migration and `data-service/external/TradingAgents` remain uncommitted and unstaged; the former makes the original “only TradingAgents dirty” expectation obsolete. |
+
+These checks establish documentation consistency and readiness for separate
+epic-specific story planning, not runtime feature completion or release
+readiness. The baseline's Testcontainers skips and failing browser E2E scenarios
+remain documented limitations. Legal, data-rights, evidence, and financial
+policy gates remain open where the PRD and epics say so.
 
 ## Execution Handoff
 
-Start with Plan 1. After each plan:
-
-1. Review the child plan's exit criteria.
-2. Record actual validation evidence and commit IDs.
-3. Update this index status only when evidence supports the change.
-4. Read the next plan's `Depends On` and `Handoff` sections before execution.
-5. Stop rather than infer approval when a legal, data-rights, financial-policy, or contract decision remains open.
+The seven-plan documentation program is closed. Later work begins with a
+separate epic-specific plan using the [product reading index](../../product/README.md),
+the owning epic's proposed Story Plan, the PRD, and the gap map. Proposed
+`STORY-001-xx` through `STORY-010-xx` proposed IDs are not approved detailed
+stories.
+Recheck the owning epic's unresolved legal, rights, evidence, financial-policy,
+contract, and measurement gates before accepting implementation stories.
 
 ## Index Self-Review
 
@@ -162,6 +181,8 @@ Start with Plan 1. After each plan:
 
 **Naming:** Dates, filenames, plan numbers, artifact paths, ID families, and statuses are consistent across the index and child plans.
 
-**Risk:** The index makes out-of-order draft work visible without treating it as completed dependency evidence.
+**Risk:** The catalog is planning evidence, not proof of delivered target
+features. Concurrent user documentation edits remain outside this plan's
+commits and must be reviewed separately.
 
 **Proportion:** Execution detail lives in child plans; this file contains only plan-set coordination, shared invariants, status, and completion evidence.
