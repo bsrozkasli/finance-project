@@ -409,6 +409,7 @@ class ValidateProductDocsTests(unittest.TestCase):
                 "epics/EPIC-001-outcome.md",
                 """
                 # EPIC-001 Outcome
+                - Phase: V1 Foundation.
                 ## Outcome
                 ## Problem
                 ## Scope
@@ -420,6 +421,106 @@ class ValidateProductDocsTests(unittest.TestCase):
                 ## Dependencies
                 ## Risks
                 ## Success Evidence
+                - Fixture verifies the expected result.
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Show evidence. | OQ-3 |
+                """,
+            )
+
+            errors = validate_product_docs(root)
+
+            self.assertEqual([], errors)
+
+    def test_delivery_epic_rejects_deferred_value_mvp_promotion(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-050` | `CAP-TGT-009` | None | Deferred | Missing | `EPIC-009` | Post-V1 | None | fixture | Deferred |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-009-outcome.md",
+                """
+                # EPIC-009 Outcome
+                - Phase: Value MVP.
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-050` | Own it. |
+                ## Success Evidence
+                - Fixture verifies read-only behavior.
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-009-01` | Reconcile records. | EPIC-002 |
+                """,
+            )
+
+            self.assertIn("EPIC_PHASE", self.codes(root))
+
+    def test_delivery_epic_rejects_deferred_gap_readiness_promotion(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-050` | `CAP-TGT-009` | None | Deferred | Missing | `EPIC-009` | Post-V1 | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+
+            self.assertIn("EPIC_DEFERRED_READINESS", self.codes(root))
+
+    def test_delivery_complete_rejects_absent_epic_without_plan_seven_artifacts(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.assertIn(
+                "DELIVERY_EPIC_MISSING",
+                {error.code for error in validate_product_docs(root, delivery_complete=True)},
+            )
+
+    def test_delivery_epic_rejects_placeholder_dependency_and_evidence(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | OQ-2 | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                - Phase: V1 Foundation.
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Success Evidence
                 ## Story Plan
                 | Proposed story | Outcome | Dependency |
                 |---|---|---|
@@ -427,9 +528,9 @@ class ValidateProductDocsTests(unittest.TestCase):
                 """,
             )
 
-            errors = validate_product_docs(root)
-
-            self.assertEqual([], errors)
+            codes = self.codes(root)
+            self.assertIn("EPIC_STORY_DEPENDENCY", codes)
+            self.assertIn("EPIC_SUCCESS_EVIDENCE", codes)
 
     def test_rejects_e2_without_locator(self) -> None:
         with self.fixture() as directory:
@@ -625,13 +726,27 @@ class ValidateProductDocsTests(unittest.TestCase):
                 body = f"# {epic_id} Outcome\n" + "\n".join(
                     f"## {section}\n- recorded" for section in epic_sections
                 )
+                if number >= 1:
+                    if number <= 4:
+                        phase = "V1 Foundation"
+                    elif number <= 7:
+                        phase = "Value MVP"
+                    else:
+                        phase = "Post-V1"
+                    body = body.replace(
+                        f"# {epic_id} Outcome\n",
+                        f"# {epic_id} Outcome\n- Phase: {phase}.\n",
+                    ).replace(
+                        "## Success Evidence\n- recorded",
+                        "## Success Evidence\n- Fixture verifies the expected result.",
+                    ).replace(
+                        "## Story Plan\n- recorded",
+                        f"## Story Plan\n| Proposed story | Outcome | Dependency |\n|---|---|---|\n| `STORY-{number:03d}-01` | Show evidence. | OQ-3 |",
+                    )
                 if number == 1:
                     body = body.replace(
                         "## Requirements\n- recorded",
                         "## Requirements\n| Requirement | Boundary |\n|---|---|\n| `PRD-FR-001` | Owned. |\n| `PRD-NFR-001` | Owned. |",
-                    ).replace(
-                        "## Story Plan\n- recorded",
-                        "## Story Plan\n| Proposed story | Outcome | Dependency |\n|---|---|---|\n| `STORY-001-01` | Show evidence. | None |",
                     )
                 self.write(root, f"epics/{epic_id}-outcome.md", body)
 
@@ -660,7 +775,7 @@ class ValidateProductDocsTests(unittest.TestCase):
                     body,
                 )
 
-            errors = validate_product_docs(root, complete=True)
+            errors = validate_product_docs(root, complete=True, delivery_complete=True)
 
             self.assertEqual([], errors)
 

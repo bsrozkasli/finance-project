@@ -399,6 +399,16 @@ def _validate_delivery_epics(root: Path, gap_rows: list[tuple[str, list[str]]]) 
             continue
         owner = owner_match.group(1)
         text = path.read_text(encoding="utf-8")
+        number = int(owner_match.group(2))
+        if number <= 4:
+            expected_phase = "V1 Foundation"
+        elif number <= 7:
+            expected_phase = "Value MVP"
+        else:
+            expected_phase = "Post-V1"
+        phase = re.search(r"(?m)^- Phase:\s*(.+)$", text)
+        if not phase or not phase.group(1).startswith(expected_phase):
+            errors.append(_error("EPIC_PHASE", path, f"{owner} requires {expected_phase} phase"))
         requirement_rows = [
             cells
             for cells in _table_rows(_section_body(text, "Requirements"))
@@ -414,8 +424,16 @@ def _validate_delivery_epics(root: Path, gap_rows: list[tuple[str, list[str]]]) 
             if mapped_owner == owner and identifier not in owned:
                 errors.append(_error("EPIC_REQUIREMENT_MISSING", path, f"{owner} is missing mapped {identifier}"))
 
-        if owner not in expected_owner.values():
-            continue
+        evidence = _section_body(text, "Success Evidence")
+        has_method = re.search(r"(?i)\b(?:fixtures?|tests?|exercises?|drills?|samples?|audits?)\b", evidence)
+        has_observable = re.search(
+            r"(?i)\b(?:rejects?|proves?|shows?|records?|compares?|replays?|asserts?|"
+            r"passes?|fails?|verifies?|exposes?|measures?|demonstrates?|covers?)\b",
+            evidence,
+        )
+        if not has_method or not has_observable:
+            errors.append(_error("EPIC_SUCCESS_EVIDENCE", path, f"{owner} needs a reproducible method and observable result"))
+
         story_rows = [
             cells
             for cells in _table_rows(_section_body(text, "Story Plan"))
@@ -426,6 +444,8 @@ def _validate_delivery_epics(root: Path, gap_rows: list[tuple[str, list[str]]]) 
         for cells in story_rows:
             if len(cells) != 3 or not all(cells):
                 errors.append(_error("EPIC_STORY_FIELDS", path, "story plan requires ID, outcome, and dependency"))
+            if len(cells) >= 3 and cells[2].strip().lower().rstrip(".") in {"none", "tbd", "n/a", "na", "-"}:
+                errors.append(_error("EPIC_STORY_DEPENDENCY", path, f"{owner} has placeholder story dependency"))
             identifier = cells[0]
             if not re.fullmatch(r"STORY-\d{3}-\d{2}", identifier):
                 errors.append(_error("EPIC_STORY_ID", path, f"invalid proposed story {identifier}"))
@@ -468,6 +488,8 @@ def _validate_gap_map(path: Path, text: str, prd_text: str) -> list[ValidationEr
             errors.append(_error("GAP_EPIC_OWNER", path, f"{identifier} requires one EPIC-000 through EPIC-010 owner"))
         if readiness not in GAP_READINESS:
             errors.append(_error("GAP_READINESS", path, f"{identifier} has invalid readiness {readiness}"))
+        if owner in {"EPIC-008", "EPIC-009", "EPIC-010"} and readiness != "Deferred":
+            errors.append(_error("EPIC_DEFERRED_READINESS", path, f"{identifier} must remain Deferred for Post-V1 delivery"))
         if not statement or not dependency or not risk or not acceptance:
             errors.append(_error("GAP_ROW_FIELDS", path, f"{identifier} has an empty required field"))
 
@@ -575,8 +597,10 @@ def _validate_complete(root: Path, files: list[Path]) -> list[ValidationError]:
     return errors
 
 
-def validate_product_docs(root: Path, complete: bool = False) -> list[ValidationError]:
-    """Validate product documentation incrementally or as the complete set."""
+def validate_product_docs(
+    root: Path, complete: bool = False, delivery_complete: bool = False
+) -> list[ValidationError]:
+    """Validate incremental, delivery-catalog, or full product documentation."""
 
     root = root.resolve()
     if not root.is_dir():
@@ -633,6 +657,16 @@ def validate_product_docs(root: Path, complete: bool = False) -> list[Validation
         gap_rows = []
         forward_epic_owners = set()
     errors.extend(_validate_delivery_epics(root, gap_rows))
+    if delivery_complete:
+        for number in range(1, 11):
+            if not list((root / "epics").glob(f"EPIC-{number:03d}-*.md")):
+                errors.append(
+                    _error(
+                        "DELIVERY_EPIC_MISSING",
+                        root / "epics" / f"EPIC-{number:03d}-*.md",
+                        f"delivery epic EPIC-{number:03d} is missing",
+                    )
+                )
     for path in files:
         if _is_policy(path) or _is_review_artifact(path):
             continue
@@ -658,15 +692,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate product documentation contracts")
     parser.add_argument("--root", type=Path, default=Path("docs/product"))
     parser.add_argument("--complete", action="store_true")
+    parser.add_argument("--delivery-complete", action="store_true")
     args = parser.parse_args(argv)
 
-    errors = validate_product_docs(args.root, complete=args.complete)
+    errors = validate_product_docs(
+        args.root, complete=args.complete, delivery_complete=args.delivery_complete
+    )
     if errors:
         for error in errors:
             print(f"{error.code}: {error.path}: {error.message}")
         return 1
 
-    mode = "complete" if args.complete else "incremental"
+    if args.complete:
+        mode = "complete"
+    elif args.delivery_complete:
+        mode = "delivery-complete"
+    else:
+        mode = "incremental"
     print(f"Product documentation validation passed ({mode} mode): {args.root}")
     return 0
 

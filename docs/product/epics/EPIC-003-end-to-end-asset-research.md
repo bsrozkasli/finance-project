@@ -24,12 +24,13 @@ comparison is not proof of a licensed, point-in-time total-return series.
 - Compute the approved stock model and a separate ETF model; omit stock-only
   ratios, including Target-Horizon PEG, from ETF evaluation.
 - Freeze stock S&P 500 total-return primary and mapped GICS-sector total-return
-  secondary benchmarks; use an ETF's declared index or only a predeclared,
-  rights-permitted category substitute with an explicit downgrade.
+  secondary benchmarks. Use an ETF's declared index; only when rights prevent
+  that index, use a predeclared, rights-permitted category substitute with a
+  recorded reason and lower Evidence Strength.
 - Calculate Target-Horizon PEG from snapshot price, normalized current EPS,
-  target-date consensus EPS, and exact fractional-period CAGR. The nearest
-  target fiscal date must be within 18-32 months of the snapshot; retain inputs,
-  units, dates, analyst count, dispersion, and formula version.
+  target-date consensus EPS, and exact fractional-period CAGR. Select the
+  fiscal date nearest 24 months, within 18-32 months of the snapshot; retain
+  inputs, units, dates, analyst count, dispersion, and formula version.
 - Mark PEG `Not Meaningful` for non-positive EPS, growth at most 2%, fewer
   than three target estimates, or missing inputs. Mark `High Uncertainty` and
   exclude from scoring for growth over 50% or dispersion over 50% of the
@@ -98,12 +99,15 @@ Each row is the sole primary assignment from the
 - Independent formula fixtures document stock and ETF units, periods,
   rounding, missingness, restatements, and corporate actions; ETF API/UI
   fixtures contain no stock PEG metric.
-- Hand-calculated PEG fixtures exercise 18/32-month eligibility, 2%/50%
-  growth boundaries, two/three estimates, dispersion, nine/ten peers, and
-  absent or mismatched policy versions. A favorable PEG alone never yields Add.
-- Rights and point-in-time fixtures prove total-return series, declared or
-  permitted substitute index, frozen benchmark IDs, and rejection of later
-  remapping. Section UI/contract fixtures preserve source and freshness gaps.
+- Hand-calculated PEG fixtures exercise 18/32-month eligibility, selection
+  between two eligible fiscal dates by distance from 24 months, 2%/50% growth
+  boundaries, two/three estimates, dispersion, nine/ten peers, and absent or
+  mismatched policy versions. A favorable PEG alone never yields Add.
+- Rights and point-in-time fixtures prove total-return series, the ETF's
+  declared index unless rights prevent its use, a predeclared permitted
+  substitute only in that case with lower Evidence Strength and reason, frozen
+  benchmark IDs, and rejection of later remapping. Section UI/contract
+  fixtures preserve source and freshness gaps.
 - A versioned OQ-7 measurement dictionary and recorded browser-flow sample
   provide environment, cohort, timestamps, exclusions, command/result, and
   locator for the under-ten-minute first meaningful result gate.
