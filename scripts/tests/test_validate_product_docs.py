@@ -243,6 +243,194 @@ class ValidateProductDocsTests(unittest.TestCase):
                 },
             )
 
+    def test_delivery_epic_rejects_wrong_and_duplicate_requirement_owner(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n| `PRD-FR-002` | Approved |")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                | `PRD-FR-002` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-002` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                | `PRD-FR-002` | Wrongly own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Inspect source. | None |
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-002-outcome.md",
+                """
+                # EPIC-002 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-002` | Own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-002-01` | Inspect source. | None |
+                """,
+            )
+
+            codes = self.codes(root)
+
+            self.assertIn("EPIC_REQUIREMENT_OWNER", codes)
+            self.assertIn("EPIC_REQUIREMENT_DUPLICATE", codes)
+
+    def test_delivery_epic_requires_every_mapped_requirement(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n| `PRD-FR-002` | Approved |")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                | `PRD-FR-002` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Inspect source. | None |
+                """,
+            )
+
+            self.assertIn("EPIC_REQUIREMENT_MISSING", self.codes(root))
+
+    def test_delivery_epic_story_plan_rejects_duplicate_foreign_and_empty_entries(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Show evidence. | None |
+                | `STORY-001-01` | Show evidence again. | None |
+                | `STORY-002-01` | Foreign owner. | None |
+                | `STORY-001-03` |  | None |
+                | `STORY-001-04` | Show data. |  |
+                """,
+            )
+
+            codes = self.codes(root)
+
+            self.assertIn("EPIC_STORY_DUPLICATE", codes)
+            self.assertIn("EPIC_STORY_OWNER", codes)
+            self.assertIn("EPIC_STORY_FIELDS", codes)
+
+    def test_delivery_epic_tables_accept_owned_requirements_and_forward_stories(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Executive Summary
+                ## Product Scope
+                ## Functional Requirements
+                | `CAP-TGT-001` | Approved |
+                | `PRD-FR-001` | Approved |
+                ## Non-Functional Requirements
+                ## Testing Strategy
+                ## Degradation
+                """,
+            )
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                ## Outcome
+                ## Problem
+                ## Scope
+                ## Out of Scope
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Dependencies
+                ## Risks
+                ## Success Evidence
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Show evidence. | None |
+                """,
+            )
+
+            errors = validate_product_docs(root)
+
+            self.assertEqual([], errors)
+
     def test_rejects_e2_without_locator(self) -> None:
         with self.fixture() as directory:
             root = Path(directory)
@@ -437,6 +625,14 @@ class ValidateProductDocsTests(unittest.TestCase):
                 body = f"# {epic_id} Outcome\n" + "\n".join(
                     f"## {section}\n- recorded" for section in epic_sections
                 )
+                if number == 1:
+                    body = body.replace(
+                        "## Requirements\n- recorded",
+                        "## Requirements\n| Requirement | Boundary |\n|---|---|\n| `PRD-FR-001` | Owned. |\n| `PRD-NFR-001` | Owned. |",
+                    ).replace(
+                        "## Story Plan\n- recorded",
+                        "## Story Plan\n| Proposed story | Outcome | Dependency |\n|---|---|---|\n| `STORY-001-01` | Show evidence. | None |",
+                    )
                 self.write(root, f"epics/{epic_id}-outcome.md", body)
 
             story_sections = [

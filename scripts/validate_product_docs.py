@@ -366,6 +366,83 @@ def _gap_rows(text: str) -> list[tuple[str, list[str]]]:
     return rows
 
 
+def _section_body(text: str, heading: str) -> str:
+    section = re.search(rf"(?ms)^## {re.escape(heading)}\s*\n(.*?)(?=^## |\Z)", text)
+    return section.group(1) if section else ""
+
+
+def _table_rows(body: str) -> list[list[str]]:
+    rows: list[list[str]] = []
+    for line in body.splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [cell.strip().strip("`") for cell in line.strip().strip("|").split("|")]
+        if cells and all(re.fullmatch(r":?-+:?", cell) for cell in cells):
+            continue
+        rows.append(cells)
+    return rows
+
+
+def _validate_delivery_epics(root: Path, gap_rows: list[tuple[str, list[str]]]) -> list[ValidationError]:
+    expected_owner = {
+        identifier: cells[5]
+        for identifier, cells in gap_rows
+        if len(cells) == 10 and re.fullmatch(r"EPIC-0(?:0\d|10)", cells[5])
+    }
+    requirements_seen: defaultdict[str, list[Path]] = defaultdict(list)
+    stories_seen: defaultdict[str, list[Path]] = defaultdict(list)
+    errors: list[ValidationError] = []
+
+    for path in sorted((root / "epics").glob("EPIC-*.md")):
+        owner_match = re.match(r"^(EPIC-(\d{3}))-", path.name)
+        if not owner_match or not 1 <= int(owner_match.group(2)) <= 10:
+            continue
+        owner = owner_match.group(1)
+        text = path.read_text(encoding="utf-8")
+        requirement_rows = [
+            cells
+            for cells in _table_rows(_section_body(text, "Requirements"))
+            if cells and re.fullmatch(r"PRD-(?:FR|NFR)-\d{3}", cells[0])
+        ]
+        owned = {cells[0] for cells in requirement_rows}
+        for cells in requirement_rows:
+            identifier = cells[0]
+            requirements_seen[identifier].append(path)
+            if expected_owner.get(identifier) != owner:
+                errors.append(_error("EPIC_REQUIREMENT_OWNER", path, f"{identifier} belongs to {expected_owner.get(identifier, 'no mapped epic')}, not {owner}"))
+        for identifier, mapped_owner in expected_owner.items():
+            if mapped_owner == owner and identifier not in owned:
+                errors.append(_error("EPIC_REQUIREMENT_MISSING", path, f"{owner} is missing mapped {identifier}"))
+
+        if owner not in expected_owner.values():
+            continue
+        story_rows = [
+            cells
+            for cells in _table_rows(_section_body(text, "Story Plan"))
+            if cells and cells[0] != "Proposed story"
+        ]
+        if not story_rows:
+            errors.append(_error("EPIC_STORY_MISSING", path, f"{owner} requires proposed stories"))
+        for cells in story_rows:
+            if len(cells) != 3 or not all(cells):
+                errors.append(_error("EPIC_STORY_FIELDS", path, "story plan requires ID, outcome, and dependency"))
+            identifier = cells[0]
+            if not re.fullmatch(r"STORY-\d{3}-\d{2}", identifier):
+                errors.append(_error("EPIC_STORY_ID", path, f"invalid proposed story {identifier}"))
+                continue
+            stories_seen[identifier].append(path)
+            if not identifier.startswith(f"STORY-{owner_match.group(2)}-"):
+                errors.append(_error("EPIC_STORY_OWNER", path, f"{identifier} does not belong to {owner}"))
+
+    for identifier, paths in requirements_seen.items():
+        if len(paths) > 1:
+            errors.append(_error("EPIC_REQUIREMENT_DUPLICATE", paths[0], f"{identifier} appears in {len(paths)} delivery epic requirement rows"))
+    for identifier, paths in stories_seen.items():
+        if len(paths) > 1:
+            errors.append(_error("EPIC_STORY_DUPLICATE", paths[0], f"{identifier} appears in {len(paths)} story-plan rows"))
+    return errors
+
+
 def _validate_gap_map(path: Path, text: str, prd_text: str) -> list[ValidationError]:
     rows = _gap_rows(text)
     required = {
@@ -441,16 +518,21 @@ def _planned_story_ids(path: Path, text: str) -> set[str]:
     if path.parent.name != "epics":
         return set()
     owner = re.match(r"EPIC-(\d{3})-", path.name)
-    section = re.search(r"(?ms)^## Story Plan\s*\n(.*?)(?=^## |\Z)", text)
-    if not owner or not section:
+    if not owner:
         return set()
-    return {
-        identifier
-        for line in section.group(1).splitlines()
-        if re.match(r"^\s*(?:\d+\.|[-*])\s+", line)
-        for identifier in extract_ids(line)
-        if identifier.startswith(f"STORY-{owner.group(1)}-")
-    }
+    planned: set[str] = set()
+    for line in _section_body(text, "Story Plan").splitlines():
+        if re.match(r"^\s*(?:\d+\.|[-*])\s+", line):
+            planned.update(
+                identifier
+                for identifier in extract_ids(line)
+                if identifier.startswith(f"STORY-{owner.group(1)}-")
+            )
+        elif line.startswith("|"):
+            first_cell = line.strip().strip("|").split("|", 1)[0].strip().strip("`")
+            if re.fullmatch(rf"STORY-{owner.group(1)}-\d{{2}}", first_cell):
+                planned.add(first_cell)
+    return planned
 
 
 def _validate_complete(root: Path, files: list[Path]) -> list[ValidationError]:
@@ -540,14 +622,17 @@ def validate_product_docs(root: Path, complete: bool = False) -> list[Validation
         prd_path = root / "PRD.md"
         prd_text = prd_path.read_text(encoding="utf-8") if prd_path.is_file() else ""
         gap_text = gap_path.read_text(encoding="utf-8")
+        gap_rows = _gap_rows(gap_text)
         errors.extend(_validate_gap_map(gap_path, gap_text, prd_text))
         forward_epic_owners = {
             cells[5]
-            for _, cells in _gap_rows(gap_text)
+            for _, cells in gap_rows
             if len(cells) == 10 and re.fullmatch(r"EPIC-0(?:0\d|10)", cells[5])
         }
     else:
+        gap_rows = []
         forward_epic_owners = set()
+    errors.extend(_validate_delivery_epics(root, gap_rows))
     for path in files:
         if _is_policy(path) or _is_review_artifact(path):
             continue
