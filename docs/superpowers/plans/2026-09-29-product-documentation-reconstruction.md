@@ -52,7 +52,7 @@ Plans execute in this order. A downstream draft may exist, but it cannot be fina
 | 4 | [`2026-09-30-product-documentation-04-prd-and-gap-map.md`](2026-09-30-product-documentation-04-prd-and-gap-map.md) | 8-9 | Final PRD and total capability gap map | Complete — `740ed63`, `2389a4d`, `2d26394`; target requirements and one-owner gap map. |
 | 5 | [`2026-09-30-product-documentation-05-epic-000-verification.md`](2026-09-30-product-documentation-05-epic-000-verification.md) | 10 | `EPIC-000` and six verification stories | Complete — `a4ca4dc`, `93376ee`; current-state verification package. |
 | 6 | [`2026-09-30-product-documentation-06-delivery-epics.md`](2026-09-30-product-documentation-06-delivery-epics.md) | 11-13 | `EPIC-001` through `EPIC-010` catalog | Complete — `068b2bf`, `8938b44`, `8cf1cdc`, `0cf4e78`, `4c35862`; delivery catalog and 26-test gate. |
-| 7 | [`2026-09-30-product-documentation-07-publication.md`](2026-09-30-product-documentation-07-publication.md) | 14 | Indexes, complete validation, and handoff | Complete — `26b998f`, `23b71cd`, this closure record; 27-test and complete-mode gate below. |
+| 7 | [`2026-09-30-product-documentation-07-publication.md`](2026-09-30-product-documentation-07-publication.md) | 14 | Indexes, complete validation, and handoff | Complete — `26b998f`, `23b71cd`, `fbe38cf`, `c12bbda`, and this review-close record; 30-test and complete-mode gate below. |
 
 ## Kickoff Work Preserved
 
@@ -146,15 +146,17 @@ python scripts/validate_product_docs.py --root docs/product --complete
 git diff --check main...HEAD
 git log --oneline main..HEAD
 git status --short --branch
+$staged = @(git diff --cached --name-only)
+if ($staged.Count -ne 0) { throw "Unexpected staged paths: $($staged -join ', ')" }
 ```
 
 | Check | Observed result |
 |---|---|
-| Validator unit suite | 27/27 passed, including broken-index-link rejection. |
-| `--complete` product validation | Exit `0`; canonical baseline, PRD, gap map, eleven epics, six `EPIC-000` stories, and both indexes exist with valid governed references and local index targets. |
+| Validator unit suite | 30/30 passed, including missing/duplicate canonical navigation and broken inline/reference-style index links. |
+| `--complete` product validation | Exit `0`; canonical baseline, PRD, gap map, five evidence annexes, eleven epics, six `EPIC-000` stories, and both indexes exist with valid governed references and canonical navigation. |
 | Product index links | 32 unique targets resolved; no duplicate target or missing file. |
 | `git diff --check main...HEAD` | Exit `0`; no committed whitespace errors. |
-| Scoped stage | No unintended staged path. `docs/README.md` contributed only the product-index hunk in `26b998f`. |
+| Scoped stage | Exact-path checks enforced expected files before scoped commits; final stage is empty. `docs/README.md` contributed only the product-index hunk in `26b998f`. |
 | Working tree | Concurrent user documentation migration and `data-service/external/TradingAgents` remain uncommitted and unstaged; the former makes the original “only TradingAgents dirty” expectation obsolete. |
 
 These checks establish documentation consistency and readiness for separate
@@ -162,6 +164,12 @@ epic-specific story planning, not runtime feature completion or release
 readiness. The baseline's Testcontainers skips and failing browser E2E scenarios
 remain documented limitations. Legal, data-rights, evidence, and financial
 policy gates remain open where the PRD and epics say so.
+
+A read-only independent review found that complete mode had not required
+canonical navigation or scanned reference-style links, and that the staged-path
+check only listed names. The validator/test correction in `c12bbda` and the
+nonzero staged-path commands in Plan 7 close those documentation-gate gaps.
+The review did not judge financial content or runtime release readiness.
 
 ## Execution Handoff
 
