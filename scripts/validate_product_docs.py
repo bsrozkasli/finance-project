@@ -55,6 +55,7 @@ GAP_CLASSES = frozenset(
     {"None", "Verification", "Documentation", "Behavior", "Data", "Architecture", "Compliance", "Deferred"}
 )
 GAP_READINESS = frozenset({"Ready", "Blocked", "Deferred"})
+MARKDOWN_LINK_PATTERN = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 
 
 @dataclass(frozen=True)
@@ -588,12 +589,29 @@ def _validate_complete(root: Path, files: list[Path]) -> list[ValidationError]:
                 )
             )
 
-    if not (root / "README.md").is_file():
+    product_index = root / "README.md"
+    docs_index = root.parent / "README.md"
+    if not product_index.is_file():
         errors.append(_error("COMPLETE_ARTIFACT", root / "README.md", "missing product index"))
-    if not (root.parent / "README.md").is_file():
+    if not docs_index.is_file():
         errors.append(
             _error("COMPLETE_ARTIFACT", root.parent / "README.md", "missing repository documentation index")
         )
+    for index in (product_index, docs_index):
+        if index.is_file():
+            errors.extend(_validate_index_links(index))
+    return errors
+
+
+def _validate_index_links(path: Path) -> list[ValidationError]:
+    errors: list[ValidationError] = []
+    for match in MARKDOWN_LINK_PATTERN.finditer(path.read_text(encoding="utf-8")):
+        target = match.group(1).strip().strip("<>")
+        if target.startswith(("#", "//")) or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target):
+            continue
+        file_target = target.split("#", 1)[0].split("?", 1)[0]
+        if file_target and not (path.parent / file_target).is_file():
+            errors.append(_error("INDEX_LINK_MISSING", path, f"index link target does not exist: {target}"))
     return errors
 
 

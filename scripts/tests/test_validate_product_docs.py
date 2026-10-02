@@ -678,6 +678,29 @@ class ValidateProductDocsTests(unittest.TestCase):
 
             self.assertTrue(any(error.code == "COMPLETE_ARTIFACT" for error in errors))
 
+    def test_complete_mode_rejects_missing_index_links(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(
+                root,
+                "README.md",
+                "# Product Index\n[Missing annex](evidence/missing.md)\n[External](https://example.com/reference)",
+            )
+            self.write(
+                root.parent,
+                "README.md",
+                "# Documentation Index\n[Missing epic](product/epics/missing.md)",
+            )
+
+            complete_errors = validate_product_docs(root, complete=True)
+            incremental_errors = validate_product_docs(root)
+
+            self.assertEqual(
+                {root / "README.md", root.parent / "README.md"},
+                {error.path for error in complete_errors if error.code == "INDEX_LINK_MISSING"},
+            )
+            self.assertNotIn("INDEX_LINK_MISSING", {error.code for error in incremental_errors})
+
     def test_accepts_minimal_complete_document_set(self) -> None:
         with self.fixture() as directory:
             root = Path(directory)
