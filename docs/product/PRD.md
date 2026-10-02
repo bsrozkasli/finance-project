@@ -1,8 +1,8 @@
 | Workflow metadata | Value |
 |---|---|
-| **stepsCompleted** | `intake`, `brownfield-assessment`, `source-discovery`, `source-reconciliation`, `research`, `drafting` |
-| **workflowComplete** | `false` |
-| **completedAt** | — |
+| **stepsCompleted** | `intake`, `brownfield-assessment`, `source-discovery`, `source-reconciliation`, `research`, `drafting`, `review-reconciliation`, `gap-mapping`, `final-validation` |
+| **workflowComplete** | `true` |
+| **completedAt** | `2026-10-02` |
 | **inputDocuments** | `AGENTS.md`<br>`SPEC.md`<br>`docs/superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md`<br>`docs/superpowers/plans/2026-09-29-product-documentation-reconstruction.md`<br>Six external primary sources listed in References |
 | **workflowType** | `create-prd` |
 | **briefCount** | `0` |
@@ -14,6 +14,9 @@
 The count fields include direct source artifacts only. Reconciliation and
 review files produced by this workflow are derived artifacts and are not
 included in `inputDocuments` or the source counts.
+`workflowComplete` records completion of this target-document and gap-mapping
+workflow. It does not assert implementation readiness for blocked rows,
+qualified-counsel approval, data rights, or release readiness.
 
 # PRD: Evidence-Driven Investment Platform
 
@@ -178,11 +181,13 @@ The decision horizons are:
 
 - **Tactical Context:** `0 to <3 months`; timing and risk only.
 - **Medium Term:** `3 to <18 months`; critical supporting horizon.
-- **Long Term:** `18 to 32 months`; primary product horizon.
+- **Long Term:** `18 to 32 months`; a separate investment outlook.
 
 ### 3.3 Value-MVP In Scope
 
 - Manual transaction entry and staged CSV import.
+- One portfolio in the initial single-user Value MVP; multi-portfolio and cash
+  accounting semantics require a separately approved scope decision.
 - Ledger-derived Portfolio State.
 - Explainable deterministic screening and shortlist.
 - User-selected stock or ETF research.
@@ -515,13 +520,17 @@ implementation. The capability gap map carries the current-contract
 | `RF-06`, `FIN-06` | Resolved | `PRD-FR-044`–`049` and `PRD-FR-067`–`070` preserve explicit labels, consent, lifecycle, and fallback. |
 | `RF-07` | Resolved | `PRD-FR-041` bounds high-priority event classes. |
 | `RF-08` | Resolved | §3.1–3.3 and `PRD-FR-011`–`015` define one initial user portfolio and approved ledger outputs; multi-portfolio/cash accounting is not a V1 obligation. |
+| `RF-09` | Resolved | `PRD-FR-033` requires explanations only for returned screen results; rejection notes are optional. |
+| `RF-10` | Deferred | §6.4 retains repository UI accessibility conventions; §8.2 leaves jurisdiction-specific disclosure duties to OQ-1 qualified-counsel approval. |
+| `RF-11` | Resolved | §1 and §3.2 retain separate Medium/Long outlooks without an unapproved primary-horizon priority. |
+| `RF-12` | Resolved | §1.1 and the Plan 3 baseline now supply audited current contracts; OQ-5 handles the remaining migration decision. |
 | `FIN-01` | Deferred | `PRD-FR-055`, `PRD-FR-071`, `PRD-NFR-009`, §8.2 specify the gate; OQ-1 requires qualified-counsel approval before external policy-conditioned output. |
 | `FIN-05` | Resolved | `PRD-FR-008` requires `Insufficient` for critical conflicts and weighted model-specific coverage. |
 | `FIN-07` | Resolved | `PRD-NFR-014`, `PRD-NFR-018`, §11.1 require independent metric/outcome fixtures. |
-| `BR-01` | Deferred | §1.1/7.2 require the Plan 3 baseline and complete `CAPABILITY_GAP_MAP.md`; workflow metadata closes only after the map validates. |
+| `BR-01` | Resolved | §1.1/7.2 require the Plan 3 baseline and complete `CAPABILITY_GAP_MAP.md`; the map now contains one row per requirement and has passed validation. |
 | `BR-02` | Resolved | §7.4–7.5 separate scope status from delivery readiness and name OQ owners/closure artifacts. |
 | `BR-03` | Resolved | `PRD-FR-019`/`056`–`058`, `PRD-FR-022`/`059`, `PRD-FR-023`/`060`–`064`, `PRD-FR-048`/`067`–`070`, and `PRD-NFR-014`/`018` split independent obligations. |
-| `BR-04` | Deferred | OQ-5 and `PRD-NFR-015` require per-contract preserve/version/coordinated-migration/retire treatment in gap-map rows before story authoring. |
+| `BR-04` | Deferred | Gap-map rows now cite current evidence and conflict IDs; OQ-5 and `PRD-NFR-015` still require per-contract preserve/version/coordinated-migration/retire decisions before affected story authoring. |
 | `RFN-01` | Deferred | `PRD-FR-025`, `PRD-FR-065`–`066`, §7.4 cover required fields and effects; OQ-4 must approve marginal-impact/weight-cap policies. |
 | `RFN-02` | Deferred | §8.2, `PRD-FR-055`, `PRD-FR-071`–`072` define replay-bound records; OQ-1/2 approvals remain external gates. |
 | `RFN-03` | Resolved | `PRD-FR-058` and §11.1 freeze benchmark selection before outcomes. |
@@ -531,7 +540,7 @@ implementation. The capability gap map carries the current-contract
 | Rubric: metric and cohort gates | Deferred | §2.4 and §7.6 define populations, events, windows, proposed floors, owners, stop/rollback; OQ-7/8 must approve final gates before expansion. |
 | Rubric: external security/operations | Deferred | `PRD-NFR-019`–`023` and §7.6 establish isolated-access, security, backup, recovery, and incident evidence before invitations. |
 | Rubric: core FR readiness | Deferred | §7.4–7.5 and gap-map readiness keep OQ-3/4/5-dependent stories blocked. |
-| Rubric: baseline/gap map | Deferred | The Plan 3 baseline exists; complete gap-map traceability is a Plan 4 completion gate. |
+| Rubric: baseline/gap map | Resolved | The Plan 3 baseline and `CAPABILITY_GAP_MAP.md` now exist; all 95 requirements have one primary row and the validator passes. |
 
 ## 8. Risk Mitigation
 
