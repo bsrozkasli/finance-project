@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import re
 import sys
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -56,6 +56,17 @@ GAP_CLASSES = frozenset(
 )
 GAP_READINESS = frozenset({"Ready", "Blocked", "Deferred"})
 MARKDOWN_LINK_PATTERN = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+MARKDOWN_REFERENCE_DEFINITION_PATTERN = re.compile(
+    r"(?m)^ {0,3}\[([^\]\n]+)\]:\s*(?:<([^>\n]+)>|(\S+))"
+)
+MARKDOWN_REFERENCE_USE_PATTERN = re.compile(r"(?<!!)\[([^\]\n]+)\]\[([^\]\n]*)\]")
+EVIDENCE_ANNEXES = (
+    "backend.md",
+    "data-service.md",
+    "frontend.md",
+    "cross-runtime.md",
+    "legacy-document-conflicts.md",
+)
 
 
 @dataclass(frozen=True)
@@ -561,10 +572,14 @@ def _planned_story_ids(path: Path, text: str) -> set[str]:
 def _validate_complete(root: Path, files: list[Path]) -> list[ValidationError]:
     errors: list[ValidationError] = []
     canonical = ("CURRENT_STATE_BASELINE.md", "PRD.md", "CAPABILITY_GAP_MAP.md")
-    for name in canonical:
-        if not (root / name).is_file():
+    required_files = [
+        *(root / name for name in canonical),
+        *(root / "evidence" / name for name in EVIDENCE_ANNEXES),
+    ]
+    for path in required_files:
+        if not path.is_file():
             errors.append(
-                _error("COMPLETE_ARTIFACT", root / name, f"missing canonical artifact {name}")
+                _error("COMPLETE_ARTIFACT", path, f"missing canonical artifact {path.name}")
             )
 
     for number in range(11):
@@ -597,21 +612,61 @@ def _validate_complete(root: Path, files: list[Path]) -> list[ValidationError]:
         errors.append(
             _error("COMPLETE_ARTIFACT", root.parent / "README.md", "missing repository documentation index")
         )
-    for index in (product_index, docs_index):
-        if index.is_file():
-            errors.extend(_validate_index_links(index))
+    product_targets = [
+        root.parent / "superpowers" / "specs" / "2026-09-29-investment-platform-product-foundation-design.md",
+        *required_files,
+        *sorted((root / "epics").glob("EPIC-*.md")),
+        *sorted((root / "stories" / "EPIC-000").glob("STORY-000-*.md")),
+    ]
+    if product_index.is_file():
+        errors.extend(_validate_index_navigation(product_index, product_targets))
+    if docs_index.is_file():
+        errors.extend(_validate_index_navigation(docs_index, [product_index]))
     return errors
 
 
-def _validate_index_links(path: Path) -> list[ValidationError]:
+def _reference_key(label: str) -> str:
+    return " ".join(label.split()).casefold()
+
+
+def _local_index_target(path: Path, target: str) -> Path | None:
+    target = target.strip().strip("<>")
+    if target.startswith(("#", "//")) or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target):
+        return None
+    file_target = target.split("#", 1)[0].split("?", 1)[0]
+    return (path.parent / file_target).resolve() if file_target else None
+
+
+def _validate_index_navigation(path: Path, required_targets: Sequence[Path]) -> list[ValidationError]:
     errors: list[ValidationError] = []
-    for match in MARKDOWN_LINK_PATTERN.finditer(path.read_text(encoding="utf-8")):
-        target = match.group(1).strip().strip("<>")
-        if target.startswith(("#", "//")) or re.match(r"^[A-Za-z][A-Za-z0-9+.-]*:", target):
+    text = path.read_text(encoding="utf-8")
+    definitions = {
+        _reference_key(match.group(1)): match.group(2) or match.group(3)
+        for match in MARKDOWN_REFERENCE_DEFINITION_PATTERN.finditer(text)
+    }
+    targets = [match.group(1) for match in MARKDOWN_LINK_PATTERN.finditer(text)]
+    for match in MARKDOWN_REFERENCE_USE_PATTERN.finditer(text):
+        label = match.group(2) or match.group(1)
+        target = definitions.get(_reference_key(label))
+        if target is None:
+            errors.append(_error("INDEX_REFERENCE_UNDEFINED", path, f"undefined index link reference: {label}"))
+        else:
+            targets.append(target)
+
+    local_targets: Counter[Path] = Counter()
+    for target in targets:
+        local_path = _local_index_target(path, target)
+        if local_path is None:
             continue
-        file_target = target.split("#", 1)[0].split("?", 1)[0]
-        if file_target and not (path.parent / file_target).is_file():
+        local_targets[local_path] += 1
+        if not local_path.is_file():
             errors.append(_error("INDEX_LINK_MISSING", path, f"index link target does not exist: {target}"))
+    for required in required_targets:
+        count = local_targets[required.resolve()]
+        if count == 0:
+            errors.append(_error("INDEX_NAV_MISSING", path, f"canonical index link is missing: {required.name}"))
+        elif count > 1:
+            errors.append(_error("INDEX_NAV_DUPLICATE", path, f"canonical index link appears {count} times: {required.name}"))
     return errors
 
 

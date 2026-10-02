@@ -701,9 +701,67 @@ class ValidateProductDocsTests(unittest.TestCase):
             )
             self.assertNotIn("INDEX_LINK_MISSING", {error.code for error in incremental_errors})
 
+    def test_complete_mode_rejects_missing_reference_style_index_links(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(
+                root,
+                "README.md",
+                "# Product Index\n[Missing annex][annex]\n[annex]: evidence/missing.md",
+            )
+            self.write(
+                root.parent,
+                "README.md",
+                "# Documentation Index\n[Missing epic][]\n[Missing epic]: product/epics/missing.md",
+            )
+
+            errors = validate_product_docs(root, complete=True)
+
+            self.assertEqual(
+                {root / "README.md", root.parent / "README.md"},
+                {error.path for error in errors if error.code == "INDEX_LINK_MISSING"},
+            )
+
+    def test_complete_mode_requires_unique_canonical_navigation(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(root, "PRD.md", "# PRD")
+            self.write(root, "README.md", "# Product Index\n[PRD](PRD.md)\n[Again](PRD.md)")
+            self.write(root.parent, "README.md", "# Documentation Index")
+
+            errors = validate_product_docs(root, complete=True)
+
+            self.assertIn("INDEX_NAV_MISSING", {error.code for error in errors})
+            self.assertIn("INDEX_NAV_DUPLICATE", {error.code for error in errors})
+            self.assertTrue(
+                any(
+                    error.code == "INDEX_NAV_MISSING" and error.path == root.parent / "README.md"
+                    for error in errors
+                )
+            )
+
+    def test_complete_mode_rejects_duplicate_repository_index_entry(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(root, "README.md", "# Product Index")
+            self.write(
+                root.parent,
+                "README.md",
+                "# Documentation Index\n[Product](product/README.md)\n[Product again][product]\n[product]: product/README.md",
+            )
+
+            errors = validate_product_docs(root, complete=True)
+
+            self.assertTrue(
+                any(
+                    error.code == "INDEX_NAV_DUPLICATE" and error.path == root.parent / "README.md"
+                    for error in errors
+                )
+            )
+
     def test_accepts_minimal_complete_document_set(self) -> None:
         with self.fixture() as directory:
-            root = Path(directory)
+            root = Path(directory) / "product"
             self.write(
                 root,
                 "PRD.md",
@@ -744,8 +802,22 @@ class ValidateProductDocsTests(unittest.TestCase):
                 ## Traceability
                 """,
             )
-            self.write(root, "README.md", "# Product Documentation\n")
-            self.write(root.parent, "README.md", "# Documentation\n")
+            self.write(
+                root.parent,
+                "superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md",
+                "# Foundation",
+            )
+            for annex in ("backend", "data-service", "frontend", "cross-runtime"):
+                self.write(
+                    root,
+                    f"evidence/{annex}.md",
+                    "# Evidence\n## Audit Metadata\n## Evidence Records\n## Limitations",
+                )
+            self.write(
+                root,
+                "evidence/legacy-document-conflicts.md",
+                "# Legacy Conflicts\n## Conflict Records\n- Disposition: Retained.\n",
+            )
 
             epic_sections = [
                 "Outcome",
@@ -811,6 +883,25 @@ class ValidateProductDocsTests(unittest.TestCase):
                     f"stories/EPIC-000/{story_id}-verification.md",
                     body,
                 )
+
+            product_targets = [
+                "../superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md",
+                "CURRENT_STATE_BASELINE.md",
+                "PRD.md",
+                "CAPABILITY_GAP_MAP.md",
+                *[path.relative_to(root).as_posix() for path in sorted((root / "evidence").glob("*.md"))],
+                *[path.relative_to(root).as_posix() for path in sorted((root / "epics").glob("*.md"))],
+                *[
+                    path.relative_to(root).as_posix()
+                    for path in sorted((root / "stories/EPIC-000").glob("*.md"))
+                ],
+            ]
+            self.write(
+                root,
+                "README.md",
+                "# Product Documentation\n" + "\n".join(f"[Artifact]({target})" for target in product_targets),
+            )
+            self.write(root.parent, "README.md", "# Documentation\n[Product](product/README.md)")
 
             errors = validate_product_docs(root, complete=True, delivery_complete=True)
 
