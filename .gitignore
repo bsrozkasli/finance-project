@@ -54,6 +54,7 @@ postgres_data/
 
 ### Generated local artifacts ###
 .cache/
+.worktrees/
 *.log
 temp_scripts/raw_data.json
 data-service/.test-cache/
