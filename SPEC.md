@@ -533,6 +533,7 @@ Entity relationships and persistence semantics:
 - Technical analysis requires at least 30 candles. `sma200` remains `null` until at least 200 candles are available; no value is fabricated.
 - Portfolio views calculate cost basis, market value, allocation, daily return, total return, and unrealized PnL from persisted positions and refreshed current prices.
 - New investment portfolio views should derive holdings from `PortfolioTransaction` ledger entries. BUY increases quantity/cost basis; SELL validates available quantity, reduces the holding, and records realized PnL. Journal entries are decision history and must not be deleted when a holding is sold.
+- Manual portfolio transactions retain a generated `manual:<UUID>` origin locator alongside their source and accepted ID through persistence readback. Existing manual rows use `manual:legacy:<row-id>` to identify their known persisted origin; CSV lineage remains unspecified. Transaction responses include the additive `originLocator` field.
 - Journal stats are derived from persisted journal trades; open trades may be read-enriched with latest real prices, while closed trades are not refreshed on read. Journal trades may optionally reference `portfolioId` and `transactionId`.
 - Watchlist updates persist through repository adapters and normalize symbols consistently.
 - Agent analysis uses the configured TTL and persists completed results.

@@ -58,7 +58,8 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
                 e.getSource(),
                 e.getNotes(),
                 e.getCreatedAt(),
-                e.getUpdatedAt());
+                e.getUpdatedAt(),
+                e.getOriginLocator());
     }
 
     private PortfolioTransactionEntity toEntity(PortfolioTransaction transaction) {
@@ -78,6 +79,7 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
         e.setFxRateToBase(transaction.fxRateToBase());
         e.setTradeDate(transaction.tradeDate());
         e.setSource(transaction.source());
+        e.setOriginLocator(transaction.originLocator());
         e.setNotes(transaction.notes());
         return e;
     }
