@@ -57,7 +57,8 @@ public class PortfolioLedgerService {
 
     private List<PortfolioTransaction> chronological(List<PortfolioTransaction> transactions) {
         return transactions.stream()
-                .sorted(Comparator.comparing(PortfolioTransaction::tradeDate))
+                .sorted(Comparator.comparing(PortfolioTransaction::tradeDate)
+                        .thenComparing(PortfolioTransaction::id, Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
     }
 
