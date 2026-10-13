@@ -2,11 +2,9 @@ from datetime import datetime, timezone
 import asyncio
 
 import pandas as pd
-import yfinance as yf
 from fastapi import APIRouter, HTTPException, Query, status
-import asyncio
-from functools import partial
 
+from app.dependencies import get_resolver
 from app.models.analysis import (
     AnalysisSummaryResponse,
     TechnicalAnalysisResponse,
@@ -18,6 +16,7 @@ from app.models.analysis import (
     DecisionSupportRequest,
     DecisionSupportResponse,
 )
+from app.services.price_history import DAILY_OR_LONGER_INTERVALS, bars_to_frame
 from app.services.technical_analysis_service import TechnicalAnalysisService
 from app.services.pattern_detection_service import PatternDetectionService
 from app.config import settings
@@ -36,24 +35,20 @@ def _to_utc_z(value: object) -> str:
     return ts.isoformat().replace("+00:00", "Z")
 
 
-# Global semaphore to limit concurrent yfinance requests and avoid rate limits/IP bans
-yf_semaphore = asyncio.Semaphore(5)
+# Limit concurrent provider-chain history loads to protect provider rate limits.
+history_semaphore = asyncio.Semaphore(5)
+
 
 async def _load_history(symbol: str, interval: str, range_value: str) -> pd.DataFrame:
-    async with yf_semaphore:
-        loop = asyncio.get_event_loop()
-        ticker = yf.Ticker(symbol)
-        
-        # Run synchronous yfinance network call in thread pool to avoid blocking async loop
-        history = await loop.run_in_executor(
-            None, 
-            partial(ticker.history, interval=interval, period=range_value, auto_adjust=False, actions=False)
-        )
+    async with history_semaphore:
+        bars = await asyncio.to_thread(get_resolver().get_ohlcv, symbol, interval, range_value)
 
-        if history is None or history.empty:
-            raise HTTPException(status_code=404, detail=f"No historical data found for symbol '{symbol}'")
+    if not bars:
+        raise HTTPException(status_code=404, detail=f"No historical data found for symbol '{symbol}'")
 
-        return history.reset_index()
+    history = bars_to_frame(bars)
+    history.index.name = "Date" if interval in DAILY_OR_LONGER_INTERVALS else "Datetime"
+    return history.reset_index()
 
 
 @router.get("/technical/{symbol}", response_model=TechnicalAnalysisResponse)
