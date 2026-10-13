@@ -28,10 +28,6 @@ class Settings(BaseModel):
     SENTIMENT_CACHE_TTL_SECONDS: int = 3600
     NEWS_LOOKBACK_HOURS: int = 24
 
-    # --- MongoDB ---
-    MONGO_URI: str = "mongodb://localhost:27017/financedb"
-    MONGO_DB_NAME: str = "financedb"
-
     # --- Provider Resolver ---
     # Comma-separated list of providers in priority order
     PROVIDER_CHAIN: str = "yahoo,tiingo,finnhub"
