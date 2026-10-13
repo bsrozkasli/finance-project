@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from app.dependencies import get_resolver
+from app.errors import InsufficientDataError
 from app.models.risk import (
     RiskAnalyticsResponse,
     RiskMetrics,
@@ -70,14 +71,14 @@ class RiskAnalyticsService:
         )
 
         if asset_df.empty or len(asset_df) < 30:
-            raise ValueError(
+            raise InsufficientDataError(
                 f"Insufficient price data for '{symbol}': "
-                f"got {len(asset_df)} rows, need â‰¥ 30."
+                f"got {len(asset_df)} rows, need >= 30."
             )
         if market_df.empty or len(market_df) < 30:
-            raise ValueError(
+            raise InsufficientDataError(
                 f"Insufficient market data for '{_MARKET_BENCHMARK}': "
-                f"got {len(market_df)} rows, need â‰¥ 30."
+                f"got {len(market_df)} rows, need >= 30."
             )
 
         asset_close = asset_df["Close"]
