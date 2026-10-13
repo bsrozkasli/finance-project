@@ -1,25 +1,27 @@
 """Risk Analytics Service â€“ Phase 3.
 
 Computes comprehensive risk metrics (volatility, VaR, drawdown, beta, â€¦)
-across daily, weekly, and monthly timeframes using yfinance price data.
+across daily, weekly, and monthly timeframes using adjusted daily history from the provider resolver.
 """
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 
+from app.dependencies import get_resolver
 from app.models.risk import (
     RiskAnalyticsResponse,
     RiskMetrics,
     RiskTimeframe,
     VaRResult,
 )
+from app.services.price_history import fetch_daily_frame
 
 _MARKET_BENCHMARK = "SPY"
+_LOOKBACK_DAYS = 365
 
 _ANNUALIZATION = {
     RiskTimeframe.DAILY: 252,
@@ -58,12 +60,14 @@ class RiskAnalyticsService:
             calculations.
         """
 
-        end = datetime.now()
-        start = end - timedelta(days=365)
-
-        # Fetch price history for asset and market benchmark
-        asset_df = yf.download(symbol, start=start, end=end, progress=False)
-        market_df = yf.download(_MARKET_BENCHMARK, start=start, end=end, progress=False)
+        resolver = get_resolver()
+        # Adjusted closes keep the former yfinance.download(auto_adjust=True) semantics (ADR-0006 D4).
+        asset_df = fetch_daily_frame(
+            resolver, symbol, lookback_days=_LOOKBACK_DAYS, adjusted=True, include_today=True
+        )
+        market_df = fetch_daily_frame(
+            resolver, _MARKET_BENCHMARK, lookback_days=_LOOKBACK_DAYS, adjusted=True, include_today=True
+        )
 
         if asset_df.empty or len(asset_df) < 30:
             raise ValueError(
@@ -76,16 +80,8 @@ class RiskAnalyticsService:
                 f"got {len(market_df)} rows, need â‰¥ 30."
             )
 
-        # --- Handle multi-level columns produced by yfinance ----
-        if isinstance(asset_df.columns, __import__("pandas").MultiIndex):
-            asset_close = asset_df["Close"].iloc[:, 0]
-        else:
-            asset_close = asset_df["Close"]
-
-        if isinstance(market_df.columns, __import__("pandas").MultiIndex):
-            market_close = market_df["Close"].iloc[:, 0]
-        else:
-            market_close = market_df["Close"]
+        asset_close = asset_df["Close"]
+        market_close = market_df["Close"]
 
         # Daily returns
         daily_asset = asset_close.pct_change().dropna()
