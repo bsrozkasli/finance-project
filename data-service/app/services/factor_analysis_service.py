@@ -9,13 +9,15 @@ data.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from app.dependencies import get_resolver
+from app.services.price_history import fetch_daily_frame
 from app.models.factors import (
     FactorAnalysisResponse,
     FactorScores,
@@ -26,6 +28,7 @@ from app.models.factors import (
 logger = logging.getLogger(__name__)
 
 _MARKET_BENCHMARK = "SPY"
+_LOOKBACK_DAYS = 365
 
 
 class FactorAnalysisService:
@@ -132,14 +135,18 @@ class FactorAnalysisService:
     def analyze_factors(cls, symbol: str) -> FactorAnalysisResponse:
         """Return multi-factor investment scores for *symbol*."""
 
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol)  # .info stays a direct read: ADR-0006 D2 exception
         info = cls._safe_info(ticker)
 
-        # Price data for momentum & volatility
-        end = datetime.now()
-        start = end - timedelta(days=365)
-        price_df = yf.download(symbol, start=start, end=end, progress=False)
-        market_df = yf.download(_MARKET_BENCHMARK, start=start, end=end, progress=False)
+        # Price data for momentum & volatility, through the resolver (ADR-0006 D1).
+        # Adjusted closes keep the former yfinance.download(auto_adjust=True) semantics (ADR-0006 D4).
+        resolver = get_resolver()
+        price_df = fetch_daily_frame(
+            resolver, symbol, lookback_days=_LOOKBACK_DAYS, adjusted=True, include_today=True
+        )
+        market_df = fetch_daily_frame(
+            resolver, _MARKET_BENCHMARK, lookback_days=_LOOKBACK_DAYS, adjusted=True, include_today=True
+        )
 
         value_score, value_comp = cls._compute_value(info)
         growth_score, growth_comp = cls._compute_growth(info)
@@ -184,7 +191,7 @@ class FactorAnalysisService:
     def analyze_institutional(cls, symbol: str) -> InstitutionalScoreResponse:
         """Return institutional-grade financial health scores for *symbol*."""
 
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol)  # .info and statements stay direct reads: ADR-0006 D2 exception
         info = cls._safe_info(ticker)
         financials = cls._safe_df(ticker, "financials")
         balance_sheet = cls._safe_df(ticker, "balance_sheet")
