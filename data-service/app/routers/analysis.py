@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 import asyncio
 
@@ -22,6 +23,14 @@ from app.services.pattern_detection_service import PatternDetectionService
 from app.config import settings
 
 router = APIRouter(prefix="/api/v1", tags=["analysis"])
+logger = logging.getLogger(__name__)
+
+
+def _log_unavailable_section(section: str, symbol: str, exc: Exception) -> None:
+    logger.warning(
+        "event=full_analysis_section_unavailable section=%s symbol=%s error_type=%s",
+        section, symbol, type(exc).__name__,
+    )
 
 
 def _to_utc_z(value: object) -> str:
@@ -132,20 +141,22 @@ async def get_full_analysis(symbol: str) -> FullAnalysisResponse:
     try:
         async def fetch_technical():
             try:
-                return await get_technical_analysis(symbol)
-            except Exception:
+                return await get_technical_analysis(symbol, interval="1d", range="3mo")
+            except Exception as exc:
+                _log_unavailable_section("technical", symbol, exc)
                 return None
-        
+
         async def fetch_sentiment():
             try:
                 if not settings.FINNHUB_API_KEY:
                     return None
                 from app.services.sentiment_service import SentimentService
                 return await SentimentService.analyze_sentiment(symbol)
-            except Exception:
+            except Exception as exc:
+                _log_unavailable_section("sentiment", symbol, exc)
                 return None
-        
-        # Execute technical and sentiment analysis in parallel
+
+                # Execute technical and sentiment analysis in parallel
         tech_task = asyncio.create_task(fetch_technical())
         sentiment_task = asyncio.create_task(fetch_sentiment())
         
@@ -172,8 +183,8 @@ async def get_full_analysis(symbol: str) -> FullAnalysisResponse:
                     include_sentiment=True,
                 )
                 llm_insight = await LlmInsightService.generate_insight(insight_request)
-            except Exception:
-                pass
+            except Exception as exc:
+                _log_unavailable_section("llm_insight", symbol, exc)
         
         return FullAnalysisResponse(
             symbol=symbol,
@@ -214,30 +225,24 @@ async def get_patterns(
     highs = history["High"].values
     lows = history["Low"].values
     
-    # Get LLM context if requested
     llm_context = None
     if include_llm_context and settings.AZURE_OPENAI_API_KEY:
         try:
             from app.services.llm_insight_service import LlmInsightService
-            import asyncio
-            
-            async def get_llm_insight():
-                insight_request = LlmInsightRequest(
-                    symbol=symbol,
-                    include_technical=False,
-                    include_sentiment=False,
-                    scenario="Provide a brief 2-sentence market context for pattern analysis.",
-                )
-                return await LlmInsightService.generate_insight(insight_request)
-            
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            result = loop.run_until_complete(get_llm_insight())
-            loop.close()
+
+            insight_request = LlmInsightRequest(
+                symbol=symbol,
+                include_technical=False,
+                include_sentiment=False,
+                scenario="Provide a brief 2-sentence market context for pattern analysis.",
+            )
+            result = await LlmInsightService.generate_insight(insight_request)
             llm_context = result.insight if result else None
-        except Exception:
-            pass
-    
+        except Exception as exc:
+            logger.warning(
+                "event=pattern_llm_context_unavailable symbol=%s error_type=%s", symbol, type(exc).__name__
+            )
+
     return PatternDetectionService.detect(
         symbol=symbol,
         interval=interval,
