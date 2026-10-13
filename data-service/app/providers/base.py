@@ -2,7 +2,8 @@
 Base types and IMarketDataProvider Protocol for the provider abstraction layer.
 
 Business logic must depend ONLY on these interfaces — never on yfinance,
-Tiingo SDK, or Finnhub SDK directly.
+Tiingo SDK, or Finnhub SDK directly. Recorded exceptions to this rule are listed
+in docs/adr/0006-data-service-price-history-through-resolver.md.
 """
 
 from __future__ import annotations

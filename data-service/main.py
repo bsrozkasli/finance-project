@@ -1,8 +1,9 @@
 """
 FastAPI data-service entry point.
 
-All market data is fetched through the MarketDataResolver - never from
-yfinance, Tiingo, or Finnhub directly at this layer.
+Price history reaches every route through the MarketDataResolver. Company
+`.info` and financial-statement reads in the fundamental, factor, and valuation
+services remain direct yfinance exceptions recorded in ADR-0006.
 """
 
 from __future__ import annotations

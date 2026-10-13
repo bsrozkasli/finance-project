@@ -132,7 +132,7 @@ class ValuationService:
     def _fetch_info(cls, symbol: str) -> dict[str, Any]:
         """Fetch the ``Ticker.info`` dict, returning ``{}`` on failure."""
         try:
-            ticker = yf.Ticker(symbol)
+            ticker = yf.Ticker(symbol)  # .info and statements stay direct reads: ADR-0006 D2 exception
             info = ticker.info
             if info is None:
                 return {}
