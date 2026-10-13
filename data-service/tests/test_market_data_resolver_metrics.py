@@ -16,7 +16,7 @@ from app.providers.market_data_resolver import MarketDataResolver
 class EmptyProvider:
     provider_name = "phase2_empty_provider"
 
-    def get_ohlcv(self, symbol: str, interval: str = "1d", period: str = "1y"):
+    def get_ohlcv(self, symbol: str, interval: str = "1d", period: str = "1y", adjusted: bool = False):
         return []
 
     def get_financial_statements(self, symbol: str):
@@ -38,7 +38,7 @@ class EmptyProvider:
 class SuccessProvider(EmptyProvider):
     provider_name = "phase2_success_provider"
 
-    def get_ohlcv(self, symbol: str, interval: str = "1d", period: str = "1y"):
+    def get_ohlcv(self, symbol: str, interval: str = "1d", period: str = "1y", adjusted: bool = False):
         return [
             OHLCVBar(
                 timestamp=datetime(2026, 1, 1, tzinfo=timezone.utc),

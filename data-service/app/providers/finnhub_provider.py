@@ -148,6 +148,7 @@ class FinnhubProvider:
         symbol: str,
         interval: str = "1d",
         period: str = "1y",
+        adjusted: bool = False,
     ) -> list[OHLCVBar]:
         """Not available via Finnhub free tier — returns empty list."""
         return []

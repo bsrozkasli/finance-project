@@ -57,13 +57,14 @@ class YahooProvider:
         symbol: str,
         interval: str = "1d",
         period: str = "1y",
+        adjusted: bool = False,
     ) -> list[OHLCVBar]:
         try:
             ticker = yf.Ticker(symbol)
             hist = ticker.history(
                 period=period,
                 interval=interval,
-                auto_adjust=False,
+                auto_adjust=adjusted,
                 actions=False,
             )
             if hist is None or hist.empty:

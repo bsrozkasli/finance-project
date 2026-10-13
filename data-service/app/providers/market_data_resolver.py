@@ -130,6 +130,7 @@ class MarketDataResolver:
         symbol: str,
         interval: str = "1d",
         period: str = "1y",
+        adjusted: bool = False,
     ) -> list[OHLCVBar]:
         """Try each provider in chain until non-empty OHLCV data is returned."""
         operation = "ohlcv"
@@ -137,7 +138,7 @@ class MarketDataResolver:
         for index, provider in enumerate(providers):
             start = time.perf_counter()
             try:
-                bars = provider.get_ohlcv(symbol, interval, period)
+                bars = provider.get_ohlcv(symbol, interval, period, adjusted=adjusted)
                 if bars:
                     self._record_success(provider.provider_name, operation)
                     self._observe_latency(provider.provider_name, operation, "success", start)
