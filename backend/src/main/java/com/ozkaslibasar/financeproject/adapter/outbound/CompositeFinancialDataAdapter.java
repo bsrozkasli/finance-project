@@ -9,6 +9,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.service.FinancialStatementMerger;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ import java.util.List;
 @Component
 @Primary
 @RequiredArgsConstructor
+@Slf4j
 public class CompositeFinancialDataAdapter implements FinancialDataPort {
 
     private final YahooStatementClientAdapter yahooStatementClient;
@@ -41,7 +43,14 @@ public class CompositeFinancialDataAdapter implements FinancialDataPort {
 
     @Override
     public List<PriceHistory> fetchPriceHistory(String symbol, String interval, String range) {
-        List<PriceHistory> yahoo = yahooFinancePriceAdapter.fetchPriceHistory(symbol, interval, range);
+        List<PriceHistory> yahoo;
+        try {
+            yahoo = yahooFinancePriceAdapter.fetchPriceHistory(symbol, interval, range);
+        } catch (RuntimeException e) {
+            log.warn("operation=price_history provider=yahoo symbol={} interval={} range={} result=unavailable fallback=data-service",
+                    symbol, interval, range);
+            yahoo = Collections.emptyList();
+        }
         if (!yahoo.isEmpty()) {
             return yahoo;
         }
