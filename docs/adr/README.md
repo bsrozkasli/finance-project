@@ -11,6 +11,7 @@ This directory stores Architecture Decision Records (ADRs) for durable project-l
 | [ADR-0003](0003-redis-agent-analysis-cache.md) | Redis Cache for Agent Analysis Results | Accepted |
 | [ADR-0004](0004-sequential-agent-order.md) | Sequential Agent Execution Order | Accepted |
 | [ADR-0005](0005-db-first-lazy-price-loading.md) | DB-First Lazy Price History Loading | Accepted |
+| [ADR-0006](0006-data-service-price-history-through-resolver.md) | Data-Service Price History Through the Provider Resolver | Proposed |
 
 ## Adding a New ADR
 
