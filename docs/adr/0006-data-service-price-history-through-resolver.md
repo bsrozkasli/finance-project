@@ -1,8 +1,8 @@
 # ADR-0006: Data-Service Price History Through the Provider Resolver
 
 Date: 2026-10-13
-Status: Proposed
-Deciders: Development team
+Status: Accepted
+Deciders: Development team (D5 accepted as adjusted closes by maintainer, 2026-10-13)
 
 ## Context
 
