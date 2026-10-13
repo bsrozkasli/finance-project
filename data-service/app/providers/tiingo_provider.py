@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 
 _TIINGO_BASE = "https://api.tiingo.com"
 _TIINGO_EOD_PATH = "/tiingo/daily/{ticker}/prices"
+_RAW_FIELDS = ("open", "high", "low", "close", "volume")
+_ADJUSTED_FIELDS = ("adjOpen", "adjHigh", "adjLow", "adjClose", "adjVolume")
 _TIINGO_META_PATH = "/tiingo/daily/{ticker}"
 
 
@@ -68,15 +70,22 @@ class TiingoProvider:
     def get_ohlcv(
         self,
         symbol: str,
-        interval: str = "1d",  # noqa: ARG002 — Tiingo EOD is always daily
+        interval: str = "1d",
         period: str = "1y",
+        adjusted: bool = False,
     ) -> list[OHLCVBar]:
         """
         Fetch EOD OHLCV bars from Tiingo.
 
-        Note: Tiingo EOD is always daily regardless of `interval`.
-        Intraday data requires a separate subscription.
+        Tiingo EOD is daily only, so any other interval returns an empty list and
+        the resolver falls through instead of serving daily bars (ADR-0006 D6).
+        `adjusted` selects Tiingo's split/dividend-adjusted `adj*` fields.
         """
+        if interval != "1d":
+            logger.info("TiingoProvider: interval=%s unsupported (daily only) symbol=%s", interval, symbol)
+            return []
+
+        open_key, high_key, low_key, close_key, volume_key = _ADJUSTED_FIELDS if adjusted else _RAW_FIELDS
         start_date, end_date = self._period_to_dates(period)
         url = _TIINGO_BASE + _TIINGO_EOD_PATH.format(ticker=symbol.lower())
         params = {
@@ -106,18 +115,18 @@ class TiingoProvider:
                 except Exception:
                     continue
 
-                close = row.get("close") or row.get("adjClose")
+                close = row.get(close_key)
                 if close is None:
                     continue
 
                 bars.append(
                     OHLCVBar(
                         timestamp=dt.astimezone(timezone.utc),
-                        open=float(row.get("open") or close),
-                        high=float(row.get("high") or close),
-                        low=float(row.get("low") or close),
+                        open=float(row.get(open_key) or close),
+                        high=float(row.get(high_key) or close),
+                        low=float(row.get(low_key) or close),
                         close=float(close),
-                        volume=int(row["volume"]) if row.get("volume") is not None else None,
+                        volume=int(row[volume_key]) if row.get(volume_key) is not None else None,
                     )
                 )
             return bars
