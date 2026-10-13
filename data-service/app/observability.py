@@ -19,6 +19,16 @@ HTTP_REQUEST_DURATION_SECONDS = Histogram(
     ["method", "route", "status", "outcome"],
     buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30),
 )
+CACHE_LOOKUPS_TOTAL = Counter(
+    "data_service_cache_lookups_total",
+    "Data-service cache lookups by cache and result (memory_hit, redis_hit, miss)",
+    ["cache", "result"],
+)
+CACHE_ERRORS_TOTAL = Counter(
+    "data_service_cache_errors_total",
+    "Data-service cache backend failures by cache and operation (read, write)",
+    ["cache", "operation"],
+)
 
 
 def route_label(request) -> str:
