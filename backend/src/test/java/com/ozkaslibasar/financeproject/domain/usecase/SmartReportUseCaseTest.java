@@ -38,4 +38,25 @@ class SmartReportUseCaseTest {
         assertThat(report.getRecommendation()).isNull();
         assertThat(report.getBreakdown().getFundamentalScore()).isNull();
     }
+
+    @Test
+    void preservesMissingCompositeScoreFieldsAsUnavailable() {
+        SmartReportUseCase useCase = new SmartReportUseCase(scorePort, marketDataPort);
+        // These I/O-boundary stubs prevent live provider calls while exercising the real use case.
+        when(scorePort.fetchCompositeScore("AAPL")).thenReturn(Optional.of(
+                new SmartReportScorePort.CompositeScore(
+                        null,
+                        null,
+                        null,
+                        new SmartReportScorePort.ScoreBreakdown(null, null, null, null, null, null, null, null))));
+        when(marketDataPort.fetchCompanyMetrics("AAPL")).thenReturn(Optional.empty());
+        when(marketDataPort.fetchPeers("AAPL")).thenReturn(List.of());
+
+        SmartReport report = useCase.getSmartReport("AAPL");
+
+        assertThat(report.getOverallScore()).isNull();
+        assertThat(report.getGrade()).isNull();
+        assertThat(report.getRecommendation()).isNull();
+        assertThat(report.getBreakdown().getFundamentalScore()).isNull();
+    }
 }
