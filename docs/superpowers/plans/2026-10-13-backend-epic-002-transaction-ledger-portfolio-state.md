@@ -10,6 +10,7 @@
 **Focused tests:** Task 1 PortfolioLedgerServiceTest; Task 2 PortfolioCsvImportServiceTest; Task 3 PortfolioStateServiceTest and PortfolioStateRepositoryAdapterTest.
 
 **Plan Set:** 2 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
+**Execution status (2026-10-15):** Blocked. The ready PRD-FR-011/014 verification slices cannot be judged against their missing referenced product contract; EPIC-001 stable identity and the OQ-5/OQ-8 CSV, state, and recovery decisions are also absent.
 **Depends On:** EPIC-001 identity; approved CSV/state contract and OQ-5/8 decisions where applicable.
 **Produces:** Source-linked ledger events, staged idempotent CSV import, versioned Portfolio State and recovery evidence.
 **Spec:** docs/product/epics/EPIC-002-transaction-ledger-portfolio-state.md; docs/product/PRD.md §9.2.

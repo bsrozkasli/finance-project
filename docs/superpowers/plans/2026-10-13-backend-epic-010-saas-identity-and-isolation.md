@@ -10,7 +10,7 @@
 **Focused tests:** Task 1 AccountAccessServiceTest; Task 2 TenantMigrationServiceTest; Task 3 EntitlementServiceTest.
 
 **Plan Set:** 10 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
-**Status:** Deferred Post-V1; execution requires separate tenant architecture and stage approval.
+**Execution status (2026-10-15):** Deferred Post-V1. Separate tenant architecture and stage approval, a tenant threat model, and OQ-1/2/5/6/8 records are not available.
 **Depends On:** EPIC-001/002/004/008 lifecycle; OQ-1/2/5/6/8 and tenant threat model.
 **Produces:** Account-scoped authorization, reviewed migration, subscription/entitlement gate and isolation evidence.
 **Spec:** docs/product/epics/EPIC-010-saas-identity-and-isolation.md; docs/product/PRD.md §9.10.

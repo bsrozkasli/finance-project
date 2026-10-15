@@ -10,6 +10,7 @@
 **Focused tests:** Task 1 InvestmentQualityServiceTest; Task 2 PortfolioFitServiceTest; Task 3 DecisionPolicyServiceTest; Task 4 DecisionReplayServiceTest.
 
 **Plan Set:** 4 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
+**Execution status (2026-10-15):** Blocked. EPIC-001–003 versioned outputs and OQ-1/3/4/5 policy and public-contract decisions are absent.
 **Depends On:** EPIC-001 evidence, EPIC-002 Portfolio State, EPIC-003 research; OQ-1/3/4/5.
 **Produces:** InvestmentQuality, PortfolioFit, UserPolicy, DecisionResult and DecisionCard versions for later epics.
 **Spec:** docs/product/epics/EPIC-004-investment-quality-and-portfolio-fit.md; docs/product/PRD.md §9.4.

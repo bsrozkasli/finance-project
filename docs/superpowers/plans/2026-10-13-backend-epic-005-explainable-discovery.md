@@ -10,6 +10,7 @@
 **Focused tests:** Task 1 DiscoveryScreenServiceTest; Task 2 ShortlistServiceTest; Task 3 SelectedResearchGateTest.
 
 **Plan Set:** 5 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
+**Execution status (2026-10-15):** Blocked. EPIC-001/003 outputs and OQ-2/6/7/8 rights, cost, measurement, and stage-gate records are absent.
 **Depends On:** EPIC-001/003; OQ-2 rights, OQ-6 cost, OQ-7 measurement and OQ-8 stage gates.
 **Produces:** ScreenRun and persistent ShortlistEntry contracts for EPIC-007.
 **Spec:** docs/product/epics/EPIC-005-explainable-discovery.md; docs/product/PRD.md §9.5.

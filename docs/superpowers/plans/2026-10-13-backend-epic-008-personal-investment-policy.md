@@ -10,7 +10,7 @@
 **Focused tests:** Task 1 LearningConsentServiceTest; Task 2 PersonalPolicyGateTest; Task 3 PersonalDataLifecycleServiceTest.
 
 **Plan Set:** 8 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
-**Status:** Deferred Post-V1; execution requires separate stage approval.
+**Execution status (2026-10-15):** Deferred Post-V1. Separate stage approval, OQ-1/3/4/7, and consent/retention approvals are not recorded.
 **Depends On:** EPIC-001/004/007, consent/retention schema, OQ-1/3/4/7.
 **Produces:** DecisionEvent, PersonalPolicyAdjustment, artifact lifecycle, explicit-policy fallback.
 **Spec:** docs/product/epics/EPIC-008-personal-investment-policy.md; docs/product/PRD.md §9.8.
