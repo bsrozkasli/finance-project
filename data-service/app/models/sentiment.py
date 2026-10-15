@@ -5,6 +5,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.models.availability import SectionAvailability
+
 
 class AnalystRecommendation(BaseModel):
     """Most-recent analyst recommendation breakdown from Finnhub."""
@@ -50,3 +52,9 @@ class EnhancedSentimentResponse(BaseModel):
     # Composite score (0-100)
     sentiment_score: int = Field(ge=0, le=100)
     calculated_at: datetime
+
+    # Explicit availability per section (legacy scores above keep their neutral defaults)
+    news_availability: SectionAvailability
+    analyst_availability: SectionAvailability
+    insider_availability: SectionAvailability
+    unavailable_components: list[str]
