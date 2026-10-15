@@ -10,8 +10,8 @@
 
 | Phase | Plan | Execution status | Blocking evidence / entry condition |
 |---|---|---|---|
-| V1 foundation | [EPIC-001 trusted evidence](2026-10-13-backend-epic-001-trusted-market-evidence.md) | In progress | `510982c` removes fabricated smart-report score defaults. OQ-2/3/5/8 and the approved product contracts are still absent. |
-| V1 foundation | [EPIC-002 portfolio state](2026-10-13-backend-epic-002-transaction-ledger-portfolio-state.md) | Blocked | EPIC-001 stable identity, the CSV/state contract, OQ-5/OQ-8, and the referenced product contract are absent. |
+| V1 foundation | [EPIC-001 trusted evidence](2026-10-13-backend-epic-001-trusted-market-evidence.md) | In progress | `510982c` removes fabricated smart-report score defaults. The 2026-10-15 source/type decision selects `yfinance` and approves removal of the unresolved `STOCK` default; OQ-2 point-in-time/rights and OQ-5 migration evidence remain open. |
+| V1 foundation | [EPIC-002 portfolio state](2026-10-13-backend-epic-002-transaction-ledger-portfolio-state.md) | Blocked | The PRD-FR-011/014 verification slices may proceed; full delivery needs EPIC-001 stable identity, the CSV/state contract, and OQ-5/OQ-8 records. |
 | V1 foundation | [EPIC-003 asset research](2026-10-13-backend-epic-003-end-to-end-asset-research.md) | Blocked | EPIC-001 snapshot/identity plus OQ-2/3/4/5/7 records and licensed-series evidence are absent. |
 | V1 foundation | [EPIC-004 quality and Fit](2026-10-13-backend-epic-004-investment-quality-and-portfolio-fit.md) | Blocked | EPIC-001–003 outputs plus OQ-1/3/4/5 policy and API-migration records are absent. |
 | Value MVP | [EPIC-005 discovery](2026-10-13-backend-epic-005-explainable-discovery.md) | Blocked | EPIC-001/003 outputs and OQ-2/6/7/8 rights, cost, measurement, and stage-gate records are absent. |

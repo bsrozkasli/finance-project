@@ -75,6 +75,10 @@ Each row is the sole primary delivery assignment from the
   must approve stock/ETF evidence policy and independent boundary fixtures.
 - OQ-5 governs any changed public route or DTO. OQ-7/8 govern measurement and
   external cohort/security gates; OQ-1 governs regulated output classification.
+- The [2026-10-15 source/type decision](../decisions/2026-10-15-instrument-identity-source-and-unresolved-type.md)
+  selects `yfinance` for initial metadata observations and approves removing the
+  unresolved-symbol `STOCK` default. It does not establish historical
+  classification, licensed use, or an OQ-5 consumer migration.
 - EPIC-002 through EPIC-004 consume the versioned snapshot and instrument
   identity. They must not duplicate this epic's primary requirement ownership.
 

@@ -10,7 +10,7 @@
 **Focused tests:** Task 1 AssetResearchServiceTest; Task 2 BenchmarkSelectionServiceTest; Task 3 PegResearchContractTest plus data-service PEG fixtures.
 
 **Plan Set:** 3 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
-**Execution status (2026-10-15):** Blocked. EPIC-001 identity/snapshot plus the OQ-2/3/4/5/7 closure records, licensed-series proof, and referenced product contract are absent.
+**Execution status (2026-10-15):** Blocked. EPIC-001 identity/snapshot plus the OQ-2/3/4/5/7 closure records and licensed-series proof are absent.
 **Depends On:** EPIC-001 snapshot/identity; OQ-2/3/4/5 and OQ-7 measurement decisions.
 **Produces:** Snapshot-linked research response, benchmark selection record, governed Target-Horizon PEG presentation.
 **Spec:** docs/product/epics/EPIC-003-end-to-end-asset-research.md; docs/product/PRD.md §9.3.

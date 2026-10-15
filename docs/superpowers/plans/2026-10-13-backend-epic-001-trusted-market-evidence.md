@@ -10,7 +10,8 @@
 **Focused tests:** Task 1 InstrumentEligibilityServiceTest; Task 2 ResearchEvidenceServiceTest and ResearchEvidenceRepositoryAdapterTest; Task 3 EvidenceStrengthServiceTest; Task 4 DataRightsApprovalServiceTest; Task 5 IsolatedEvaluationAccessTest.
 
 **Plan Set:** 1 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
-**Execution status (2026-10-15):** In progress. `510982c` prevents missing provider composite scores from becoming fabricated `50` values and makes the frontend display them as unavailable. This does not satisfy any full task exit criterion: the OQ-2/3/5/8 closure records and the referenced product contract are absent.
+**Execution status (2026-10-15):** In progress. `510982c` prevents missing provider composite scores from becoming fabricated `50` values and makes the frontend display them as unavailable. This does not satisfy any full task exit criterion: the OQ-2/3/5/8 closure records are absent.
+**Decision update (2026-10-15):** The product owner selected `yfinance` for initial metadata observations and approved removing the unresolved-symbol `STOCK` fallback; see [the decision record](../../product/decisions/2026-10-15-instrument-identity-source-and-unresolved-type.md). Task 1 still needs point-in-time classification and use-rights evidence under OQ-2 plus a full OQ-5 consumer migration before acceptance.
 **Depends On:** EPIC-000 baseline; OQ-2/3/5 closure for affected tasks.
 **Produces:** InstrumentIdentity, ResearchEvidenceSnapshot, EvidenceStrength, section statuses, DataRightsApproval binding.
 **Spec:** docs/product/epics/EPIC-001-trusted-market-evidence.md; docs/product/PRD.md §9.1.
