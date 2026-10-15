@@ -4,6 +4,8 @@ from enum import Enum
 from typing import Optional
 from pydantic import BaseModel, Field
 
+from app.models.availability import SectionAvailability
+
 
 class InvestmentGrade(str, Enum):
     A_PLUS = "A+"
@@ -34,3 +36,5 @@ class CompositeInvestmentScore(BaseModel):
     breakdown: CompositeScoreBreakdown
     confidence: float = Field(ge=0.0, le=1.0)
     calculated_at: datetime
+    breakdown_availability: dict[str, SectionAvailability]
+    unavailable_components: list[str]
