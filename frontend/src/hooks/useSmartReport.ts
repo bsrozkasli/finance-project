@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
 
 export interface ScoreBreakdown {
-  fundamentalScore: number;
-  valuationScore: number;
-  qualityScore: number;
-  growthScore: number;
-  momentumScore: number;
-  riskScore: number;
-  earningsScore: number;
-  sentimentScore: number;
+  fundamentalScore: number | null;
+  valuationScore: number | null;
+  qualityScore: number | null;
+  growthScore: number | null;
+  momentumScore: number | null;
+  riskScore: number | null;
+  earningsScore: number | null;
+  sentimentScore: number | null;
 }
 
 export interface PeerComparison {
@@ -23,10 +23,10 @@ export interface PeerComparison {
 
 export interface SmartReport {
   symbol: string;
-  overallScore: number;
-  grade: string;
-  recommendation: string;
-  breakdown: ScoreBreakdown;
+  overallScore: number | null;
+  grade: string | null;
+  recommendation: string | null;
+  breakdown: ScoreBreakdown | null;
   peers: PeerComparison[];
 }
 

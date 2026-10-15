@@ -196,12 +196,13 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
 
     const breakdown = smartReport.breakdown
       ? Object.entries(smartReport.breakdown)
-          .map(([key, value]) => `- **${key.replace('Score', '')}:** ${value.toFixed(0)} / 100`)
+          .map(([key, value]) => `- **${key.replace('Score', '')}:** ${value == null ? 'Unavailable' : `${value.toFixed(0)} / 100`}`)
           .join('\n')
       : '- Score breakdown is unavailable.';
     const targetPriceText = targetPriceForUpside == null ? 'Unavailable' : '$' + targetPriceForUpside.toFixed(2);
 
-    return `# Backend Smart Investment Report: ${smartReport.symbol}\n\n## Summary\n- **Overall score:** ${smartReport.overallScore.toFixed(0)} / 100\n- **Grade:** ${smartReport.grade}\n- **Recommendation:** ${smartReport.recommendation}\n\n## Score Breakdown\n${breakdown}\n\n## Analyst Context\n- **Consensus:** ${analystRating?.consensus ?? 'Unavailable'}\n- **Target price:** ${targetPriceText}\n- **Upside/downside:** ${analystUpside}%\n\nThis report is generated from backend provider data. Missing provider fields remain unavailable instead of being fabricated.`;
+    const overallScore = smartReport.overallScore == null ? 'Unavailable' : `${smartReport.overallScore.toFixed(0)} / 100`;
+    return `# Backend Smart Investment Report: ${smartReport.symbol}\n\n## Summary\n- **Overall score:** ${overallScore}\n- **Grade:** ${smartReport.grade ?? 'Unavailable'}\n- **Recommendation:** ${smartReport.recommendation ?? 'Unavailable'}\n\n## Score Breakdown\n${breakdown}\n\n## Analyst Context\n- **Consensus:** ${analystRating?.consensus ?? 'Unavailable'}\n- **Target price:** ${targetPriceText}\n- **Upside/downside:** ${analystUpside}%\n\nThis report is generated from backend provider data. Missing provider fields remain unavailable instead of being fabricated.`;
   };
 
   const handleTechnicalCopilot = async () => {
