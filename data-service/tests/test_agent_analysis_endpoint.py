@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from app.models.agent_analysis import AgentAnalysisResponse
+from app.models.availability import SectionAvailability
 
 
 client = TestClient(app)
@@ -36,6 +37,7 @@ def test_agent_analysis_returns_response_when_service_succeeds():
         bear_case="Valuation risk.",
         portfolio_manager_reasoning="Buy on quality.",
         token_usage=100,
+        decision_availability=SectionAvailability.available(),
     )
     with patch("app.routers.agent_analysis.settings") as mock_settings:
         mock_settings.AZURE_OPENAI_API_KEY = "key"
@@ -57,3 +59,4 @@ def test_agent_analysis_returns_response_when_service_succeeds():
     body = response.json()
     assert body["decision"] == "BUY"
     assert body["confidence"] == 85
+    assert body["decision_availability"] == {"status": "available", "unavailable_reason": None}

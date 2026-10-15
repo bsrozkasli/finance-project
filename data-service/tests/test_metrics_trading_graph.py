@@ -60,6 +60,7 @@ def test_metrics_trading_graph_propagate():
     assert response.bear_case == "Bear Case: Competition risk."
     assert response.portfolio_manager_reasoning == "Overall bullish setup."
     assert response.token_usage == 15 + 20 + 25 + 30 + 35 + 40  # 165 tokens
+    assert response.decision_availability.status == "available"
 
     # Ensure the LLM was called 6 times
     assert mock_llm.invoke.call_count == 6

@@ -11,7 +11,7 @@ from prometheus_client import Counter, Histogram
 from app.agents.bear_researcher import run_bear_researcher
 from app.agents.bull_researcher import run_bull_researcher
 from app.agents.fundamentals_analyst import run_fundamentals_analyst
-from app.agents.portfolio_manager import run_portfolio_manager
+from app.agents.portfolio_manager import run_portfolio_manager_verdict
 from app.agents.risk_analyst import run_risk_analyst
 from app.agents.technical_analyst import run_technical_analyst
 from app.config import settings
@@ -82,20 +82,21 @@ class MetricsTradingAgentsGraph:
             total_tokens += t5
 
             debate = f"Bull:\n{bull}\n\nBear:\n{bear}\n\nPrior summaries:\n{context}"
-            decision, reasoning, confidence, t6 = run_portfolio_manager(llm, ticker, debate)
-            total_tokens += t6
+            verdict = run_portfolio_manager_verdict(llm, ticker, debate)
+            total_tokens += verdict.token_usage
 
             AGENT_TOKEN_USAGE.inc(total_tokens)
             return AgentAnalysisResponse(
-                decision=decision,
-                confidence=confidence,
+                decision=verdict.decision,
+                confidence=verdict.confidence,
                 fundamental_summary=fundamental,
                 technical_summary=technical,
                 risk_summary=risk,
                 bull_case=bull,
                 bear_case=bear,
-                portfolio_manager_reasoning=reasoning,
+                portfolio_manager_reasoning=verdict.reasoning,
                 token_usage=total_tokens,
+                decision_availability=verdict.availability,
             )
         except Exception:
             AGENT_FAILURES.inc()

@@ -6,7 +6,7 @@ from app.agents.technical_analyst import run_technical_analyst
 from app.agents.risk_analyst import run_risk_analyst
 from app.agents.bull_researcher import run_bull_researcher
 from app.agents.bear_researcher import run_bear_researcher
-from app.agents.portfolio_manager import run_portfolio_manager
+from app.agents.portfolio_manager import run_portfolio_manager, run_portfolio_manager_verdict
 
 
 @pytest.fixture
@@ -101,8 +101,48 @@ def test_run_portfolio_manager_fallback_sell(mock_llm):
 def test_run_portfolio_manager_fallback_hold(mock_llm):
     mock_llm.invoke.return_value = create_mock_response("Neither option makes sense, keep position.", 80)
     decision, reasoning, confidence, tokens = run_portfolio_manager(mock_llm, "AAPL", "Debate context")
-    
+
     assert decision == "HOLD"
     assert confidence == 50
     assert reasoning == "Neither option makes sense, keep position."
     assert tokens == 80
+
+
+def test_json_verdict_is_available(mock_llm):
+    mock_llm.invoke.return_value = create_mock_response('{"decision": "buy", "confidence": 85, "reasoning": "ok"}', 7)
+    verdict = run_portfolio_manager_verdict(mock_llm, "AAPL", "Debate context")
+
+    assert (verdict.decision, verdict.confidence, verdict.reasoning, verdict.token_usage) == ("BUY", 85, "ok", 7)
+    assert verdict.availability.model_dump() == {"status": "available", "unavailable_reason": None}
+
+
+def test_keyword_fallback_is_unparseable(mock_llm):
+    mock_llm.invoke.return_value = create_mock_response("We should SELL this stock now.", 9)
+    verdict = run_portfolio_manager_verdict(mock_llm, "AAPL", "Debate context")
+
+    assert (verdict.decision, verdict.confidence) == ("SELL", 70)
+    assert verdict.availability.model_dump() == {"status": "unparseable", "unavailable_reason": "pm_response_not_json_keyword_fallback"}
+
+
+def test_default_hold_is_unparseable(mock_llm):
+    mock_llm.invoke.return_value = create_mock_response("Neither option makes sense.", 9)
+    verdict = run_portfolio_manager_verdict(mock_llm, "AAPL", "Debate context")
+
+    assert (verdict.decision, verdict.confidence) == ("HOLD", 50)
+    assert verdict.availability.unavailable_reason == "pm_response_not_json_default_hold"
+
+
+def test_json_with_invalid_decision_is_unparseable(mock_llm):
+    mock_llm.invoke.return_value = create_mock_response('{"decision": "STRONG BUY", "confidence": 90}', 9)
+    verdict = run_portfolio_manager_verdict(mock_llm, "AAPL", "Debate context")
+
+    assert (verdict.decision, verdict.confidence) == ("STRONG BUY", 90)
+    assert verdict.availability.unavailable_reason == "pm_json_missing_or_invalid_fields"
+
+
+def test_json_without_confidence_is_unparseable(mock_llm):
+    mock_llm.invoke.return_value = create_mock_response('{"decision": "HOLD", "reasoning": "wait"}', 9)
+    verdict = run_portfolio_manager_verdict(mock_llm, "AAPL", "Debate context")
+
+    assert (verdict.decision, verdict.confidence) == ("HOLD", 50)
+    assert verdict.availability.unavailable_reason == "pm_json_missing_or_invalid_fields"

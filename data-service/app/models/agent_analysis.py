@@ -4,6 +4,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.models.availability import SectionAvailability
+
 
 class AgentAnalysisRequest(BaseModel):
     ticker: str
@@ -23,3 +25,4 @@ class AgentAnalysisResponse(BaseModel):
     bear_case: str
     portfolio_manager_reasoning: str
     token_usage: int | None = None
+    decision_availability: SectionAvailability
