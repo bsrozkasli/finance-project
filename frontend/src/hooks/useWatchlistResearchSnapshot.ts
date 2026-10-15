@@ -32,10 +32,16 @@ export function useWatchlistResearchSnapshot(
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchWatchlistResearchSnapshot(watchlistId, { limit, offset, refresh, symbols });
-      setSnapshot(data);
+      const data: unknown = await fetchWatchlistResearchSnapshot(watchlistId, { limit, offset, refresh, symbols });
+      if (!data || typeof data !== 'object' || Array.isArray(data) ||
+        !('rows' in data) || !Array.isArray(data.rows) ||
+        !('policy' in data) || !data.policy || typeof data.policy !== 'object') {
+        throw new Error('Watchlist research snapshot is unavailable or invalid');
+      }
+      setSnapshot(data as WatchlistResearchSnapshot);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load watchlist research snapshot');
+      setSnapshot(null);
     } finally {
       setLoading(false);
     }

@@ -29,10 +29,19 @@ export const useBacktest = (symbol: string | null) => {
       setError(null);
       try {
         const response = await apiClient.get<BacktestResult>(`/backtest/${symbol}`);
-        if (isMounted) setData(response.data);
+        const result: unknown = response.data;
+        if (!result || typeof result !== 'object' || Array.isArray(result) ||
+          !('symbol' in result) || result.symbol !== symbol ||
+          !('isMeaningful' in result) || typeof result.isMeaningful !== 'boolean') {
+          throw new Error('Backtest response is unavailable or invalid');
+        }
+        if (isMounted) setData(result as BacktestResult);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to fetch backtest';
-        if (isMounted) setError(message);
+        if (isMounted) {
+          setError(message);
+          setData(null);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }

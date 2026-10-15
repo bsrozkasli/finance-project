@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import type { CalendarEvent, News, Stock, Trade, Watchlist, Portfolio } from './types';
 import type { CategorizedNewsItem, EconomicEvent, JournalTrade } from './api/client';
@@ -13,13 +13,13 @@ import { useJournalTrades } from './hooks/useJournalTrades';
 // Component Imports
 import TopBar from './components/TopBar';
 import LeftNav from './components/LeftNav';
-import DashboardHome from './components/DashboardHome';
-import ChartWorkspace from './components/ChartWorkspace';
-import WatchlistsView from './components/WatchlistsView';
-import NewsFeedView from './components/NewsFeedView';
-import AiReportsView from './components/AiReportsView';
-import PortfolioManagerView from './components/PortfolioManagerView';
-import TradingJournalView from './components/TradingJournalView';
+const DashboardHome = lazy(() => import('./components/DashboardHome'));
+const ChartWorkspace = lazy(() => import('./components/ChartWorkspace'));
+const WatchlistsView = lazy(() => import('./components/WatchlistsView'));
+const NewsFeedView = lazy(() => import('./components/NewsFeedView'));
+const AiReportsView = lazy(() => import('./components/AiReportsView'));
+const PortfolioManagerView = lazy(() => import('./components/PortfolioManagerView'));
+const TradingJournalView = lazy(() => import('./components/TradingJournalView'));
 
 // Modals & Drawers
 import StockDetailModal from './components/StockDetailModal';
@@ -100,7 +100,6 @@ export default function App() {
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [activePortfolioId, setActivePortfolioId] = useState<string>('port-1');
-  const [volatility, setVolatility] = useState<'low' | 'normal' | 'high'>('normal');
   const [news, setNews] = useState<News[]>([]);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
 
@@ -296,10 +295,6 @@ export default function App() {
     setActivePortfolioId(id);
   };
 
-  const saveVolatilityState = (v: 'low' | 'normal' | 'high') => {
-    setVolatility(v);
-    localStorage.setItem('nexus_volatility', v);
-  };
 
   // 4. Watchlist handlers
   const handleAddStockToWatchlist = async (watchlistId: string, symbol: string) => {
@@ -390,52 +385,9 @@ export default function App() {
       }
     } catch (error) {
       console.error('Failed to save trade transaction', error);
-      return;
+      throw error;
     }
 
-    const updatedPortfolios = portfolios.map((p) => {
-      if (p.id !== targetPortfolioId) return p;
-
-      const updatedHoldings = [...p.holdings];
-      const index = updatedHoldings.findIndex((h) => h.symbol === newTrade.symbol);
-
-      if (newTrade.type === 'BUY') {
-        if (index >= 0) {
-          const existing = updatedHoldings[index];
-          const nextQty = existing.quantity + newTrade.quantity;
-          const nextCost = (existing.quantity * existing.costPrice + newTrade.quantity * newTrade.price) / nextQty;
-          updatedHoldings[index] = {
-            symbol: newTrade.symbol,
-            quantity: nextQty,
-            costPrice: Math.round(nextCost * 100) / 100,
-          };
-        } else {
-          updatedHoldings.push({
-            symbol: newTrade.symbol,
-            quantity: newTrade.quantity,
-            costPrice: newTrade.price,
-          });
-        }
-      } else if (index >= 0) {
-        const existing = updatedHoldings[index];
-        const nextQty = existing.quantity - newTrade.quantity;
-        if (nextQty <= 0) {
-          updatedHoldings.splice(index, 1);
-        } else {
-          updatedHoldings[index] = {
-            ...existing,
-            quantity: nextQty,
-          };
-        }
-      }
-
-      return {
-        ...p,
-        holdings: updatedHoldings,
-      };
-    });
-
-    setPortfolios(updatedPortfolios);
   };
 
   const handleRemoveTrade = async (id: string) => {
@@ -463,64 +415,19 @@ export default function App() {
     }
 
 
-    const updatedPortfolios = portfolios.map((p) => {
-      if (p.id !== targetPortfolioId) return p;
-
-      const updatedHoldings = [...p.holdings];
-      const index = updatedHoldings.findIndex((h) => h.symbol === tradeToRemove.symbol);
-
-      if (index >= 0) {
-        const existing = updatedHoldings[index];
-        if (tradeToRemove.type === 'BUY') {
-          const nextQty = existing.quantity - tradeToRemove.quantity;
-          if (nextQty <= 0) {
-            updatedHoldings.splice(index, 1);
-          } else {
-            updatedHoldings[index] = {
-              ...existing,
-              quantity: nextQty,
-            };
-          }
-        } else {
-          const nextQty = existing.quantity + tradeToRemove.quantity;
-          updatedHoldings[index] = {
-            ...existing,
-            quantity: nextQty,
-          };
-        }
-      } else if (tradeToRemove.type === 'SELL') {
-        updatedHoldings.push({
-          symbol: tradeToRemove.symbol,
-          quantity: tradeToRemove.quantity,
-          costPrice: tradeToRemove.price,
-        });
-      }
-
-      return {
-        ...p,
-        holdings: updatedHoldings,
-      };
-    });
-
-    setPortfolios(updatedPortfolios);
-  };
-  // 6. Reset local UI preferences only. Backend portfolio, journal, and watchlist data is not deleted.
-  const handleResetDatabase = () => {
-    localStorage.removeItem('nexus_volatility');
-    setVolatility('normal');
-    localStorage.setItem('nexus_volatility', 'normal');
-    alert('Local UI preferences were reset. Backend data was not deleted.');
   };
 
   // renderView is replaced by Routes
 
   return (
-    <div className="min-h-screen bg-bg-base flex flex-col text-text-primary antialiased selection:bg-primary/20 select-none overflow-hidden">
+    <div className="min-h-screen bg-bg-base flex flex-col text-text-primary antialiased selection:bg-primary/20 overflow-hidden">
 
       {/* 1. Global Terminal Top Header */}
       <TopBar
         stocks={stocks}
+        trackedAssets={assets}
         onSelectStock={(s) => openStockDetails(s)}
+        onSelectAsset={(symbol, name) => openStockDetails(null, symbol, name)}
         onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
       />
 
@@ -534,6 +441,7 @@ export default function App() {
 
         {/* Dynamic active view panel */}
         <main className="flex-1 flex flex-col overflow-hidden">
+          <Suspense fallback={<div role="status" className="flex flex-1 items-center justify-center p-8 text-sm text-text-secondary">Loading workspace…</div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={
@@ -637,6 +545,7 @@ export default function App() {
             <Route path="/portfolios" element={<Navigate to="/portfolio" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
+          </Suspense>
         </main>
       </div>
 
@@ -683,9 +592,6 @@ export default function App() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        volatility={volatility}
-        onUpdateVolatility={saveVolatilityState}
-        onResetDatabase={handleResetDatabase}
       />
 
       {/* Pop-up Trading Journal Ledger Modal */}

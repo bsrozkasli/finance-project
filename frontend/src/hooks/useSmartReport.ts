@@ -48,8 +48,14 @@ export const useSmartReport = (symbol: string | null) => {
     const fetchReport = async () => {
       try {
         const response = await apiClient.get<SmartReport>(`/reports/smart/${symbol}`);
+        const report: unknown = response.data;
+        if (!report || typeof report !== 'object' || Array.isArray(report) ||
+          !('symbol' in report) || report.symbol !== symbol ||
+          !('peers' in report) || !Array.isArray(report.peers)) {
+          throw new Error('Research response is unavailable or invalid');
+        }
         if (isMounted) {
-          setReport(response.data);
+          setReport(report as SmartReport);
           setError(null);
         }
       } catch (err: unknown) {

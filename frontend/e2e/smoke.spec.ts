@@ -107,6 +107,8 @@ test.beforeEach(async ({ page }) => {
 
 test('loads the dashboard and navigates primary frontend routes', async ({ page }, testInfo) => {
   testInfo.setTimeout(60_000);
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByRole('heading', { name: 'Nexus Terminal' })).toBeVisible();
@@ -122,7 +124,17 @@ test('loads the dashboard and navigates primary frontend routes', async ({ page 
   ] as const) {
     await page.goto(path, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(new RegExp(`${path}$`));
+    if (path === '/watchlist') {
+      await expect(page.getByRole('heading', { name: 'Watchlist Research' })).toBeVisible();
+      await expect(page.getByText(/Snapshot could not be loaded/i)).toBeVisible();
+    }
+    if (path === '/reports') {
+      await expect(page.getByRole('heading', { name: 'Security Research' })).toBeVisible();
+      await expect(page.getByText(/Research unavailable/i)).toBeVisible();
+    }
   }
+
+  expect(pageErrors).toEqual([]);
 });
 
 test('opens shell actions without leaving the backend API boundary', async ({ page }) => {

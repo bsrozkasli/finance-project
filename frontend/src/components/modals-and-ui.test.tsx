@@ -52,65 +52,47 @@ const holdings: Holding[] = [
 ];
 
 describe('SettingsModal', () => {
-  it('updates volatility, closes from save, and hides when closed', async () => {
+  it('does not offer simulated price controls or claim a provider connection', async () => {
     const onClose = vi.fn();
-    const onUpdateVolatility = vi.fn();
 
     const { rerender } = render(
       <SettingsModal
         isOpen
         onClose={onClose}
-        volatility="normal"
-        onUpdateVolatility={onUpdateVolatility}
-        onResetDatabase={vi.fn()}
       />,
     );
 
-    await user().click(screen.getByRole('button', { name: 'high' }));
-    expect(onUpdateVolatility).toHaveBeenCalledWith('high');
+    expect(screen.queryByText(/Market Feed Volatility/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Connected')).not.toBeInTheDocument();
 
-    await user().click(screen.getByRole('button', { name: /save changes/i }));
+    await user().click(screen.getByRole('button', { name: /close settings/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
 
     rerender(
       <SettingsModal
         isOpen={false}
         onClose={onClose}
-        volatility="normal"
-        onUpdateVolatility={onUpdateVolatility}
-        onResetDatabase={vi.fn()}
       />,
     );
     expect(screen.queryByText('Nexus Terminal System Settings')).not.toBeInTheDocument();
   });
 
-  it('requires confirmation before resetting local UI preferences', async () => {
-    const onClose = vi.fn();
-    const onResetDatabase = vi.fn();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
-
-    render(
-      <SettingsModal
-        isOpen
-        onClose={onClose}
-        volatility="normal"
-        onUpdateVolatility={vi.fn()}
-        onResetDatabase={onResetDatabase}
-      />,
-    );
-
-    await user().click(screen.getByRole('button', { name: /reset local preferences/i }));
-    expect(onResetDatabase).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-
-    await user().click(screen.getByRole('button', { name: /reset local preferences/i }));
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Reset local UI preferences'));
-    expect(onResetDatabase).toHaveBeenCalledTimes(1);
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('TradeActionModal', () => {
+  it('keeps the order open and reports a failed save instead of announcing success', async () => {
+    const onClose = vi.fn();
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
+    // The save callback is the I/O boundary; its rejection models a failed backend write.
+    const onExecuteTrade = vi.fn().mockRejectedValue(new Error('Ledger unavailable'));
+
+    render(<TradeActionModal isOpen onClose={onClose} symbol="AAPL" stocks={stocks} holdings={holdings} onExecuteTrade={onExecuteTrade} />);
+    await user().click(screen.getByRole('button', { name: /send order/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Ledger unavailable');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalledWith(expect.stringContaining('completed'));
+  });
   it('blocks invalid orders without executing a trade', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
     const onExecuteTrade = vi.fn();
@@ -191,6 +173,22 @@ describe('TradeActionModal', () => {
 });
 
 describe('ManageAssetsDrawer', () => {
+  it('does not value or close a holding using its cost when the current price is unavailable', () => {
+    render(
+      <ManageAssetsDrawer
+        isOpen
+        onClose={vi.fn()}
+        stocks={[]}
+        holdings={[{ symbol: 'AAPL', quantity: 2, costPrice: 100 }]}
+        portfolioId="10"
+        onExecuteTrade={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/Value: Unavailable/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /close position/i })).toBeDisabled();
+    expect(screen.queryByText('$200.00')).not.toBeInTheDocument();
+  });
   it('validates position input before sending a portfolio trade', async () => {
     const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
     const onExecuteTrade = vi.fn();

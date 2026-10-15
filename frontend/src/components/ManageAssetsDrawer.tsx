@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Briefcase, Plus, Trash2, ArrowUpRight } from 'lucide-react';
 import type { Stock, Holding, Trade } from '../types';
 
@@ -21,21 +21,24 @@ export default function ManageAssetsDrawer({
 }: ManageAssetsDrawerProps) {
   const [selectedSymbol, setSelectedSymbol] = useState(stocks[0]?.symbol || '');
   const [quantity, setQuantity] = useState<number>(1);
-  const [costPrice, setCostPrice] = useState<number>(132.85);
+  const [costPrice, setCostPrice] = useState<number>(0);
+
+  useEffect(() => {
+    if (!stocks.some((stock) => stock.symbol === selectedSymbol)) {
+      setSelectedSymbol(stocks[0]?.symbol ?? '');
+    }
+  }, [selectedSymbol, stocks]);
 
   if (!isOpen) return null;
 
   const handleSelectSymbol = (sym: string) => {
     setSelectedSymbol(sym);
-    const matched = stocks.find((s) => s.symbol === sym);
-    if (matched) {
-      setCostPrice(matched.price);
-    }
+    setCostPrice(0);
   };
 
   const handleAddAsset = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (quantity <= 0 || costPrice <= 0) {
+    if (!selectedSymbol || quantity <= 0 || costPrice <= 0) {
       alert('Enter a valid quantity and cost basis.');
       return;
     }
@@ -62,12 +65,13 @@ export default function ManageAssetsDrawer({
     if (!confirm('Record a SELL transaction to close ' + symbol + '?')) return;
 
     const stock = stocks.find((item) => item.symbol === symbol);
+    if (!stock) return;
     try {
       await onExecuteTrade({
         symbol,
         type: 'SELL',
         quantity: holding.quantity,
-        price: stock?.price ?? holding.costPrice,
+        price: stock.price,
         notes: symbol + ' position closed from portfolio drawer.',
         portfolioId,
       });
@@ -155,7 +159,8 @@ export default function ManageAssetsDrawer({
 
                   <button
                     type="submit"
-                    className="w-full py-2 bg-primary hover:bg-primary-container text-bg-base font-bold rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-primary/10"
+                    disabled={stocks.length === 0}
+                    className="w-full py-2 bg-primary hover:bg-primary-container text-bg-base font-bold rounded-lg transition-all flex items-center justify-center gap-1 shadow-md shadow-primary/10 disabled:opacity-50"
                   >
                     <Plus className="w-4 h-4 stroke-[2.5]" />
                     <span>Save to Portfolio</span>
@@ -176,7 +181,7 @@ export default function ManageAssetsDrawer({
                   ) : (
                     holdings.map((h) => {
                       const stock = stocks.find((s) => s.symbol === h.symbol);
-                      const currentVal = h.quantity * (stock?.price || h.costPrice);
+                      const currentVal = stock ? h.quantity * stock.price : null;
                       return (
                         <div
                           key={h.symbol}
@@ -190,14 +195,16 @@ export default function ManageAssetsDrawer({
                               </span>
                             </div>
                             <div className="text-[10px] text-text-secondary mt-1 font-data-mono">
-                              Cost: ${h.costPrice.toFixed(2)} | Value: <span className="text-primary font-bold">${currentVal.toFixed(2)}</span>
+                              Cost: ${h.costPrice.toFixed(2)} | <span className="text-primary font-bold">Value: {currentVal == null ? 'Unavailable' : `$${currentVal.toFixed(2)}`}</span>
                             </div>
                           </div>
 
                           <button
                             onClick={() => handleRemoveAsset(h.symbol)}
+                            disabled={!stock}
                             className="p-1 text-text-muted hover:text-bear-red rounded hover:bg-bear-red/10 transition-colors"
                             title="Close Position"
+                            aria-label={`Close position ${h.symbol}`}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

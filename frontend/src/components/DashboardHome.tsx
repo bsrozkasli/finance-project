@@ -109,22 +109,16 @@ export default function DashboardHome({
   // Calculations for active portfolio metrics
   const portfolioMetrics = useMemo(() => {
     if (!activePortfolio) {
-      return { totalValue: 0, totalProfitLoss: 0, totalReturnPercent: 0, positions: [], holdingsCount: 0 };
+      return { totalValue: 0 as number | null, totalProfitLoss: 0 as number | null, totalReturnPercent: 0 as number | null, positions: [], holdingsCount: 0, missingPriceCount: 0 };
     }
-
-    let currentTotalValue = 0;
-    let totalCostBasis = 0;
 
     const calculatedPositions = activePortfolio.holdings.map((h) => {
       const stock = stockMap[h.symbol];
-      const currentPrice = stock ? stock.price : h.costPrice;
-      const value = h.quantity * currentPrice;
+      const currentPrice = stock?.price ?? null;
+      const value = currentPrice == null ? null : h.quantity * currentPrice;
       const cost = h.quantity * h.costPrice;
-      const profitLoss = value - cost;
-      const profitLossPercent = cost > 0 ? (profitLoss / cost) * 100 : 0;
-
-      currentTotalValue += value;
-      totalCostBasis += cost;
+      const profitLoss = value == null ? null : value - cost;
+      const profitLossPercent = profitLoss == null ? null : cost > 0 ? (profitLoss / cost) * 100 : 0;
 
       return {
         ...h,
@@ -136,15 +130,20 @@ export default function DashboardHome({
       };
     });
 
-    const totalProfitLoss = currentTotalValue - totalCostBasis;
-    const totalReturnPercent = totalCostBasis > 0 ? (totalProfitLoss / totalCostBasis) * 100 : 0;
+    const missingPriceCount = calculatedPositions.filter((position) => position.currentPrice == null).length;
+    const pricedPositions = calculatedPositions.filter((position) => position.value != null);
+    const currentTotalValue = pricedPositions.reduce((sum, position) => sum + (position.value ?? 0), 0);
+    const totalCostBasis = pricedPositions.reduce((sum, position) => sum + position.quantity * position.costPrice, 0);
+    const totalProfitLoss = missingPriceCount ? null : currentTotalValue - totalCostBasis;
+    const totalReturnPercent = missingPriceCount ? null : totalCostBasis > 0 ? ((currentTotalValue - totalCostBasis) / totalCostBasis) * 100 : 0;
 
     return {
-      totalValue: currentTotalValue,
+      totalValue: missingPriceCount ? null : currentTotalValue,
       totalProfitLoss,
       totalReturnPercent,
       positions: calculatedPositions,
       holdingsCount: activePortfolio.holdings.length,
+      missingPriceCount,
     };
   }, [activePortfolio, stockMap]);
 
@@ -183,24 +182,25 @@ export default function DashboardHome({
   }, [activeInvestmentPortfolioId]);
 
   const fallbackPositionPerformance = useMemo<PortfolioPositionPerformance[]>(() => {
-    const totalValue = portfolioMetrics.totalValue;
-    return portfolioMetrics.positions.map((pos) => ({
+    const pricedPositions = portfolioMetrics.positions.filter((pos) => pos.currentPrice != null && pos.value != null);
+    const totalValue = pricedPositions.reduce((sum, pos) => sum + (pos.value ?? 0), 0);
+    return pricedPositions.map((pos) => ({
       symbol: pos.symbol,
       company: pos.name,
       addedDate: null,
       costPrice: pos.costPrice,
-      currentPrice: pos.currentPrice,
-      marketValue: pos.value,
-      weight: totalValue > 0 ? (pos.value / totalValue) * 100 : 0,
+      currentPrice: pos.currentPrice!,
+      marketValue: pos.value!,
+      weight: totalValue > 0 ? (pos.value! / totalValue) * 100 : 0,
       dailyReturn: null,
       weeklyReturn: null,
       oneMonthReturn: null,
       threeMonthReturn: null,
       sixMonthReturn: null,
       oneYearReturn: null,
-      totalReturn: pos.profitLossPercent,
+      totalReturn: pos.profitLossPercent ?? 0,
     }));
-  }, [portfolioMetrics.positions, portfolioMetrics.totalValue]);
+  }, [portfolioMetrics.positions]);
 
   const displayedPositionPerformance = positionPerformance.length > 0 ? positionPerformance : fallbackPositionPerformance;
 
@@ -339,8 +339,9 @@ export default function DashboardHome({
           selectedBenchmarks
         );
         if (!cancelled) {
-          setComparisonSeries(response.series);
-          setComparisonError(false);
+          const validSeries = Array.isArray(response?.series) ? response.series : null;
+          setComparisonSeries(validSeries ?? []);
+          setComparisonError(validSeries == null);
         }
       } catch {
         if (!cancelled) {
@@ -553,12 +554,12 @@ export default function DashboardHome({
           </span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="font-data-mono text-2xl font-bold text-text-primary">
-              ${portfolioMetrics.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {portfolioMetrics.totalValue == null ? 'Unavailable' : `$${portfolioMetrics.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span className="w-1.5 h-1.5 rounded-full bg-bull-green"></span>
-            <span>Live Market Exposure</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${portfolioMetrics.missingPriceCount ? 'bg-warning-amber' : 'bg-bull-green'}`}></span>
+            <span>{portfolioMetrics.missingPriceCount ? `${portfolioMetrics.missingPriceCount} position without a current price` : 'Latest available market prices'}</span>
           </div>
         </div>
 
@@ -568,13 +569,14 @@ export default function DashboardHome({
             TOTAL PROFIT / LOSS (P/L)
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalProfitLoss >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalProfitLoss >= 0 ? '+' : ''}
-              ${portfolioMetrics.totalProfitLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalProfitLoss == null ? 'text-text-muted' : portfolioMetrics.totalProfitLoss >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+              {portfolioMetrics.totalProfitLoss == null ? 'Unavailable' : `${portfolioMetrics.totalProfitLoss >= 0 ? '+' : ''}$${portfolioMetrics.totalProfitLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-1 text-[11px]">
-            {portfolioMetrics.totalProfitLoss >= 0 ? (
+            {portfolioMetrics.totalProfitLoss == null ? (
+              <span className="text-text-secondary">Current prices are incomplete</span>
+            ) : portfolioMetrics.totalProfitLoss >= 0 ? (
               <span className="text-bull-green flex items-center font-semibold">
                 <ArrowUpRight className="w-3.5 h-3.5" /> Net Gain</span>
             ) : (
@@ -590,9 +592,8 @@ export default function DashboardHome({
             TOTAL RETURN RATE
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalReturnPercent >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalReturnPercent >= 0 ? '+' : ''}
-              {portfolioMetrics.totalReturnPercent.toFixed(2)}%
+            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalReturnPercent == null ? 'text-text-muted' : portfolioMetrics.totalReturnPercent >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+              {portfolioMetrics.totalReturnPercent == null ? 'Unavailable' : `${portfolioMetrics.totalReturnPercent >= 0 ? '+' : ''}${portfolioMetrics.totalReturnPercent.toFixed(2)}%`}
             </span>
           </div>
           <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-secondary">

@@ -49,6 +49,28 @@ function LocationProbe() {
 }
 
 describe('TopBar', () => {
+  it('does not claim live feed or market status without status evidence', () => {
+    render(<TopBar stocks={[]} onSelectStock={vi.fn()} onOpenTradingJournal={vi.fn()} />);
+    expect(screen.queryByText('MARKET CLOSED')).not.toBeInTheDocument();
+    expect(screen.queryByText('FEED ACTIVE')).not.toBeInTheDocument();
+  });
+  it('keeps a tracked symbol searchable when its price feed is unavailable', async () => {
+    const onSelectAsset = vi.fn();
+    render(
+      <TopBar
+        stocks={[]}
+        trackedAssets={[{ symbol: 'AAPL', name: 'Apple Inc.', type: 'STOCK' }]}
+        onSelectStock={vi.fn()}
+        onSelectAsset={onSelectAsset}
+        onOpenTradingJournal={vi.fn()}
+      />,
+    );
+
+    await user().type(screen.getByPlaceholderText(/search symbols/i), 'aapl');
+    expect(screen.getByText('Price unavailable')).toBeInTheDocument();
+    await user().click(screen.getByRole('button', { name: /AAPL.*Apple Inc/i }));
+    expect(onSelectAsset).toHaveBeenCalledWith('AAPL', 'Apple Inc.');
+  });
   it('filters symbols, selects a search result, and clears the search box', async () => {
     const onSelectStock = vi.fn();
 

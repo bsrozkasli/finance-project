@@ -81,6 +81,40 @@ const installPositionPerformanceHandler = () => {
 };
 
 describe('DashboardHome portfolio return comparison', () => {
+  it('shows an unavailable state when the comparison response has no series', async () => {
+    server.use(
+      http.get(`${API_BASE}/portfolio/performance/comparison`, () => HttpResponse.json([])),
+    );
+
+    renderDashboard();
+
+    expect(await screen.findByText(/Performance data is unavailable/i)).toBeInTheDocument();
+  });
+
+  it('does not present cost basis as a current market value when a holding has no price', async () => {
+    server.use(
+      http.get(`${API_BASE}/portfolio/positions/performance`, () => HttpResponse.json([])),
+      http.get(`${API_BASE}/macro/snapshot`, () => HttpResponse.json({})),
+      http.get(`${API_BASE}/portfolio/performance/comparison`, () => HttpResponse.json({ period: '6M', series: [] })),
+    );
+    render(
+      <DashboardHome
+        stocks={[]}
+        portfolios={[portfolios[0]]}
+        activePortfolioId="1"
+        onSelectPortfolioId={vi.fn()}
+        onSelectStock={vi.fn()}
+        onOpenTradingJournal={vi.fn()}
+        onNavigateToNews={vi.fn()}
+        news={[]}
+        calendarEvents={[]}
+      />,
+    );
+
+    expect(screen.getByText('PORTFOLIO VALUE').parentElement).toHaveTextContent('Unavailable');
+    expect(screen.getByText(/1 position without a current price/i)).toBeInTheDocument();
+    expect(screen.queryByText('$200.00')).not.toBeInTheDocument();
+  });
   it('loads comparison series, shows hover-synchronized values, and renders revised overview panels', async () => {
     const requests: Array<{ portfolioIds: string | null; benchmarks: string | null; period: string | null }> = [];
 

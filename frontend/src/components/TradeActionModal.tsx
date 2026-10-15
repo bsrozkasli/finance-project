@@ -8,7 +8,7 @@ interface TradeActionModalProps {
   symbol: string;
   stocks: Stock[];
   holdings: Holding[];
-  onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void;
+  onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
 }
 
 export default function TradeActionModal({
@@ -23,6 +23,8 @@ export default function TradeActionModal({
   const [quantity, setQuantity] = useState<number>(1);
   const [price, setPrice] = useState<number>(100);
   const [notes, setNotes] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const activeStock = stocks.find((stock) => stock.symbol === symbol) || stocks[0];
 
@@ -34,8 +36,9 @@ export default function TradeActionModal({
 
   if (!isOpen || !activeStock) return null;
 
-  const handleExecute = (event: React.FormEvent) => {
+  const handleExecute = async (event: React.FormEvent) => {
     event.preventDefault();
+    setSaveError('');
     if (quantity <= 0 || price <= 0) {
       alert('Invalid quantity or unit price.');
       return;
@@ -49,16 +52,22 @@ export default function TradeActionModal({
       }
     }
 
-    onExecuteTrade({
-      symbol,
-      type,
-      quantity,
-      price,
-      notes: notes.trim() || `${symbol} manual trade order was submitted.`,
-    });
-
-    alert(`${symbol} trade was completed and saved to the journal.`);
-    onClose();
+    setSaving(true);
+    try {
+      await onExecuteTrade({
+        symbol,
+        type,
+        quantity,
+        price,
+        notes: notes.trim() || `${symbol} manual trade order was submitted.`,
+      });
+      alert(`${symbol} trade was saved to the journal.`);
+      onClose();
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : 'Trade could not be saved. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -80,6 +89,7 @@ export default function TradeActionModal({
         </div>
 
         <form onSubmit={handleExecute} className="p-5 space-y-4 text-xs">
+          {saveError && <p role="alert" className="rounded-lg border border-bear-red/50 bg-bear-red/10 p-2 text-bear-red">{saveError}</p>}
           <div className="flex items-center justify-between bg-bg-base/50 border border-outline-variant/35 p-3 rounded-lg font-data-mono">
             <div>
               <span className="text-text-muted text-[9px] block">INSTRUMENT</span>
@@ -172,6 +182,7 @@ export default function TradeActionModal({
 
           <button
             type="submit"
+            disabled={saving}
             className="w-full py-2.5 bg-primary hover:bg-primary-container text-bg-base font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider"
           >
             <TrendingUp className="w-4 h-4 stroke-[2.5]" />
