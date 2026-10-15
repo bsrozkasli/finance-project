@@ -35,18 +35,18 @@ public class SmartReportUseCase {
         if (score != null && score.breakdown() != null) {
             SmartReportScorePort.ScoreBreakdown scoreBreakdown = score.breakdown();
             breakdown = SmartReport.ScoreBreakdown.builder()
-                    .fundamentalScore(safe(scoreBreakdown.fundamentalScore()))
-                    .valuationScore(safe(scoreBreakdown.valuationScore()))
-                    .qualityScore(safe(scoreBreakdown.qualityScore()))
-                    .growthScore(safe(scoreBreakdown.growthScore()))
-                    .momentumScore(safe(scoreBreakdown.momentumScore()))
-                    .riskScore(safe(scoreBreakdown.riskScore()))
-                    .earningsScore(safe(scoreBreakdown.earningsScore()))
-                    .sentimentScore(safe(scoreBreakdown.sentimentScore()))
+                    .fundamentalScore(scoreBreakdown.fundamentalScore())
+                    .valuationScore(scoreBreakdown.valuationScore())
+                    .qualityScore(scoreBreakdown.qualityScore())
+                    .growthScore(scoreBreakdown.growthScore())
+                    .momentumScore(scoreBreakdown.momentumScore())
+                    .riskScore(scoreBreakdown.riskScore())
+                    .earningsScore(scoreBreakdown.earningsScore())
+                    .sentimentScore(scoreBreakdown.sentimentScore())
                     .build();
-            overallScore = safe(score.overallScore());
-            grade = score.grade() != null ? score.grade() : gradeFromScore(overallScore);
-            recommendation = score.recommendation() != null ? score.recommendation() : recFromScore(overallScore);
+            overallScore = score.overallScore();
+            grade = score.grade() != null ? score.grade() : overallScore == null ? null : gradeFromScore(overallScore);
+            recommendation = score.recommendation() != null ? score.recommendation() : overallScore == null ? null : recFromScore(overallScore);
         } else {
             log.warn("Data-service unavailable for {}; building fallback report from Finnhub metrics", symbol);
             SmartReportMarketDataPort.CompanyMetrics metrics = smartReportMarketDataPort.fetchCompanyMetrics(symbol)
@@ -106,8 +106,6 @@ public class SmartReportUseCase {
                 .peers(peerComparisons)
                 .build();
     }
-
-    private static int safe(Integer v) { return v != null ? v : 50; }
 
     private static String gradeFromScore(int s) {
         if (s >= 80) return "A";
