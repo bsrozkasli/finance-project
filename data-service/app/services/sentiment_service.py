@@ -5,6 +5,7 @@ import finnhub
 
 from app.config import settings
 from app.models.analysis import SentimentAnalysisResponse, NewsArticle
+from app.models.availability import SectionAvailability
 
 
 class SentimentService:
@@ -50,7 +51,8 @@ class SentimentService:
                 opportunity_factors=[],
                 article_count=0,
                 articles_analyzed=[],
-                calculated_at=now
+                calculated_at=now,
+                availability=SectionAvailability.insufficient("no_articles_in_lookback"),
             )
             
         articles_text = ""
@@ -132,13 +134,19 @@ class SentimentService:
             key_themes = parsed.get("key_themes", [])
             risk_factors = parsed.get("risk_factors", [])
             opportunity_factors = parsed.get("opportunity_factors", [])
-        except (json.JSONDecodeError, ValueError):
+            if "score" in parsed and "label" in parsed:
+                availability = SectionAvailability.available()
+            else:
+                availability = SectionAvailability.unparseable("llm_response_missing_fields")
+        except (json.JSONDecodeError, ValueError) as exc:
             score = 0.0
             label = "NEUTRAL"
             key_themes = []
             risk_factors = []
             opportunity_factors = []
-            
+            reason = "llm_response_not_json" if isinstance(exc, json.JSONDecodeError) else "llm_response_invalid_score"
+            availability = SectionAvailability.unparseable(reason)
+
         return SentimentAnalysisResponse(
             symbol=symbol,
             score=score,
@@ -148,5 +156,6 @@ class SentimentService:
             opportunity_factors=opportunity_factors[:2],
             article_count=len(filtered_news),
             articles_analyzed=articles_analyzed,
-            calculated_at=now
+            calculated_at=now,
+            availability=availability,
         )

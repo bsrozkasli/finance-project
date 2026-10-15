@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+import httpx
 import pytest
 
 from app.providers.base import FinancialStatements, OHLCVBar, ProviderHealth, ProviderStatus
@@ -102,3 +103,21 @@ def scripted_provider() -> type[ScriptedProvider]:
 @pytest.fixture
 def bars():
     return make_bars
+
+
+@pytest.fixture
+def wire_async_client(monkeypatch):
+    """Route every httpx.AsyncClient built during a test through a MockTransport.
+
+    Mocked boundary: outbound HTTP to Finnhub and Azure OpenAI, so no test reaches a live provider.
+    """
+    real_async_client = httpx.AsyncClient
+
+    def _install(handler):
+        def _factory(*args, **kwargs):
+            kwargs["transport"] = httpx.MockTransport(handler)
+            return real_async_client(*args, **kwargs)
+
+        monkeypatch.setattr(httpx, "AsyncClient", _factory)
+
+    return _install
