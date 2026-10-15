@@ -14,6 +14,7 @@ class ResolverWithMetadata:
             sector="Technology",
             industry="Software",
             market_cap=100,
+            quote_type="EQUITY",
         )
 
 
@@ -31,6 +32,7 @@ def test_asset_info_returns_provider_metadata(monkeypatch):
     assert response.status_code == 200
     assert response.json()["symbol"] == "PANW"
     assert response.json()["name"] == "Palo Alto Networks, Inc."
+    assert response.json()["quote_type"] == "EQUITY"
 
 
 def test_asset_info_rejects_symbol_only_metadata(monkeypatch):

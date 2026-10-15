@@ -10,7 +10,7 @@
 **Focused tests:** Task 1 InstrumentEligibilityServiceTest; Task 2 ResearchEvidenceServiceTest and ResearchEvidenceRepositoryAdapterTest; Task 3 EvidenceStrengthServiceTest; Task 4 DataRightsApprovalServiceTest; Task 5 IsolatedEvaluationAccessTest.
 
 **Plan Set:** 1 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
-**Execution status (2026-10-15):** In progress. `510982c` prevents missing provider composite scores from becoming fabricated `50` values and makes the frontend display them as unavailable. This does not satisfy any full task exit criterion: the OQ-2/3/5/8 closure records and the referenced product contract are absent.
+**Execution status (2026-10-15):** In progress. `510982c` prevents missing provider composite scores from becoming fabricated `50` values and makes the frontend display them as unavailable. A further compatibility slice preserves `UNKNOWN` when Yahoo/yfinance type metadata is absent or unsupported, marks unresolved watchlist metadata insufficient, and excludes unresolved instruments from frontend stock cards. Task 1 remains open: a licensed point-in-time master, dated eligibility fixtures, and OQ-5 compatibility approval are not yet in place. OQ-2/3/5/8 remain open for the full epic.
 **Depends On:** EPIC-000 baseline; OQ-2/3/5 closure for affected tasks.
 **Produces:** InstrumentIdentity, ResearchEvidenceSnapshot, EvidenceStrength, section statuses, DataRightsApproval binding.
 **Spec:** docs/product/epics/EPIC-001-trusted-market-evidence.md; docs/product/PRD.md §9.1.

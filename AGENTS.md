@@ -70,8 +70,8 @@
 
 - `PriceController` lazy-loads price history: DB first → `DataServicePriceAdapter`
   fallback → persist fetched rows. Do not skip any step.
-- `AssetController` batch-add tries Yahoo metadata first, falls back to minimal
-  `STOCK` asset. Do not fabricate metadata.
+- `AssetController` batch-add tries Yahoo metadata first. If type cannot be
+  verified, preserve `UNKNOWN` rather than inventing `STOCK` metadata.
 - `AgentAnalysisUseCase` checks Redis cache before calling `DataServiceAgentAnalysisAdapter`.
   On data-service failure, return `Optional.empty()` and degrade gracefully.
   Never return synthetic analysis text.

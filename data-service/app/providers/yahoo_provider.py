@@ -189,6 +189,7 @@ class YahooProvider:
                 sector=info.get("sector"),
                 industry=info.get("industry"),
                 market_cap=info.get("marketCap"),
+                quote_type=info.get("quoteType"),
             )
         except Exception as exc:
             logger.error(

@@ -1,6 +1,6 @@
 # Backend Epic Delivery Plan Set
 
-**Status:** Execution audit recorded 2026-10-15. EPIC-001 is in progress with a narrowly scoped no-fabrication fix merged in `510982c`; the remaining V1 epics are blocked by their named dependencies and open-question records. EPIC-008 through EPIC-010 remain deferred by design. No feature delivery or release approval is claimed.
+**Status:** Execution audit recorded 2026-10-15. EPIC-001 is in progress with a no-fabrication fix merged in `510982c` and a further unresolved-instrument compatibility slice on the feature branch; the remaining V1 epics are blocked by their named dependencies and open-question records. EPIC-008 through EPIC-010 remain deferred by design. No full epic delivery or release approval is claimed.
 
 **Goal:** Turn the approved EPIC-001 through EPIC-010 catalog into small, dependency-ordered Spring backend work packages.
 
@@ -10,7 +10,7 @@
 
 | Phase | Plan | Execution status | Blocking evidence / entry condition |
 |---|---|---|---|
-| V1 foundation | [EPIC-001 trusted evidence](2026-10-13-backend-epic-001-trusted-market-evidence.md) | In progress | `510982c` removes fabricated smart-report score defaults. OQ-2/3/5/8 and the approved product contracts are still absent. |
+| V1 foundation | [EPIC-001 trusted evidence](2026-10-13-backend-epic-001-trusted-market-evidence.md) | In progress | `510982c` removes fabricated smart-report score defaults; the feature branch preserves unresolved type as `UNKNOWN`. A licensed point-in-time identity master and OQ-2/3/5/8 closure are still absent. |
 | V1 foundation | [EPIC-002 portfolio state](2026-10-13-backend-epic-002-transaction-ledger-portfolio-state.md) | Blocked | EPIC-001 stable identity, the CSV/state contract, OQ-5/OQ-8, and the referenced product contract are absent. |
 | V1 foundation | [EPIC-003 asset research](2026-10-13-backend-epic-003-end-to-end-asset-research.md) | Blocked | EPIC-001 snapshot/identity plus OQ-2/3/4/5/7 records and licensed-series evidence are absent. |
 | V1 foundation | [EPIC-004 quality and Fit](2026-10-13-backend-epic-004-investment-quality-and-portfolio-fit.md) | Blocked | EPIC-001–003 outputs plus OQ-1/3/4/5 policy and API-migration records are absent. |

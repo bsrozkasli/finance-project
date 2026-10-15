@@ -10,9 +10,9 @@ const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const emptyPaged = { content: [], totalElements: 0, totalPages: 0, number: 0 };
 
-const installShellHandlers = () => {
+const installShellHandlers = (assets: Array<{ symbol: string; name: string; type: string }> = []) => {
   server.use(
-    http.get(apiUrl('/assets'), () => HttpResponse.json([])),
+    http.get(apiUrl('/assets'), () => HttpResponse.json(assets)),
     http.get(apiUrl('/portfolios'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolio/summary'), () => HttpResponse.json({ totalValue: 0, cashBalance: 0, dailyPnL: 0, dailyPnLPercent: 0, totalPnL: 0, totalReturn: 0 })),
     http.get(apiUrl('/portfolio/performance'), () => HttpResponse.json({ period: '1M', series: [] })),
@@ -34,8 +34,8 @@ function LocationProbe() {
   return <div data-testid="location-path">{location.pathname}</div>;
 }
 
-const renderAppAt = async (path: string) => {
-  installShellHandlers();
+const renderAppAt = async (path: string, assets: Array<{ symbol: string; name: string; type: string }> = []) => {
+  installShellHandlers(assets);
   render(
     <MemoryRouter initialEntries={[path]}>
       <App />
@@ -49,6 +49,21 @@ const renderAppAt = async (path: string) => {
 };
 
 describe('App route contract', () => {
+  it('does not load unknown instruments into stock price cards', async () => {
+    let requestedSymbols: string[] | null = null;
+    server.use(http.post(apiUrl('/prices/batch-history'), async ({ request }) => {
+      requestedSymbols = (await request.json() as { symbols: string[] }).symbols;
+      return HttpResponse.json({});
+    }));
+
+    await renderAppAt('/dashboard', [
+      { symbol: 'AAPL', name: 'Apple Inc.', type: 'STOCK' },
+      { symbol: 'MYSTERY', name: 'Mystery Instrument', type: 'UNKNOWN' },
+    ]);
+
+    await waitFor(() => expect(requestedSymbols).toEqual(['AAPL']));
+  });
+
   it('redirects the root route to the documented dashboard route', async () => {
     await renderAppAt('/');
 

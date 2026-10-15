@@ -80,7 +80,7 @@ class AssetResolutionServiceTest {
     }
 
     @Test
-    void missingProviderAndMissingMappingReturnsExplicitUnavailableMetadata() {
+    void missingProviderAndMissingMappingNeverClassifiesAsStock() {
         // Mock rationale: symbol mapping and provider calls are I/O boundaries.
         when(symbolMappingPort.findBestMapping("UNKNOWN", "YAHOO")).thenReturn(Optional.empty());
         when(priceChartClientPort.fetchAssetInfo("UNKNOWN")).thenReturn(Optional.empty());
@@ -89,7 +89,22 @@ class AssetResolutionServiceTest {
 
         assertThat(resolved.symbol()).isEqualTo("UNKNOWN");
         assertThat(resolved.name()).isEqualTo("UNKNOWN");
-        assertThat(resolved.type()).isEqualTo(AssetType.STOCK);
+        assertThat(resolved.type().name()).isEqualTo("UNKNOWN");
+        assertThat(resolved.metadataStatus()).isEqualTo(AssetMetadataStatus.UNAVAILABLE);
+    }
+
+    @Test
+    void providerWithUnresolvedTypeCannotProduceVerifiedClassification() {
+        Asset providerAsset = new Asset(
+                "MYSTERY", "Mystery Instrument", AssetType.UNKNOWN, "NASDAQ", "USD",
+                "YAHOO", "MYSTERY", AssetMetadataStatus.PARTIAL);
+        // Mock rationale: symbol mappings and provider metadata cross I/O boundaries.
+        when(symbolMappingPort.findBestMapping("MYSTERY", "YAHOO")).thenReturn(Optional.empty());
+        when(priceChartClientPort.fetchAssetInfo("MYSTERY")).thenReturn(Optional.of(providerAsset));
+
+        Asset resolved = service.resolve("MYSTERY");
+
+        assertThat(resolved.type()).isEqualTo(AssetType.UNKNOWN);
         assertThat(resolved.metadataStatus()).isEqualTo(AssetMetadataStatus.UNAVAILABLE);
     }
 

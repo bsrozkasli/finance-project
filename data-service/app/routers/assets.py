@@ -16,6 +16,7 @@ class AssetInfoResponse(BaseModel):
     sector: Optional[str] = None
     industry: Optional[str] = None
     market_cap: Optional[int] = None
+    quote_type: Optional[str] = None
     source: str = "provider-chain"
 
 
@@ -34,4 +35,5 @@ def get_asset_info(symbol: str) -> AssetInfoResponse:
         sector=info.sector,
         industry=info.industry,
         market_cap=info.market_cap,
+        quote_type=info.quote_type,
     )

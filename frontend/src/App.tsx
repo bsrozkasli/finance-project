@@ -145,16 +145,17 @@ export default function App() {
     let cancelled = false;
 
     const mapAssetWithRealPrices = async () => {
-      if (!assets || assets.length === 0) {
+      const classifiedAssets = assets.filter((asset) => asset.type !== 'UNKNOWN');
+      if (classifiedAssets.length === 0) {
         setStocks([]);
         return;
       }
 
-      const symbols = assets.map((asset) => asset.symbol);
+      const symbols = classifiedAssets.map((asset) => asset.symbol);
       const historyBySymbol: Record<string, PriceHistory[]> = await fetchBatchPriceHistory(symbols, '1d', '1y')
         .catch(() => ({}));
 
-      const mappedStocks = assets
+      const mappedStocks = classifiedAssets
         .map((asset): Stock | null => {
           const history = historyBySymbol[asset.symbol] ?? historyBySymbol[asset.symbol.toUpperCase()] ?? [];
           if (!history.length) return null;

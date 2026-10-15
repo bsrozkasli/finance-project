@@ -65,7 +65,8 @@ Failure behavior:
 - `get_ohlcv(...)` returns `[]` on empty history, malformed rows, or exceptions.
 - `get_asset_info(...)` returns `None` / `Optional.empty()` when metadata is missing.
 - `get_financial_statements(...)` returns an empty `FinancialStatements(symbol=...)`.
-- Backend asset batch-add falls back to a minimal `STOCK` asset when Yahoo metadata is unavailable.
+- Data-service asset metadata exposes nullable `quote_type` from yfinance; backend maps recognized quote types to `AssetType` and preserves `UNKNOWN` when missing or unsupported. Yahoo chart metadata uses `instrumentType` by the same rule.
+- Backend asset batch-add preserves a minimal `UNKNOWN` asset when instrument type cannot be verified; exchange/industry is not used as proof of `STOCK`.
 - No caller may invent prices, fundamentals, metadata, or earnings values.
 
 ## 4. Finnhub

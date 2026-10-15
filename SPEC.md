@@ -175,7 +175,7 @@ Frontend:
 ## 6. Domain Rules
 
 - `Asset` represents a tracked instrument. Symbols should be normalized consistently, generally uppercase.
-- `AssetType` classifies instruments. Batch-add fallback creates a minimal `STOCK` asset.
+- `AssetType` classifies instruments. Unresolved type remains `UNKNOWN`; it must not be inferred as `STOCK` from missing or ambiguous provider metadata.
 - `PriceHistory` represents an OHLCV candle and must preserve valid price, volume, and timestamp invariants.
 - Latest price derives from stored or fetched price history and may be cached.
 - Journal trades persist through `JournalTradePort`; controllers must not store journal state in memory.
@@ -210,7 +210,7 @@ The frontend API mapping is documented in `docs/FRONTEND_API.md` and must stay a
 | --- | --- | --- |
 | Assets | `GET /assets` | List tracked assets |
 | Assets | `GET /assets/{symbol}` | Fetch one asset |
-| Assets | `POST /assets/batch` | Add symbols in batch; Yahoo metadata first, fallback `STOCK` |
+| Assets | `POST /assets/batch` | Add symbols in batch; Yahoo metadata first, unresolved type `UNKNOWN` |
 | Assets | `DELETE /assets/{symbol}` | Delete asset |
 | Prices | `GET /prices/{symbol}/latest` | Latest price candle through DB-first refresh and `priceCache` |
 | Prices | `GET /prices/{symbol}/history?interval=&range=` | Historical candles with DB-first lazy loading, refresh, persistence, and `priceCache` |
@@ -524,7 +524,8 @@ Entity relationships and persistence semantics:
 
 ## 10. Business Rules
 
-- Asset batch-add tries Yahoo metadata first and falls back to a minimal `STOCK` asset.
+- Asset batch-add tries Yahoo metadata first and preserves `UNKNOWN` when instrument type cannot be verified. Yfinance `quoteType` (and Yahoo chart `instrumentType`) maps only recognized instrument types; exchange or industry alone does not prove `STOCK`.
+- Instruments with `UNKNOWN` type are excluded from the frontend stock-card and price-history batch. Watchlist research marks unresolved metadata as insufficient data.
 - Price history reads from PostgreSQL before calling the provider chain through `FinancialDataPort`.
 - Latest and historical price reads use `PriceRefreshService`: local data first, provider refresh when needed, persist fetched rows, then return real data only.
 - Fetched historical prices are persisted after lazy loading.
@@ -614,7 +615,7 @@ Required integration/smoke scenarios:
 
 | Scenario | Setup | Request | Expected verification |
 | --- | --- | --- | --- |
-| Asset batch fallback | Run backend with DB; provider metadata may be unavailable | `POST /api/v1/assets/batch` body `{ "symbols": ["AAPL"] }` | `200 OK`; response contains `symbol`, `name`, `type`; when metadata is missing, `type` is `STOCK` and no fake provider fields are invented. |
+| Asset batch fallback | Run backend with DB; provider metadata may be unavailable | `POST /api/v1/assets/batch` body `{ "symbols": ["AAPL"] }` | `200 OK`; response contains `symbol`, `name`, `type`; when type is unresolved, `type` is `UNKNOWN` and no fake provider fields are invented. |
 | Lazy price load | Empty local `price_history` for symbol; data-service running | `GET /api/v1/prices/AAPL/history?interval=1d&range=1mo` | `200 OK`; returns candle array with `assetId/open/high/low/close/volume/timestamp`; subsequent repository query contains persisted rows. |
 | Provider degradation | Run without `FINNHUB_API_KEY` or force provider failure | `GET /api/v1/news/AAPL` and `GET /api/v1/reports/company/AAPL` | News returns `200 OK` with `[]` or report returns partial sections; no fake news, analyst, or price-target values. |
 | Journal persistence | DB running | `POST /api/v1/journal/trades`, then `GET /api/v1/journal/trades` | Created trade appears after reload with stable `id`, `symbol`, `quantity`, `openedAt`, `status`, and computed PnL fields. |

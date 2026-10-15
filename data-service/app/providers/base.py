@@ -41,6 +41,7 @@ class AssetInfo:
     sector: Optional[str] = None
     industry: Optional[str] = None
     market_cap: Optional[int] = None
+    quote_type: Optional[str] = None
 
 
 @dataclass(frozen=True)

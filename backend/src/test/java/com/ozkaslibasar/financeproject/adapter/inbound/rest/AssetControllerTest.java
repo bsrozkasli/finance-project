@@ -108,4 +108,21 @@ class AssetControllerTest {
                 .andExpect(jsonPath("$[0].currency").value("USD"))
                 .andExpect(jsonPath("$[0].metadataStatus").value("PARTIAL"));
     }
+
+    @Test
+    void shouldBatchAddUnresolvedInstrumentWithoutStockClassification() throws Exception {
+        Asset unresolved = new Asset("MYSTERY", "MYSTERY", AssetType.UNKNOWN);
+        // Mock rationale: resolver, repository, and price provider are controller I/O boundaries.
+        when(assetResolutionService.resolve("MYSTERY")).thenReturn(unresolved);
+        when(assetRepositoryPort.save(any(Asset.class))).thenReturn(unresolved);
+        when(priceChartClientPort.fetchPriceHistory("MYSTERY", "1d", "1y")).thenReturn(List.of());
+
+        mockMvc.perform(post("/api/v1/assets/batch")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symbols\":[\"MYSTERY\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].symbol").value("MYSTERY"))
+                .andExpect(jsonPath("$[0].type").value("UNKNOWN"))
+                .andExpect(jsonPath("$[0].metadataStatus").value("UNAVAILABLE"));
+    }
 }

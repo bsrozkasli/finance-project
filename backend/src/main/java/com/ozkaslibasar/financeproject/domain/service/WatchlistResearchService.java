@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.Asset;
+import com.ozkaslibasar.financeproject.domain.model.AssetType;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.model.Watchlist;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetMetadataPort;
@@ -117,17 +118,18 @@ public class WatchlistResearchService {
                     metadata.sector(),
                     metadata.industry(),
                     metadata.marketCap(),
-                    "OK",
+                    metadata.type() == AssetType.UNKNOWN ? "INSUFFICIENT_DATA" : "OK",
                     metadata.source() == null ? "data-service" : metadata.source());
         }
 
         Optional<Asset> stored = assetRepositoryPort.findBySymbol(symbol);
         if (stored.isPresent() && hasVerifiedName(symbol, stored.get().name())) {
             Asset asset = stored.get();
-            return new MetadataResolution(asset.name(), asset.type().name(), null, null, null, null, null, "STALE", "asset-repository");
+            String status = asset.type() == AssetType.UNKNOWN ? "INSUFFICIENT_DATA" : "STALE";
+            return new MetadataResolution(asset.name(), asset.type().name(), null, null, null, null, null, status, "asset-repository");
         }
 
-        return new MetadataResolution(null, "STOCK", null, null, null, null, null, "EMPTY", "none");
+        return new MetadataResolution(null, "UNKNOWN", null, null, null, null, null, "EMPTY", "none");
     }
 
     private WatchlistResearchSection<WatchlistPriceSummary> priceSection(String symbol, boolean refresh) {

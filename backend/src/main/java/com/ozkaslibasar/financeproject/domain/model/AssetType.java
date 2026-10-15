@@ -8,6 +8,9 @@ package com.ozkaslibasar.financeproject.domain.model;
  */
 public enum AssetType {
 
+    /** Metadata was insufficient to establish an instrument category. */
+    UNKNOWN,
+
     /** Publicly listed company shares (e.g. AAPL, TSLA, THYAO.IS). */
     STOCK,
 

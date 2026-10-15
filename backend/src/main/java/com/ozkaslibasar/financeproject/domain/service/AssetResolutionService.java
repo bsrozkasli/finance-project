@@ -54,7 +54,7 @@ public class AssetResolutionService {
         return new Asset(
                 canonicalSymbol,
                 canonicalSymbol,
-                AssetType.STOCK,
+                AssetType.UNKNOWN,
                 null,
                 null,
                 null,
@@ -68,15 +68,16 @@ public class AssetResolutionService {
             Asset providerAsset,
             Optional<SymbolMapping> mapping,
             AssetMetadataStatus status) {
+        AssetType resolvedType = mapping.map(SymbolMapping::assetType).orElse(providerAsset.type());
         return new Asset(
                 canonicalSymbol,
                 chooseDisplayName(mapping.map(SymbolMapping::displayName).orElse(providerAsset.name()), providerAsset.name()),
-                mapping.map(SymbolMapping::assetType).orElse(providerAsset.type()),
+                resolvedType,
                 mapping.map(SymbolMapping::exchange).orElse(providerAsset.exchange()),
                 mapping.map(SymbolMapping::currency).orElse(providerAsset.currency()),
                 YAHOO_PROVIDER,
                 providerSymbol,
-                status);
+                resolvedType == AssetType.UNKNOWN ? AssetMetadataStatus.UNAVAILABLE : status);
     }
 
     private String chooseDisplayName(String preferred, String fallback) {

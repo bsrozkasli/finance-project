@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
+import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.model.Watchlist;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetMetadataPort;
@@ -37,6 +38,67 @@ class WatchlistResearchServiceTest {
     private TechnicalAnalysisPort technicalAnalysisPort;
     @Mock
     private ResearchDataPort researchDataPort;
+
+    @Test
+    void missingMetadataDoesNotLabelWatchlistRowAsStock() {
+        WatchlistResearchService service = new WatchlistResearchService(
+                assetRepositoryPort,
+                assetMetadataPort,
+                priceRepositoryPort,
+                priceChartClientPort,
+                technicalAnalysisPort,
+                researchDataPort);
+        // Mock rationale: metadata lookup is an external provider boundary.
+        when(assetMetadataPort.fetchMetadata("UNKNOWN")).thenReturn(Optional.empty());
+
+        WatchlistResearchService.WatchlistResearchSnapshot snapshot = service.buildSnapshot(
+                new Watchlist(1L, "default", "Core", List.of("UNKNOWN"), null, null),
+                null,
+                50,
+                0,
+                false);
+
+        assertThat(snapshot.rows().get(0).type()).isEqualTo("UNKNOWN");
+    }
+
+    @Test
+    void namedMetadataWithoutTypeIsNotMarkedVerified() {
+        WatchlistResearchService service = new WatchlistResearchService(
+                assetRepositoryPort,
+                assetMetadataPort,
+                priceRepositoryPort,
+                priceChartClientPort,
+                technicalAnalysisPort,
+                researchDataPort);
+        // Mock rationale: metadata lookup is an external provider boundary.
+        when(assetMetadataPort.fetchMetadata("MYSTERY")).thenReturn(Optional.of(
+                new AssetMetadataPort.AssetMetadata("MYSTERY", "Mystery Instrument", AssetType.UNKNOWN,
+                        "NASDAQ", "USD", null, null, null, "yahoo")));
+
+        WatchlistResearchService.WatchlistResearchSnapshot snapshot = service.buildSnapshot(
+                new Watchlist(1L, "default", "Core", List.of("MYSTERY"), null, null),
+                null, 50, 0, false);
+
+        assertThat(snapshot.rows().get(0).type()).isEqualTo("UNKNOWN");
+        assertThat(snapshot.rows().get(0).metadataStatus()).isEqualTo("INSUFFICIENT_DATA");
+    }
+
+    @Test
+    void storedUnknownTypeIsNotMarkedAsStaleVerifiedMetadata() {
+        WatchlistResearchService service = new WatchlistResearchService(
+                assetRepositoryPort, assetMetadataPort, priceRepositoryPort, priceChartClientPort,
+                technicalAnalysisPort, researchDataPort);
+        // Mock rationale: stored asset lookup is a database boundary.
+        when(assetRepositoryPort.findBySymbol("MYSTERY"))
+                .thenReturn(Optional.of(new Asset("MYSTERY", "Mystery Instrument", AssetType.UNKNOWN)));
+
+        WatchlistResearchService.WatchlistResearchSnapshot snapshot = service.buildSnapshot(
+                new Watchlist(1L, "default", "Core", List.of("MYSTERY"), null, null),
+                null, 50, 0, false);
+
+        assertThat(snapshot.rows().get(0).type()).isEqualTo("UNKNOWN");
+        assertThat(snapshot.rows().get(0).metadataStatus()).isEqualTo("INSUFFICIENT_DATA");
+    }
 
     @Test
     void shouldBuildPartialProviderBackedSnapshotWithoutFailingWholeRow() {
