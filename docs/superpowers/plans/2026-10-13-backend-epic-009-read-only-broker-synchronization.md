@@ -10,7 +10,7 @@
 **Focused tests:** Task 1 BrokerImportServiceTest; Task 2 BrokerReconciliationServiceTest; Task 3 BrokerReadOnlyBoundaryTest.
 
 **Plan Set:** 9 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
-**Status:** Deferred Post-V1; execution requires separate stage and broker-rights approval.
+**Execution status (2026-10-15):** Deferred Post-V1. Separate stage approval, broker rights, OQ-5/OQ-8, and conflict policy are not recorded.
 **Depends On:** EPIC-001 identity, EPIC-002 ledger; broker agreement, read-scope threat review, OQ-5/8.
 **Produces:** Staged broker import, reviewed ledger proposals, negative no-order-write proof.
 **Spec:** docs/product/epics/EPIC-009-read-only-broker-synchronization.md; docs/product/PRD.md §9.9.

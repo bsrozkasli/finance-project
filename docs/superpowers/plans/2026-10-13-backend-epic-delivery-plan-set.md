@@ -1,6 +1,6 @@
 # Backend Epic Delivery Plan Set
 
-**Status:** Draft implementation plans; no feature delivery or release approval is claimed.
+**Status:** Execution audit recorded 2026-10-15. EPIC-001 is in progress with a narrowly scoped no-fabrication fix merged in `510982c`; the remaining V1 epics are blocked by their named dependencies and open-question records. EPIC-008 through EPIC-010 remain deferred by design. No feature delivery or release approval is claimed.
 
 **Goal:** Turn the approved EPIC-001 through EPIC-010 catalog into small, dependency-ordered Spring backend work packages.
 
@@ -8,18 +8,18 @@
 
 ## Order and Plan Files
 
-| Phase | Plan | Entry condition |
-|---|---|---|
-| V1 foundation | [EPIC-001 trusted evidence](2026-10-13-backend-epic-001-trusted-market-evidence.md) | EPIC-000 evidence; OQ-2/3/5 decisions for affected slices |
-| V1 foundation | [EPIC-002 portfolio state](2026-10-13-backend-epic-002-transaction-ledger-portfolio-state.md) | EPIC-001 identity; CSV/state contract; OQ-8 for recovery |
-| V1 foundation | [EPIC-003 asset research](2026-10-13-backend-epic-003-end-to-end-asset-research.md) | EPIC-001 snapshot; OQ-2/3/4/5 |
-| V1 foundation | [EPIC-004 quality and Fit](2026-10-13-backend-epic-004-investment-quality-and-portfolio-fit.md) | EPIC-001–003; OQ-1/3/4/5 |
-| Value MVP | [EPIC-005 discovery](2026-10-13-backend-epic-005-explainable-discovery.md) | EPIC-001/003; OQ-2/6 |
-| Value MVP | [EPIC-006 AI explanation](2026-10-13-backend-epic-006-ai-decision-explanation.md) | EPIC-001/004/005; OQ-2/6 |
-| Value MVP | [EPIC-007 monitoring](2026-10-13-backend-epic-007-material-change-monitoring.md) | EPIC-001/002/004/005; OQ-7/8 |
-| Post-V1, deferred | [EPIC-008 personal policy](2026-10-13-backend-epic-008-personal-investment-policy.md) | Separate Post-V1 approval; OQ-1/3/4/7 |
-| Post-V1, deferred | [EPIC-009 broker read sync](2026-10-13-backend-epic-009-read-only-broker-synchronization.md) | Separate Post-V1 approval and broker rights |
-| Post-V1, deferred | [EPIC-010 SaaS isolation](2026-10-13-backend-epic-010-saas-identity-and-isolation.md) | Separate Post-V1 approval; tenant/legal/economic gates |
+| Phase | Plan | Execution status | Blocking evidence / entry condition |
+|---|---|---|---|
+| V1 foundation | [EPIC-001 trusted evidence](2026-10-13-backend-epic-001-trusted-market-evidence.md) | In progress | `510982c` removes fabricated smart-report score defaults. OQ-2/3/5/8 and the approved product contracts are still absent. |
+| V1 foundation | [EPIC-002 portfolio state](2026-10-13-backend-epic-002-transaction-ledger-portfolio-state.md) | Blocked | EPIC-001 stable identity, the CSV/state contract, OQ-5/OQ-8, and the referenced product contract are absent. |
+| V1 foundation | [EPIC-003 asset research](2026-10-13-backend-epic-003-end-to-end-asset-research.md) | Blocked | EPIC-001 snapshot/identity plus OQ-2/3/4/5/7 records and licensed-series evidence are absent. |
+| V1 foundation | [EPIC-004 quality and Fit](2026-10-13-backend-epic-004-investment-quality-and-portfolio-fit.md) | Blocked | EPIC-001–003 outputs plus OQ-1/3/4/5 policy and API-migration records are absent. |
+| Value MVP | [EPIC-005 discovery](2026-10-13-backend-epic-005-explainable-discovery.md) | Blocked | EPIC-001/003 outputs and OQ-2/6/7/8 rights, cost, measurement, and stage-gate records are absent. |
+| Value MVP | [EPIC-006 AI explanation](2026-10-13-backend-epic-006-ai-decision-explanation.md) | Blocked | EPIC-001/004/005 outputs and OQ-2/5/6/7 rights, contract, budget, and measurement records are absent. |
+| Value MVP | [EPIC-007 monitoring](2026-10-13-backend-epic-007-material-change-monitoring.md) | Blocked | EPIC-001/002/004/005 outputs and approved rights, OQ-7 event dictionary, and OQ-8 release/rollback evidence are absent. |
+| Post-V1, deferred | [EPIC-008 personal policy](2026-10-13-backend-epic-008-personal-investment-policy.md) | Deferred | Separate Post-V1 approval plus OQ-1/3/4/7 and consent/retention approvals are required. |
+| Post-V1, deferred | [EPIC-009 broker read sync](2026-10-13-backend-epic-009-read-only-broker-synchronization.md) | Deferred | Separate Post-V1 approval, broker rights, OQ-5/OQ-8, and conflict policy are required. |
+| Post-V1, deferred | [EPIC-010 SaaS isolation](2026-10-13-backend-epic-010-saas-identity-and-isolation.md) | Deferred | Separate Post-V1 approval, tenant threat model, and OQ-1/2/5/6/8 records are required. |
 
 ## Execution Contract
 

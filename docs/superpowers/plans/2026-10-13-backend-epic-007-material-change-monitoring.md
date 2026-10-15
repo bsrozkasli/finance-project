@@ -10,6 +10,7 @@
 **Focused tests:** Task 1 MaterialChangeServiceTest; Task 2 AlertDeduplicationServiceTest; Task 3 MaterialChangeDeliveryServiceTest.
 
 **Plan Set:** 7 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
+**Execution status (2026-10-15):** Blocked. EPIC-001/002/004/005 outputs and approved rights, OQ-7 event dictionary, and OQ-8 release/rollback evidence are absent.
 **Depends On:** EPIC-001/002/004/005; approved rights, OQ-7 event dictionary, OQ-8 release/rollback.
 **Produces:** MaterialChangeEvent, daily summary, deduplicated alert history and switches.
 **Spec:** docs/product/epics/EPIC-007-material-change-monitoring.md; docs/product/PRD.md §9.7.
