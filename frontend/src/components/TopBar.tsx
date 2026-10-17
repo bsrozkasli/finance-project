@@ -1,170 +1,127 @@
-import { useState, useEffect } from 'react';
-import { Search, Terminal, Clock, BookOpen } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { BookOpen, Search, Settings } from 'lucide-react';
+import type { Asset } from '../api/types';
 import type { Stock } from '../types';
 
 interface TopBarProps {
   stocks: Stock[];
+  assets?: Asset[];
   onSelectStock: (stock: Stock) => void;
+  onSelectAsset?: (asset: Asset) => void;
   onOpenTradingJournal: () => void;
+  onOpenSettings?: () => void;
+  pageTitle?: string;
+  focusMode?: boolean;
+  onToggleFocus?: () => void;
 }
 
 export default function TopBar({
   stocks,
+  assets = [],
   onSelectStock,
+  onSelectAsset,
   onOpenTradingJournal,
+  onOpenSettings,
+  pageTitle='Araştır',
+  focusMode=false,
+  onToggleFocus,
 }: TopBarProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Stock[]>([]);
-  const [utcTime, setUtcTime] = useState('');
+  const [activeIndex,setActiveIndex]=useState(0);
+  const searchRef=useRef<HTMLInputElement>(null);
+  const searchArea=useRef<HTMLDivElement>(null);
+  useEffect(()=>{
+    const shortcut=(event:KeyboardEvent)=>{if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='k'){if(document.querySelector('dialog[open],[role="dialog"][aria-modal="true"]'))return;event.preventDefault();searchRef.current?.focus();}};
+    const outside=(event:PointerEvent)=>{if(!searchArea.current?.contains(event.target as Node))setSearchQuery('');};
+    document.addEventListener('keydown',shortcut);document.addEventListener('pointerdown',outside);
+    return ()=>{document.removeEventListener('keydown',shortcut);document.removeEventListener('pointerdown',outside);};
+  },[]);
+  const stockBySymbol = useMemo(() => new Map(stocks.map((stock) => [stock.symbol, stock])), [stocks]);
+  const searchable = useMemo(() => {
+    const seen = new Set<string>();
+    return [
+      ...assets.map((asset) => ({ ...asset, stock: stockBySymbol.get(asset.symbol) })),
+      ...stocks.filter((stock) => !assets.some((asset) => asset.symbol === stock.symbol))
+        .map((stock) => ({ symbol: stock.symbol, name: stock.name, type: stock.sector, stock })),
+    ].filter((asset) => {
+      if (seen.has(asset.symbol)) return false;
+      seen.add(asset.symbol);
+      return true;
+    });
+  }, [assets, stocks, stockBySymbol]);
 
-  // Live UTC Clock
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      const options: Intl.DateTimeFormatOptions = {
-        year: 'numeric',
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZone: 'UTC',
-        hour12: false,
-      };
-      setUtcTime(now.toLocaleString('en-US', options).replace(',', ' -') + ' UTC');
-    };
-
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Handle Search Input
-  useEffect(() => {
-    if (searchQuery.trim().length === 0) {
-      setSearchResults([]);
-      return;
-    }
-
-    const query = searchQuery.toLowerCase();
-    const filtered = stocks.filter(
-      (s) =>
-        s.symbol.toLowerCase().includes(query) ||
-        s.name.toLowerCase().includes(query) ||
-        s.sector.toLowerCase().includes(query)
-    );
-    setSearchResults(filtered);
-  }, [searchQuery, stocks]);
+  const results = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase('tr-TR');
+    if (!query) return [];
+    return searchable.filter((asset) =>
+      [asset.symbol, asset.name, asset.type].some((value) => value.toLocaleLowerCase('tr-TR').includes(query))
+    ).slice(0, 8);
+  }, [searchQuery, searchable]);
 
   return (
-    <header className="h-16 border-b border-outline-variant bg-bg-base flex items-center justify-between px-6 shrink-0 z-40 relative">
-      {/* Brand Logo */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-lg bg-primary-container flex items-center justify-center border border-primary/20 shadow-md">
-          <Terminal className="w-5 h-5 text-bg-base stroke-[2.5]" />
-        </div>
-        <div>
-          <h1 className="font-headline text-lg font-bold tracking-tight text-text-primary leading-none">
-            Nexus Terminal
-          </h1>
-          <span className="font-data-mono text-[9px] text-primary tracking-wider uppercase">
-            Quant Intelligence
-          </span>
+    <header className="desk-topbar">
+      <div className="desk-header-brand">
+        <span className="w-9 h-9 rounded-lg bg-primary-container text-bg-base grid place-items-center font-bold text-lg" aria-hidden="true">M</span>
+        <div className="hidden sm:block">
+          <div className="font-headline text-lg font-bold leading-tight tracking-tight text-text-primary">Mercek</div>
+          <div className="text-[10px] uppercase tracking-[.12em] text-text-muted">Araştırma alanı</div>
         </div>
       </div>
 
-      {/* Global Stock Search */}
-      <div className="flex-1 max-w-md mx-8 relative">
-        <div className="relative">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
-          <input
-            type="text"
-            placeholder="Search symbols, names, or sectors..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-bg-card border border-outline-variant rounded-lg pl-9 pr-4 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-all font-sans"
-          />
-        </div>
-
-        {/* Search Results Dropdown */}
-        {searchResults.length > 0 && (
-          <div className="absolute top-11 left-0 w-full bg-bg-primary border border-outline-variant rounded-lg shadow-2xl p-2 z-50 max-h-64 overflow-y-auto">
-            <div className="text-[10px] text-text-muted font-label-caps uppercase px-3 py-1 border-b border-outline-variant/30 mb-1">
-              Matching Instruments
-            </div>
-            {searchResults.map((stock) => (
+      <p className="desk-breadcrumb">Çalışma alanı <span>/</span> <strong>{pageTitle}</strong></p>
+      <div className="desk-search relative min-w-0" ref={searchArea}>
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted pointer-events-none" />
+        <input
+          type="search"
+          role="combobox"
+          aria-autocomplete="list"
+          ref={searchRef}
+          aria-label="Kayıtlı varlıklarda ara"
+          placeholder="Kayıtlı varlıklarda ara"
+          aria-controls={searchQuery.trim()?'saved-asset-results':undefined}
+          aria-expanded={Boolean(searchQuery.trim())}
+          aria-activedescendant={results[activeIndex]?`search-result-${results[activeIndex].symbol}`:undefined}
+          value={searchQuery}
+          onChange={(event) => {setSearchQuery(event.target.value);setActiveIndex(0);}}
+          onKeyDown={event=>{
+            if(event.key==='Escape'){setSearchQuery('');return;}
+            if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();setActiveIndex(index=>results.length?(index+(event.key==='ArrowDown'?1:results.length-1))%results.length:0);}
+            if(event.key==='Enter'&&results[activeIndex]){event.preventDefault();const asset=results[activeIndex];if(asset.stock)onSelectStock(asset.stock);else onSelectAsset?.(asset);setSearchQuery('');}
+          }}
+          className="w-full h-10 rounded-lg border border-outline-variant bg-bg-card pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2"
+        />
+        {searchQuery.trim() && (
+          <div className="desk-search-results">
+            <div className="px-3 py-1 text-xs font-medium text-text-muted" role="status">Eşleşen varlıklar · {results.length} sonuç</div>
+            <div id="saved-asset-results" role="listbox" aria-label="Eşleşen kayıtlı varlıklar">{results.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-text-secondary">Eşleşen kayıt bulunamadı.</p>
+            ) : results.map((asset,index) => (
               <button
-                key={stock.symbol}
+                key={asset.symbol}
+                id={`search-result-${asset.symbol}`}
+                type="button"
+                role="option"
+                aria-selected={index===activeIndex}
                 onClick={() => {
-                  onSelectStock(stock);
+                  if (asset.stock) onSelectStock(asset.stock);
+                  else onSelectAsset?.(asset);
                   setSearchQuery('');
                 }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded hover:bg-bg-card text-left transition-colors group"
+                className={`desk-search-result ${index===activeIndex?'is-active':''}`}
               >
-                <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="font-data-mono text-sm font-bold text-primary group-hover:text-text-primary">
-                      {stock.symbol}
-                    </span>
-                    <span className="text-xs text-text-secondary truncate max-w-[200px]">
-                      {stock.name}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-text-muted">{stock.sector}</span>
-                </div>
-                <div className="text-right font-data-mono text-xs">
-                  <div className="text-text-primary font-bold">${stock.price.toFixed(2)}</div>
-                  <div
-                    className={
-                      stock.change >= 0 ? 'text-bull-green font-bold' : 'text-bear-red font-bold'
-                    }
-                  >
-                    {stock.change >= 0 ? '+' : ''}
-                    {stock.changePercent.toFixed(2)}%
-                  </div>
-                </div>
+                <span className="min-w-0"><strong className="font-data-mono text-primary mr-2">{asset.symbol}</strong><span className="text-text-secondary text-sm truncate">{asset.name}</span></span>
+                <span className="shrink-0 font-data-mono text-xs text-text-muted">{asset.stock ? `$${asset.stock.price.toFixed(2)}` : 'Fiyat yok'}</span>
               </button>
-            ))}
+            ))}</div>
           </div>
         )}
       </div>
+      {onToggleFocus&&<button className="desk-focus-button" type="button" aria-pressed={focusMode} onClick={onToggleFocus}>{focusMode?'Odaktan çık':'Odak modu'}</button>}
 
-      {/* Right Actions & Status */}
-      <div className="flex items-center gap-5">
-        {/* Trading Journal PopUp Trigger */}
-        <button
-          onClick={onOpenTradingJournal}
-          className="flex items-center gap-2 px-3 py-1.5 bg-primary/10 hover:bg-primary/15 border border-primary/25 rounded-lg text-primary hover:text-text-primary text-xs font-sans font-bold transition-all shadow-sm shrink-0"
-        >
-          <BookOpen className="w-3.5 h-3.5 text-primary" />
-          <span>Trading Journal</span>
-        </button>
-
-        {/* Market Status Indicators */}
-        <div className="hidden lg:flex items-center gap-3 bg-surface-container-low px-3 py-1.5 rounded-lg border border-outline-variant/30">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-warning-amber pulse-live"></span>
-            <span className="font-label-caps text-[10px] text-text-secondary uppercase">
-              MARKET CLOSED
-            </span>
-          </div>
-          <div className="h-3 w-[1px] bg-outline-variant"></div>
-          <div className="flex items-center gap-2 text-text-muted">
-            <Clock className="w-3.5 h-3.5 text-text-muted" />
-            <span className="font-data-mono text-[11px] font-medium tracking-tight text-text-secondary">
-              {utcTime}
-            </span>
-          </div>
-        </div>
-
-        {/* Live Feed Status */}
-        <div className="hidden sm:flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-bull-green pulse-live"></span>
-          <span className="font-label-caps text-[10px] text-bull-green uppercase tracking-wider">
-            FEED ACTIVE
-          </span>
-        </div>
-      </div>
+      <button type="button" onClick={onOpenTradingJournal} aria-label="Günlük" className="hidden sm:flex items-center gap-2 min-h-10 px-3 rounded-lg border border-outline-variant text-text-secondary hover:text-text-primary hover:bg-bg-card focus-visible:outline-2 focus-visible:outline-primary text-sm">
+        <BookOpen className="w-4 h-4" /> Günlük
+      </button>
+      {onOpenSettings && <button type="button" onClick={onOpenSettings} aria-label="Ayarlar" className="md:hidden min-w-10 min-h-10 grid place-items-center rounded-lg border border-outline-variant text-text-secondary"><Settings className="w-4 h-4" /></button>}
     </header>
   );
 }

@@ -239,7 +239,7 @@ export interface PortfolioPositionPerformance {
   threeMonthReturn?: number | null;
   sixMonthReturn?: number | null;
   oneYearReturn?: number | null;
-  totalReturn: number;
+  totalReturn: number | null;
 }
 export interface AllocationSlice {
   name: string;

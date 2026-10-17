@@ -52,61 +52,29 @@ const holdings: Holding[] = [
 ];
 
 describe('SettingsModal', () => {
-  it('updates volatility, closes from save, and hides when closed', async () => {
+  it('shows actual UI settings without a simulated price control', async () => {
     const onClose = vi.fn();
-    const onUpdateVolatility = vi.fn();
 
     const { rerender } = render(
       <SettingsModal
         isOpen
         onClose={onClose}
-        volatility="normal"
-        onUpdateVolatility={onUpdateVolatility}
-        onResetDatabase={vi.fn()}
       />,
     );
 
-    await user().click(screen.getByRole('button', { name: 'high' }));
-    expect(onUpdateVolatility).toHaveBeenCalledWith('high');
+    expect(screen.getByText('Arayüz dili')).toBeInTheDocument();
+    expect(screen.queryByText(/Market Feed Volatility/i)).not.toBeInTheDocument();
 
-    await user().click(screen.getByRole('button', { name: /save changes/i }));
+    await user().click(screen.getByRole('button', { name: /kapat/i }));
     expect(onClose).toHaveBeenCalledTimes(1);
 
     rerender(
       <SettingsModal
         isOpen={false}
         onClose={onClose}
-        volatility="normal"
-        onUpdateVolatility={onUpdateVolatility}
-        onResetDatabase={vi.fn()}
       />,
     );
-    expect(screen.queryByText('Nexus Terminal System Settings')).not.toBeInTheDocument();
-  });
-
-  it('requires confirmation before resetting local UI preferences', async () => {
-    const onClose = vi.fn();
-    const onResetDatabase = vi.fn();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
-
-    render(
-      <SettingsModal
-        isOpen
-        onClose={onClose}
-        volatility="normal"
-        onUpdateVolatility={vi.fn()}
-        onResetDatabase={onResetDatabase}
-      />,
-    );
-
-    await user().click(screen.getByRole('button', { name: /reset local preferences/i }));
-    expect(onResetDatabase).not.toHaveBeenCalled();
-    expect(onClose).not.toHaveBeenCalled();
-
-    await user().click(screen.getByRole('button', { name: /reset local preferences/i }));
-    expect(confirmSpy).toHaveBeenCalledWith(expect.stringContaining('Reset local UI preferences'));
-    expect(onResetDatabase).toHaveBeenCalledTimes(1);
-    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Ayarlar')).not.toBeInTheDocument();
   });
 });
 
@@ -129,9 +97,9 @@ describe('TradeActionModal', () => {
     const [quantity] = screen.getAllByRole('spinbutton');
     await user().clear(quantity);
     await user().type(quantity, '0');
-    await user().click(screen.getByRole('button', { name: /send order/i }));
+    await user().click(screen.getByRole('button', { name: 'İşlemi kaydet' }));
 
-    expect(alertSpy).toHaveBeenCalledWith('Invalid quantity or unit price.');
+    expect(alertSpy).toHaveBeenCalledWith('Geçerli miktar ve birim fiyat girin.');
     expect(onExecuteTrade).not.toHaveBeenCalled();
   });
 
@@ -150,13 +118,13 @@ describe('TradeActionModal', () => {
       />,
     );
 
-    await user().click(screen.getByRole('button', { name: 'Sell' }));
+    await user().click(screen.getByRole('button', { name: 'Satış' }));
     const [quantity] = screen.getAllByRole('spinbutton');
     await user().clear(quantity);
     await user().type(quantity, '3');
-    await user().click(screen.getByRole('button', { name: /send order/i }));
+    await user().click(screen.getByRole('button', { name: 'İşlemi kaydet' }));
 
-    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Insufficient quantity'));
+    expect(alertSpy).toHaveBeenCalledWith(expect.stringContaining('Yetersiz miktar'));
     expect(onExecuteTrade).not.toHaveBeenCalled();
   });
 
@@ -177,7 +145,7 @@ describe('TradeActionModal', () => {
     );
 
     await user().type(screen.getByRole('textbox'), '  add on breakout  ');
-    await user().click(screen.getByRole('button', { name: /send order/i }));
+    await user().click(screen.getByRole('button', { name: 'İşlemi kaydet' }));
 
     expect(onExecuteTrade).toHaveBeenCalledWith({
       symbol: 'AAPL',
@@ -186,7 +154,24 @@ describe('TradeActionModal', () => {
       price: 150.25,
       notes: 'add on breakout',
     });
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('keeps the order open and shows an error when saving fails', async () => {
+    const onClose = vi.fn();
+    render(
+      <TradeActionModal
+        isOpen
+        onClose={onClose}
+        symbol="AAPL"
+        stocks={stocks}
+        holdings={holdings}
+        onExecuteTrade={vi.fn().mockRejectedValue(new Error('backend unavailable'))}
+      />,
+    );
+    await user().click(screen.getByRole('button', { name: 'İşlemi kaydet' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('İşlem kaydedilemedi');
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 
@@ -250,6 +235,7 @@ describe('ManageAssetsDrawer', () => {
   it('records a closing sell trade only after user confirmation', async () => {
     const onExecuteTrade = vi.fn();
     vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
+    vi.spyOn(window, 'prompt').mockReturnValueOnce('150.25');
 
     render(
       <ManageAssetsDrawer
@@ -325,9 +311,9 @@ describe('ErrorBoundary', () => {
       </ErrorBoundary>,
     );
 
-    expect(screen.getByText('Application Error')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /something went wrong/i })).toBeInTheDocument();
+    expect(screen.getByText('Uygulama hatası')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Bir sorun oluştu' })).toBeInTheDocument();
     expect(screen.getByText('render failure')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /reload/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Yeniden yükle' })).toBeInTheDocument();
   });
 });

@@ -75,32 +75,32 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="font-headline text-2xl font-bold text-text-primary tracking-tight">
-            Global Markets & Macro News Feed
+            Piyasa ve makro haberler
           </h2>
           <p className="text-sm text-text-secondary">
-            Track market and macro developments related to your active portfolio (
+            Aktif portföyünüzle ilişkili piyasa ve makro gelişmeleri izleyin (
             <span className="font-bold text-primary">
-              {activePortfolio?.holdings.map((h) => h.symbol).join(', ') || 'No Assets'}
+              {activePortfolio?.holdings.map((h) => h.symbol).join(', ') || 'Varlık yok'}
             </span>
-            ) with fast filtering and source links.
+            ). Kaynak bağlantıları ve filtreler haberlerin yanında yer alır.
           </p>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-bg-card border border-outline-variant rounded-xl p-4 shadow-lg text-xs">
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-bg-card border border-outline-variant rounded-md p-4 shadow-lg text-xs">
         <div className="flex flex-wrap gap-2">
           {[
-            { id: 'all', label: 'All News' },
-            { id: 'macro', label: 'Macro Economy' },
-            { id: 'stock', label: 'Stock Specific' },
-            { id: 'tech', label: 'Technology & Sector' },
+            { id: 'all', label: 'Tüm haberler' },
+            { id: 'macro', label: 'Makroekonomi' },
+            { id: 'stock', label: 'Varlık haberleri' },
+            { id: 'tech', label: 'Teknoloji ve sektör' },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as 'all' | 'macro' | 'stock' | 'tech')}
               className={`px-3 py-1.5 rounded-lg font-sans font-bold transition-all ${
                 activeTab === tab.id
-                  ? 'bg-primary text-bg-base shadow-sm'
+                  ? 'bg-primary text-bg-base '
                   : 'bg-bg-base/60 text-text-secondary hover:text-text-primary border border-outline-variant/30'
               }`}
             >
@@ -124,7 +124,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-4">
           {sortedAndFilteredNews.length === 0 ? (
-            <div className="bg-bg-card border border-outline-variant rounded-xl p-10 text-center text-xs text-text-muted">
+            <div className="bg-bg-card border border-outline-variant rounded-md p-10 text-center text-xs text-text-muted">
               No matching market news found.
             </div>
           ) : (
@@ -136,12 +136,12 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
                   href={newsItem.url}
                   target="_blank"
                   rel="noreferrer"
-                  className={`block bg-bg-card border rounded-xl p-5 hover:border-primary/40 transition-all shadow-md group relative overflow-hidden ${
+                  className={`block bg-bg-card border rounded-md p-5 hover:border-primary/40 transition-all  group relative overflow-hidden ${
                     isPortfolioRelated ? 'border-primary/40 bg-primary-container/5' : 'border-outline-variant'
                   }`}
                 >
                   {isPortfolioRelated && (
-                    <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-[9px] font-bold font-sans flex items-center gap-1.5 rounded-bl-xl border-l border-b border-primary/20">
+                    <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-xs font-bold font-sans flex items-center gap-1.5 rounded-bl-xl border-l border-b border-primary/20">
                       <Star className="w-3 h-3 fill-primary stroke-none" />
                       <span>PORTFOLIO RELATED</span>
                     </div>
@@ -153,7 +153,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
                     </div>
 
                     <div className="flex-1 space-y-2 text-xs">
-                      <div className="flex flex-wrap items-center gap-2 text-[10px] text-text-muted font-data-mono uppercase">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-text-muted font-data-mono uppercase">
                         <span className="font-bold text-text-secondary">{newsItem.source}</span>
                         <span>-</span>
                         <span>{newsItem.time}</span>
@@ -162,7 +162,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
                         {newsItem.symbol && (
                           <>
                             <span>-</span>
-                            <span className="px-1.5 py-0.5 bg-primary-container/20 text-primary border border-primary/25 rounded font-extrabold text-[9px]">
+                            <span className="px-1.5 py-0.5 bg-primary-container/20 text-primary border border-primary/25 rounded font-extrabold text-xs">
                               {newsItem.symbol}
                             </span>
                           </>
@@ -179,7 +179,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
                         </p>
                       )}
 
-                      <div className="flex items-center gap-1 text-[10px] text-primary group-hover:underline font-bold pt-1 font-sans">
+                      <div className="flex items-center gap-1 text-xs text-primary group-hover:underline font-bold pt-1 font-sans">
                         Open Source
                         <ExternalLink className="w-3 h-3" />
                       </div>
@@ -192,13 +192,13 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
         </div>
 
         <div className="space-y-6">
-          <div className="bg-bg-card border border-outline-variant rounded-xl p-5 shadow-lg space-y-4">
+          <div className="bg-bg-card border border-outline-variant rounded-md p-5 shadow-lg space-y-4">
             <h3 className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide border-b border-outline-variant/30 pb-2 flex items-center gap-2">
               <Globe className="w-4 h-4 text-primary" />
               Market Sources
             </h3>
             <p className="text-xs text-text-secondary leading-relaxed font-sans">
-              Nexus Terminal links to global and local finance sources. Open headlines to inspect the original publisher page.
+              Başlıklar özgün yayıncı sayfasına açılır. Kaynağı ve yayın zamanını haberin yanında inceleyin.
             </p>
             <div className="space-y-2 text-xs font-sans">
               <a href="https://www.bloomberght.com" target="_blank" rel="noreferrer" className="flex items-center justify-between p-2.5 bg-bg-base/50 hover:bg-bg-base border border-outline-variant/20 rounded-lg group">
@@ -216,11 +216,11 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
             </div>
           </div>
 
-          <div className="bg-bg-card border border-outline-variant/40 rounded-xl p-4 flex gap-3 text-xs font-sans">
+          <div className="bg-bg-card border border-outline-variant/40 rounded-md p-4 flex gap-3 text-xs font-sans">
             <AlertCircle className="w-5 h-5 text-warning-amber shrink-0 mt-0.5" />
             <div>
               <span className="font-bold text-text-primary block">Information Note</span>
-              <p className="text-text-secondary mt-1 text-[11px] leading-relaxed">
+              <p className="text-text-secondary mt-1 text-xs leading-relaxed">
                 AI analysis and portfolio risk reports use real provider data when it is available.
               </p>
             </div>

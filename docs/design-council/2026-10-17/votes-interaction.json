@@ -1,0 +1,23 @@
+{
+  "agent": "interaction",
+  "votes": [
+    {"id":"D01","choice":"A","reason":"Uzun rapor ve tabloyu açık veri yüzeyinde okumayı tercih ediyorum.","reservation":"Karanlık ortamda parlaklık farkı prototipte değerlendirilmeli."},
+    {"id":"D02","choice":"A","reason":"Etkileşim rengi finansal yön ve veri uyarısından ayrılıyor.","reservation":"Gerçek token çiftlerinin kontrastı ölçülmeli."},
+    {"id":"D03","choice":"A","reason":"Grafit kabuk beş görevi şirket içindeki araştırma kontrollerinden ayırıyor.","reservation":"Koyu kabuğun açık içeriğe göre baskınlaşması izlenmeli."},
+    {"id":"D04","choice":"A","reason":"Varsayılan 40px okunurluk, isteğe bağlı 32px daha çok satır sunuyor.","reservation":"Mobil eylemler kompakt satıra sıkıştırılmamalı."},
+    {"id":"D05","choice":"A","reason":"Kaynak bağlamı görünürken ayrıntı tablonun zorunlu genişliğini tüketmiyor; yeterli alanda nonmodal panel yararlı.","reservation":"1440px viewport ve 900px kalan tablo koşulları birlikte uygulanmalı; nonmodal panel odak hapsetmemeli, modal drawer hapsetmeli."},
+    {"id":"D06","choice":"A","reason":"Mevcut portföy kanıtından başlayan sıra otomatik araştırma önceliği üretmiyor.","reservation":"Portföy yokken tek oluşturma eylemi ve araştırma erişimi anlaşılır kalmalı."},
+    {"id":"D07","choice":"A","reason":"Genel bakıştan sonra Grafik, mevcut teknik araştırma akışına anlaşılır erişim veriyor.","reservation":"Dar ekranda tam adların devamı görünür olmalı."},
+    {"id":"D08","choice":"A","reason":"Genel bakış farklı hisse ve ETF kanıtlarını tek başlangıçta karşılayabilir.","reservation":"Genel bakış tekrar eden KPI kartlarıyla şişmemeli."},
+    {"id":"D09","choice":"A","reason":"Tek baskın kayıt eylemi ve gerçek gezinme linkleri eylem hiyerarşisini açık tutuyor.","reservation":"Görüntüleme ekranının primary butona ihtiyacı olmayabilir."},
+    {"id":"D10","choice":"A","reason":"Kayıtlı varlık kapsamını aramadan önce açıklıyor; genel piyasa araması vaat etmiyor.","reservation":"Kısayol metin alanlarında yazmayı kesmemeli."},
+    {"id":"D11","choice":"A","reason":"Güncel değer ile maliyetin ayrı adları ve fiyat kapsamı eksik fiyatı açık tutuyor.","reservation":"Ara toplam toplam değer gibi büyük ve açıklamasız sunulmamalı."},
+    {"id":"D12","choice":"A","reason":"Yardımcı bilgiyi 12px altına indirmeyen ölçek veri durumu ve kaynağı okunur tutuyor.","reservation":"Yazı büyümesinde satır ve butonlar taşmamalı."},
+    {"id":"D13","choice":"A","reason":"24px kenarlar ve 192px menü etiketlerin rahat okunmasına yer veriyor.","reservation":"Küçük ekranlarda masaüstü ölçüleri sabit tutulmamalı."},
+    {"id":"D14","choice":"B","reason":"Sunucuya kaydedilmemesi ve yenilemede kaybolması aynı açıklamada somut biçimde belirtiliyor.","reservation":"Taslağı bu oturumda göster ifadesi önizlemeyi kaydetme başarısı gibi sunmamalı."},
+    {"id":"D15","choice":"A","reason":"Mevcut beş görev görünür ve eşit erişimde kalıyor; Günlük saklanmıyor.","reservation":"320px genişlikte uzun label kırılması ve hedefler kontrol edilmeli."},
+    {"id":"D16","choice":"A","reason":"Mevcut altı rol ve sırası, gerçek çıktı olmadığında açık durumla birlikte anlaşılır kalıyor.","reservation":"Ayrı unavailable satırlar sahte aşama ilerlemesi gibi canlandırılmamalı."},
+    {"id":"D17","choice":"A","reason":"Nesneyi adlandıran etiketler kaynağı, liste eklemeyi ve işlem kaydını açıklaştırıyor.","reservation":"Dar alanda metni belirsiz kısaltmaya dönüştürmeden yerleşim uyarlanmalı."},
+    {"id":"D18","choice":"A","reason":"Araştırma genel bakışında doğrulanmış rapor kesitiyle görünüş ve hiyerarşi somut değerlendirilebilir.","reservation":"Rapor tarihi ve prototip verisi sınırı görünür olmalı; fiyat veya AI sonucu üretilmemeli."}
+  ]
+}

@@ -14,6 +14,7 @@ import {
 import type { CalendarEvent, News, Stock, Portfolio } from '../types';
 import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerformance } from '../api/client';
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
+import { valuePortfolio } from '../utils/portfolioValuation';
 
 interface DashboardHomeProps {
   stocks: Stock[];
@@ -23,6 +24,7 @@ interface DashboardHomeProps {
   onSelectStock: (stock: Stock) => void;
   onOpenTradingJournal: () => void;
   onNavigateToNews: () => void;
+  onNavigateToResearch?: () => void;
   news: News[];
   calendarEvents: CalendarEvent[];
 }
@@ -35,6 +37,7 @@ export default function DashboardHome({
   onSelectStock,
   onOpenTradingJournal,
   onNavigateToNews,
+  onNavigateToResearch,
   news,
   calendarEvents,
 }: DashboardHomeProps) {
@@ -108,45 +111,15 @@ export default function DashboardHome({
 
   // Calculations for active portfolio metrics
   const portfolioMetrics = useMemo(() => {
-    if (!activePortfolio) {
-      return { totalValue: 0, totalProfitLoss: 0, totalReturnPercent: 0, positions: [], holdingsCount: 0 };
-    }
-
-    let currentTotalValue = 0;
-    let totalCostBasis = 0;
-
-    const calculatedPositions = activePortfolio.holdings.map((h) => {
-      const stock = stockMap[h.symbol];
-      const currentPrice = stock ? stock.price : h.costPrice;
-      const value = h.quantity * currentPrice;
-      const cost = h.quantity * h.costPrice;
-      const profitLoss = value - cost;
-      const profitLossPercent = cost > 0 ? (profitLoss / cost) * 100 : 0;
-
-      currentTotalValue += value;
-      totalCostBasis += cost;
-
-      return {
-        ...h,
-        currentPrice,
-        value,
-        profitLoss,
-        profitLossPercent,
-        name: stock ? stock.name : h.symbol,
-      };
-    });
-
-    const totalProfitLoss = currentTotalValue - totalCostBasis;
-    const totalReturnPercent = totalCostBasis > 0 ? (totalProfitLoss / totalCostBasis) * 100 : 0;
-
+    const valuation = valuePortfolio(activePortfolio?.holdings ?? [], stocks);
     return {
-      totalValue: currentTotalValue,
-      totalProfitLoss,
-      totalReturnPercent,
-      positions: calculatedPositions,
-      holdingsCount: activePortfolio.holdings.length,
+      ...valuation,
+      positions: valuation.positions.map((position) => ({
+        ...position,
+        name: stockMap[position.symbol]?.name ?? position.symbol,
+      })),
     };
-  }, [activePortfolio, stockMap]);
+  }, [activePortfolio, stockMap, stocks]);
 
 
   const activeInvestmentPortfolioId = useMemo(() => {
@@ -183,15 +156,15 @@ export default function DashboardHome({
   }, [activeInvestmentPortfolioId]);
 
   const fallbackPositionPerformance = useMemo<PortfolioPositionPerformance[]>(() => {
-    const totalValue = portfolioMetrics.totalValue;
-    return portfolioMetrics.positions.map((pos) => ({
+    const totalValue = portfolioMetrics.pricedSubtotal;
+    return portfolioMetrics.positions.filter((pos) => pos.currentPrice != null && pos.value != null).map((pos) => ({
       symbol: pos.symbol,
       company: pos.name,
       addedDate: null,
       costPrice: pos.costPrice,
-      currentPrice: pos.currentPrice,
-      marketValue: pos.value,
-      weight: totalValue > 0 ? (pos.value / totalValue) * 100 : 0,
+      currentPrice: pos.currentPrice!,
+      marketValue: pos.value!,
+      weight: totalValue > 0 ? (pos.value! / totalValue) * 100 : 0,
       dailyReturn: null,
       weeklyReturn: null,
       oneMonthReturn: null,
@@ -200,7 +173,7 @@ export default function DashboardHome({
       oneYearReturn: null,
       totalReturn: pos.profitLossPercent,
     }));
-  }, [portfolioMetrics.positions, portfolioMetrics.totalValue]);
+  }, [portfolioMetrics.positions, portfolioMetrics.pricedSubtotal]);
 
   const displayedPositionPerformance = positionPerformance.length > 0 ? positionPerformance : fallbackPositionPerformance;
 
@@ -339,8 +312,8 @@ export default function DashboardHome({
           selectedBenchmarks
         );
         if (!cancelled) {
-          setComparisonSeries(response.series);
-          setComparisonError(false);
+          setComparisonSeries(Array.isArray(response.series) ? response.series : []);
+          setComparisonError(!Array.isArray(response.series));
         }
       } catch {
         if (!cancelled) {
@@ -509,19 +482,28 @@ export default function DashboardHome({
 
 
   return (
-    <div className="flex-1 overflow-y-auto bg-bg-primary p-6 space-y-6">
+    <div className="flex-1 overflow-y-auto bg-bg-primary p-4 md:p-7 pb-24 md:pb-7 space-y-6">
+
+      <div className="max-w-[1440px] mx-auto space-y-5">
+        <div>
+          <p className="font-label-caps text-xs tracking-widest text-text-muted uppercase">Çalışma alanı / Bugün</p>
+          <h1 className="font-headline text-[26px] font-bold tracking-tight text-text-primary mt-2">Bugün neye odaklanalım?</h1>
+          <p className="text-sm text-text-secondary mt-1">Bir sonraki araştırma adımını seçin; kanıtın kapsamını her zaman görün.</p>
+        </div>
+        <button type="button" onClick={onNavigateToResearch} className="desk-button">Varlık araştır →</button>
+      </div>
 
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/20 pb-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
             <h2 className="font-headline text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
-              <span>Consolidated Portfolio Terminal:</span>
+              <span>Portföy görünümü:</span>
               <span className="text-primary font-sans font-extrabold">{activePortfolio ? activePortfolio.name : ''}</span>
             </h2>
 
             {/* Portfolio Up/Down switch buttons */}
-            <div className="flex items-center gap-1 bg-surface-container-low border border-outline-variant/30 rounded-lg p-1 shadow-sm shrink-0">
+            <div className="flex items-center gap-1 bg-surface-container-low border border-outline-variant/30 rounded-lg p-1  shrink-0">
               <button
                 onClick={handlePrevPortfolio}
                 title="Previous Portfolio"
@@ -539,7 +521,7 @@ export default function DashboardHome({
             </div>
           </div>
           <p className="text-sm text-text-secondary mt-0.5">
-            Your active investment strategy, stock-specific news, and asset ratios.
+            Pozisyonlar, piyasa bağlamı ve ayrıntılı analiz panelleri.
           </p>
         </div>
       </div>
@@ -547,87 +529,85 @@ export default function DashboardHome({
       {/* Metrics Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1 */}
-        <div className="bg-bg-card border border-outline-variant rounded-xl p-5 hover:border-primary/20 transition-all shadow-md flex flex-col justify-between">
-          <span className="font-label-caps text-[10px] text-text-muted uppercase tracking-wider font-semibold">
-            PORTFOLIO VALUE
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
+            Güncel değer
           </span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="font-data-mono text-2xl font-bold text-text-primary">
-              ${portfolioMetrics.totalValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {portfolioMetrics.totalValue == null ? '—' : formatCurrency(portfolioMetrics.totalValue)}
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span className="w-1.5 h-1.5 rounded-full bg-bull-green"></span>
-            <span>Live Market Exposure</span>
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-text-muted">
+            <span>{portfolioMetrics.pricedCount}/{portfolioMetrics.holdingsCount} pozisyonun güncel fiyatı var</span>
           </div>
         </div>
 
         {/* Metric 2 */}
-        <div className="bg-bg-card border border-outline-variant rounded-xl p-5 hover:border-primary/20 transition-all shadow-md flex flex-col justify-between">
-          <span className="font-label-caps text-[10px] text-text-muted uppercase tracking-wider font-semibold">
-            TOTAL PROFIT / LOSS (P/L)
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
+            TOPLAM KÂR / ZARAR
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalProfitLoss >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalProfitLoss >= 0 ? '+' : ''}
-              ${portfolioMetrics.totalProfitLoss.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalProfitLoss == null ? 'text-text-muted' : portfolioMetrics.totalProfitLoss >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+              {portfolioMetrics.totalProfitLoss == null ? '—' : `${portfolioMetrics.totalProfitLoss >= 0 ? '+' : ''}${formatCurrency(portfolioMetrics.totalProfitLoss)}`}
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1 text-[11px]">
-            {portfolioMetrics.totalProfitLoss >= 0 ? (
+          <div className="mt-2 flex items-center gap-1 text-xs">
+            {portfolioMetrics.totalProfitLoss == null ? <span className="text-text-muted">Eksik fiyat verisi</span> : portfolioMetrics.totalProfitLoss >= 0 ? (
               <span className="text-bull-green flex items-center font-semibold">
-                <ArrowUpRight className="w-3.5 h-3.5" /> Net Gain</span>
+                <ArrowUpRight className="w-3.5 h-3.5" /> Net kazanç</span>
             ) : (
               <span className="text-bear-red flex items-center font-semibold">
-                <ArrowDownRight className="w-3.5 h-3.5" /> Net Loss</span>
+                <ArrowDownRight className="w-3.5 h-3.5" /> Net kayıp</span>
             )}
           </div>
         </div>
 
         {/* Metric 3 */}
-        <div className="bg-bg-card border border-outline-variant rounded-xl p-5 hover:border-primary/20 transition-all shadow-md flex flex-col justify-between">
-          <span className="font-label-caps text-[10px] text-text-muted uppercase tracking-wider font-semibold">
-            TOTAL RETURN RATE
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
+            TOPLAM GETİRİ ORANI
           </span>
           <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalReturnPercent >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalReturnPercent >= 0 ? '+' : ''}
-              {portfolioMetrics.totalReturnPercent.toFixed(2)}%
+            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalReturnPercent == null ? 'text-text-muted' : portfolioMetrics.totalReturnPercent >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+              {portfolioMetrics.totalReturnPercent == null ? '—' : `${portfolioMetrics.totalReturnPercent >= 0 ? '+' : ''}${portfolioMetrics.totalReturnPercent.toFixed(2)}%`}
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-secondary">
-            <span>Capital Growth Multiple</span>
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-text-secondary">
+            <span>Fiyat kapsamına göre hesaplanır</span>
           </div>
         </div>
 
         {/* Metric 4 */}
-        <div className="bg-bg-card border border-outline-variant rounded-xl p-5 hover:border-primary/20 transition-all shadow-md flex flex-col justify-between">
-          <span className="font-label-caps text-[10px] text-text-muted uppercase tracking-wider font-semibold">
-            INSTRUMENT DIVERSITY
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
+            Pozisyon sayısı
           </span>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="font-data-mono text-2xl font-bold text-text-primary">
               {portfolioMetrics.holdingsCount}
             </span>
           </div>
-          <div className="mt-2 flex items-center gap-1.5 text-[11px] text-text-secondary">
-            <span>Active Distributed Risk</span>
+          <div className="mt-2 flex items-center gap-1.5 text-xs text-text-secondary">
+            <span>Aktif portföydeki varlıklar</span>
           </div>
         </div>
       </div>
 
+      <div className="desk-dashboard-evidence"><div><span>Maliyet</span><strong>{formatCurrency(activePortfolio ? portfolioMetrics.positions.reduce((sum,position)=>sum+position.quantity*position.costPrice,0) : null)}</strong></div><div><span>Fiyat kapsamı</span><strong>{portfolioMetrics.pricedCount}/{portfolioMetrics.holdingsCount} pozisyon</strong></div></div>
       {/* Macro Snapshot */}
-      <div className="bg-bg-card border border-outline-variant rounded-xl p-5 shadow-md space-y-4">
+      <div className="bg-bg-card border border-outline-variant rounded-md p-5  space-y-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h3 className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide flex items-center gap-1.5">
               <Globe className="w-4 h-4 text-primary" />
-              <span>Macro Snapshot</span>
+              <span>Makro görünüm</span>
             </h3>
-            <p className="text-[11px] text-text-muted font-sans">FRED macro context. Missing provider fields stay empty.</p>
+            <p className="text-xs text-text-muted font-sans">Eksik sağlayıcı alanları boş kalır.</p>
           </div>
           {macroSnapshot?.observedAt && (
-            <span className="font-data-mono text-[10px] text-text-muted">Observed: {macroSnapshot.observedAt}</span>
+            <span className="font-data-mono text-xs text-text-muted">Observed: {macroSnapshot.observedAt}</span>
           )}
         </div>
 
@@ -635,7 +615,7 @@ export default function DashboardHome({
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {macroItems.map((item) => (
               <div key={item.label} className="rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3">
-                <div className="text-[9px] uppercase tracking-wider text-text-muted font-label-caps">{item.label}</div>
+                <div className="text-xs uppercase tracking-wider text-text-muted font-label-caps">{item.label}</div>
                 <div className="mt-1 font-data-mono text-lg font-bold text-text-primary">{item.value}</div>
               </div>
             ))}
@@ -650,7 +630,7 @@ export default function DashboardHome({
       {/* Charts section: Performance Curve and Allocation Treemap */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Multi-series cumulative return chart */}
-        <div className="lg:col-span-2 bg-bg-card border border-outline-variant rounded-xl p-5 shadow-md flex flex-col justify-between">
+        <div className="lg:col-span-2 bg-bg-card border border-outline-variant rounded-md p-5  flex flex-col justify-between">
           <div className="flex flex-col gap-4 border-b border-outline-variant/30 pb-4 mb-4 xl:flex-row xl:items-start xl:justify-between">
             <div>
               <h3 className="font-headline text-sm font-bold text-text-primary flex items-center gap-2">
@@ -665,7 +645,7 @@ export default function DashboardHome({
             </div>
 
             <div className="flex flex-col gap-2 xl:items-end">
-              <div className="flex flex-wrap items-center gap-2 text-[10px] font-label-caps font-bold tracking-wider text-text-muted">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-label-caps font-bold tracking-wider text-text-muted">
                 <span>Benchmark:</span>
                 {comparisonBenchmarks.map((benchmark) => {
                   const active = selectedBenchmarks.includes(benchmark.id);
@@ -685,7 +665,7 @@ export default function DashboardHome({
                   <button
                     key={period.id}
                     onClick={() => setComparisonPeriod(period.id)}
-                    className={`px-2 py-0.5 rounded font-label-caps text-[10px] font-bold tracking-wider transition-all ${comparisonPeriod === period.id
+                    className={`px-2 py-0.5 rounded font-label-caps text-xs font-bold tracking-wider transition-all ${comparisonPeriod === period.id
                         ? 'bg-primary text-bg-base font-extrabold'
                         : 'text-text-secondary hover:text-text-primary'
                       }`}
@@ -719,7 +699,7 @@ export default function DashboardHome({
                 className="absolute z-20 min-w-56 rounded border border-primary/30 bg-bg-primary px-3 py-2 text-xs shadow-lg"
                 style={{ left: Math.min(hoveredComparisonSnapshot.x + 12, 430), top: 8 }}
               >
-                <div className="mb-1 font-data-mono text-[11px] font-bold text-text-primary">
+                <div className="mb-1 font-data-mono text-xs font-bold text-text-primary">
                   {formatDate(hoveredComparisonSnapshot.date)}
                 </div>
                 <div className="space-y-1">
@@ -817,7 +797,7 @@ export default function DashboardHome({
 
             <div className="absolute bottom-0 left-12 right-4 flex justify-between">
               {comparisonChart.labels.map((label) => (
-                <span key={label} className="font-data-mono text-[9px] text-text-muted">
+                <span key={label} className="font-data-mono text-xs text-text-muted">
                   {formatDate(label)}
                 </span>
               ))}
@@ -834,20 +814,20 @@ export default function DashboardHome({
           </div>
         </div>
         {/* Allocation Treemap */}
-        <div className="bg-bg-card border border-outline-variant rounded-xl p-5 shadow-md flex flex-col">
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5  flex flex-col">
           <div className="mb-4 flex items-start justify-between gap-3 border-b border-outline-variant/30 pb-3">
             <div>
               <h3 className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide">
                 Asset Allocation
               </h3>
-              <p className="mt-1 text-[11px] text-text-muted">Weight and performance</p>
+              <p className="mt-1 text-xs text-text-muted">Weight and performance</p>
             </div>
             <div className="flex rounded-lg border border-outline-variant/35 bg-bg-base p-1">
               {allocationModes.map((mode) => (
                 <button
                   key={mode.id}
                   onClick={() => setAllocationMode(mode.id)}
-                  className={`rounded px-2 py-1 text-[10px] font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary text-bg-base' : 'text-text-secondary hover:text-text-primary'}`}
+                  className={`rounded px-2 py-1 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary text-bg-base' : 'text-text-secondary hover:text-text-primary'}`}
                 >
                   {mode.label}
                 </button>
@@ -880,7 +860,7 @@ export default function DashboardHome({
                       <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">
                         {allocationMode === 'allocation' ? `${item.percentage.toFixed(1)}%` : formatReturn(item.selectedReturn)}
                       </div>
-                      <div className="mt-1 truncate text-[10px] text-text-secondary">{item.company}</div>
+                      <div className="mt-1 truncate text-xs text-text-secondary">{item.company}</div>
                     </div>
                   </button>
                 ))}
@@ -894,7 +874,7 @@ export default function DashboardHome({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Tabbed News & Macro Calendar Sidebar */}
-        <div className="bg-bg-card border border-outline-variant rounded-xl p-5 shadow-md flex flex-col justify-between">
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5  flex flex-col justify-between">
           <div className="space-y-4">
             {/* Header Tabs */}
             <div className="flex border-b border-outline-variant/35 pb-2 text-xs font-sans font-bold">
@@ -905,7 +885,7 @@ export default function DashboardHome({
                     : 'border-transparent text-text-secondary hover:text-text-primary'
                   }`}
               >
-                News Feed
+                Haber akışı
               </button>
               <button
                 onClick={() => setBottomTab('calendar')}
@@ -935,7 +915,7 @@ export default function DashboardHome({
                         }`}
                     >
                       <div className="flex justify-between items-start gap-2">
-                        <span className="font-data-mono text-[9px] text-text-muted uppercase tracking-wider font-bold">
+                        <span className="font-data-mono text-xs text-text-muted uppercase tracking-wider font-bold">
                           {news.source} - {news.time}
                         </span>
                         {news.symbol && (
@@ -947,7 +927,7 @@ export default function DashboardHome({
                       <h4 className="font-bold text-text-primary mt-1 group-hover:text-primary leading-snug truncate">
                         {news.title}
                       </h4>
-                      <p className="text-[11px] text-text-secondary line-clamp-2 mt-0.5 leading-relaxed">
+                      <p className="text-xs text-text-secondary line-clamp-2 mt-0.5 leading-relaxed">
                         {news.summary}
                       </p>
                     </a>
@@ -974,7 +954,7 @@ export default function DashboardHome({
                     className="p-3 bg-bg-base/60 rounded-lg border border-outline-variant/25 flex items-center justify-between"
                   >
                     <div className="space-y-1">
-                      <div className="text-[10px] text-text-muted font-data-mono">
+                      <div className="text-xs text-text-muted font-data-mono">
                         {event.date}, {event.time}
                       </div>
                       <h4 className="text-xs font-bold text-text-primary leading-tight">{event.title}</h4>
@@ -996,14 +976,14 @@ export default function DashboardHome({
         </div>
 
         {/* Positions holdings table */}
-        <div className="lg:col-span-2 bg-bg-card border border-outline-variant rounded-xl p-5 shadow-md flex flex-col">
+        <div className="lg:col-span-2 bg-bg-card border border-outline-variant rounded-md p-5  flex flex-col">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-outline-variant/30 pb-3 mb-4">
             <div>
               <h3 className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide flex items-center gap-1.5">
                 <Briefcase className="w-4 h-4 text-primary" />
                 <span>Current Asset Positions</span>
               </h3>
-              <span className="text-[11px] text-text-muted font-sans font-medium">
+              <span className="text-xs text-text-muted font-sans font-medium">
                 Showing {displayedPositionPerformance.length} assets in the active portfolio
                 {positionPerformanceError ? ' - live position metrics unavailable' : ''}
               </span>
@@ -1024,7 +1004,7 @@ export default function DashboardHome({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[980px] text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-outline-variant/35 text-[9px] font-label-caps text-text-muted tracking-wider uppercase bg-bg-base/20">
+                <tr className="border-b border-outline-variant/35 text-xs font-label-caps text-text-muted tracking-wider uppercase bg-bg-base/20">
                   <th className="py-2.5 px-3">Added</th>
                   <th className="py-2.5 px-3">Asset</th>
                   <th className="py-2.5 px-3 text-right">Cost</th>
@@ -1061,7 +1041,7 @@ export default function DashboardHome({
                         onClick={() => matchedStock && onSelectStock(matchedStock)}
                         className="border-b border-outline-variant/15 hover:bg-bg-base/35 transition-colors cursor-pointer group"
                       >
-                        <td className="py-3 px-3 font-data-mono text-[11px] text-text-secondary whitespace-nowrap">
+                        <td className="py-3 px-3 font-data-mono text-xs text-text-secondary whitespace-nowrap">
                           {formatDateLabel(pos.addedDate)}
                         </td>
                         <td className="py-3 px-3">
@@ -1073,7 +1053,7 @@ export default function DashboardHome({
                               <div className="font-data-mono font-bold text-text-primary group-hover:text-primary transition-colors text-xs">
                                 {pos.symbol}
                               </div>
-                              <div className="text-[10px] text-text-muted max-w-[140px] truncate">
+                              <div className="text-xs text-text-muted max-w-[140px] truncate">
                                 {pos.company}
                               </div>
                             </div>
@@ -1098,7 +1078,7 @@ export default function DashboardHome({
           </div>
 
           <div className="mt-4 pt-3 border-t border-outline-variant/20 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs">
-            <span className="text-[10px] text-text-muted font-sans">
+            <span className="text-xs text-text-muted font-sans">
               Select a row to open AI analysis and technical chart details for that stock.
             </span>
             <button
@@ -1106,7 +1086,7 @@ export default function DashboardHome({
               className="text-xs font-bold text-primary hover:text-text-primary flex items-center gap-1.5 transition-colors font-sans"
             >
               <BookOpen className="w-3.5 h-3.5" />
-              <span>Trading Journal</span>
+              <span>İşlem günlüğü</span>
             </button>
           </div>
         </div>

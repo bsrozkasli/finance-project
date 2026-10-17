@@ -81,6 +81,27 @@ const installPositionPerformanceHandler = () => {
 };
 
 describe('DashboardHome portfolio return comparison', () => {
+  it('shows missing price coverage without presenting cost as market value', async () => {
+    render(
+      <DashboardHome
+        stocks={[]}
+        portfolios={[{ id: '1', name: 'ALFA', holdings: [{ symbol: 'AAPL', quantity: 2, costPrice: 100 }] }]}
+        activePortfolioId="1"
+        onSelectPortfolioId={vi.fn()}
+        onSelectStock={vi.fn()}
+        onOpenTradingJournal={vi.fn()}
+        onNavigateToNews={vi.fn()}
+        news={[]}
+        calendarEvents={[]}
+      />,
+    );
+
+    expect(screen.getByText(/0\/1 pozisyonun güncel fiyatı var/)).toBeInTheDocument();
+    expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('—');
+    expect(screen.getByText('Güncel değer').parentElement).not.toHaveTextContent('$200.00');
+    expect(screen.getByText('Maliyet').parentElement).toHaveTextContent('$200.00');
+  });
+
   it('loads comparison series, shows hover-synchronized values, and renders revised overview panels', async () => {
     const requests: Array<{ portfolioIds: string | null; benchmarks: string | null; period: string | null }> = [];
 

@@ -38,12 +38,14 @@ export const useSmartReport = (symbol: string | null) => {
   useEffect(() => {
     if (!symbol) {
       setReport(null);
+      setError(null);
       return;
     }
 
     let isMounted = true;
     setLoading(true);
     setError(null);
+    setReport(null);
 
     const fetchReport = async () => {
       try {

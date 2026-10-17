@@ -1,16 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertCircle,
   BarChart3,
   CandlestickChart,
   ChartLine,
   Layers,
-  MousePointer,
-  PenTool,
-  RefreshCw,
-  ShieldAlert,
-  Trash2,
-  Type,
 } from 'lucide-react';
 import {
   AreaSeries,
@@ -30,6 +23,7 @@ import type { Stock, StockHistoryItem } from '../types';
 interface ChartWorkspaceProps {
   stocks: Stock[];
   onSelectStock: (stock: Stock) => void;
+  symbol?: string;
 }
 
 type ChartMode = 'candles' | 'heikin' | 'line' | 'area';
@@ -117,22 +111,22 @@ function movingAverage(history: StockHistoryItem[], period: number): LineData[] 
   });
 }
 
-export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspaceProps) {
-  const [activeStock, setActiveStock] = useState<Stock | null>(stocks[0] || null);
+export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartWorkspaceProps) {
+  const [activeStock, setActiveStock] = useState<Stock | null>(
+    stocks.find((stock) => stock.symbol.toUpperCase() === symbol?.toUpperCase()) ?? (symbol ? null : stocks[0] ?? null),
+  );
   const [timeframe, setTimeframe] = useState<(typeof chartRanges)[number]>('1M');
   const [chartMode, setChartMode] = useState<ChartMode>('candles');
   const [overlays, setOverlays] = useState<OverlayMode[]>(['sma20']);
-  const [activeTool, setActiveTool] = useState<'cursor' | 'trend' | 'text'>('cursor');
-  const [simulateError, setSimulateError] = useState(false);
   const [tooltip, setTooltip] = useState<TooltipState>({ visible: false, x: 0, y: 0, date: '', close: 0 });
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
 
   useEffect(() => {
     if (!activeStock || !stocks.some((stock) => stock.symbol === activeStock.symbol)) {
-      setActiveStock(stocks[0] || null);
+      setActiveStock(stocks.find((stock) => stock.symbol.toUpperCase() === symbol?.toUpperCase()) ?? (symbol ? null : stocks[0] ?? null));
     }
-  }, [activeStock, stocks]);
+  }, [activeStock, stocks, symbol]);
 
   const visibleHistory = useMemo(() => {
     const history = activeStock?.history ?? [];
@@ -150,15 +144,15 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
 
   const canRenderOhlc = visibleHistory.length > 0 && visibleHistory.every(hasOhlc);
   const latestPoint = visibleHistory[visibleHistory.length - 1];
-  const latestUpdated = latestPoint?.date ? new Date(latestPoint.date).toLocaleString() : 'No market data';
+  const latestUpdated = latestPoint?.date ? new Date(latestPoint.date).toLocaleString('tr-TR') : 'Veri yok';
 
   useEffect(() => {
     const element = containerRef.current;
-    if (!element || !activeStock || visibleHistory.length === 0 || simulateError) return;
+    if (!element || !activeStock || visibleHistory.length === 0) return;
 
     const chart = createChart(element, {
       autoSize: true,
-      layout: { background: { color: 'transparent' }, textColor: '#8c909f' },
+      layout: { background: { color: 'transparent' }, textColor: '#a7b4c5' },
       grid: {
         vertLines: { color: 'rgba(66, 71, 83, 0.18)' },
         horzLines: { color: 'rgba(66, 71, 83, 0.18)' },
@@ -175,23 +169,23 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
 
     if ((chartMode === 'candles' || chartMode === 'heikin') && canRenderOhlc) {
       primarySeries = chart.addSeries(CandlestickSeries, {
-        upColor: '#4edea3',
-        downColor: '#ff5451',
-        borderUpColor: '#4edea3',
-        borderDownColor: '#ff5451',
-        wickUpColor: '#4edea3',
-        wickDownColor: '#ff5451',
+        upColor: '#76caa8',
+        downColor: '#f28f98',
+        borderUpColor: '#76caa8',
+        borderDownColor: '#f28f98',
+        wickUpColor: '#76caa8',
+        wickDownColor: '#f28f98',
       });
       primarySeries.setData(candleData);
     } else if (chartMode === 'area') {
       primarySeries = chart.addSeries(AreaSeries, {
-        lineColor: '#4d8eff',
+        lineColor: '#7fa6ff',
         topColor: 'rgba(77, 142, 255, 0.35)',
         bottomColor: 'rgba(77, 142, 255, 0.02)',
       });
       primarySeries.setData(lineData);
     } else {
-      primarySeries = chart.addSeries(LineSeries, { color: '#4d8eff', lineWidth: 2 });
+      primarySeries = chart.addSeries(LineSeries, { color: '#7fa6ff', lineWidth: 2 });
       primarySeries.setData(lineData);
     }
 
@@ -242,18 +236,18 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
       chart.remove();
       chartRef.current = null;
     };
-  }, [activeStock, canRenderOhlc, chartMode, overlays, simulateError, visibleHistory]);
+  }, [activeStock, canRenderOhlc, chartMode, overlays, visibleHistory]);
 
   const toggleOverlay = (overlay: OverlayMode) => {
     setOverlays((current) => current.includes(overlay) ? current.filter((item) => item !== overlay) : [...current, overlay]);
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-bg-base overflow-hidden">
-      <div className="h-12 border-b border-outline-variant bg-bg-primary flex items-center justify-between px-4 shrink-0">
+    <div className="chart-workspace flex-1 flex flex-col bg-bg-card overflow-hidden">
+      <div className="chart-toolbar border-b border-outline-variant bg-bg-primary flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className="font-headline font-bold text-sm text-text-primary">{activeStock?.symbol ?? 'NO SYMBOL'}</span>
+            <span className="font-headline font-bold text-sm text-text-primary">{activeStock?.symbol ?? symbol ?? 'Sembol seçin'}</span>
             <span className="text-xs text-text-muted hidden sm:inline truncate max-w-48">{activeStock?.name}</span>
           </div>
 
@@ -264,7 +258,8 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
               <button
                 key={tf}
                 onClick={() => setTimeframe(tf)}
-                className={`px-2 py-0.5 rounded font-label-caps text-[9px] font-bold tracking-wider ${
+                aria-pressed={timeframe === tf}
+                className={`px-2 py-0.5 rounded font-label-caps text-xs font-bold tracking-wider ${
                   timeframe === tf ? 'bg-primary-container text-bg-base font-extrabold' : 'text-text-secondary hover:text-text-primary'
                 }`}
               >
@@ -277,10 +272,10 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 bg-bg-base border border-outline-variant/60 rounded p-0.5">
             {([
-              ['candles', CandlestickChart, 'Candles'],
+              ['candles', CandlestickChart, 'Mum'],
               ['heikin', BarChart3, 'Heikin Ashi'],
-              ['line', ChartLine, 'Line'],
-              ['area', Layers, 'Area'],
+              ['line', ChartLine, 'Çizgi'],
+              ['area', Layers, 'Alan'],
             ] as const).map(([mode, Icon, label]) => (
               <button
                 key={mode}
@@ -288,6 +283,8 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
                 disabled={(mode === 'candles' || mode === 'heikin') && !canRenderOhlc}
                 className={`p-1.5 rounded ${chartMode === mode ? 'bg-primary/15 text-primary' : 'text-text-muted hover:text-text-primary'} disabled:opacity-40`}
                 title={label}
+                aria-label={label}
+                aria-pressed={chartMode === mode}
               >
                 <Icon className="w-3.5 h-3.5" />
               </button>
@@ -296,62 +293,33 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
 
           <button
             onClick={() => toggleOverlay('sma20')}
-            className={`px-2 py-1 text-[10px] rounded border font-label-caps font-bold ${overlays.includes('sma20') ? 'bg-amber-400/15 border-amber-400 text-amber-300' : 'bg-bg-base border-outline-variant/60 text-text-secondary'}`}
+            aria-pressed={overlays.includes('sma20')}
+            className={`px-2 py-1 text-xs rounded border font-label-caps font-bold ${overlays.includes('sma20') ? 'bg-amber-400/15 border-amber-400 text-amber-300' : 'bg-bg-base border-outline-variant/60 text-text-secondary'}`}
           >
             SMA 20
           </button>
           <button
             onClick={() => toggleOverlay('sma50')}
-            className={`px-2 py-1 text-[10px] rounded border font-label-caps font-bold ${overlays.includes('sma50') ? 'bg-teal-400/15 border-teal-400 text-teal-300' : 'bg-bg-base border-outline-variant/60 text-text-secondary'}`}
+            aria-pressed={overlays.includes('sma50')}
+            className={`px-2 py-1 text-xs rounded border font-label-caps font-bold ${overlays.includes('sma50') ? 'bg-teal-400/15 border-teal-400 text-teal-300' : 'bg-bg-base border-outline-variant/60 text-text-secondary'}`}
           >
             SMA 50
           </button>
 
-          <button
-            onClick={() => setSimulateError((prev) => !prev)}
-            className={`px-2.5 py-1 text-[9px] rounded border font-label-caps font-bold flex items-center gap-1 ${
-              simulateError ? 'bg-bear-red/20 border-bear-red text-bear-red animate-pulse' : 'bg-bg-base border-outline-variant/40 text-text-muted hover:text-text-secondary'
-            }`}
-            title="Simulate connection error"
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            <span className="hidden md:inline">ERROR</span>
-          </button>
         </div>
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <div className="w-12 border-r border-outline-variant bg-bg-primary flex flex-col items-center py-4 gap-4 shrink-0">
-          {([
-            ['cursor', MousePointer, 'Cursor'],
-            ['trend', PenTool, 'Draw Trend Line'],
-            ['text', Type, 'Add Text Note'],
-          ] as const).map(([tool, Icon, title]) => (
-            <button
-              key={tool}
-              onClick={() => setActiveTool(tool)}
-              className={`p-2 rounded-lg transition-colors ${activeTool === tool ? 'bg-primary-container/15 text-primary border border-primary/20' : 'text-text-secondary hover:text-text-primary hover:bg-bg-card'}`}
-              title={title}
-            >
-              <Icon className="w-4 h-4" />
-            </button>
-          ))}
-          <div className="w-6 h-[1px] bg-outline-variant/40 my-1" />
-          <button className="p-2 text-text-muted hover:text-bear-red rounded-lg hover:bg-bear-red/10 transition-colors" title="Delete All Drawings">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-
         <div className="flex-1 bg-bg-base relative flex flex-col p-4 min-w-0">
           <div className="flex items-start justify-between z-10 select-none gap-3">
             <div>
               <div className="flex items-baseline gap-2">
-                <span className="font-data-mono text-3xl font-bold text-text-primary">${fmt(activeStock?.price)}</span>
+                <span className="font-data-mono text-3xl font-bold text-text-primary">{activeStock ? `$${fmt(activeStock.price)}` : '—'}</span>
                 <span className={`font-data-mono text-sm font-bold ${(activeStock?.change ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                  {(activeStock?.change ?? 0) >= 0 ? '+' : ''}{fmt(activeStock?.changePercent)}%
+                  {activeStock ? `${activeStock.change >= 0 ? '+' : ''}${fmt(activeStock.changePercent)}%` : '—'}
                 </span>
               </div>
-              <div className="font-data-mono text-[10px] text-text-muted flex flex-wrap gap-3 mt-1 uppercase">
+              <div className="font-data-mono text-xs text-text-muted flex flex-wrap gap-3 mt-1 uppercase">
                 <span>O: {fmt(latestPoint?.open ?? activeStock?.open)}</span>
                 <span>H: {fmt(latestPoint?.high ?? activeStock?.high)}</span>
                 <span>L: {fmt(latestPoint?.low ?? activeStock?.low)}</span>
@@ -359,38 +327,24 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
                 <span>V: {compact(latestPoint?.volume)}</span>
               </div>
             </div>
-            <div className="text-right text-[10px] text-text-muted font-data-mono">
-              <div>Last updated</div>
+            <div className="text-right text-xs text-text-muted font-data-mono">
+              <div>Son veri zamanı</div>
               <div className="text-text-secondary">{latestUpdated}</div>
             </div>
           </div>
 
-          {simulateError ? (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-bg-base/90 backdrop-blur-sm p-4">
-              <div className="max-w-md w-full bg-[#131b2e] border border-outline-variant rounded-lg p-6 shadow-2xl text-center space-y-4">
-                <div className="w-12 h-12 rounded-full bg-bear-red/10 border border-bear-red/25 flex items-center justify-center mx-auto text-bear-red">
-                  <AlertCircle className="w-6 h-6 stroke-[2]" />
-                </div>
-                <h3 className="font-headline text-lg font-bold text-text-primary">Market data provider unavailable</h3>
-                <p className="text-xs text-text-secondary font-sans">No fallback or mock candles are rendered while the feed is unavailable.</p>
-                <button onClick={() => setSimulateError(false)} className="px-5 py-2 bg-primary-container text-on-primary-container font-sans text-xs font-bold rounded-lg flex items-center gap-1.5 mx-auto">
-                  <RefreshCw className="w-3.5 h-3.5" /> Retry Connection
-                </button>
-              </div>
-            </div>
-          ) : null}
-
+          <p className="desk-help mt-3">Günlük gözlemler · 1D / 5D son 1 / 5 gözlemi gösterir. Heikin Ashi dönüştürülmüş mum gösterimidir.</p>
           <div className="relative flex-1 min-h-[360px] mt-4 border border-outline-variant/20 bg-bg-primary/35">
             {visibleHistory.length === 0 ? (
               <div className="absolute inset-0 flex items-center justify-center text-xs text-text-muted">
-                No price history is available for this symbol.
+                {activeStock ? 'Bu sembol için fiyat geçmişi bulunamadı.' : 'Sembol için kullanılabilir piyasa verisi yok.'}
               </div>
             ) : (
               <div ref={containerRef} className="absolute inset-0" />
             )}
             {tooltip.visible && (
               <div
-                className="absolute z-30 bg-surface-container border border-outline-variant rounded p-2 text-[10px] shadow-xl pointer-events-none font-data-mono min-w-44"
+                className="absolute z-30 bg-surface-container border border-outline-variant rounded p-2 text-xs shadow-xl pointer-events-none font-data-mono min-w-44"
                 style={{ left: Math.min(Math.max(tooltip.x + 12, 8), 620), top: Math.max(tooltip.y + 12, 8) }}
               >
                 <div className="text-text-muted mb-1">{tooltip.date}</div>
@@ -404,11 +358,11 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
           </div>
         </div>
 
-        <div className="w-64 border-l border-outline-variant bg-bg-primary flex flex-col justify-between shrink-0">
+        <div className="chart-symbols w-64 border-l border-outline-variant bg-bg-primary flex flex-col justify-between shrink-0">
           <div>
             <div className="p-4 border-b border-outline-variant flex items-center justify-between">
-              <h3 className="font-headline text-sm font-bold text-text-primary uppercase tracking-wide">Watchlist</h3>
-              <span className="text-[10px] bg-bg-card border border-outline-variant/60 rounded px-1.5 py-0.5 text-text-muted font-bold">{stocks.length} SYM</span>
+              <h3 className="font-headline text-sm font-bold text-text-primary uppercase tracking-wide">Semboller</h3>
+              <span className="text-xs bg-bg-card border border-outline-variant/60 rounded px-1.5 py-0.5 text-text-muted font-bold">{stocks.length} sembol</span>
             </div>
             <div className="divide-y divide-outline-variant/20 overflow-y-auto max-h-[520px]">
               {stocks.map((stock) => {
@@ -424,11 +378,11 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
                   >
                     <div className="text-left min-w-0">
                       <div className="font-data-mono font-bold text-xs text-text-primary">{stock.symbol}</div>
-                      <div className="text-[10px] text-text-secondary truncate max-w-[120px]">{stock.name}</div>
+                      <div className="text-xs text-text-secondary truncate max-w-[120px]">{stock.name}</div>
                     </div>
                     <div className="text-right font-data-mono shrink-0">
                       <div className="text-xs font-bold text-text-primary">${fmt(stock.price)}</div>
-                      <div className={`text-[10px] font-bold ${stock.change >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>{stock.change >= 0 ? '+' : ''}{fmt(stock.changePercent)}%</div>
+                      <div className={`text-xs font-bold ${stock.change >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>{stock.change >= 0 ? '+' : ''}{fmt(stock.changePercent)}%</div>
                     </div>
                   </button>
                 );
@@ -436,8 +390,8 @@ export default function ChartWorkspace({ stocks, onSelectStock }: ChartWorkspace
             </div>
           </div>
           <div className="p-4 border-t border-outline-variant/30 bg-bg-card/30">
-            <div className="text-[10px] text-text-muted font-label-caps uppercase mb-1">Feed</div>
-            <p className="text-[11px] text-text-secondary font-sans leading-relaxed">
+            <div className="text-xs text-text-muted font-label-caps uppercase mb-1">Feed</div>
+            <p className="text-xs text-text-secondary font-sans leading-relaxed">
               Candles, volume and overlays are rendered from API OHLCV data. Heikin Ashi is derived locally from those bars.
             </p>
           </div>

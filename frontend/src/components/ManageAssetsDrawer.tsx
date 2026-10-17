@@ -62,12 +62,22 @@ export default function ManageAssetsDrawer({
     if (!confirm('Record a SELL transaction to close ' + symbol + '?')) return;
 
     const stock = stocks.find((item) => item.symbol === symbol);
+    const enteredPrice = window.prompt(
+      `${symbol} satış birim fiyatını girin (USD).`,
+      stock ? String(stock.price) : '',
+    );
+    if (enteredPrice == null) return;
+    const salePrice = Number(enteredPrice);
+    if (!Number.isFinite(salePrice) || salePrice <= 0) {
+      alert('Geçerli bir satış fiyatı girin.');
+      return;
+    }
     try {
       await onExecuteTrade({
         symbol,
         type: 'SELL',
         quantity: holding.quantity,
-        price: stock?.price ?? holding.costPrice,
+        price: salePrice,
         notes: symbol + ' position closed from portfolio drawer.',
         portfolioId,
       });
@@ -176,7 +186,7 @@ export default function ManageAssetsDrawer({
                   ) : (
                     holdings.map((h) => {
                       const stock = stocks.find((s) => s.symbol === h.symbol);
-                      const currentVal = h.quantity * (stock?.price || h.costPrice);
+                      const currentVal = stock ? h.quantity * stock.price : null;
                       return (
                         <div
                           key={h.symbol}
@@ -190,7 +200,7 @@ export default function ManageAssetsDrawer({
                               </span>
                             </div>
                             <div className="text-[10px] text-text-secondary mt-1 font-data-mono">
-                              Cost: ${h.costPrice.toFixed(2)} | Value: <span className="text-primary font-bold">${currentVal.toFixed(2)}</span>
+                              Cost: ${h.costPrice.toFixed(2)} | Value: <span className="text-primary font-bold">{currentVal == null ? 'Fiyat yok' : `$${currentVal.toFixed(2)}`}</span>
                             </div>
                           </div>
 

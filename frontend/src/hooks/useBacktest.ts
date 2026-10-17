@@ -27,12 +27,16 @@ export const useBacktest = (symbol: string | null) => {
     const fetchBacktest = async () => {
       setLoading(true);
       setError(null);
+      setData(null);
       try {
         const response = await apiClient.get<BacktestResult>(`/backtest/${symbol}`);
         if (isMounted) setData(response.data);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Failed to fetch backtest';
-        if (isMounted) setError(message);
+        if (isMounted) {
+          setError(message);
+          setData(null);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }

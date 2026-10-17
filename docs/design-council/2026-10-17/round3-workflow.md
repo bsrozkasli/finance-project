@@ -1,0 +1,11 @@
+# Tur 3 — B: Nihai oy gerekçem
+
+A’nın ve C’nin ikinci tur yanıtlarını okudum; ortak pusuladaki 18 maddeye ayrı ayrı tek oy verdim. Oylamamı çoğunluğu tahmin ederek değiştirmedim. Özellikle D03’te açık gri sol menü seçeneğini koruyorum. Beş ana görevi taşıyan menünün grafit blokla baskınlaşmasına gerek görmüyorum. A ve C’nin görev sınırını belirginleştirme gerekçesini anlıyorum; benim tercihim daha sakin bir açık menü. Çoğunluk koyu menüyü seçerse bu itirazım kayıtlı kalmalı.
+
+Diğer temel kararlarım açık veri yüzeyi, kobalt etkileşim, 40px varsayılan ve 32px isteğe bağlı tablo ritmi. TIKR ve Koyfin’de gördüğüm güçlü ortak özellik renk kopyası değil; şirket bağlamıyla tablo kolonlarının düzeni. Sonradan gerçekten açtığım Stock Rover ekranı da kısa piyasa şeridi, portföy performansı ve kesintisiz tablo ilişkisinin çalışabilir bir görsel örneğini sağladı. Referans rakamlarını veya çok küçük satırlarını ürünümüze taşımıyorum.
+
+D05’te ilk turdaki sürekli kaynak sütunu itirazım karşılandı: kısa kaynak satırı kalıyor, panel kapalı başlıyor. Pusuladaki 1440px viewport ve tabloya en az 900px bırakma koşullarını kabul ediyorum. Bu koşulları birbirinin alternatifi saymamalıyız. Tablo daralacaksa ayrıntı çekmecede açılır. Kazanç karşılaştırma genişliği; bedel kaynak ayrıntısına ek açma hareketidir.
+
+Bugün için portföy önceliğine, Araştır için Genel bakış başlangıcına oy verdim. Altı sekmede Grafik ikinci, AI raporu son sırada. HTML’in Araştır/Genel bakışla açılmasını ise yalnız tasarım değerlendirmesi için seçtim: kaynaklı rapor kesiti, boş bir hesaptan daha fazla yerleşim kanıtı sunar. Bu, gerçek uygulamanın varsayılan rotasını değiştirme oyu değildir. Kaynaklı tarihsel kesit güncel fiyat gibi gösterilemez.
+
+Prototip incelemesinde şu noktaları kontrol edeceğim: Finansallar seçilince tablo gerçekten genişliyor mu; ETF için şirket bilançosu zorlanıyor mu; eksik fiyat toplamı bilinmiyor bırakıyor mu; maliyet ayrı mı? Birim ve mali yıl okunur olmalı. AI’nin altı rolü sonuç varmış gibi görünmemeli. Günlükte “Taslağı önizle” eylemi gerçek kayıt başarısı izlenimi vermemeli; kullanıcı kendi yazısını görürken yenilemede silineceğini anlamalı. Bağlantı, kayıt ve silme eylemlerinin görsel hiyerarşisi de finansal anlam kadar açık olmalı.

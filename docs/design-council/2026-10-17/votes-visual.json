@@ -1,0 +1,23 @@
+{
+  "agent": "visual",
+  "votes": [
+    {"id":"D01","choice":"A","reason":"Uzun tablo ve raporlar için beyaz ortak araştırma yüzeyini tercih ediyorum.","reservation":"Karanlık odada parlaklık farkı oluşur."},
+    {"id":"D02","choice":"A","reason":"Kobalt etkileşimi finansal yön ve amber veri uyarısından ayırır.","reservation":"Tek başına ayırt edici marka kimliği oluşturmaz."},
+    {"id":"D03","choice":"A","reason":"Dar grafit kabuk beş ana görevi şirket araştırması kontrollerinden ayırır.","reservation":"B'nin açık sidebar tercihinin daha sakin parlaklık geçişi avantajını kabul ediyorum."},
+    {"id":"D04","choice":"A","reason":"40px okunurluğu, 32px kullanıcı tercihiyle daha çok satırı destekler.","reservation":"İlk açılışta daha az satır görünür; mobil eylem hedefleri ayrıca korunmalı."},
+    {"id":"D05","choice":"A","reason":"Geniş ekranda kaynak ile kanıtı birlikte okumayı sağlar; dar ekranda tablo alanını korur.","reservation":"Modal ve modal olmayan odak davranışları farklı uygulanmalı."},
+    {"id":"D06","choice":"A","reason":"Mevcut portföy kanıtından hareket eder; desteklenmeyen araştırma kuyruğu gerektirmez.","reservation":"Portföyü olmayan kullanıcının boş durumu ayrıca anlamlı olmalı."},
+    {"id":"D07","choice":"A","reason":"Genel bakıştan fiyat bağlamına ve ayrıntılı finansallara ilerleyen diziyi tercih ediyorum.","reservation":"Uzun vadeli analist finansalları daha erken isteyebilir; bölüm derin bağlantıları önemlidir."},
+    {"id":"D08","choice":"A","reason":"Genel bakış farklı varlık türlerine ve araştırma sorularına uygun giriş sağlar.","reservation":"Genel bakış gereksiz metrik kartlarıyla şişmemeli."},
+    {"id":"D09","choice":"A","reason":"Görüntüleme ekranında primary zorunluluğu eylem rekabeti yaratır; formdaki kayıt önceliklidir.","reservation":"Primary bulunmayan ekranlarda bağlantıların bulunabilirliği korunmalı."},
+    {"id":"D10","choice":"A","reason":"Arama etiketinde gerçek mevcut varlık kapsamını baştan söyler.","reservation":"Genel piyasa araması sonradan eklenirse label yeniden değerlendirilmelidir."},
+    {"id":"D11","choice":"A","reason":"Güncel değer ile maliyeti açıkça ayırır; fiyat kapsamını kısa ve sürekli görünür kılar.","reservation":"Kapsamın adet mi ağırlık mı olduğu açıklamada belirtilmeli."},
+    {"id":"D12","choice":"A","reason":"14px gövde ve 12px yardımcı bilgi araştırma ve kaynak metinlerini okunur tutar.","reservation":"Daha büyük şirket başlığı tek satıra sığmadığında esnemeli."},
+    {"id":"D13","choice":"A","reason":"24px kenar, 16px panel arası ve 6px panel radius daha rahat ve tutarlı ölçek kurar.","reservation":"192px sidebar ilk 184px önerimden geniş; dar viewport'ta ana tablo alanı izlenmeli."},
+    {"id":"D14","choice":"A","reason":"Taslağı önizle kalıcılık iddiası taşımayan anlaşılır bir eylemdir.","reservation":"Tur2'deki Prototipte saklandı ifademden vazgeçiyorum; önizleme sunucu başarısı gibi görünmemeli."},
+    {"id":"D15","choice":"A","reason":"Beş ana görevin her biri doğrudan ve aynı seviyede erişilebilir kalır.","reservation":"Uzun Türkçe etiketler gerçek dar ekranda ölçülmeli."},
+    {"id":"D16","choice":"A","reason":"Altı analist sırası ürünün araştırma yapısını görünür kılar; yokluk açık rol durumuyla anlaşılır.","reservation":"Rollerin kartları gerçek zamanlı yürütme telemetrisi gibi sunulmamalı."},
+    {"id":"D17","choice":"A","reason":"Nesneyi adlandıran eylemler öğrenme ve erişilebilir ad bakımından daha açıktır.","reservation":"Dar ekranda metin sarabilir; küçük yazıya veya belirsiz ikona dönüştürülmemeli."},
+    {"id":"D18","choice":"A","reason":"Kaynaklı gerçek rapor kesitiyle araştırma hiyerarşisini değerlendirmek görsel incelemeyi somutlaştırır.","reservation":"Statik kesit canlı fiyat veya bağlı hesap izlenimi yaratmamalı; Bugün ayrıca erişilebilir olmalı."}
+  ]
+}

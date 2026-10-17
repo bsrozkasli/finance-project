@@ -13,6 +13,9 @@ const emptyPaged = { content: [], totalElements: 0, totalPages: 0, number: 0 };
 const installShellHandlers = () => {
   server.use(
     http.get(apiUrl('/assets'), () => HttpResponse.json([])),
+    http.get(apiUrl('/fundamentals/:symbol'), () => new HttpResponse(null, { status: 503 })),
+    http.get(apiUrl('/fundamentals/:symbol/ratios'), () => new HttpResponse(null, { status: 503 })),
+    http.get(apiUrl('/news/:symbol'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolios'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolio/summary'), () => HttpResponse.json({ totalValue: 0, cashBalance: 0, dailyPnL: 0, dailyPnLPercent: 0, totalPnL: 0, totalReturn: 0 })),
     http.get(apiUrl('/portfolio/performance'), () => HttpResponse.json({ period: '1M', series: [] })),
@@ -45,7 +48,7 @@ const renderAppAt = async (path: string) => {
     </MemoryRouter>,
   );
 
-  await screen.findByText('Nexus Terminal');
+  await screen.findByText('Mercek');
 };
 
 describe('App route contract', () => {
