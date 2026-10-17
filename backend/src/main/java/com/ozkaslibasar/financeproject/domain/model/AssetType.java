@@ -27,5 +27,23 @@ public enum AssetType {
      * No provider or trusted mapping established the instrument type. Never eligible for stock
      * or ETF evaluation (EPIC-001 Task 1; docs/product/decisions/2026-10-15-instrument-identity-source-and-unresolved-type.md).
      */
-    UNRESOLVED
+    UNRESOLVED;
+
+    /**
+     * Maps a provider-reported quote/instrument type. Anything absent or unsupported is
+     * {@link #UNRESOLVED}; the type is never inferred from names, exchanges, or symbol spelling.
+     */
+    public static AssetType fromQuoteType(String quoteType) {
+        if (quoteType == null) {
+            return UNRESOLVED;
+        }
+        return switch (quoteType.trim().toUpperCase(java.util.Locale.ROOT)) {
+            case "EQUITY" -> STOCK;
+            case "ETF" -> ETF;
+            case "INDEX" -> INDEX;
+            case "CRYPTOCURRENCY" -> CRYPTO;
+            case "CURRENCY" -> FOREX;
+            default -> UNRESOLVED;
+        };
+    }
 }

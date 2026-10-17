@@ -92,7 +92,7 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             return Optional.empty();
         }
 
-        AssetType type = inferAssetType(meta.getExchangeName());
+        AssetType type = AssetType.fromQuoteType(meta.getInstrumentType());
         Asset asset = new Asset(
                 meta.getSymbol() != null ? meta.getSymbol() : symbol,
                 meta.getSymbol() != null ? meta.getSymbol() : symbol,
@@ -172,22 +172,5 @@ public class YahooFinancePriceAdapter implements PriceChartClientPort {
             return null;
         }
         return BigDecimal.valueOf(value).setScale(4, RoundingMode.HALF_UP);
-    }
-
-    private AssetType inferAssetType(String exchangeName) {
-        if (exchangeName == null) {
-            return AssetType.STOCK;
-        }
-        String upper = exchangeName.toUpperCase();
-        if (upper.contains("ETF") || upper.contains("NYSEARCA") || upper.contains("BATS")) {
-            return AssetType.ETF;
-        }
-        if (upper.contains("INDEX")) {
-            return AssetType.INDEX;
-        }
-        if (upper.contains("CRYPTO")) {
-            return AssetType.CRYPTO;
-        }
-        return AssetType.STOCK;
     }
 }
