@@ -88,7 +88,8 @@ test.describe('integrated system smoke', () => {
   test('persists a watchlist symbol through the real backend', async ({ page, request }) => {
     await page.goto('/watchlist', { waitUntil: 'domcontentloaded' });
 
-    await expect(page.getByRole('combobox').first()).toContainText('Core');
+    // The TopBar search is also a combobox; target the watchlist <select> itself.
+    await expect(page.locator('select').filter({ hasText: 'Core' }).first()).toBeVisible();
     await page.getByPlaceholder('AAPL, MSFT...').fill('msft');
     await page.getByRole('button', { name: 'Add symbol' }).click();
 
