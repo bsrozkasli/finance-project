@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import type { CalendarEvent, News, Portfolio, Stock } from '../types';
+import { API_BASE_URL as API_BASE } from '../api/config';
 import { server } from '../test/server';
 import DashboardHome from './DashboardHome';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 
 const stock = (symbol: string, price: number): Stock => ({
   symbol,

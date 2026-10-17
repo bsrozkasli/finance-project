@@ -1,10 +1,10 @@
 import {render, screen} from '@testing-library/react';
 import {http, HttpResponse} from 'msw';
 import {describe, expect, it} from 'vitest';
+import {API_BASE_URL as base} from '../../api/config';
 import {server} from '../../test/server';
 import ResearchAgentReport from './ResearchAgentReport';
 
-const base = 'http://localhost:8080/api/v1';
 describe('ResearchAgentReport', () => {
     it('renders only the returned analyst text in the documented order', async () => {
         // Stub the Spring HTTP boundary; report rendering and text escaping run normally.

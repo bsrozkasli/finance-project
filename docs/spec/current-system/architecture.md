@@ -95,6 +95,13 @@ change together when API routing changes.
   remain visible as partial evidence; acquisition cost is never substituted
   for a current price.
 
+Frontend API access goes through `frontend/src/api/client.ts` (`apiClient`). The
+base URL comes from `frontend/src/api/config.ts`: `VITE_API_BASE_URL` when set,
+otherwise `http://localhost:8080/api/v1`. A response interceptor converts HTTP and
+transport failures into `ApiError` (`frontend/src/api/errors.ts`), whose `message`
+is the Spring error body's `message` when present; request cancellations are passed
+through unchanged.
+
 ### Frontend UI and TypeScript conventions
 
 - The repository design decisions and `frontend/src/index.css` tokens guide UI

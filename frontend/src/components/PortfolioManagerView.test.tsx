@@ -3,10 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import type { Portfolio, Stock } from '../types';
+import { API_BASE_URL as API_BASE } from '../api/config';
+import { deleteInvestmentPortfolio } from '../api/client';
 import { server } from '../test/server';
 import PortfolioManagerView from './PortfolioManagerView';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const makeStock = (symbol: string, price: number): Stock => ({
@@ -255,5 +256,38 @@ describe('PortfolioManagerView', () => {
     expect(screen.getByText('Dağılım için pozisyon bulunamadı.')).toBeInTheDocument();
     expect(screen.getByText('No current holdings are available.')).toBeInTheDocument();
     expect(screen.queryByText('AAPL')).not.toBeInTheDocument();
+  });
+
+  it('shows the backend conflict message when the server rejects a deletion the UI allowed', async () => {
+    server.use(
+      http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([])),
+      http.get(apiUrl('/portfolios/:portfolioId/transactions'), () => HttpResponse.json([])),
+      http.delete(apiUrl('/portfolios/2'), () => HttpResponse.json({
+        timestamp: '2026-10-17T10:00:00Z',
+        status: 409,
+        error: 'Conflict',
+        message: 'Portfolio cannot be deleted while it has active holdings',
+        path: '/api/v1/portfolios/2',
+      }, { status: 409 })),
+    );
+    const user = userEvent.setup();
+    const stalePortfolio: Portfolio = { id: '2', name: 'Stale', holdings: [] };
+    const onSelectPortfolioId = vi.fn();
+
+    renderPortfolio(stalePortfolio, [], {
+      portfolios: [portfolio, stalePortfolio],
+      activePortfolioId: stalePortfolio.id,
+      onDeletePortfolio: async () => {
+        await deleteInvestmentPortfolio(2);
+      },
+      onSelectPortfolioId,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Portföyü sil' }));
+    const deleteButtons = screen.getAllByRole('button', { name: 'Portföyü sil' });
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+
+    expect(await screen.findByText('Portfolio cannot be deleted while it has active holdings')).toBeInTheDocument();
+    expect(onSelectPortfolioId).not.toHaveBeenCalled();
   });
 });

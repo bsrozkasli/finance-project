@@ -3,11 +3,11 @@ import userEvent from '@testing-library/user-event';
 import {MemoryRouter} from 'react-router-dom';
 import {http, HttpResponse, delay} from 'msw';
 import {beforeEach, describe, expect, it, vi} from 'vitest';
+import {API_BASE_URL as base} from '../../api/config';
 import {server} from '../../test/server';
 import ResearchWorkspace from './ResearchWorkspace';
 
 // HTTP boundary stubs isolate providers; component and selection logic run unchanged.
-const base = 'http://localhost:8080/api/v1';
 const user = () => userEvent.setup({advanceTimers: vi.advanceTimersByTime});
 const props = {
     stocks: [],

@@ -3,9 +3,9 @@ import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import App from './App';
+import { API_BASE_URL as API_BASE } from './api/config';
 import { server } from './test/server';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const emptyPaged = { content: [], totalElements: 0, totalPages: 0, number: 0 };
