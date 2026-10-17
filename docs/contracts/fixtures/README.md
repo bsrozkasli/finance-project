@@ -11,7 +11,10 @@ must never be served to users.
 - Frontend: `src/api/contract.test.ts` parses every fixture with a strict zod
   schema that mirrors the TypeScript type in `src/api/client.ts`.
 
-Changing a field name therefore fails the backend test, the frontend test, or both.
+This detects drift between a fixture and the backend response shape, and between a
+fixture and the frontend zod schema. The zod schema is hand-mirrored and must be kept
+in sync with `src/api/client.ts` by hand; a TypeScript-only interface rename in
+`client.ts` is not detected (test files are excluded from `tsc`).
 To add a fixture: write the JSON with every array non-empty and every object
 non-null, add a backend shape test for the endpoint, and add a frontend schema test.
 

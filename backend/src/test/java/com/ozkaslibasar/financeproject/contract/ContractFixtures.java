@@ -15,8 +15,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Shared HTTP contract fixtures in docs/contracts/fixtures. Backend tests pin the
- * serialized field shape; frontend tests parse the same files, so a field rename on
- * either side fails that side's build.
+ * serialized field shape; frontend tests parse the same files with a hand-mirrored zod
+ * schema. This detects fixture/backend drift and fixture/frontend-schema drift; the
+ * schema must be kept in sync with {@code client.ts} by hand.
  */
 public final class ContractFixtures {
 

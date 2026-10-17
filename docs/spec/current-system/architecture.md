@@ -34,7 +34,7 @@ flowchart LR
     DS --> AOAI[Azure OpenAI]
 ```
 
-The frontend Axios client targets `http://localhost:8080/api/v1`. The Vite proxy
+The frontend Axios client defaults to `http://localhost:8080/api/v1`. The Vite proxy
 also targets the Spring backend. These are one compatibility boundary and must
 change together when API routing changes.
 

@@ -28,7 +28,7 @@ Run commands from the directory shown unless the command is repository-rooted.
 | Data-service | `data-service/` | `python -m pytest` |
 | Frontend | `frontend/` | `npm run lint`, `npm run test:coverage`, `npm run build` |
 | Frontend E2E | `frontend/` | `npm run e2e` when routes, critical user flows, or release readiness are affected |
-| Frontend integrated E2E | `frontend/` | `npm run e2e:integrated` with PostgreSQL, Redis and the backend running (`docker compose up -d postgres redis`, then backend `spring-boot:run`); required when frontend↔backend contracts, persistence flows or error handling change. Its global setup truncates and seeds the local database. |
+| Frontend integrated E2E | `frontend/` | `npm run e2e:integrated` with PostgreSQL, Redis and the backend running (`docker compose up -d postgres redis`, then backend `spring-boot:run`); required when frontend↔backend contracts, persistence flows or error handling change. Its global setup truncates and seeds the local database. Prerequisites: repo-root `.env` with `DB_PASSWORD` for compose; a `backend/.env` file (may be empty) because the backend's `main()` loads it. CI sinkholes the provider hosts (finnhub.io, api.tiingo.com, Yahoo query1/query2) in `/etc/hosts` so no live provider is called; locally, do not set provider keys and expect degraded provider sections. |
 | Infrastructure | repository root | `docker compose config --quiet` when Compose or service configuration changes |
 
 CI also runs backend tests, data-service tests, frontend lint/coverage/build/E2E,
