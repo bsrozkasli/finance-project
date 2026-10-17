@@ -28,10 +28,11 @@ Run commands from the directory shown unless the command is repository-rooted.
 | Data-service | `data-service/` | `python -m pytest` |
 | Frontend | `frontend/` | `npm run lint`, `npm run test:coverage`, `npm run build` |
 | Frontend E2E | `frontend/` | `npm run e2e` when routes, critical user flows, or release readiness are affected |
+| Frontend integrated E2E | `frontend/` | `npm run e2e:integrated` with PostgreSQL, Redis and the backend running (`docker compose up -d postgres redis`, then backend `spring-boot:run`); required when frontend↔backend contracts, persistence flows or error handling change. Its global setup truncates and seeds the local database. |
 | Infrastructure | repository root | `docker compose config --quiet` when Compose or service configuration changes |
 
 CI also runs backend tests, data-service tests, frontend lint/coverage/build/E2E,
-and Compose validation. `.github/workflows/ci.yml` currently selects Python 3.12,
+frontend integrated E2E against a real backend, and Compose validation. `.github/workflows/ci.yml` currently selects Python 3.12,
 while `.github/workflows/data-service.yml` selects Python 3.11. Treat this as an
 explicit compatibility gap; do not document one version as the sole project
 contract until CI is reconciled.
@@ -47,6 +48,7 @@ contract until CI is reconciled.
 | Persistence/schema change | New Flyway migration plus repository/adapter coverage of the new column or constraint |
 | DataFrame production/transformation | Pytest assertions using `pandas.testing.assert_frame_equal` where applicable |
 | Frontend behavior | Focused component/hook test plus lint, coverage, and build; E2E for routed critical flows |
+| Backend response DTO or frontend API type used by both runtimes | Update the matching file in `docs/contracts/fixtures/`, the backend `ContractFixtures.assertSameShape` test, and the frontend `src/api/contract.test.ts` schema in the same change |
 
 Backend tests use JUnit 5 and Mockito while keeping domain objects framework-free.
 Data-service tests use pytest and should be parametrized for numerical and boundary

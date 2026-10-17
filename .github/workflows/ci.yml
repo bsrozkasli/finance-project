@@ -151,6 +151,87 @@ jobs:
           path: frontend/dist/
           if-no-files-found: warn
 
+  frontend-integrated-e2e:
+    name: frontend-integrated-e2e
+    runs-on: ubuntu-latest
+    env:
+      DB_NAME: financedb
+      DB_USERNAME: finance_user
+      DB_PASSWORD: ci_only_not_secret
+      DB_HOST: localhost
+      DB_PORT: '5433'
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Start PostgreSQL and Redis
+        # compose references env_file .env for other services; an empty file is enough here.
+        run: |
+          touch .env
+          docker compose up -d --wait postgres redis
+
+      - name: Start backend
+        working-directory: backend
+        run: |
+          chmod +x ./mvnw
+          nohup ./mvnw -B --no-transfer-progress spring-boot:run > ../backend-e2e.log 2>&1 &
+
+      - name: Wait for backend health
+        run: |
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/actuator/health; then exit 0; fi
+            sleep 5
+          done
+          cat backend-e2e.log
+          exit 1
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Run integrated E2E against the real backend
+        working-directory: frontend
+        run: npm run e2e:integrated
+
+      - name: Upload integrated E2E artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-integrated-e2e-artifacts
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            backend-e2e.log
+          if-no-files-found: warn
+
   docker-compose:
     name: Docker Compose Config
     runs-on: ubuntu-latest
@@ -176,6 +257,7 @@ jobs:
       - backend-ci
       - data-service-ci
       - frontend-ci
+      - frontend-integrated-e2e
       - docker-compose
     if: always()
 
@@ -192,6 +274,10 @@ jobs:
           fi
           if [ "${{ needs.frontend-ci.result }}" != "success" ]; then
             echo "frontend-ci failed or was cancelled"
+            exit 1
+          fi
+          if [ "${{ needs.frontend-integrated-e2e.result }}" != "success" ]; then
+            echo "frontend-integrated-e2e failed or was cancelled"
             exit 1
           fi
           if [ "${{ needs.docker-compose.result }}" != "success" ]; then
