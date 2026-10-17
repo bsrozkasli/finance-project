@@ -87,4 +87,13 @@ describe('StockDetailModal', () => {
     expect(screen.getAllByText((_, element) => element?.textContent === 'valuation: Unavailable')).toHaveLength(2);
     expect(screen.queryByText('50 / 100')).not.toBeInTheDocument();
   });
+
+  it('does not claim a STOCK type when no stock data is available', () => {
+    vi.mocked(useSmartReport).mockReturnValue({ report: null, loading: false, error: null } as never);
+
+    render(<StockDetailModal stock={null} symbol="ZZZZ" onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
+
+    expect(screen.queryByText(/^STOCK -/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Type unavailable/)).toBeInTheDocument();
+  });
 });
