@@ -16,8 +16,8 @@
 |---|---|
 | Plan set | Local Model Decision-Support Phase 1 |
 | Total plans | 5 |
-| Overall status | Plans 1–2 complete (2026-10-17); Plans 3–5 not started |
-| Current executable plan | Plans 3, 4, 5 (any order; Plan 3 Task 7 and Plan 4 Tasks 3–5 have owner gates) |
+| Overall status | Plans 1, 2, 5 complete (2026-10-17); Plans 3–4 not started |
+| Current executable plan | Plans 3 and 4 (any order; Plan 3 Task 7 and Plan 4 Tasks 3–5 have owner gates) |
 | Runtime scope | `data-service/` (Plan 1), `backend/src/test/` only (Plan 1), new `ml/` (Plans 2–5), `docs/adr/`, `docs/spec/current-system/contracts.md`, `docs/product/evidence/`, `.gitignore` |
 | Product discussion language | Turkish |
 | Product artifact language | English |
@@ -104,7 +104,7 @@ Plan 1 and Plan 2 may run in parallel. Plans 3, 4, and 5 need Plan 2's `ml/.venv
 | 2 | [`2026-10-15-local-model-02-adr-0007-ml-foundation.md`](2026-10-15-local-model-02-adr-0007-ml-foundation.md) | ADR-0007 `Proposed`; `ml/` venv and layout; gitignore guard test; content-addressed snapshot writer/loader | Complete (2026-10-17, `ml` 26 passed; commits `ea665dc`, `17c1f58`, `e0def1a`) |
 | 3 | [`2026-10-15-local-model-03-c1-price-dq-scanner.md`](2026-10-15-local-model-03-c1-price-dq-scanner.md) | Read-only export runbook; nine fault-class scanner; fixture suite meeting recall ≥ 95% and false flags < 1%; replayable report; reviewed real-snapshot record | Not started |
 | 4 | [`2026-10-15-local-model-04-s1-news-zero-shot-spike.md`](2026-10-15-local-model-04-s1-news-zero-shot-spike.md) | Pre-registered protocol; license record; owner-labeled set; zero-shot macro-F1 and confusion matrices; written recommendation | Not started |
-| 5 | [`2026-10-15-local-model-05-c6-sandbox-lesson-1.md`](2026-10-15-local-model-05-c6-sandbox-lesson-1.md) | Sandbox scaffold and import guard; GARCH(1,1) simulation, EWMA and GARCH fits, walk-forward QLIKE, parameter recovery | Not started |
+| 5 | [`2026-10-15-local-model-05-c6-sandbox-lesson-1.md`](2026-10-15-local-model-05-c6-sandbox-lesson-1.md) | Sandbox scaffold and import guard; GARCH(1,1) simulation, EWMA and GARCH fits, walk-forward QLIKE, parameter recovery | Complete (2026-10-17, `ml` 39 passed after Plan 2) |
 
 ## Plan Set Locked Decisions
 
