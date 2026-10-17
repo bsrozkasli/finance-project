@@ -212,13 +212,15 @@ jobs:
         working-directory: backend
         run: |
           chmod +x ./mvnw
+          # Compile in the foreground so the health wait below measures start-up only.
+          ./mvnw -B --no-transfer-progress -DskipTests compile
           nohup ./mvnw -B --no-transfer-progress spring-boot:run > ../backend-e2e.log 2>&1 &
           echo $! > ../backend.pid
 
       - name: Wait for backend health
         run: |
           pid=$(cat backend.pid)
-          for attempt in $(seq 1 60); do
+          for attempt in $(seq 1 90); do
             if curl -fsS http://localhost:8080/actuator/health; then exit 0; fi
             if ! kill -0 "$pid" 2>/dev/null; then
               echo "Backend process exited before becoming healthy"
