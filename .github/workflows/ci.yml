@@ -154,6 +154,7 @@ jobs:
   frontend-integrated-e2e:
     name: frontend-integrated-e2e
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       DB_NAME: financedb
       DB_USERNAME: finance_user
@@ -190,20 +191,40 @@ jobs:
 
       - name: Start PostgreSQL and Redis
         # compose references env_file .env for other services; an empty file is enough here.
+        # backend/.env is required because FinanceProjectApplication.main() calls
+        # Dotenv.load() (throws when missing); real values come from the job env.
         run: |
-          touch .env
+          touch .env backend/.env
           docker compose up -d --wait postgres redis
+
+      - name: Sinkhole external market-data providers
+        # AGENTS.md: automated tests never call live financial providers. The browser
+        # stubs do not cover backend-side calls, so block every provider host the
+        # backend can reach; the explicit degradation path is exercised instead.
+        # finnhub.io     FinnhubClient.java:46
+        # api.tiingo.com TiingoClient.java:43
+        # query1.finance.yahoo.com YahooFinancePriceAdapter.java:30
+        # query2.finance.yahoo.com (Yahoo sibling host, blocked defensively)
+        run: |
+          echo "127.0.0.1 finnhub.io api.tiingo.com query1.finance.yahoo.com query2.finance.yahoo.com" | sudo tee -a /etc/hosts
 
       - name: Start backend
         working-directory: backend
         run: |
           chmod +x ./mvnw
           nohup ./mvnw -B --no-transfer-progress spring-boot:run > ../backend-e2e.log 2>&1 &
+          echo $! > ../backend.pid
 
       - name: Wait for backend health
         run: |
+          pid=$(cat backend.pid)
           for attempt in $(seq 1 60); do
             if curl -fsS http://localhost:8080/actuator/health; then exit 0; fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "Backend process exited before becoming healthy"
+              cat backend-e2e.log
+              exit 1
+            fi
             sleep 5
           done
           cat backend-e2e.log
@@ -219,7 +240,7 @@ jobs:
 
       - name: Run integrated E2E against the real backend
         working-directory: frontend
-        run: npm run e2e:integrated
+        run: npm run e2e:integrated -- --retries=0
 
       - name: Upload integrated E2E artifacts
         if: always()
