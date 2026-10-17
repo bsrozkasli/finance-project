@@ -203,13 +203,13 @@ export interface PortfolioSummary {
 export interface PortfolioPerformancePoint {
   date: string;
   portfolioValue: number;
-  benchmarkValue?: number;
+  benchmarkValue?: number | null;
 }
 
 export interface PortfolioPerformanceResponse {
   period: string;
   series: PortfolioPerformancePoint[];
-  metrics?: { sharpe?: number; maxDrawdown?: number; volatility?: number };
+  metrics?: { sharpe: number | null; maxDrawdown: number | null };
 }
 
 
