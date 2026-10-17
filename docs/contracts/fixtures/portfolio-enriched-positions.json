@@ -1,0 +1,15 @@
+[
+  {
+    "symbol": "AAPL",
+    "company": "AAPL",
+    "shares": 2,
+    "avgCost": 90,
+    "currentPrice": 110,
+    "costBasis": 180,
+    "marketValue": 220,
+    "allocation": 100.0,
+    "dailyReturn": 10.0,
+    "totalReturn": 22.22,
+    "unrealizedPnL": 40
+  }
+]

@@ -239,6 +239,15 @@ mismatch is now visible as `factor_score_not_mapped` / `earnings_score_not_mappe
 / `valuation_grade_not_mapped` reason codes in `breakdown_availability`. The
 underlying data-path defect is tracked for a follow-up fix (C0b or later).
 
+### Shared contract fixtures
+
+`docs/contracts/fixtures/` holds representative Spring response bodies that both
+test suites read. Backend `@WebMvcTest` classes assert that a real serialized
+response has the same field-path set as the fixture; frontend Vitest parses each
+fixture with a strict schema mirroring `frontend/src/api/client.ts`. Fixture values
+are test data, not market data. Covered today: portfolio summary, performance,
+enriched positions, and the backend error body.
+
 ### Partial research
 
 Watchlist and report aggregation preserve successful sections when another

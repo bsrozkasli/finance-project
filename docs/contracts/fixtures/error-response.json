@@ -1,0 +1,7 @@
+{
+  "timestamp": "2026-10-17T10:00:00Z",
+  "status": 409,
+  "error": "Conflict",
+  "message": "Portfolio cannot be deleted while it has active holdings",
+  "path": "/api/v1/portfolios/2"
+}
