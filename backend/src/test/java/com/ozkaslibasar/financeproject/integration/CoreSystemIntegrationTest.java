@@ -22,6 +22,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 
@@ -87,8 +88,11 @@ class CoreSystemIntegrationTest {
 
     @Test
     void lazyPriceHistoryFallsBackToProviderAndPersistsRows() {
-        PriceHistory first = price("AAPL", "2026-07-08T20:00:00Z", "100", "102", "105", "99", "1000");
-        PriceHistory second = price("AAPL", "2026-07-09T20:00:00Z", "102", "108", "110", "101", "1200");
+        // Relative to now so the rows stay inside the 1mo window; the latest bar is dated today so the
+        // second request is served from the database without another provider call.
+        Instant today = Instant.now().truncatedTo(ChronoUnit.DAYS);
+        PriceHistory first = price("AAPL", today.minus(1, ChronoUnit.DAYS).toString(), "100", "102", "105", "99", "1000");
+        PriceHistory second = price("AAPL", today.toString(), "102", "108", "110", "101", "1200");
         when(financialDataPort.fetchPriceHistory("AAPL", "1d", "1mo")).thenReturn(List.of(first, second));
 
         ResponseEntity<String> firstResponse = restTemplate.getForEntity(
