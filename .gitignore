@@ -59,3 +59,15 @@ postgres_data/
 temp_scripts/raw_data.json
 data-service/.test-cache/
 data-service/pytest-cache-files-*/
+
+### Local ML (ADR-0007) — data, snapshots, reports, and artifacts never enter git ###
+ml/.venv/
+ml/.venv-*/
+ml/artifacts/
+ml/datasets/
+ml/snapshots/
+ml/reports/
+*.onnx
+*.gguf
+*.parquet
+*.joblib
