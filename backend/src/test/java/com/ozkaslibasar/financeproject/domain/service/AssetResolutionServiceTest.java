@@ -89,7 +89,7 @@ class AssetResolutionServiceTest {
 
         assertThat(resolved.symbol()).isEqualTo("UNKNOWN");
         assertThat(resolved.name()).isEqualTo("UNKNOWN");
-        assertThat(resolved.type()).isEqualTo(AssetType.STOCK);
+        assertThat(resolved.type()).isEqualTo(AssetType.UNRESOLVED);
         assertThat(resolved.metadataStatus()).isEqualTo(AssetMetadataStatus.UNAVAILABLE);
     }
 

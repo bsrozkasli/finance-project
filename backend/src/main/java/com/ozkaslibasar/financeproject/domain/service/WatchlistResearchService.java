@@ -127,7 +127,7 @@ public class WatchlistResearchService {
             return new MetadataResolution(asset.name(), asset.type().name(), null, null, null, null, null, "STALE", "asset-repository");
         }
 
-        return new MetadataResolution(null, "STOCK", null, null, null, null, null, "EMPTY", "none");
+        return new MetadataResolution(null, "UNRESOLVED", null, null, null, null, null, "EMPTY", "none");
     }
 
     private WatchlistResearchSection<WatchlistPriceSummary> priceSection(String symbol, boolean refresh) {

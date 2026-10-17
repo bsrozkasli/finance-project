@@ -21,5 +21,11 @@ public enum AssetType {
     FOREX,
 
     /** Market indices (e.g. S&P 500 / ^GSPC, BIST 100 / XU100.IS, DAX). */
-    INDEX
+    INDEX,
+
+    /**
+     * No provider or trusted mapping established the instrument type. Never eligible for stock
+     * or ETF evaluation (EPIC-001 Task 1; docs/product/decisions/2026-10-15-instrument-identity-source-and-unresolved-type.md).
+     */
+    UNRESOLVED
 }
