@@ -183,6 +183,11 @@ test.describe('integrated system smoke', () => {
 
     await page.goto(`/portfolio/${created.id}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Stale E2E' })).toBeVisible();
+    // Holdings can be re-fetched several times on mount; settle before arming the race.
+    await page.waitForLoadState('networkidle');
+    await page.getByRole('button', { name: 'Portföyü sil' }).first().click();
+    const confirmDelete = page.getByRole('button', { name: 'Portföyü sil' }).last();
+    await expect(confirmDelete).toBeEnabled();
 
     // Another client buys into the portfolio after this page rendered it as empty.
     const buyResponse = await request.post(`${API_BASE}/portfolios/${created.id}/transactions`, {
@@ -199,12 +204,13 @@ test.describe('integrated system smoke', () => {
     });
     expect(buyResponse.ok()).toBe(true);
 
-    await page.getByRole('button', { name: 'Portföyü sil' }).first().click();
-    await page.getByRole('button', { name: 'Portföyü sil' }).last().click();
+    await confirmDelete.click();
 
     await expect(page.getByText('Portfolio cannot be deleted while it has active holdings')).toBeVisible();
 
-    const portfolios = await (await request.get(`${API_BASE}/portfolios`)).json() as Array<{ id: number }>;
+    const listResponse = await request.get(`${API_BASE}/portfolios`);
+    expect(listResponse.ok()).toBe(true);
+    const portfolios = await listResponse.json() as Array<{ id: number }>;
     expect(portfolios.map((portfolio) => portfolio.id)).toContain(created.id);
   });
 });
