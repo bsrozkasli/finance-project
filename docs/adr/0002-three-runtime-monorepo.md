@@ -37,7 +37,7 @@ The project will remain a monorepo with three runtimes: Spring Boot backend, Fas
 
 ## References
 
-- SPEC.md Section 1
-- SPEC.md Section 3
-- AGENTS.md Section 1
-- docker-compose.yml
+- `SPEC.md`
+- `docs/spec/current-system/architecture.md` (Runtime Boundaries)
+- `docs/spec/current-system/operations.md` (Local Services and Ports)
+- `docker-compose.yml`

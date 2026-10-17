@@ -3,19 +3,18 @@
 ## Archive Metadata
 
 - Archive date: `2026-09-29`
-- Archive root: `archive/legacy-docs-2026-09-29`
-- Last source commit containing every archived file: `77fec5f`
-- Operation: files were moved with their repository-relative paths preserved
-- Recovery: copy a file from the repository archive root back to the same
-  relative path, or read it from Git with
-  `git show 77fec5f:<relative-path>`
+- Canonicalization update: `2026-10-01`
+- Physical archive root: `archive/legacy-docs-2026-09-29`
+- Last source commit containing the original physical archive set: `77fec5f`
+- Last source commit containing the retired active guides: `3e1b63b`
+- Recovery: copy a physically archived file back to its repository-relative path,
+  or read a retired source with `git show <source-commit>:<relative-path>`.
 
-The archive is retained inside the repository so legacy claims remain available
-without mixing them with active documentation. Git history remains an additional
-recovery path. No file under `data-service/external/TradingAgents` was moved or
-modified.
+The archive retains historical claims without mixing them with active contracts.
+Files under `data-service/external/TradingAgents` are outside this documentation
+archive and were not moved or modified by the canonicalization work.
 
-## Archived Files
+## Physically Archived Files
 
 ### Legacy product, planning, and generated documents
 
@@ -61,14 +60,36 @@ modified.
 - `test-results/test-inventory-report-controller.md`
 - `test-results/test-inventory-risk-metrics-calculator.md`
 
-## Preserved Active Documentation
+## Retired Guides After Canonicalization
 
-The archive intentionally preserves these active categories in the repository:
+These tracked guides were superseded on `2026-10-01`. Their load-bearing current
+content now has one owner under `AGENTS.md`, `SPEC.md`,
+`docs/spec/current-system/`, or `docs/agent/verification.md`. The original files
+remain recoverable from commit `3e1b63b`.
+
+| Retired path | Canonical successor |
+|---|---|
+| `docs/AGENT_WORKFLOW.md` | `AGENTS.md`, `docs/agent/verification.md` |
+| `docs/BACKEND_RULES.md` | `AGENTS.md`, `docs/spec/current-system/architecture.md` |
+| `docs/CODING_STANDARDS.md` | `AGENTS.md`, runtime manifests/tooling |
+| `docs/DATA_SERVICE_RULES.md` | `AGENTS.md`, `docs/spec/current-system/architecture.md` |
+| `docs/ERROR_CATALOG.md` | `docs/spec/current-system/contracts.md` |
+| `docs/ERROR_FIX_PROTOCOL.md` | `docs/agent/verification.md` |
+| `docs/FRONTEND_API.md` | `docs/spec/current-system/contracts.md` |
+| `docs/FRONTEND_RULES.md` | `AGENTS.md`, `docs/spec/current-system/architecture.md` |
+| `docs/KNOWN_ISSUES.md` | Current open questions in `SPEC.md` and verification caveats |
+| `docs/OBSERVABILITY.md` | `docs/spec/current-system/operations.md` |
+| `docs/PROVIDER_GUIDE.md` | `docs/spec/current-system/operations.md` |
+| `docs/TESTING_PROTOCOL.md` | `docs/agent/verification.md` |
+| `docs/architecture.md` | `docs/spec/current-system/architecture.md` |
+
+## Preserved Active Documentation
 
 - `AGENTS.md`, `SPEC.md`, `README.md`, and `CONTRIBUTING.md`
 - `.github/BRANCH_PROTECTION.md`
-- `docs/README.md` and `docs/LEGACY_ARCHIVE_MANIFEST.md`
-- Architecture and ADR documents
-- Engineering, API, provider, testing, error, observability, and workflow rules
-- The approved product-foundation design and documentation-reconstruction plan
+- `docs/README.md` and this manifest
+- `docs/spec/current-system/` and `docs/agent/verification.md`
+- `docs/adr/`
+- `docs/product/`
+- `docs/superpowers/specs/`, `docs/superpowers/plans/`, and templates
 - Non-Markdown bug records and machine-readable test results

@@ -37,6 +37,7 @@ Agent analysis results will be cached in Redis with a default 15 minute TTL befo
 
 ## References
 
-- SPEC.md Section 3
-- SPEC.md Section 14
-- AGENTS.md Section 3
+- `docs/spec/current-system/architecture.md` (Agent-Analysis Flow)
+- `docs/spec/current-system/operations.md` (Cache Contract)
+- `backend/src/main/java/com/ozkaslibasar/financeproject/adapter/inbound/rest/AgentAnalysisFacade.java`
+- `backend/src/main/java/com/ozkaslibasar/financeproject/adapter/outbound/cache/AgentAnalysisCacheService.java`

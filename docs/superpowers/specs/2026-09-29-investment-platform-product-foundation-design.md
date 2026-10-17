@@ -643,7 +643,7 @@ Artifact names SHALL communicate their role:
 | `SPEC.md` | Canonical contract for behavior that is implemented and verified |
 | `docs/superpowers/specs/YYYY-MM-DD-*-design.md` | Reviewed foundation or feature-design record that precedes canonical delivery artifacts |
 | `docs/product/CURRENT_STATE_BASELINE.md` | Evidence-backed inventory of what exists now |
-| `docs/product/TARGET_PRODUCT_SPEC.md` | Canonical target product requirements; it SHALL NOT claim implementation |
+| `docs/product/PRD.md` | Canonical target product requirements; it SHALL NOT claim implementation |
 | `docs/product/CAPABILITY_GAP_MAP.md` | Traceability from current evidence to target gaps and delivery ownership |
 | `docs/product/epics/EPIC-NNN-*.md` | One user-outcome epic |
 | `docs/product/stories/EPIC-NNN/STORY-NNN-NN-*.md` | One testable user story owned by an epic |
@@ -669,7 +669,7 @@ The documentation chain SHALL be:
 
 ```text
 Current-State Baseline
-  -> Target Product Specification
+  -> Product Requirements Document
   -> Capability Gap Map
   -> Epics
   -> User Stories
@@ -681,7 +681,7 @@ The planned artifact structure is:
 ```text
 docs/product/
 |-- CURRENT_STATE_BASELINE.md
-|-- TARGET_PRODUCT_SPEC.md
+|-- PRD.md
 |-- CAPABILITY_GAP_MAP.md
 |-- epics/
 |   |-- EPIC-000-current-state-verification.md

@@ -6,11 +6,11 @@ Deciders: Development team
 
 ## Context
 
-Historical price data is requested frequently by frontend charts, technical analysis, reports, and agent-analysis metrics. External providers can be slow, rate limited, incomplete, or unavailable. The backend already has PostgreSQL persistence for price history, so repeated reads should prefer local data. When local data is missing or stale, the system still needs to serve useful data by falling back to the FastAPI data-service and then saving the fetched rows for later requests.
+Historical price data is requested frequently by frontend charts, technical analysis, reports, and agent-analysis metrics. External providers can be slow, rate limited, incomplete, or unavailable. The backend already has PostgreSQL persistence for price history, so repeated reads should prefer local data. When local data is missing or stale, the system refreshes through `FinancialDataPort`, whose current composite adapter tries the backend Yahoo adapter and then the FastAPI data-service, and saves valid matching rows for later requests.
 
 ## Decision
 
-Price history reads will use a DB-first lazy loading strategy: read from PostgreSQL, fall back to the data-service when needed, and persist fetched rows back into PostgreSQL.
+Price history reads will use a DB-first lazy loading strategy: read from PostgreSQL, refresh through the configured `FinancialDataPort` provider chain when needed, and persist valid matching fetched rows back into PostgreSQL.
 
 ## Alternatives considered
 
@@ -31,13 +31,13 @@ Price history reads will use a DB-first lazy loading strategy: read from Postgre
 
 ### Negative / trade-offs
 
-- Controllers/adapters need freshness logic to decide when fallback is required.
+- `PriceRefreshService` needs freshness logic to decide when provider refresh is required.
 - Persistence must handle duplicate candles through uniqueness/upsert behavior.
 - First request for a missing symbol or range still pays provider latency.
 
 ## References
 
-- SPEC.md Section 10
-- SPEC.md Section 14
-- AGENTS.md Section 3
-- backend/src/main/java/com/ozkaslibasar/financeproject/domain/port/outbound/PriceRepositoryPort.java
+- `docs/spec/current-system/architecture.md` (Price Refresh Flow)
+- `docs/spec/current-system/domain-and-data.md` (Price history)
+- `backend/src/main/java/com/ozkaslibasar/financeproject/domain/service/PriceRefreshService.java`
+- `backend/src/main/java/com/ozkaslibasar/financeproject/domain/port/outbound/PriceRepositoryPort.java`

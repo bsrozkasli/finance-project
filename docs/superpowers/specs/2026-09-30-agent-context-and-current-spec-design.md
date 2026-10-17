@@ -1,6 +1,6 @@
 # Agent Context and Current-System Specification Design
 
-**Status:** Approved conversational design; awaiting written-spec review
+**Status:** Approved and implemented on 2026-10-01
 
 **Date:** 2026-09-30
 
