@@ -47,6 +47,14 @@ Existing rows with `type='STOCK'` and `metadata_status='UNAVAILABLE'` were creat
 4. Phase 3: Flyway migration relabelling `STOCK`+`UNAVAILABLE` rows, after the row count is reviewed.
 5. Acceptance: a test per consumer above shows `UNRESOLVED` is carried unchanged and never counted as an eligible stock or ETF.
 
+## Rulings (2026-10-17, delegated by the owner)
+
+- Wire value is `UNRESOLVED`; `type` stays non-null and a string.
+- Phase 1 implemented: `AssetType.UNRESOLVED`, `AssetResolutionService` and the `WatchlistResearchService` fallback return it; round-trip persistence proven by `AssetRepositoryAdapterTest`.
+- Stored `STOCK`+`UNAVAILABLE` rows are left as recorded. Relabelling needs a reviewed row count first (Phase 3, not started).
+- Not started: removing the `STOCK` defaults in `DataServiceAssetMetadataAdapter` and `YahooFinancePriceAdapter` (Phase 2), the frontend `'STOCK'` display default, `contracts.md`/`openapi.yaml` updates, and the eligibility service (waits on OQ-2/OQ-3).
+- No external client of `/api/v1/assets` is visible in the repository; this cannot be proven from code.
+
 ## Open items the owner must answer
 
 - Is the wire value `UNRESOLVED` acceptable, or is another name required?
