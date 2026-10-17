@@ -1,4 +1,5 @@
 import type { Page } from '@playwright/test';
+import { loadContractFixture } from './contractFixtures';
 import { expect, test } from './fixtures';
 
 const API_BASE = 'http://localhost:8080/api/v1';
@@ -45,17 +46,17 @@ async function stubBrowserOnlyProviderReads(page: Page) {
     }
 
     if (method === 'GET' && path === '/portfolio/summary') {
-      await route.fulfill({ json: { totalValue: 0, totalCost: 0, totalPnl: 0, totalPnlPercent: 0 } });
+      await route.fulfill({ json: loadContractFixture('portfolio-summary.json') });
       return;
     }
 
     if (method === 'GET' && path === '/portfolio/allocation') {
-      await route.fulfill({ json: { byAssetType: [], bySymbol: [] } });
+      await route.fulfill({ json: { bySector: [], byAsset: [], byCountry: [] } });
       return;
     }
 
     if (method === 'GET' && path === '/portfolio/performance') {
-      await route.fulfill({ json: { points: [] } });
+      await route.fulfill({ json: { period: '1M', series: [], metrics: { sharpe: null, maxDrawdown: null } } });
       return;
     }
 
@@ -88,8 +89,8 @@ test.describe('integrated system smoke', () => {
     await page.goto('/watchlist', { waitUntil: 'domcontentloaded' });
 
     await expect(page.getByRole('combobox').first()).toContainText('Core');
-    await page.getByPlaceholder('Add stock/ETF...').fill('msft');
-    await page.getByRole('button', { name: 'Add instrument' }).click();
+    await page.getByPlaceholder('AAPL, MSFT...').fill('msft');
+    await page.getByRole('button', { name: 'Add symbol' }).click();
 
     await expect(page.getByText('MSFT').first()).toBeVisible();
 
@@ -105,8 +106,9 @@ test.describe('integrated system smoke', () => {
   test('creates and switches portfolios through real routes and APIs', async ({ page, request }) => {
     await page.goto('/portfolio', { waitUntil: 'domcontentloaded' });
 
-    await page.getByPlaceholder('New portfolio name...').fill('Growth E2E');
-    await page.getByRole('button', { name: /Create Portfolio/i }).click();
+    await page.getByRole('button', { name: 'Portföy oluştur' }).first().click();
+    await page.getByPlaceholder('Growth, Income, Hedge...').fill('Growth E2E');
+    await page.getByRole('button', { name: 'Portföy oluştur' }).last().click();
 
     await expect(page).toHaveURL(/\/portfolio\/\d+$/);
     await expect(page.getByRole('heading', { name: 'Growth E2E' })).toBeVisible();
@@ -170,5 +172,39 @@ test.describe('integrated system smoke', () => {
         notes: 'Integrated smoke thesis',
       }),
     ]));
+  });
+
+  test('shows the backend conflict when a portfolio gained holdings after the page loaded', async ({ page, request }) => {
+    const createResponse = await request.post(`${API_BASE}/portfolios`, {
+      data: { name: 'Stale E2E', baseCurrency: 'USD' },
+    });
+    expect(createResponse.ok()).toBe(true);
+    const created = await createResponse.json() as { id: number };
+
+    await page.goto(`/portfolio/${created.id}`, { waitUntil: 'domcontentloaded' });
+    await expect(page.getByRole('heading', { name: 'Stale E2E' })).toBeVisible();
+
+    // Another client buys into the portfolio after this page rendered it as empty.
+    const buyResponse = await request.post(`${API_BASE}/portfolios/${created.id}/transactions`, {
+      data: {
+        symbol: 'MSFT',
+        assetType: 'US_STOCK',
+        action: 'BUY',
+        quantity: 1,
+        price: 320,
+        currency: 'USD',
+        tradeDate: '2026-07-09',
+        source: 'MANUAL',
+      },
+    });
+    expect(buyResponse.ok()).toBe(true);
+
+    await page.getByRole('button', { name: 'Portföyü sil' }).first().click();
+    await page.getByRole('button', { name: 'Portföyü sil' }).last().click();
+
+    await expect(page.getByText('Portfolio cannot be deleted while it has active holdings')).toBeVisible();
+
+    const portfolios = await (await request.get(`${API_BASE}/portfolios`)).json() as Array<{ id: number }>;
+    expect(portfolios.map((portfolio) => portfolio.id)).toContain(created.id);
   });
 });
