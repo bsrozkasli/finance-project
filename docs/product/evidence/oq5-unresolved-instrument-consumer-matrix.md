@@ -52,7 +52,10 @@ Existing rows with `type='STOCK'` and `metadata_status='UNAVAILABLE'` were creat
 - Wire value is `UNRESOLVED`; `type` stays non-null and a string.
 - Phase 1 implemented: `AssetType.UNRESOLVED`, `AssetResolutionService` and the `WatchlistResearchService` fallback return it; round-trip persistence proven by `AssetRepositoryAdapterTest`.
 - Stored `STOCK`+`UNAVAILABLE` rows are left as recorded. Relabelling needs a reviewed row count first (Phase 3, not started).
-- Not started: removing the `STOCK` defaults in `DataServiceAssetMetadataAdapter` and `YahooFinancePriceAdapter` (Phase 2), the frontend `'STOCK'` display default, `contracts.md`/`openapi.yaml` updates, and the eligibility service (waits on OQ-2/OQ-3).
+- Phase 2 implemented (2026-10-17): data-service `AssetInfo.quote_type` (additive, yfinance `quoteType` only); `AssetType.fromQuoteType`; `DataServiceAssetMetadataAdapter` and `YahooFinancePriceAdapter` classify only from the provider type and no longer guess from exchange or industry text. Tests: `AssetTypeTest`, `DataServiceAssetMetadataTypeTest`, `YahooFinanceAssetInfoTest`, data-service `test_assets_endpoint.py`.
+- Consequence: a symbol whose provider returns no type is now `UNRESOLVED` instead of `STOCK`. Finnhub and Tiingo asset info do not supply a type, so they classify nothing until a source is added.
+- Documented in `docs/spec/current-system/contracts.md`; `openapi.yaml` does not enumerate asset types and needs no change.
+- Not started: the frontend `'STOCK'` display default in `StockDetailModal` (user working tree has unrelated frontend edits), Phase 3 row relabelling, and the eligibility service (waits on OQ-2/OQ-3).
 - No external client of `/api/v1/assets` is visible in the repository; this cannot be proven from code.
 
 ## Open items the owner must answer
