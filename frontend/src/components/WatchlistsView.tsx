@@ -253,10 +253,11 @@ export default function WatchlistsView({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
-            <label className="mb-2 block text-xs font-label-caps uppercase tracking-wider text-text-muted">
+            <label htmlFor="active-watchlist" className="mb-2 block text-xs font-label-caps uppercase tracking-wider text-text-muted">
               Active List
             </label>
             <select
+              id="active-watchlist"
               value={activeWatchlist?.id ?? ''}
               onChange={(event) => handleSelectWatchlist(event.target.value)}
               className="w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary focus:border-primary focus:outline-none"

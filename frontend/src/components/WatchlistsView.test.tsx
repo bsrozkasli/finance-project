@@ -168,6 +168,12 @@ describe('WatchlistsView', () => {
     expect(screen.getByText('AAPL - AAPL Incorporated')).toBeInTheDocument();
   });
 
+  it('exposes the active watchlist selector by its visible label', () => {
+    renderView();
+
+    expect(screen.getByRole('combobox', { name: 'Active List' })).toHaveDisplayValue('Core Growth');
+  });
+
   it('filters snapshot rows and normalizes added symbols', async () => {
     const user = userEvent.setup();
     const onAddStockToWatchlist = vi.fn();
