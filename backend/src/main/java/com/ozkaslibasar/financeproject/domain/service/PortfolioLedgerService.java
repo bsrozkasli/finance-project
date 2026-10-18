@@ -7,6 +7,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransaction
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -36,13 +37,45 @@ public class PortfolioLedgerService {
     public List<PortfolioHolding> calculateHoldings(List<PortfolioTransaction> transactions) {
         Map<String, Accumulator> bySymbol = new LinkedHashMap<>();
         for (PortfolioTransaction transaction : chronological(transactions)) {
-            if (transaction.symbol() == null || transaction.symbol().isBlank()) {
-                continue;
-            }
-            Accumulator acc = bySymbol.computeIfAbsent(transaction.symbol(), key -> new Accumulator(
-                    transaction.portfolioId(), transaction.symbol(), transaction.assetType(), transaction.currency()));
-            apply(acc, transaction);
+            applyTransaction(bySymbol, transaction);
         }
+        return holdingsFrom(bySymbol);
+    }
+
+    public Map<LocalDate, List<PortfolioHolding>> calculateHoldingsByDate(
+            List<PortfolioTransaction> transactions,
+            List<LocalDate> valuationDates) {
+        List<PortfolioTransaction> orderedTransactions = chronological(transactions);
+        List<LocalDate> orderedDates = valuationDates.stream()
+                .map(date -> Objects.requireNonNull(date, "valuation date must not be null"))
+                .distinct()
+                .sorted()
+                .toList();
+
+        Map<String, Accumulator> bySymbol = new LinkedHashMap<>();
+        Map<LocalDate, List<PortfolioHolding>> snapshots = new LinkedHashMap<>();
+        int transactionIndex = 0;
+        for (LocalDate valuationDate : orderedDates) {
+            while (transactionIndex < orderedTransactions.size()
+                    && !orderedTransactions.get(transactionIndex).tradeDate().isAfter(valuationDate)) {
+                applyTransaction(bySymbol, orderedTransactions.get(transactionIndex));
+                transactionIndex++;
+            }
+            snapshots.put(valuationDate, holdingsFrom(bySymbol));
+        }
+        return snapshots;
+    }
+
+    private void applyTransaction(Map<String, Accumulator> bySymbol, PortfolioTransaction transaction) {
+        if (transaction.symbol() == null || transaction.symbol().isBlank()) {
+            return;
+        }
+        Accumulator acc = bySymbol.computeIfAbsent(transaction.symbol(), key -> new Accumulator(
+                transaction.portfolioId(), transaction.symbol(), transaction.assetType(), transaction.currency()));
+        apply(acc, transaction);
+    }
+
+    private List<PortfolioHolding> holdingsFrom(Map<String, Accumulator> bySymbol) {
         return bySymbol.values().stream()
                 .filter(acc -> acc.quantity.compareTo(BigDecimal.ZERO) > 0)
                 .map(Accumulator::toHolding)

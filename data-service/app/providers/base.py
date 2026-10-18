@@ -42,6 +42,35 @@ class AssetInfo:
     sector: Optional[str] = None
     industry: Optional[str] = None
     market_cap: Optional[int] = None
+    description: Optional[str] = None
+    website: Optional[str] = None
+    logo_url: Optional[str] = None
+    country: Optional[str] = None
+    quote_type: Optional[str] = None
+    full_time_employees: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class MarketQuote:
+    """Provider-backed regular and extended-hours quote snapshot."""
+
+    symbol: str
+    market_state: Optional[str] = None
+    exchange_timezone: Optional[str] = None
+    previous_close: Optional[float] = None
+    regular_price: Optional[float] = None
+    regular_change: Optional[float] = None
+    regular_change_percent: Optional[float] = None
+    regular_timestamp: Optional[datetime] = None
+    pre_market_price: Optional[float] = None
+    pre_market_change: Optional[float] = None
+    pre_market_change_percent: Optional[float] = None
+    pre_market_timestamp: Optional[datetime] = None
+    post_market_price: Optional[float] = None
+    post_market_change: Optional[float] = None
+    post_market_change_percent: Optional[float] = None
+    post_market_timestamp: Optional[datetime] = None
+    delayed: Optional[bool] = None
 
 
 @dataclass(frozen=True)

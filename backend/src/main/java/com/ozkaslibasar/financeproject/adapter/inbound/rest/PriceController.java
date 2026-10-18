@@ -2,7 +2,9 @@ package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.PriceResponseDto;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
+import com.ozkaslibasar.financeproject.domain.model.AssetMarketBatch;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -32,6 +34,7 @@ import java.util.Map;
 public class PriceController {
 
     private final PriceRefreshService priceRefreshService;
+    private final AssetResearchDetailUseCase assetResearchDetailUseCase;
     private final RestMapper mapper;
 
     @Operation(summary = "GET Prices endpoint", description = "Returns the latest price for a symbol.")
@@ -52,6 +55,12 @@ public class PriceController {
             // Mapper failure is a local technical error (500), not an upstream dependency failure (503).
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Price mapping failed", e);
         }
+    }
+
+    @Operation(summary = "POST batch latest market quotes", description = "Returns partially degradable latest market quotes for normalized symbols.")
+    @PostMapping("/batch-latest")
+    public AssetMarketBatch getBatchLatestPrices(@RequestBody LatestPriceBatchRequest request) {
+        return assetResearchDetailUseCase.getMarketBatch(request == null ? List.of() : request.symbols());
     }
 
     @Operation(summary = "GET Price history endpoint", description = "Returns OHLCV history for a symbol.")
@@ -108,6 +117,9 @@ public class PriceController {
         } catch (RuntimeException ex) {
             return List.of();
         }
+    }
+
+    public record LatestPriceBatchRequest(List<String> symbols) {
     }
 
     public record BatchPriceHistoryRequest(List<String> symbols, String interval, String range) {

@@ -12,15 +12,16 @@ import { ApiError } from './errors';
 import { loadContractFixture } from '../test/contractFixtures';
 import { server } from '../test/server';
 
-// Strict schemas mirror the TypeScript types in client.ts. A field the backend adds,
+// Strict schemas mirror the TypeScript types exported through client.ts. A field the backend adds,
 // renames, or nulls without the frontend type knowing makes these parses fail.
 const PortfolioSummarySchema = z.strictObject({
-  totalValue: z.number(),
+  totalValue: z.number().nullable(),
   cashBalance: z.number(),
-  dailyPnL: z.number(),
-  dailyPnLPercent: z.number(),
-  totalPnL: z.number(),
-  totalReturn: z.number(),
+  dailyPnL: z.number().nullable(),
+  dailyPnLPercent: z.number().nullable(),
+  totalPnL: z.number().nullable(),
+  totalReturn: z.number().nullable(),
+  pricingComplete: z.boolean(),
 });
 
 const PortfolioPerformanceSchema = z.strictObject({
@@ -41,13 +42,13 @@ const EnrichedPositionsSchema = z.array(z.strictObject({
   company: z.string(),
   shares: z.number(),
   avgCost: z.number(),
-  currentPrice: z.number(),
+  currentPrice: z.number().nullable(),
   costBasis: z.number(),
-  marketValue: z.number(),
-  allocation: z.number(),
-  dailyReturn: z.number(),
-  totalReturn: z.number(),
-  unrealizedPnL: z.number(),
+  marketValue: z.number().nullable(),
+  allocation: z.number().nullable(),
+  dailyReturn: z.number().nullable(),
+  totalReturn: z.number().nullable(),
+  unrealizedPnL: z.number().nullable(),
 }));
 
 const BackendErrorSchema = z.strictObject({

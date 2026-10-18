@@ -7,6 +7,8 @@ public interface ResearchDataPort {
 
     Optional<FundamentalResearch> fetchFundamental(String symbol);
 
+    Optional<ValuationMetrics> fetchValuation(String symbol);
+
     List<EarningsQuarter> fetchEarnings(String symbol);
 
     Optional<InstitutionalScores> fetchInstitutionalScores(String symbol);
@@ -34,6 +36,16 @@ public interface ResearchDataPort {
             Double operatingCashFlow) {
     }
 
+    record ValuationMetrics(
+            Double pe,
+            Double forwardPe,
+            Double peg,
+            Double pb,
+            Double ps,
+            Double evEbitda,
+            Double dividendYield,
+            Double fcfYield) {
+    }
     record EarningsQuarter(
             String period,
             Double actual,

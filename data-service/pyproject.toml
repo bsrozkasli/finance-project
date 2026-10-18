@@ -1,5 +1,6 @@
+
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 line-length = 120
 extend-exclude = [
   "external",
@@ -8,11 +9,13 @@ extend-exclude = [
   "__pycache__",
   ".pytest_cache",
   ".test-cache",
+  ".ml-workdir",
+  ".ml-data",
 ]
 
 [tool.mypy]
-python_version = "3.12"
-exclude = "^(external|\\.venv|venv|__pycache__|\\.pytest_cache|\\.test-cache)(/|$)"
+python_version = "3.13"
+exclude = "^(external|\\.venv|venv|__pycache__|\\.pytest_cache|\\.test-cache|\\.ml-workdir|\\.ml-data)(/|$)"
 ignore_missing_imports = true
 follow_imports = "silent"
 show_error_codes = true

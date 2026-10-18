@@ -1,7 +1,5 @@
-import { isAxiosError } from 'axios';
-
 /** Spring global error body: see docs/spec/current-system/contracts.md "Backend errors". */
-export interface BackendErrorBody {
+export interface BackendErrorResponse {
   timestamp: string;
   status: number;
   error: string;
@@ -30,18 +28,45 @@ export class ApiError extends Error {
   }
 }
 
-const isBackendErrorBody = (value: unknown): value is BackendErrorBody => {
-  if (typeof value !== 'object' || value === null) return false;
-  const body = value as Record<string, unknown>;
-  return typeof body.status === 'number' && typeof body.message === 'string';
-};
+interface HttpClientFailure {
+  response: {
+    status?: number;
+    data?: unknown;
+  };
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  typeof value === 'object' && value !== null
+);
+
+const hasHttpResponse = (value: unknown): value is HttpClientFailure => (
+  isRecord(value) && isRecord(value.response)
+);
+
+// Structural check so this module stays free of a direct Axios import (check:api-boundaries).
+const isHttpClientError = (value: unknown): value is Record<string, unknown> & Partial<HttpClientFailure> => (
+  isRecord(value) && value.isAxiosError === true
+);
+
+export const isBackendErrorResponse = (value: unknown): value is BackendErrorResponse => (
+  isRecord(value)
+  && typeof value.timestamp === 'string'
+  && typeof value.status === 'number'
+  && typeof value.error === 'string'
+  && typeof value.message === 'string'
+  && typeof value.path === 'string'
+);
+
+const hasBackendMessage = (value: unknown): value is { status: number; message: string; path?: unknown } => (
+  isRecord(value) && typeof value.status === 'number' && typeof value.message === 'string'
+);
 
 export const toApiError = (error: unknown): ApiError => {
   if (error instanceof ApiError) return error;
 
-  if (isAxiosError(error)) {
+  if (isHttpClientError(error)) {
     const response = error.response;
-    if (!response) {
+    if (!isRecord(response) || typeof response.status !== 'number') {
       return new ApiError('Sunucuya ulaşılamadı. Backend çalışıyor mu?', {
         status: null,
         path: null,
@@ -51,7 +76,7 @@ export const toApiError = (error: unknown): ApiError => {
     }
 
     const body: unknown = response.data;
-    if (isBackendErrorBody(body) && body.message.trim()) {
+    if (hasBackendMessage(body) && body.message.trim()) {
       return new ApiError(body.message, {
         status: response.status,
         path: typeof body.path === 'string' ? body.path : null,
@@ -70,4 +95,49 @@ export const toApiError = (error: unknown): ApiError => {
 
   const message = error instanceof Error ? error.message : 'Beklenmeyen hata.';
   return new ApiError(message, { status: null, path: null, isNetworkError: false, cause: error });
+};
+
+// An ApiError keeps the original HTTP client failure as its cause.
+const httpFailureOf = (error: unknown): unknown => (error instanceof ApiError ? error.cause : error);
+
+export const getApiErrorResponse = (error: unknown): BackendErrorResponse | null => {
+  const failure = httpFailureOf(error);
+  if (!hasHttpResponse(failure)) return null;
+  return isBackendErrorResponse(failure.response.data) ? failure.response.data : null;
+};
+
+export const getApiErrorStatus = (error: unknown): number | null => {
+  if (error instanceof ApiError) return error.status;
+
+  const response = getApiErrorResponse(error);
+  if (response) return response.status;
+
+  if (hasHttpResponse(error) && typeof error.response.status === 'number') {
+    return error.response.status;
+  }
+
+  return null;
+};
+
+export const getApiErrorMessage = (
+  error: unknown,
+  fallback = 'API request failed',
+): string => {
+  const response = getApiErrorResponse(error);
+  if (response?.message.trim()) return response.message;
+
+  // apiClient rejects with ApiError; a message-only provider body lives on its cause.
+  const failure = httpFailureOf(error);
+  if (hasHttpResponse(failure)) {
+    const { data } = failure.response;
+    if (isRecord(data) && typeof data.message === 'string' && data.message.trim()) {
+      return data.message;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
 };

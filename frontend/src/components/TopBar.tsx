@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Search, Settings } from 'lucide-react';
 import type { Asset } from '../api/types';
 import type { Stock } from '../types';
+import CompanyLogo from './CompanyLogo';
+import { fetchMarketSessions, type MarketSession } from '../api/client';
 
 interface TopBarProps {
   stocks: Stock[];
@@ -28,6 +30,7 @@ export default function TopBar({
 }: TopBarProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex,setActiveIndex]=useState(0);
+  const [sessions, setSessions] = useState<MarketSession[]>([]);
   const searchRef=useRef<HTMLInputElement>(null);
   const searchArea=useRef<HTMLDivElement>(null);
   useEffect(()=>{
@@ -36,6 +39,20 @@ export default function TopBar({
     document.addEventListener('keydown',shortcut);document.addEventListener('pointerdown',outside);
     return ()=>{document.removeEventListener('keydown',shortcut);document.removeEventListener('pointerdown',outside);};
   },[]);
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const values = await fetchMarketSessions();
+        if (!cancelled) setSessions(values);
+      } catch {
+        if (!cancelled) setSessions([]);
+      }
+    };
+    void load();
+    const interval = window.setInterval(load, 60_000);
+    return () => { cancelled = true; window.clearInterval(interval); };
+  }, []);
   const stockBySymbol = useMemo(() => new Map(stocks.map((stock) => [stock.symbol, stock])), [stocks]);
   const searchable = useMemo(() => {
     const seen = new Set<string>();
@@ -109,7 +126,7 @@ export default function TopBar({
                 }}
                 className={`desk-search-result ${index===activeIndex?'is-active':''}`}
               >
-                <span className="min-w-0"><strong className="font-data-mono text-primary mr-2">{asset.symbol}</strong><span className="text-text-secondary text-sm truncate">{asset.name}</span></span>
+                <span className="flex min-w-0 items-center gap-3"><CompanyLogo symbol={asset.symbol} logoUrl={asset.stock?.logoUrl} className="h-8 w-8" /><span className="min-w-0"><strong className="font-data-mono text-primary mr-2">{asset.symbol}</strong><span className="text-text-secondary text-sm truncate">{asset.name}</span></span></span>
                 <span className="shrink-0 font-data-mono text-xs text-text-muted">{asset.stock ? `$${asset.stock.price.toFixed(2)}` : 'Fiyat yok'}</span>
               </button>
             ))}</div>
@@ -117,6 +134,15 @@ export default function TopBar({
         )}
       </div>
       {onToggleFocus&&<button className="desk-focus-button" type="button" aria-pressed={focusMode} onClick={onToggleFocus}>{focusMode?'Odaktan çık':'Odak modu'}</button>}
+
+      <div className="hidden lg:flex items-center gap-3 text-[11px] text-text-secondary" aria-label="Piyasa seansları">
+        {sessions.length === 0 ? <span>Piyasa durumu bilinmiyor</span> : sessions.map((session) => (
+          <span key={session.exchange} className="flex items-center gap-1.5" title={`${session.exchange} ${session.timezone}`}>
+            <span aria-hidden="true" className={`w-2 h-2 rounded-full ${session.state === 'REGULAR' ? 'bg-bull-green' : session.state === 'UNKNOWN' ? 'bg-warning-amber' : 'bg-text-muted'}`}></span>
+            <span className="font-data-mono uppercase">{session.exchange} {session.state.replace('_', ' ')}</span>
+          </span>
+        ))}
+      </div>
 
       <button type="button" onClick={onOpenTradingJournal} aria-label="Günlük" className="hidden sm:flex items-center gap-2 min-h-10 px-3 rounded-lg border border-outline-variant text-text-secondary hover:text-text-primary hover:bg-bg-card focus-visible:outline-2 focus-visible:outline-primary text-sm">
         <BookOpen className="w-4 h-4" /> Günlük

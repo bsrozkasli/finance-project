@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -62,6 +63,48 @@ class PortfolioLedgerServiceTest {
         verify(transactionPort, times(1)).findByPortfolioIdAndUserId(PORTFOLIO_ID, USER_ID);
         assertThat(holdings).hasSize(1);
         assertThat(holdings.get(0).symbol()).isEqualTo("AAPL");
+    }
+
+    @Test
+    void shouldCalculateIndependentHoldingSnapshotsAtEachValuationDate() {
+        List<PortfolioTransaction> transactions = List.of(
+                tx("AAPL", PortfolioTransactionAction.BUY, "2", "100", "0", "1", date(2026, 6, 2)),
+                tx("AAPL", PortfolioTransactionAction.SELL, "1", "110", "0", "1", date(2026, 6, 4)));
+
+        Map<LocalDate, List<PortfolioHolding>> snapshots = ledgerService.calculateHoldingsByDate(
+                transactions,
+                List.of(date(2026, 6, 1), date(2026, 6, 2), date(2026, 6, 3), date(2026, 6, 4)));
+
+        assertThat(snapshots.get(date(2026, 6, 1))).isEmpty();
+        assertThat(snapshots.get(date(2026, 6, 2)).get(0).quantity()).isEqualByComparingTo("2");
+        assertThat(snapshots.get(date(2026, 6, 3)).get(0).quantity()).isEqualByComparingTo("2");
+        assertThat(snapshots.get(date(2026, 6, 4)).get(0).quantity()).isEqualByComparingTo("1");
+    }
+
+    @Test
+    void shouldSortAndDeduplicateValuationDatesWithoutMutatingEarlierSnapshots() {
+        List<PortfolioTransaction> transactions = List.of(
+                tx("MSFT", PortfolioTransactionAction.BUY, "3", "100", "0", "1", date(2026, 6, 1)),
+                tx("MSFT", PortfolioTransactionAction.SELL, "2", "120", "0", "1", date(2026, 6, 3)));
+
+        Map<LocalDate, List<PortfolioHolding>> snapshots = ledgerService.calculateHoldingsByDate(
+                transactions,
+                List.of(date(2026, 6, 3), date(2026, 6, 1), date(2026, 6, 1)));
+
+        assertThat(snapshots.keySet()).containsExactly(date(2026, 6, 1), date(2026, 6, 3));
+        assertThat(snapshots.get(date(2026, 6, 1)).get(0).quantity()).isEqualByComparingTo("3");
+        assertThat(snapshots.get(date(2026, 6, 3)).get(0).quantity()).isEqualByComparingTo("1");
+    }
+
+    @Test
+    void shouldRejectNullValuationDate() {
+        List<LocalDate> valuationDates = new ArrayList<>();
+        valuationDates.add(date(2026, 6, 1));
+        valuationDates.add(null);
+
+        assertThatThrownBy(() -> ledgerService.calculateHoldingsByDate(List.of(), valuationDates))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("valuation date");
     }
 
     @Test

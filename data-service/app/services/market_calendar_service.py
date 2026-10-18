@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import date as Date, datetime, time, timedelta, timezone
 from typing import Any, TypeVar
@@ -11,6 +12,7 @@ from app.observability import CACHE_ERRORS_TOTAL, CACHE_LOOKUPS_TOTAL
 from app.models.market_calendar import EarningsEvent, EconomicEvent, MacroSnapshot, MarketCalendar
 from app.providers.fmp_provider import FmpProvider, filter_earnings_by_symbols
 from app.providers.fred_provider import FredProvider
+from app.providers.official_calendar_provider import OfficialCalendarProvider
 
 RedisClient: Any
 try:
@@ -101,9 +103,13 @@ class MarketCalendarService:
         CACHE_LOOKUPS_TOTAL.labels(cache=_CALENDAR_CACHE, result="miss").inc()
         provider = FmpProvider(settings.FMP_API_KEY)
         today, end = cls._calendar_window(now)
+        official_events, fmp_events = await asyncio.gather(
+            asyncio.to_thread(OfficialCalendarProvider().get_events, today, end),
+            asyncio.to_thread(provider.get_economic_events, today, end),
+        )
         calendar = MarketCalendar(
             earnings=provider.get_earnings_calendar(today, end),
-            economic_events=provider.get_economic_events(today, end),
+            economic_events=_merge_economic_events(official_events + fmp_events),
             cached_at=now,
         )
         cls._calendar = calendar
@@ -168,3 +174,14 @@ class MarketCalendarService:
         cls._macro_expires_at = None
         cls._calendar = None
         cls._calendar_expires_at = None
+
+def _merge_economic_events(events: list[EconomicEvent]) -> list[EconomicEvent]:
+    seen: set[tuple[str, str | None]] = set()
+    result: list[EconomicEvent] = []
+    for event in sorted(events, key=lambda value: value.date or datetime.max.replace(tzinfo=timezone.utc)):
+        key = (event.event.strip().upper(), event.date.isoformat() if event.date else None)
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(event)
+    return result

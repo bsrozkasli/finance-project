@@ -3,7 +3,13 @@ import { isCancel } from 'axios';
 import { describe, expect, it } from 'vitest';
 import { apiClient } from './client';
 import { API_BASE_URL, resolveApiBaseUrl } from './config';
-import { ApiError } from './errors';
+import {
+  ApiError,
+  getApiErrorMessage,
+  getApiErrorResponse,
+  getApiErrorStatus,
+  isBackendErrorResponse,
+} from './errors';
 import { server } from '../test/server';
 
 const url = (path: string) => `${API_BASE_URL}${path}`;
@@ -103,5 +109,68 @@ describe('apiClient error normalization', () => {
 
     expect(isCancel(error)).toBe(true);
     expect(error).not.toBeInstanceOf(ApiError);
+  });
+});
+
+const backendError = {
+  timestamp: '2026-07-17T10:15:00Z',
+  status: 422,
+  error: 'Unprocessable Entity',
+  message: 'Technical analysis requires at least 30 candles',
+  path: '/api/v1/technical/AAPL',
+};
+
+describe('API error contract helpers', () => {
+  it('recognizes the stable Spring error response shape', () => {
+    const error = { response: { status: 422, data: backendError } };
+
+    expect(isBackendErrorResponse(backendError)).toBe(true);
+    expect(getApiErrorResponse(error)).toEqual(backendError);
+    expect(getApiErrorStatus(error)).toBe(422);
+    expect(getApiErrorMessage(error)).toBe('Technical analysis requires at least 30 candles');
+  });
+
+  it('uses message-only provider failures without treating them as the stable contract', () => {
+    const error = {
+      response: {
+        status: 503,
+        data: { message: 'provider unavailable' },
+      },
+    };
+
+    expect(getApiErrorResponse(error)).toBeNull();
+    expect(getApiErrorStatus(error)).toBe(503);
+    expect(getApiErrorMessage(error)).toBe('provider unavailable');
+  });
+
+  it('falls back to Error.message when no response body is available', () => {
+    const error = new Error('network unavailable');
+
+    expect(getApiErrorResponse(error)).toBeNull();
+    expect(getApiErrorStatus(error)).toBeNull();
+    expect(getApiErrorMessage(error)).toBe('network unavailable');
+  });
+
+  it('reads status, body and message from errors rejected by apiClient', async () => {
+    server.use(
+      http.get(url('/technical/AAPL'), () => HttpResponse.json(backendError, { status: 422 })),
+    );
+
+    const error = await captureRejection(apiClient.get('/technical/AAPL'));
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(getApiErrorStatus(error)).toBe(422);
+    expect(getApiErrorResponse(error)).toEqual(backendError);
+    expect(getApiErrorMessage(error, 'fallback')).toBe('Technical analysis requires at least 30 candles');
+  });
+
+  it('keeps the normalized network message for transport failures from apiClient', async () => {
+    server.use(http.get(url('/assets'), () => HttpResponse.error()));
+
+    const error = await captureRejection(apiClient.get('/assets'));
+
+    expect(getApiErrorStatus(error)).toBeNull();
+    expect(getApiErrorResponse(error)).toBeNull();
+    expect(getApiErrorMessage(error, 'fallback')).toBe('Sunucuya ulaşılamadı. Backend çalışıyor mu?');
   });
 });

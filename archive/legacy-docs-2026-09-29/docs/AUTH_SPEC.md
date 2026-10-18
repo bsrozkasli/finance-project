@@ -371,7 +371,7 @@ Use the standard error shape from SPEC.md section 8:
 
 Create in order — never modify already-applied migrations.
 
-### `V5__create_users.sql`
+### `V6__create_users.sql`
 ```sql
 CREATE TABLE app_users (
     id            BIGSERIAL PRIMARY KEY,
@@ -386,7 +386,7 @@ CREATE TABLE app_users (
 CREATE INDEX idx_app_users_email ON app_users(email);
 ```
 
-### `V6__create_refresh_tokens.sql`
+### `V7__create_refresh_tokens.sql`
 ```sql
 CREATE TABLE refresh_tokens (
     id          BIGSERIAL PRIMARY KEY,
@@ -401,7 +401,7 @@ CREATE INDEX idx_refresh_tokens_user_id   ON refresh_tokens(user_id);
 CREATE INDEX idx_refresh_tokens_token_hash ON refresh_tokens(token_hash);
 ```
 
-### `V7__add_user_id_to_owned_tables.sql`
+### `V8__add_user_id_to_owned_tables.sql`
 ```sql
 -- Add user_id to all user-owned tables.
 -- Default 1 is a temporary system user for existing local dev data.
@@ -592,7 +592,7 @@ Register in `DomainConfig.java` following the existing `PriceIngestionJob` patte
 
 ## 16. Definition of done (auth feature)
 
-- [ ] `V5`, `V6`, `V7` migrations apply cleanly on a fresh database.
+- [ ] `V6`, `V7`, `V8` migrations apply cleanly on a fresh database.
 - [ ] All 5 auth endpoints return correct status codes and shapes.
 - [ ] JWT access token expires in 15 minutes; refresh token rotates on use.
 - [ ] All existing controllers return `401` without a valid token.

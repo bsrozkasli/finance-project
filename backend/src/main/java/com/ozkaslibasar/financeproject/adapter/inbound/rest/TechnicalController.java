@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -26,6 +28,21 @@ public class TechnicalController {
 
     private final TechnicalAnalysisPort technicalAnalysisPort;
 
+    @PostMapping("/{symbol}/copilot")
+    public TechnicalAnalysisPort.TechnicalCopilotResult technicalCopilot(
+            @PathVariable String symbol,
+            @RequestBody CopilotRequest request) {
+        return technicalAnalysisPort.fetchTechnicalCopilot(symbol.toUpperCase(), request.prompt(), request.interval(), request.range())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Technical copilot unavailable for " + symbol));
+    }
+    @GetMapping("/{symbol}/workspace")
+    public TechnicalAnalysisPort.TechnicalWorkspaceResult getTechnicalWorkspace(
+            @PathVariable String symbol,
+            @RequestParam(defaultValue = "1d") String interval,
+            @RequestParam(defaultValue = "1y") String range) {
+        return technicalAnalysisPort.fetchTechnicalWorkspace(symbol.toUpperCase(), interval, range)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Technical workspace unavailable for " + symbol));
+    }
     @Operation(summary = "GET Technical Analysis endpoint", description = "Implements the GET operation for the Technical Analysis API described in SPEC.md sections 7 and 8.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Successful response"),
@@ -101,6 +118,7 @@ public class TechnicalController {
                 result.confidence());
     }
 
+    public record CopilotRequest(String prompt, String interval, String range) {}
     public record TechnicalResponse(
             String symbol,
             String timestamp,

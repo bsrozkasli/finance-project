@@ -3,11 +3,15 @@ package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
 import com.ozkaslibasar.financeproject.domain.model.Asset;
 import com.ozkaslibasar.financeproject.domain.model.AssetMetadataStatus;
+import com.ozkaslibasar.financeproject.domain.model.AssetProfileBatch;
+import com.ozkaslibasar.financeproject.domain.model.AssetProfileBatch;
+import com.ozkaslibasar.financeproject.domain.model.AssetResearchDetail;
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
+import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -17,7 +21,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -43,11 +49,24 @@ class AssetControllerTest {
     private AssetResolutionService assetResolutionService;
 
     @MockitoBean
+    private AssetResearchDetailUseCase assetResearchDetailUseCase;
+    @MockitoBean
     private PriceChartClientPort priceChartClientPort;
 
     @MockitoBean
     private PriceRepositoryPort priceRepositoryPort;
 
+    @Test
+    void returnsBatchProfilesWithoutFailingTheWholeRequest() throws Exception {
+        when(assetResearchDetailUseCase.getProfileBatch(List.of("AAPL")))
+                .thenReturn(new AssetProfileBatch(Map.of(), Instant.parse("2026-07-24T12:00:00Z")));
+
+        mockMvc.perform(post("/api/v1/assets/batch-profiles")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"symbols\":[\"AAPL\"]}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profiles").isMap());
+    }
     @Test
     void shouldReturnAllAssets() throws Exception {
         Asset asset1 = new Asset("AAPL", "Apple Inc.", AssetType.STOCK);
@@ -108,4 +127,24 @@ class AssetControllerTest {
                 .andExpect(jsonPath("$[0].currency").value("USD"))
                 .andExpect(jsonPath("$[0].metadataStatus").value("PARTIAL"));
     }
+
+    @Test
+    void shouldReturnPartialResearchDetailWhenOneProviderSectionIsUnavailable() throws Exception {
+        AssetResearchDetail detail = new AssetResearchDetail(
+                "AAPL",
+                AssetResearchDetail.Section.ok("yahoo", new AssetResearchDetail.Profile(
+                        "AAPL", "Apple Inc.", "NASDAQ", "USD", "Technology", "Consumer Electronics",
+                        3_000L, "Designs consumer electronics and services.", "https://www.apple.com", null,
+                        "United States", "EQUITY", 164000), java.time.Instant.parse("2026-07-16T10:00:00Z")),
+                AssetResearchDetail.Section.empty("provider-chain", "Market quote is unavailable.", java.time.Instant.parse("2026-07-16T10:00:00Z")),
+                java.time.Instant.parse("2026-07-16T10:00:00Z"));
+        when(assetResearchDetailUseCase.getDetail("AAPL")).thenReturn(detail);
+
+        mockMvc.perform(get("/api/v1/assets/AAPL/detail"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.profile.status").value("OK"))
+                .andExpect(jsonPath("$.profile.data.name").value("Apple Inc."))
+                .andExpect(jsonPath("$.market.status").value("EMPTY"));
+    }
+
 }

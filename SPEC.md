@@ -74,8 +74,8 @@ portfolio history while the brownfield product evolves toward the approved PRD.
   market data or replace deterministic evidence.
 - Provider, cache, legal/data-rights, and missing-evidence limits remain visible
   to consumers.
-- Applied Flyway migrations are immutable; new intentional schema changes receive
-  new migrations even while the current local JPA setting is `ddl-auto=update`.
+- Applied Flyway migrations are immutable; Flyway owns schema evolution and JPA
+  only validates it (`ddl-auto=validate`), so schema changes receive new migrations.
 - Secrets and provider credentials remain server-side and out of source control.
 
 ## Non-goals
@@ -105,13 +105,8 @@ evidence or corrupts persistent portfolio history.
 
 ## Open Questions
 
-- Which Python version becomes authoritative after reconciling Python 3.12 in
-  `.github/workflows/ci.yml` with Python 3.11 in
-  `.github/workflows/data-service.yml`?
 - Will MongoDB receive an approved durable product responsibility, or should its
   configured Compose/application footprint be removed in a separate change?
-- When will local `spring.jpa.hibernate.ddl-auto=update` be replaced by fully
-  migration-owned schema evolution?
 - Should an all-null valuation metric set return an unavailable grade instead of
   the current `FAIR` default?
 - When will a follow-up to ADR-0006 extend `IMarketDataProvider` so the

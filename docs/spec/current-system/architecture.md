@@ -95,12 +95,17 @@ change together when API routing changes.
   remain visible as partial evidence; acquisition cost is never substituted
   for a current price.
 
-Frontend API access goes through `frontend/src/api/client.ts` (`apiClient`). The
-base URL comes from `frontend/src/api/config.ts`: `VITE_API_BASE_URL` when set,
-otherwise `http://localhost:8080/api/v1`. A response interceptor converts HTTP and
-transport failures into `ApiError` (`frontend/src/api/errors.ts`), whose `message`
-is the Spring error body's `message` when present; request cancellations are passed
-through unchanged.
+Frontend API access goes through domain modules under `frontend/src/api`
+(`assets`, `journal`, `market`, `news`, `portfolio`, `research`, `watchlists`).
+`client.ts` is an export-only compatibility barrel, and `http.ts` owns the shared
+Axios instance (`apiClient`); `npm run check:api-boundaries` keeps the barrel
+export-only and keeps Axios imports out of the domain modules. The base URL comes
+from `frontend/src/api/config.ts`: `VITE_API_BASE_URL` when set, otherwise
+`http://localhost:8080/api/v1`. A response interceptor converts HTTP and transport
+failures into `ApiError` (`frontend/src/api/errors.ts`), whose `message` is the
+Spring error body's `message` when present; request cancellations are passed
+through unchanged. The `getApiError*` helpers read status, body, and message from
+an `ApiError` or a raw HTTP failure.
 
 ### Frontend UI and TypeScript conventions
 

@@ -96,30 +96,23 @@ Applied migrations are immutable.
 | `V1__initial_schema.sql` | `assets`, `price_history`, `financial_statements` and their uniqueness constraints |
 | `V2__agent_analysis_history.sql` | `agent_analysis_history` and ticker/time index |
 | `V2_1__create_agent_analysis_history.sql` | Deliberate no-op retained to avoid a historical Flyway version collision |
+| `V2_2__create_journal_trade_schema.sql` | Idempotent pre-V3 journal schema repair, applied out of order where needed |
 | `V3__portfolio_transaction_ledger.sql` | `portfolios`, `portfolio_transactions`, ledger indexes, and journal link columns |
 | `V4__symbol_mapping_and_asset_metadata.sql` | Asset metadata columns, `symbol_mapping`, indexes, and the DRAM manual override |
+| `V5__complete_persistence_schema.sql` | `fundamental_snapshots`, `portfolio_positions`, `journal_trades`, `journal_trade_tags`, `watchlists`, `watchlist_symbols`, `opportunity_notifications`, and later `financial_statements` columns |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.
 
-### Hibernate-managed current state
+### Schema ownership
 
-`spring.jpa.hibernate.ddl-auto=update` is currently enabled. Therefore JPA may
-materialize or extend entity-backed tables not fully declared by the migrations,
-including:
-
-- `portfolio_positions`
-- `journal_trades` and `journal_trade_tags`
-- `watchlists` and `watchlist_symbols`
-- `opportunity_notifications`
-- `fundamental_snapshots`
-- entity columns added after the initial migrations, such as additional
-  `financial_statements` metrics
-
-This is a brownfield fact, not the desired production migration strategy. New
-intentional schema changes still require a new Flyway migration plus matching
-entity, adapter, and repository tests. Do not edit an applied migration to match
-Hibernate-created state.
+Flyway owns schema creation and upgrades; JPA runs with
+`spring.jpa.hibernate.ddl-auto=validate`, so a startup fails when an entity and
+the migrated schema disagree. Databases created earlier by Hibernate are
+baselined at version 4 (`FLYWAY_BASELINE_ON_MIGRATE`) and brought forward by
+`V5`, whose statements are idempotent. New schema changes require a new Flyway
+migration plus matching entity, adapter, and repository tests; never edit an
+applied migration.
 
 ## Entity Relationships
 

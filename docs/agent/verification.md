@@ -24,18 +24,32 @@ Run commands from the directory shown unless the command is repository-rooted.
 
 | Scope | Directory | Required local checks |
 |---|---|---|
-| Backend | `backend/` | Windows: `.\mvnw.cmd test`; Unix/macOS: `./mvnw test` |
-| Data-service | `data-service/` | `python -m pytest` |
-| Frontend | `frontend/` | `npm run lint`, `npm run test:coverage`, `npm run build` |
+| Backend | `backend/` | Windows: `node ../scripts/run-with-timeout.cjs 120000 .\mvnw.cmd test`; Unix/macOS: `node ../scripts/run-with-timeout.cjs 120000 ./mvnw test` |
+| Data-service | `data-service/` | `node ../scripts/run-with-timeout.cjs 120000 python -m pytest` |
+| Frontend | `frontend/` | `npm run lint`, `npm run check:api-boundaries`, `npm run test:coverage`, `npm run build`, then `npm run check:bundle` |
 | Frontend E2E | `frontend/` | `npm run e2e` when routes, critical user flows, or release readiness are affected |
 | Frontend integrated E2E | `frontend/` | `npm run e2e:integrated` with PostgreSQL, Redis and the backend running (`docker compose up -d postgres redis`, then backend `spring-boot:run`); required when frontend↔backend contracts, persistence flows or error handling change. Its global setup truncates and seeds the database behind the `finance_postgres` container; to keep a local dev database intact, start the stack under a separate Compose project (`docker compose -p <name> up -d --wait postgres redis`, then `docker compose -p <name> down -v`). Prerequisites: repo-root `.env` with `DB_PASSWORD` for compose; a `backend/.env` file (may be empty) because the backend's `main()` loads it. CI sinkholes the provider hosts (finnhub.io, api.tiingo.com, Yahoo query1/query2) in `/etc/hosts` so no live provider is called. Omitting keys is not enough locally because Yahoo needs none; start the backend with `"-Dspring-boot.run.jvmArguments=-Dhttps.proxyHost=127.0.0.1 -Dhttps.proxyPort=9 -Dhttp.proxyHost=127.0.0.1 -Dhttp.proxyPort=9 -Dhttp.nonProxyHosts=localhost\|127.*"` so the provider `RestTemplate` calls fail with connection refused and degraded sections are exercised. |
-| Infrastructure | repository root | `docker compose config --quiet` when Compose or service configuration changes |
+| Infrastructure | repository root | `node scripts/run-with-timeout.cjs 120000 docker compose config --quiet` when Compose or service configuration changes |
 
-CI also runs backend tests, data-service tests, frontend lint/coverage/build/E2E,
-frontend integrated E2E against a real backend, and Compose validation. `.github/workflows/ci.yml` currently selects Python 3.12,
-while `.github/workflows/data-service.yml` selects Python 3.11. Treat this as an
-explicit compatibility gap; do not document one version as the sole project
-contract until CI is reconciled.
+CI also runs backend tests, data-service tests (Python 3.12 in both
+`.github/workflows/ci.yml` and `.github/workflows/data-service.yml`), frontend
+lint/API-boundary/build/bundle-budget/coverage/E2E, frontend integrated E2E
+against a real backend, and Compose validation.
+
+### Command timeout policy
+
+- No non-interactive command may run longer than 120 seconds. Agent tool calls
+  use a timeout of 120000 ms or less unless the user approves a longer one in
+  that turn.
+- Backend Maven and data-service pytest runs go through
+  `scripts/run-with-timeout.cjs`; Surefire also has a 120-second fork timeout and
+  pytest a 120-second session and per-test timeout.
+- Frontend lint, build, unit, coverage, and E2E package scripts already wrap
+  `scripts/run-with-timeout.cjs` with 120000 ms.
+- If a full suite times out, stop and report the timeout. Do not rerun the same
+  full suite repeatedly; run targeted tests for the changed area instead.
+- Long-running dev servers, including the backend started for integrated E2E,
+  are the only exception.
 
 ## Tests Required by Change Type
 

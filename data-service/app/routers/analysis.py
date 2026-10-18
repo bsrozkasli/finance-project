@@ -9,6 +9,9 @@ from app.dependencies import get_resolver
 from app.models.analysis import (
     AnalysisSummaryResponse,
     TechnicalAnalysisResponse,
+    TechnicalWorkspaceResponse,
+    TechnicalCopilotRequest,
+    TechnicalCopilotResponse,
     SentimentAnalysisResponse,
     LlmInsightRequest,
     LlmInsightResponse,
@@ -19,6 +22,8 @@ from app.models.analysis import (
 )
 from app.services.price_history import DAILY_OR_LONGER_INTERVALS, bars_to_frame
 from app.services.technical_analysis_service import TechnicalAnalysisService
+from app.services.technical_workspace_service import TechnicalWorkspaceService
+from app.services.technical_copilot_service import TechnicalCopilotService
 from app.services.pattern_detection_service import PatternDetectionService
 from app.config import settings
 
@@ -79,6 +84,33 @@ async def get_technical_analysis(
 
     return TechnicalAnalysisResponse(symbol=symbol, timestamp=timestamp, indicators=indicators)
 
+
+@router.get("/technical/{symbol}/workspace", response_model=TechnicalWorkspaceResponse)
+async def get_technical_workspace(
+    symbol: str,
+    interval: str = Query("1d"),
+    range: str = Query("1y"),
+) -> TechnicalWorkspaceResponse:
+    history = await _load_history(symbol, interval, range)
+    try:
+        return TechnicalWorkspaceService.build(history, symbol, interval, range)
+    except ValueError as exc:
+        code = status.HTTP_422_UNPROCESSABLE_CONTENT if str(exc).startswith("At least") else status.HTTP_400_BAD_REQUEST
+        raise HTTPException(status_code=code, detail=str(exc)) from exc
+
+
+@router.post("/technical/{symbol}/copilot", response_model=TechnicalCopilotResponse)
+async def technical_copilot(symbol: str, request: TechnicalCopilotRequest) -> TechnicalCopilotResponse:
+    if request.symbol.upper() != symbol.upper():
+        raise HTTPException(status_code=400, detail="Request symbol does not match path symbol")
+    if not settings.AZURE_OPENAI_API_KEY or not settings.AZURE_OPENAI_DEPLOYMENT_NAME:
+        return TechnicalCopilotResponse(
+            symbol=symbol.upper(),
+            answer="AI technical copilot is not configured; deterministic indicators and levels are available.",
+            caveats=["Configure AZURE_OPENAI_API_KEY and AZURE_OPENAI_DEPLOYMENT_NAME to enable AI interpretation."],
+            generated_at=datetime.now(timezone.utc),
+        )
+    return await TechnicalCopilotService.answer(request)
 
 @router.get("/technical/{symbol}/signals", response_model=AnalysisSummaryResponse)
 async def get_technical_signals(

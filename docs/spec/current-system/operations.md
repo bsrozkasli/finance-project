@@ -21,7 +21,7 @@ caching, security limits, performance controls, logging, and observability.
 | MongoDB | `27017` | Configured/reserved document store; no durable product repository use was verified |
 
 Port or base-URL changes are coordinated contract migrations. Update Compose,
-runtime configuration, CORS, health checks, `frontend/src/api/client.ts`, and
+runtime configuration, CORS, health checks, `frontend/src/api/config.ts`, and
 `frontend/vite.config.ts` together as applicable. Do not change
 `docker-compose.yml` bindings or `prometheus.yml` scrape targets incidentally.
 
@@ -53,6 +53,8 @@ never committed or exposed to the frontend.
 | `SENTIMENT_CACHE_TTL_SECONDS` | `3600` | Sentiment cache duration |
 | `NEWS_LOOKBACK_HOURS` | `24` | News lookback window |
 | `PROVIDER_CHAIN` | `yahoo,tiingo,finnhub` | Data-service provider registration order. Names are trimmed, lower-cased, and de-duplicated; unknown names are logged and ignored; keyed providers without keys are skipped; omitted providers are not registered. A chain with no usable provider logs an error and falls back to the default order |
+| `FLYWAY_BASELINE_ON_MIGRATE` | `true` | One-time compatibility baseline (version 4) for databases previously managed by Hibernate; set to `false` once every existing environment has a Flyway history table |
+| `FLYWAY_OUT_OF_ORDER` | `true` | Lets the idempotent pre-V3 journal schema repair (`V2_2`) apply on databases that already reached later versions |
 | `MONGO_URI` | `mongodb://localhost:27017/financedb` | Read only by the backend (`spring.data.mongodb.uri`); the data-service does not read it; no durable product repository use was verified |
 
 `JWT_SECRET` appears only as a CI/example secret note; production authentication
@@ -62,7 +64,7 @@ is not implemented and must not be described as a current runtime capability.
 
 | Provider | Current role |
 |---|---|
-| Yahoo/yfinance | Primary no-key OHLCV and asset metadata; backend also has Yahoo adapters for prices/statements |
+| Yahoo/yfinance | Primary no-key OHLCV, asset metadata, company profile, and regular/pre-market/post-market quotes; backend also has Yahoo adapters for prices/statements |
 | Tiingo | Optional daily-only EOD OHLCV/news fallback when configured; non-daily intervals return empty so the resolver never serves daily bars as intraday; `adjusted` requests use Tiingo `adj*` fields |
 | Finnhub | News, sentiment, analyst recommendations, targets, metrics, insider-related data when configured |
 | FRED | Macro series; missing/failed series remain individually nullable |
@@ -99,6 +101,16 @@ tests for success, empty response, provider failure, and fallback ordering.
 - Macro snapshot fields are independently nullable. The Spring endpoint returns
   503 when every macro field is unavailable.
 - FMP calendar failure or missing key returns empty lists, not fabricated events.
+- Extended-hours quotes are provider-backed and nullable. The UI shows provider
+  timestamps and delay state, and prefers `UNKNOWN` market state over a local
+  market-hours guess. Batch quote/profile reads degrade per symbol; no paid logo
+  provider is used.
+- Portfolio valuation endpoints keep holdings visible but return `null` for
+  current price, market value, allocation, and PnL when no real current price
+  exists. Average cost is never substituted as market price.
+- Factor analysis returns `null` for unavailable factor scores and components;
+  available components are reweighted and a measured zero is never treated as
+  missing.
 - Azure OpenAI failure produces no agent decision, chat answer, or insight text.
 - Composite reports and research grids retain successful independent sections.
 
@@ -110,6 +122,8 @@ tests for success, empty response, provider failure, and fallback ordering.
 |---|---:|
 | default | 60 minutes |
 | `latestPriceCache` | 30 seconds |
+| `marketQuoteCache` | 30 seconds |
+| `assetProfileCache` | 24 hours |
 | `priceCache` | 5 minutes |
 | `technicalCache` | 10 minutes |
 | `indicatorCache` | 60 minutes |
@@ -144,6 +158,9 @@ computing and writes it only after successful analysis.
   first, but live-range/intraday requests and stale daily windows can refresh.
 - Provider downloads should not repeat when valid persisted/cache evidence
   satisfies the request.
+- Frontend live polling requests only the de-duplicated portfolio/watchlist
+  symbol union every 30 seconds while the document is visible; historical candles
+  and profiles are not part of this loop.
 - Watchlist research provider calls are bounded by per-provider timeouts and
   circuit behavior so one section does not erase other evidence.
 
@@ -176,9 +193,21 @@ computing and writes it only after successful analysis.
 - Backend: `/actuator/health` and `/actuator/prometheus`.
 - Data-service: `/metrics`, `/health/providers`, individual provider health
   routes, and `/health/metrics`.
-- `prometheus.yml` scrapes the backend (`/actuator/prometheus`) and the
-  data-service (`data-service:8000/metrics`); Grafana is provisioned for local
-  dashboards.
+- `prometheus.yml` scrapes the backend (`host.docker.internal:8080/actuator/prometheus`),
+  the data-service (`data-service:8000/metrics`), `postgres-exporter:9187`,
+  `redis-exporter:9121`, Prometheus itself, and Grafana. The exporters are
+  internal Docker-network services with no host ports.
+- Grafana is provisioned from `infra/grafana` (datasource `Finance Prometheus`,
+  uid `finance-prometheus`; dashboard `Finance Observability` at
+  `http://localhost:3000`) with target health, backend and data-service
+  throughput/p95/errors, outbound provider calls, resolver state, agent
+  analysis, PostgreSQL, Redis, and Prometheus/Grafana panels.
+- Backend metrics include Micrometer `http_server_requests_seconds_*`,
+  `finance_http_server_requests_total` and
+  `finance_http_server_request_duration_seconds_*` (route-labelled, unknown
+  paths collapsed to `unmatched`), `provider_request_total`,
+  `dataservice_request_latency_seconds_*`, and `agent_analysis_*` /
+  `agent_azure_tokens_total`.
 - Data-service metrics cover HTTP count/latency/errors, provider success/empty/
   error/fallback/blacklist state, agent latency/failures/estimated tokens,
   and macro/calendar cache lookups (`data_service_cache_lookups_total{cache,result}`

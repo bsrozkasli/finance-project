@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TechnicalResult } from '../api/client';
-import { fetchTechnicalAnalysis } from '../api/client';
+import { fetchTechnicalAnalysis, fetchTechnicalSignals } from '../api/client';
 
 export function useTechnicalAnalysis(symbol: string | null, interval = '1d', range = '3mo') {
   const [data, setData] = useState<TechnicalResult | null>(null);
@@ -11,9 +11,17 @@ export function useTechnicalAnalysis(symbol: string | null, interval = '1d', ran
   const fetch = useCallback(async (ticker: string) => {
     setLoading(true);
     setError(null);
-    try {
-      const result = await fetchTechnicalAnalysis(ticker, interval, range);
-      setData(result);
+    try {      const [analysis, signals] = await Promise.allSettled([
+        fetchTechnicalAnalysis(ticker, interval, range),
+        fetchTechnicalSignals(ticker, interval, range),
+      ]);
+      if (analysis.status !== 'fulfilled' && signals.status !== 'fulfilled') {
+        const failure = analysis.reason ?? signals.reason;
+        throw failure instanceof Error ? failure : new Error('Technical analysis and signals are unavailable');
+      }
+      const indicators: Partial<TechnicalResult> = analysis.status === 'fulfilled' ? analysis.value : {};
+      const signal: Partial<TechnicalResult> = signals.status === 'fulfilled' ? signals.value : {};
+      setData({ ...indicators, signalAction: signal.signalAction ?? undefined, signalConfidence: signal.signalConfidence ?? undefined });
       setLastFetched(new Date());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Technical analysis unavailable');

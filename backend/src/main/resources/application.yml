@@ -14,13 +14,21 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:true}
+    baseline-version: 4
+    clean-disabled: true
+    validate-on-migrate: true
+    out-of-order: ${FLYWAY_OUT_OF_ORDER:true}
 
   data:
     mongodb:
@@ -57,7 +65,7 @@ feign:
   circuitbreaker:
     enabled: true
 
-# Resilience4j â€” finnhubApi instance (30 req/s free tier limit)
+# Resilience4j finnhubApi instance (30 req/s free tier limit)
 resilience4j:
   ratelimiter:
     instances:
@@ -102,6 +110,15 @@ management:
     health:
       show-details: always
   metrics:
+    tags:
+      application: finance-project
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        finance.http.server.request.duration.seconds: true
+      slo:
+        http.server.requests: 50ms,100ms,250ms,500ms,1s,2s,5s
+        finance.http.server.request.duration.seconds: 50ms,100ms,250ms,500ms,1s,2s,5s
     export:
       prometheus:
         enabled: true

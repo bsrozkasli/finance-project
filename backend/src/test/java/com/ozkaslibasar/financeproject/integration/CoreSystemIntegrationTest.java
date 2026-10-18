@@ -47,7 +47,8 @@ class CoreSystemIntegrationTest {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-        registry.add("spring.jpa.hibernate.ddl-auto", () -> "create-drop");
+        registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+        registry.add("spring.flyway.enabled", () -> "true");
         registry.add("spring.data.redis.host", redis::getHost);
         registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
         registry.add("spring.cache.type", () -> "redis");
@@ -191,6 +192,48 @@ class CoreSystemIntegrationTest {
 
         assertThat(response.getStatusCode().is4xxClientError()).isTrue();
         assertThat(response.getBody()).containsKeys("timestamp", "status", "error", "message", "path");
+    }
+
+    @Test
+    void flywayCreatesTheCompletePersistenceSchema() {
+        List<String> tables = jdbcTemplate.queryForList("""
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                """, String.class);
+
+        assertThat(tables).contains(
+                "assets",
+                "price_history",
+                "financial_statements",
+                "fundamental_snapshots",
+                "portfolio_positions",
+                "portfolios",
+                "portfolio_transactions",
+                "journal_trades",
+                "journal_trade_tags",
+                "watchlists",
+                "watchlist_symbols",
+                "opportunity_notifications",
+                "agent_analysis_history",
+                "symbol_mapping",
+                "flyway_schema_history");
+
+        List<String> statementColumns = jdbcTemplate.queryForList("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'financial_statements'
+                """, String.class);
+        assertThat(statementColumns).contains("gross_profit", "operating_income");
+
+        String currentVersion = jdbcTemplate.queryForObject("""
+                SELECT version
+                FROM flyway_schema_history
+                WHERE success = TRUE AND version IS NOT NULL
+                ORDER BY installed_rank DESC
+                LIMIT 1
+                """, String.class);
+        assertThat(currentVersion).isEqualTo("5");
     }
 
     private long countRows(String table) {

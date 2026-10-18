@@ -124,10 +124,28 @@ public class WatchlistResearchSnapshotUseCase {
 
     private Optional<WatchlistResearchSnapshot.TechnicalSummary> technicalSummary(String symbol, boolean refresh) {
         String range = refresh ? "6mo" : "3mo";
-        return technicalAnalysisPort.fetchTechnicalAnalysis(symbol, "1d", range)
-                .map(WatchlistResearchSnapshot.TechnicalSummary::from);
+        Optional<TechnicalAnalysisPort.TechnicalAnalysisResult> indicators =
+                technicalAnalysisPort.fetchTechnicalAnalysis(symbol, "1d", range);
+        Optional<TechnicalAnalysisPort.TechnicalAnalysisResult> signal =
+                technicalAnalysisPort.fetchTechnicalSignals(symbol, "1d", range);
+        if (indicators.isEmpty() && signal.isEmpty()) {
+            return Optional.empty();
+        }
+        TechnicalAnalysisPort.TechnicalAnalysisResult indicator = indicators.orElse(null);
+        TechnicalAnalysisPort.TechnicalAnalysisResult signalResult = signal.orElse(null);
+        return Optional.of(new WatchlistResearchSnapshot.TechnicalSummary(
+                indicator == null ? null : indicator.rsi(),
+                indicator == null ? null : indicator.macd(),
+                indicator == null ? null : indicator.macdSignal(),
+                indicator == null ? null : indicator.sma(),
+                indicator == null ? null : indicator.sma20(),
+                indicator == null ? null : indicator.sma50(),
+                indicator == null ? null : indicator.sma200(),
+                indicator == null ? null : indicator.ema(),
+                signalResult == null ? null : signalResult.action(),
+                signalResult == null ? null : signalResult.confidence(),
+                indicator != null ? indicator.timestamp() : signalResult.timestamp()));
     }
-
     private Optional<WatchlistResearchSnapshot.FundamentalSummary> fundamentalSummary(String symbol, boolean refresh) {
         return researchDataPort.fetchFundamental(symbol)
                 .map(WatchlistResearchSnapshot.FundamentalSummary::from);

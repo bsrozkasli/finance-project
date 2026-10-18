@@ -15,6 +15,7 @@ import type { CalendarEvent, News, Stock, Portfolio } from '../types';
 import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerformance } from '../api/client';
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
 import { valuePortfolio } from '../utils/portfolioValuation';
+import CompanyLogo from './CompanyLogo';
 
 interface DashboardHomeProps {
   stocks: Stock[];
@@ -175,7 +176,28 @@ export default function DashboardHome({
     }));
   }, [portfolioMetrics.positions, portfolioMetrics.pricedSubtotal]);
 
-  const displayedPositionPerformance = positionPerformance.length > 0 ? positionPerformance : fallbackPositionPerformance;
+  const displayedPositionPerformance = useMemo<PortfolioPositionPerformance[]>(() => {
+    const base = positionPerformance.length > 0 ? positionPerformance : fallbackPositionPerformance;
+    const holdingsBySymbol = new Map(activePortfolio?.holdings.map((holding) => [holding.symbol, holding]) ?? []);
+    const live = base.map((position) => {
+      const stock = stockMap[position.symbol];
+      const holding = holdingsBySymbol.get(position.symbol);
+      if (!stock || !holding) return position;
+      const marketValue = holding.quantity * stock.price;
+      return {
+        ...position,
+        currentPrice: stock.price,
+        marketValue,
+        dailyReturn: stock.changePercent,
+        totalReturn: position.costPrice > 0 ? ((stock.price - position.costPrice) / position.costPrice) * 100 : position.totalReturn,
+      };
+    });
+    const totalValue = live.reduce((sum, position) => sum + (position.marketValue ?? 0), 0);
+    return live.map((position) => ({
+      ...position,
+      weight: totalValue > 0 && position.marketValue != null ? (position.marketValue / totalValue) * 100 : position.weight,
+    }));
+  }, [activePortfolio?.holdings, fallbackPositionPerformance, positionPerformance, stockMap]);
 
   // Search filter for holdings table
   const filteredPositions = useMemo(() => {
@@ -191,7 +213,11 @@ export default function DashboardHome({
 
   const allocationData = useMemo(() => {
     const source = displayedPositionPerformance.length > 0 ? displayedPositionPerformance : fallbackPositionPerformance;
-    return source
+    const pricedSource = source.filter(
+      (position): position is PortfolioPositionPerformance & { marketValue: number; weight: number } =>
+        position.marketValue != null && position.weight != null,
+    );
+    return pricedSource
       .map((pos) => {
         const selectedReturn = allocationMode === 'daily'
           ? pos.dailyReturn
@@ -838,7 +864,7 @@ export default function DashboardHome({
           <div className="min-h-72 flex-1">
             {allocationData.length === 0 ? (
               <div className="flex h-full min-h-56 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
-                No assets have been added.
+                {activePortfolio?.holdings.length ? 'Allocation is unavailable until every holding has a real market price.' : 'No assets have been added.'}
               </div>
             ) : (
               <div className="grid h-full min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-3">
@@ -1046,9 +1072,7 @@ export default function DashboardHome({
                         </td>
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded bg-bg-primary border border-outline-variant/60 flex items-center justify-center font-extrabold text-xs text-primary group-hover:text-text-primary group-hover:border-primary/45 transition-colors shrink-0">
-                              {pos.symbol.substring(0, 1)}
-                            </div>
+                            <CompanyLogo symbol={pos.symbol} logoUrl={matchedStock?.logoUrl} className="h-8 w-8" />
                             <div>
                               <div className="font-data-mono font-bold text-text-primary group-hover:text-primary transition-colors text-xs">
                                 {pos.symbol}
@@ -1061,7 +1085,7 @@ export default function DashboardHome({
                         </td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-secondary">{formatCurrency(pos.costPrice)}</td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}</td>
-                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{pos.weight.toFixed(2)}%</td>
+                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{pos.weight == null ? '-' : `${pos.weight.toFixed(2)}%`}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.dailyReturn)}`}>{formatReturn(pos.dailyReturn)}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.weeklyReturn)}`}>{formatReturn(pos.weeklyReturn)}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.oneMonthReturn)}`}>{formatReturn(pos.oneMonthReturn)}</td>

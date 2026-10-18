@@ -12,6 +12,15 @@ const priceBars = [
   { assetId: 'MSFT', open: 300, high: 325, low: 298, close: 320, volume: 2000, timestamp: '2026-07-09T20:00:00Z' },
 ];
 
+const emptyResearchSection = (symbol: string) => ({
+  status: 'EMPTY',
+  source: 'MOCK',
+  data: null,
+  message: null,
+  observedAt: '2026-07-09T20:00:00Z',
+  symbol,
+});
+
 test.beforeEach(async ({ page }) => {
   if (integrated) return;
 
@@ -28,6 +37,18 @@ test.beforeEach(async ({ page }) => {
 
     if (method === 'POST' && path === '/prices/batch-history') {
       await route.fulfill({ json: { AAPL: priceBars.slice(0, 2), MSFT: priceBars.slice(2) } });
+      return;
+    }
+
+    if (method === 'POST' && path === '/prices/batch-latest') {
+      await route.fulfill({ json: { quotes: {}, generatedAt: '2026-07-09T20:00:00Z' } });
+      return;
+    }
+
+    if (method === 'POST' && path === '/assets/batch-profiles') {
+      const body = request.postDataJSON() as { symbols?: string[] } | null;
+      const profiles = Object.fromEntries((body?.symbols ?? []).map((symbol) => [symbol, emptyResearchSection(symbol)]));
+      await route.fulfill({ json: { profiles, generatedAt: '2026-07-09T20:00:00Z' } });
       return;
     }
 
@@ -61,8 +82,18 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
+    if (method === 'GET' && path === '/portfolio/performance/comparison') {
+      await route.fulfill({ json: { period: '6M', series: [] } });
+      return;
+    }
+
     if (method === 'GET' && path === '/portfolio/allocation') {
       await route.fulfill({ json: { bySector: [], byAsset: [], byCountry: [] } });
+      return;
+    }
+
+    if (method === 'GET' && path === '/portfolio/positions/performance') {
+      await route.fulfill({ json: [] });
       return;
     }
 
@@ -88,6 +119,16 @@ test.beforeEach(async ({ page }) => {
 
     if (method === 'GET' && path === '/news/portfolio') {
       await route.fulfill({ json: [{ id: 1, headline: 'Market breadth improves', source: 'Test Wire', datetime: 1783606800, summary: 'Mocked backend news.', category: 'MARKET', relatedSymbols: ['AAPL'], url: 'https://example.test/news' }] });
+      return;
+    }
+
+    if (method === 'GET' && path === '/news/macro') {
+      await route.fulfill({ json: [] });
+      return;
+    }
+
+    if (method === 'GET' && path === '/calendar') {
+      await route.fulfill({ json: { earnings: [], economicEvents: [] } });
       return;
     }
 

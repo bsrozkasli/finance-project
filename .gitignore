@@ -71,3 +71,9 @@ ml/reports/
 *.gguf
 *.parquet
 *.joblib
+
+### Local ML research artifacts ###
+data-service/.ml-workdir/
+data-service/.ml-data/
+data-service/mlruns/
+data-service/mlflow.db

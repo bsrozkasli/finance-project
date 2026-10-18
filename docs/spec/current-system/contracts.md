@@ -53,12 +53,18 @@ Every path below is relative to `/api/v1`.
 | Assets | `GET /assets` | List tracked assets |
 | Assets | `GET /assets/{symbol}` | Fetch a tracked asset |
 | Assets | `POST /assets/batch` | Resolve and persist normalized symbols in batch |
+| Assets | `POST /assets/batch-profiles` | Company profiles and logo URLs per symbol; each symbol degrades independently; 24-hour cache |
+| Assets | `GET /assets/{symbol}/detail` | Company profile plus regular/pre-market/post-market quote sections, each with status/source/timestamp |
 | Assets | `DELETE /assets/{symbol}` | Delete a tracked asset |
 | Prices | `GET /prices/{symbol}/latest` | Latest real price through refresh service |
 | Prices | `GET /prices/{symbol}/history?interval=&range=` | DB-first historical OHLCV refresh |
 | Prices | `POST /prices/batch-history` | Per-symbol historical results with isolated degradation |
+| Prices | `POST /prices/batch-latest` | Normalized regular/extended-hours quotes with per-symbol degradation; 30-second cache |
+| Market | `GET /market/sessions?exchanges=` | Exchange session state (`PRE_MARKET`, `REGULAR`, `POST_MARKET`, `CLOSED`, `UNKNOWN`) |
 | Technical | `GET /technical/{symbol}?interval=&range=` | Technical indicators |
 | Technical | `GET /technical/{symbol}/signals?interval=&range=` | Technical signal summary |
+| Technical | `GET /technical/{symbol}/workspace` | Technical workspace proxy; 503 when unavailable |
+| Technical | `POST /technical/{symbol}/copilot` | Technical copilot proxy; 503 when unavailable |
 | Analysis | `GET /analysis/patterns/{symbol}` | Pattern detection proxy |
 | Analysis | `POST /analysis/decision-support` | Decision-support proxy |
 | Agent analysis | `GET /agent-analysis/{ticker}` | Cached or newly computed multi-agent result |
@@ -78,6 +84,7 @@ Every path below is relative to `/api/v1`.
 | Fundamentals | `GET /fundamentals/{symbol}/institutional` | Institutional ownership/scores |
 | News | `GET /news?category=&page=&size=&symbols=` | Categorized news page |
 | News | `GET /news/portfolio` | Portfolio-related news |
+| News | `GET /news/macro` | Macro news |
 | News | `GET /news/{symbol}` | Symbol news |
 | Notifications | `GET /notifications` | List notifications |
 | Notifications | `GET /notifications/unread` | List unread notifications |
@@ -90,12 +97,12 @@ Every path below is relative to `/api/v1`.
 | Legacy positions | `POST /portfolio/positions` | Create a position record |
 | Legacy positions | `PUT /portfolio/positions/{id}` | Update a position record |
 | Legacy positions | `DELETE /portfolio/positions/{id}` | Delete a position record |
-| Dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary |
+| Dashboard | `GET /portfolio/summary` | Portfolio totals and PnL summary; price-derived fields are `null` and `pricingComplete=false` when any current price is unavailable |
 | Dashboard | `GET /portfolio/performance?period=&benchmark=` | Performance and optional benchmark series |
-| Dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative return comparison |
-| Dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level time-window performance |
-| Dashboard | `GET /portfolio/allocation` | Allocation slices |
-| Dashboard | `GET /portfolio/positions/enriched` | Positions enriched with real current price/PnL |
+| Dashboard | `GET /portfolio/performance/comparison?portfolioIds=&benchmarks=&period=` | Multi-series cumulative return comparison; portfolio values use ledger quantities held on each price date, including positions later sold |
+| Dashboard | `GET /portfolio/positions/performance?portfolioId=` | Position-level time-window performance; price-derived fields are `null` when the current price is unavailable |
+| Dashboard | `GET /portfolio/allocation` | Allocation slices; values and amounts are `null`, never cost-based, when real prices are incomplete |
+| Dashboard | `GET /portfolio/positions/enriched` | Positions enriched with real current price/PnL; positions stay present with nullable price-derived fields when pricing is unavailable |
 | Analytics | `POST /portfolio/optimize` | Portfolio optimization proxy |
 | Analytics | `POST /portfolio/rebalance-check` | Rebalance analysis proxy |
 | Journal | `GET /journal/trades?page=&size=&sort=` | Paged persistent journal trades |
@@ -128,8 +135,13 @@ controller contracts change.
 |---|---|---|
 | Prices | `GET /api/v1/prices/{symbol}?interval=&range=` | Provider-chain OHLCV; empty list when all providers fail |
 | Assets | `GET /api/v1/assets/{symbol}/info` | Provider-chain metadata; 404 when unavailable/unusable |
+| Assets | `GET /api/v1/assets/{symbol}/profile` | Nullable company profile: overview, website, country, sector, industry, logo, employee count |
+| Assets | `GET /api/v1/assets/{symbol}/market-quote` | Nullable regular/pre-market/post-market snapshot with market state, timestamps, and delay flag |
+| Market | `GET /api/v1/market/sessions` | Exchange session states |
 | Technical | `GET /api/v1/technical/{symbol}` | Technical indicators |
 | Technical | `GET /api/v1/technical/{symbol}/signals` | Signal summary |
+| Technical | `GET /api/v1/technical/{symbol}/workspace` | Technical workspace |
+| Technical | `POST /api/v1/technical/{symbol}/copilot` | Technical copilot |
 | Sentiment | `GET /api/v1/sentiment/{symbol}` | Sentiment analysis; dependency failures are explicit |
 | LLM | `POST /api/v1/insight` | Azure OpenAI insight |
 | Analysis | `GET /api/v1/full/{symbol}` | Partially degradable combined analysis; unavailable sections are null and logged as `full_analysis_section_unavailable` |
@@ -140,7 +152,7 @@ controller contracts change.
 | Research | `GET /api/v1/research/valuation/{symbol}` | Valuation metrics including nullable PEG |
 | Research | `GET /api/v1/research/risk/{symbol}` | Risk analytics |
 | Research | `GET /api/v1/research/earnings/{symbol}` | Earnings analysis |
-| Research | `GET /api/v1/research/factors/{symbol}` | Factor analysis |
+| Research | `GET /api/v1/research/factors/{symbol}` | Factor analysis; unavailable factor/component values and `dominant_factor` are `null`, while a measured zero remains `0` |
 | Research | `GET /api/v1/research/institutional-scores/{symbol}` | Institutional scoring |
 | Research | `GET /api/v1/research/composite/{symbol}` | Composite investment score |
 | Portfolio | `POST /api/v1/portfolio/optimize` | Optimization |
@@ -197,6 +209,9 @@ Representative meanings:
 | `502` | Upstream response is invalid |
 | `503` | Required dependency is unavailable and no valid fallback exists |
 
+The frontend types this body as `BackendErrorResponse` in
+`frontend/src/api/errors.ts`.
+
 FastAPI normally uses its `{"detail": ...}` HTTP error shape; the five-field
 shape above is the Spring public API contract and must not be falsely applied to
 internal data-service routes.
@@ -244,7 +259,8 @@ underlying data-path defect is tracked for a follow-up fix (C0b or later).
 `docs/contracts/fixtures/` holds representative Spring response bodies that both
 test suites read. Backend `@WebMvcTest` classes assert that a real serialized
 response has the same field-path set as the fixture; frontend Vitest parses each
-fixture with a strict schema mirroring `frontend/src/api/client.ts`. Fixture values
+fixture with a strict schema mirroring the types exported through
+`frontend/src/api/client.ts`. Fixture values
 are test data, not market data. Covered today: portfolio summary, performance,
 enriched positions, and the backend error body.
 

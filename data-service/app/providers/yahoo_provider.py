@@ -25,6 +25,7 @@ from app.providers.base import (
     AssetInfo,
     FinancialStatements,
     IMarketDataProvider,
+    MarketQuote,
     NewsItem,
     OHLCVBar,
     ProviderHealth,
@@ -190,6 +191,12 @@ class YahooProvider:
                 sector=info.get("sector"),
                 industry=info.get("industry"),
                 market_cap=info.get("marketCap"),
+                description=info.get("longBusinessSummary"),
+                website=info.get("website"),
+                logo_url=info.get("logo_url") or info.get("logoUrl"),
+                country=info.get("country"),
+                quote_type=info.get("quoteType"),
+                full_time_employees=info.get("fullTimeEmployees"),
             )
         except Exception as exc:
             logger.error(
@@ -197,6 +204,80 @@ class YahooProvider:
             )
             return None
 
+    # ------------------------------------------------------------------
+    # Regular and extended-hours quote
+    # ------------------------------------------------------------------
+
+    def get_market_quote(self, symbol: str) -> Optional[MarketQuote]:
+        try:
+            info = yf.Ticker(symbol).info
+            if not isinstance(info, dict) or not info:
+                return None
+
+            def number(key: str) -> Optional[float]:
+                value = info.get(key)
+                try:
+                    return float(value) if value is not None else None
+                except (TypeError, ValueError):
+                    return None
+
+            def timestamp(key: str) -> Optional[datetime]:
+                value = info.get(key)
+                if isinstance(value, datetime):
+                    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+                try:
+                    return datetime.fromtimestamp(float(value), tz=timezone.utc) if value is not None else None
+                except (TypeError, ValueError, OSError):
+                    return None
+
+            previous_close = number("regularMarketPreviousClose") or number("previousClose")
+            regular_price = number("regularMarketPrice") or number("currentPrice")
+            pre_market_price = number("preMarketPrice")
+            post_market_price = number("postMarketPrice")
+
+            def change(price: Optional[float], provider_key: str) -> Optional[float]:
+                provider_value = number(provider_key)
+                return provider_value if provider_value is not None else (
+                    price - previous_close if price is not None and previous_close is not None else None
+                )
+
+            def change_percent(price: Optional[float], provider_key: str) -> Optional[float]:
+                if price is not None and previous_close:
+                    return (price - previous_close) / previous_close
+                provider_value = number(provider_key)
+                return provider_value / 100 if provider_value is not None else None
+
+            raw_state = str(info.get("marketState") or "UNKNOWN").upper()
+            state = {
+                "PRE": "PRE_MARKET",
+                "PREPRE": "PRE_MARKET",
+                "REGULAR": "REGULAR",
+                "POST": "POST_MARKET",
+                "POSTPOST": "POST_MARKET",
+                "CLOSED": "CLOSED",
+            }.get(raw_state, "UNKNOWN")
+            return MarketQuote(
+                symbol=str(info.get("symbol") or symbol).upper(),
+                market_state=state,
+                exchange_timezone=info.get("exchangeTimezoneName"),
+                previous_close=previous_close,
+                regular_price=regular_price,
+                regular_change=change(regular_price, "regularMarketChange"),
+                regular_change_percent=change_percent(regular_price, "regularMarketChangePercent"),
+                regular_timestamp=timestamp("regularMarketTime"),
+                pre_market_price=pre_market_price,
+                pre_market_change=change(pre_market_price, "preMarketChange"),
+                pre_market_change_percent=change_percent(pre_market_price, "preMarketChangePercent"),
+                pre_market_timestamp=timestamp("preMarketTime"),
+                post_market_price=post_market_price,
+                post_market_change=change(post_market_price, "postMarketChange"),
+                post_market_change_percent=change_percent(post_market_price, "postMarketChangePercent"),
+                post_market_timestamp=timestamp("postMarketTime"),
+                delayed=info.get("exchangeDataDelayedBy") is not None,
+            )
+        except Exception as exc:
+            logger.error("YahooProvider.get_market_quote failed for symbol=%s: %s", symbol, exc)
+            return None
     # ------------------------------------------------------------------
     # News
     # ------------------------------------------------------------------

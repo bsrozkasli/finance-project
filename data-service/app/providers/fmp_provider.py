@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import date as Date
+from datetime import date as Date, datetime, timezone
 
 import httpx
 
@@ -82,7 +82,7 @@ class FmpProvider:
             return None
         return EarningsEvent(
             symbol=str(symbol).upper(),
-            date=_parse_date(item.get("date")),
+            date=_parse_datetime(item.get("date")),
             eps_estimate=_parse_float(item.get("epsEstimated") or item.get("epsEstimate")),
             eps_actual=_parse_float(item.get("eps") or item.get("epsActual")),
             revenue_estimate=_parse_float(item.get("revenueEstimated") or item.get("revenueEstimate")),
@@ -97,12 +97,17 @@ class FmpProvider:
             return None
         return EconomicEvent(
             event=str(event),
-            date=_parse_date(item.get("date")),
+            date=_parse_datetime(item.get("date")),
             country=item.get("country"),
             impact=item.get("impact") or item.get("importance"),
             actual=item.get("actual"),
             estimate=item.get("estimate") or item.get("forecast"),
             previous=item.get("previous"),
+            event_type="ECONOMIC_RELEASE",
+            currency=item.get("currency"),
+            unit=item.get("unit"),
+            source="FMP",
+            source_url="https://financialmodelingprep.com/developer/docs/stable#economic-calendar",
         )
 
 
@@ -120,6 +125,20 @@ def filter_earnings_by_symbols(events: list[EarningsEvent], symbols: list[str] |
     return [event for event in events if event.symbol.upper() in allowed]
 
 
+def _parse_datetime(raw: object) -> datetime | None:
+    if not raw:
+        return None
+    value = str(raw).strip()
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except ValueError:
+        try:
+            return datetime.strptime(value[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+
+
 def _parse_date(raw: object) -> Date | None:
     if not raw:
         return None
@@ -127,7 +146,6 @@ def _parse_date(raw: object) -> Date | None:
         return Date.fromisoformat(str(raw)[:10])
     except ValueError:
         return None
-
 
 def _parse_float(raw: object) -> float | None:
     if raw in (None, ""):

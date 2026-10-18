@@ -83,6 +83,24 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
     }
 
     @Override
+    @Cacheable(value = "researchCache", key = "'valuation:' + #symbol.toUpperCase()")
+    public Optional<ValuationMetrics> fetchValuation(String symbol) {
+        try {
+            String url = baseUrl + "/api/v1/research/valuation/" + encode(symbol);
+            ValuationResponseDto response = restTemplate.getForObject(url, ValuationResponseDto.class);
+            if (response == null || response.getMetrics() == null) {
+                return Optional.empty();
+            }
+            ValuationMetricsDto metrics = response.getMetrics();
+            return Optional.of(new ValuationMetrics(
+                    metrics.getPe(), metrics.getForwardPe(), metrics.getPeg(), metrics.getPriceToBook(),
+                    metrics.getPriceToSales(), metrics.getEvEbitda(), metrics.getDividendYield(), metrics.getFcfYield()));
+        } catch (Exception e) {
+            log.warn("Failed to fetch valuation research for symbol={}. Reason: {}", symbol, e.getMessage());
+            return Optional.empty();
+        }
+    }
+    @Override
     @Cacheable(value = "researchCache", key = "'earnings:' + #symbol.toUpperCase()")
     public List<EarningsQuarter> fetchEarnings(String symbol) {
         try {
@@ -219,6 +237,29 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
         private Double operatingCashFlow;
     }
 
+    @Data
+    public static class ValuationResponseDto {
+        private String symbol;
+        private ValuationMetricsDto metrics;
+    }
+
+    @Data
+    public static class ValuationMetricsDto {
+        private Double pe;
+        @JsonProperty("forward_pe")
+        private Double forwardPe;
+        private Double peg;
+        @JsonProperty("price_to_book")
+        private Double priceToBook;
+        @JsonProperty("price_to_sales")
+        private Double priceToSales;
+        @JsonProperty("ev_ebitda")
+        private Double evEbitda;
+        @JsonProperty("dividend_yield")
+        private Double dividendYield;
+        @JsonProperty("fcf_yield")
+        private Double fcfYield;
+    }
     @Data
     public static class EarningsResponseDto {
         private String symbol;

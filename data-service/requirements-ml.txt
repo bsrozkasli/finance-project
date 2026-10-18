@@ -1,0 +1,9 @@
+# Pinned ML overlay. Install together with the existing data-service requirements.
+-r requirements.txt
+
+scikit-learn==1.9.0
+xgboost==3.3.0
+pyarrow==25.0.0
+mlflow==3.14.0
+kagglehub==1.0.2
+joblib==1.5.3

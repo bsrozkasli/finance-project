@@ -19,6 +19,7 @@ import {
   type Time,
 } from 'lightweight-charts';
 import type { Stock, StockHistoryItem } from '../types';
+import { canonicalizePriceHistory } from '../utils/marketData';
 
 interface ChartWorkspaceProps {
   stocks: Stock[];
@@ -129,7 +130,7 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
   }, [activeStock, stocks, symbol]);
 
   const visibleHistory = useMemo(() => {
-    const history = activeStock?.history ?? [];
+    const history = canonicalizePriceHistory(activeStock?.history ?? []);
     if (timeframe === '1D') return history.slice(-1);
     if (timeframe === '5D') return history.slice(-5);
     if (timeframe === '1M') return history.slice(-30);
