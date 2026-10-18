@@ -100,14 +100,20 @@ describe('ChartWorkspace', () => {
     expect(screen.getByTitle('Heikin Ashi')).toBeEnabled();
   });
 
-  it('shows provider unavailable state instead of fake candles', async () => {
-    render(<ChartWorkspace stocks={[stock]} onSelectStock={vi.fn()} />);
+  it('shows an honest empty state when history is missing', () => {
+    render(<ChartWorkspace stocks={[{ ...stock, history: [] }]} onSelectStock={vi.fn()} />);
 
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    await user.click(screen.getByTitle('Simulate connection error'));
+    expect(screen.getByText('Bu sembol için fiyat geçmişi bulunamadı.')).toBeInTheDocument();
+    expect(setData).not.toHaveBeenCalled();
+  });
 
-    expect(screen.getByText('Market data provider unavailable')).toBeInTheDocument();
-    expect(screen.getByText(/No fallback or mock candles/i)).toBeInTheDocument();
+  it('opens the symbol supplied by the route even when another symbol is first', () => {
+    const other = { ...stock, symbol: 'OTHER', name: 'Other stock' };
+    render(<ChartWorkspace stocks={[other, stock]} symbol="DRAM" onSelectStock={vi.fn()} />);
+
+    expect(screen.getByText('Son veri zamanı')).toBeInTheDocument();
+    expect(screen.getAllByText('DRAM').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/O: 158.00/i)).toBeInTheDocument();
   });
 });
 

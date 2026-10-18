@@ -205,51 +205,51 @@ export default function TradingJournalView({
     <div className="flex-1 overflow-y-auto bg-bg-primary p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <div className="text-[10px] font-label-caps uppercase tracking-wider text-text-muted">Execution Ledger</div>
-          <h2 className="mt-1 font-headline text-2xl font-bold tracking-tight text-text-primary">Trading Journal</h2>
+          <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">İşlem kayıtları</div>
+          <h2 className="mt-1 font-headline text-2xl font-bold tracking-tight text-text-primary">İşlem günlüğü</h2>
           <p className="mt-1 max-w-2xl text-sm text-text-secondary">
-            Record journal-only trades or link executions to a portfolio ledger with calculated quantity and cost.
+            İşlemleri günlüğe kaydedin veya portföy defterine bağlayın; miktar ve maliyet kayıtlı işlemlerden hesaplanır.
           </p>
         </div>
         <button
           type="button"
           onClick={() => void reload()}
-          className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant bg-bg-card px-3 py-2 text-sm font-bold text-text-secondary hover:text-text-primary"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-outline-variant bg-bg-card px-3 py-2 text-sm font-bold text-text-secondary hover:text-text-primary"
         >
           <RefreshCw className="h-4 w-4" />
-          Refresh
+          Yenile
         </button>
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Total" value={String(stats?.totalTrades ?? trades.length)} />
-        <StatTile label="Open" value={String(stats?.openTrades ?? 0)} tone="primary" />
-        <StatTile label="Closed" value={String(stats?.closedTrades ?? 0)} />
-        <StatTile label="Avg Return" value={`${(stats?.avgReturn ?? 0).toFixed(2)}%`} tone={(stats?.avgReturn ?? 0) >= 0 ? 'positive' : 'negative'} />
+        <StatTile label="Toplam" value={String(stats?.totalTrades ?? trades.length)} />
+        <StatTile label="Açık" value={String(stats?.openTrades ?? 0)} tone="primary" />
+        <StatTile label="Kapalı" value={String(stats?.closedTrades ?? 0)} />
+        <StatTile label="Ort. getiri" value={`${(stats?.avgReturn ?? 0).toFixed(2)}%`} tone={(stats?.avgReturn ?? 0) >= 0 ? 'positive' : 'negative'} />
       </div>
 
       {(error || formError) ? (
-        <div className="mb-5 flex items-center gap-2 rounded-lg border border-bear-red/40 bg-bear-red/10 p-3 text-sm font-bold text-bear-red">
+        <div className="mb-5 flex items-center gap-2 rounded-md border border-bear-red/40 bg-bear-red/10 p-3 text-sm font-bold text-bear-red">
           <AlertCircle className="h-4 w-4" />
           {formError ?? error}
         </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[440px_minmax(0,1fr)]">
-        <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
+        <section className="rounded-md border border-outline-variant bg-bg-card p-4 ">
           <div className="mb-4 flex items-center justify-between gap-3 border-b border-outline-variant/30 pb-3">
             <div className="flex items-center gap-2">
               <BookOpen className="h-4 w-4 text-primary" />
-              <h3 className="font-headline text-sm font-bold uppercase tracking-wide text-text-primary">New Trade Ticket</h3>
+              <h3 className="font-headline text-sm font-bold uppercase tracking-wide text-text-primary">Yeni işlem kaydı</h3>
             </div>
-            <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-[10px] text-text-muted">
-              {canLinkPortfolio ? 'Portfolio linked' : 'Journal only'}
+            <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-xs text-text-muted">
+              {canLinkPortfolio ? 'Portföye bağlı' : 'Yalnız günlük'}
             </span>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div>
-              <label className="mb-1 block text-[10px] font-label-caps uppercase tracking-wide text-text-muted">Symbol</label>
+              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Symbol</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                 <input
@@ -258,7 +258,7 @@ export default function TradingJournalView({
                   onBlur={() => selectSymbol(symbolInput)}
                   placeholder="Search or type ticker"
                   aria-label="Symbol"
-                  className="w-full rounded-lg border border-outline-variant bg-bg-base py-2 pl-9 pr-3 font-data-mono font-bold text-text-primary placeholder:font-sans placeholder:text-text-muted focus:border-primary focus:outline-none"
+                  className="w-full rounded-md border border-outline-variant bg-bg-base py-2 pl-9 pr-3 font-data-mono font-bold text-text-primary placeholder:font-sans placeholder:text-text-muted focus:border-primary focus:outline-none"
                 />
               </div>
               {symbolSuggestions.length > 0 ? (
@@ -268,7 +268,7 @@ export default function TradingJournalView({
                       key={candidate}
                       type="button"
                       onClick={() => selectSymbol(candidate)}
-                      className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 font-data-mono text-[10px] font-bold text-text-secondary hover:border-primary/50 hover:text-text-primary"
+                      className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 font-data-mono text-xs font-bold text-text-secondary hover:border-primary/50 hover:text-text-primary"
                     >
                       {candidate}
                     </button>
@@ -276,7 +276,7 @@ export default function TradingJournalView({
                 </div>
               ) : null}
               {!matchedStock && normalizedSymbol ? (
-                <div className="mt-2 text-[10px] text-warning-amber">Symbol is not in the local market list; it will be saved as typed.</div>
+                <div className="mt-2 text-xs text-warning-amber">Symbol is not in the local market list; it will be saved as typed.</div>
               ) : null}
             </div>
 
@@ -287,7 +287,7 @@ export default function TradingJournalView({
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
               <div>
-                <label className="mb-1 block text-[10px] font-label-caps uppercase tracking-wide text-text-muted">Portfolio</label>
+                <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Portfolio</label>
                 <select
                   value={portfolioId}
                   aria-label="Portfolio"
@@ -295,7 +295,7 @@ export default function TradingJournalView({
                     setPortfolioId(event.target.value);
                     setLinkPortfolio(Boolean(event.target.value));
                   }}
-                  className="w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 font-bold text-text-primary focus:border-primary focus:outline-none"
+                  className="w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 font-bold text-text-primary focus:border-primary focus:outline-none"
                 >
                   <option value="">No portfolio</option>
                   {portfolios.map((portfolio) => (
@@ -303,7 +303,7 @@ export default function TradingJournalView({
                   ))}
                 </select>
               </div>
-              <label className="flex items-center gap-2 rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-xs font-bold text-text-secondary sm:self-end">
+              <label className="flex items-center gap-2 rounded-md border border-outline-variant bg-bg-base px-3 py-2 text-xs font-bold text-text-secondary sm:self-end">
                 <input
                   type="checkbox"
                   checked={linkPortfolio}
@@ -316,7 +316,7 @@ export default function TradingJournalView({
             </div>
 
             <div>
-              <label className="mb-1 block text-[10px] font-label-caps uppercase tracking-wide text-text-muted">Entry Mode</label>
+              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Entry Mode</label>
               <div className="grid grid-cols-2 gap-2">
                 <ModeButton active={entryMode === 'AMOUNT'} onClick={() => setEntryMode('AMOUNT')}>Amount</ModeButton>
                 <ModeButton active={entryMode === 'QUANTITY'} onClick={() => setEntryMode('QUANTITY')}>Quantity</ModeButton>
@@ -332,39 +332,39 @@ export default function TradingJournalView({
               )}
               <NumberField label="Commission" value={commissionInput} onChange={setCommissionInput} prefix="$" />
               <div>
-                <label className="mb-1 block text-[10px] font-label-caps uppercase tracking-wide text-text-muted">Trade Date</label>
+                <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Trade Date</label>
                 <input
                   type="date"
                   aria-label="Trade Date"
                   value={tradeDate}
                   onChange={(event) => setTradeDate(event.target.value)}
-                  className="w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 font-data-mono font-bold text-text-primary focus:border-primary focus:outline-none"
+                  className="w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 font-data-mono font-bold text-text-primary focus:border-primary focus:outline-none"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2 rounded-lg border border-outline-variant/40 bg-bg-base/45 p-3">
+            <div className="grid grid-cols-3 gap-2 rounded-md border border-outline-variant/40 bg-bg-base/45 p-3">
               <CalcTile label="Quantity" value={formatNumber(calculatedQuantity)} />
               <CalcTile label="Gross" value={formatCurrency(calculatedGross)} />
               <CalcTile label="Net Cost" value={formatCurrency(calculatedNet)} />
             </div>
 
             <div>
-              <label className="mb-1 block text-[10px] font-label-caps uppercase tracking-wide text-text-muted">Description</label>
+              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Description</label>
               <textarea
                 placeholder="Trade thesis, execution reason, risk note, exit condition..."
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 rows={4}
                 aria-label="Description"
-                className="w-full rounded-lg border border-outline-variant bg-bg-base p-3 text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
+                className="w-full rounded-md border border-outline-variant bg-bg-base p-3 text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
               />
             </div>
 
             <button
               type="submit"
               disabled={saving}
-              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-bg-base shadow-sm disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-bg-base  disabled:opacity-60"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {saving ? 'Saving...' : canLinkPortfolio ? 'Save to Portfolio Ledger' : 'Save Journal Trade'}
@@ -372,7 +372,7 @@ export default function TradingJournalView({
           </form>
         </section>
 
-        <section className="min-w-0 rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
+        <section className="min-w-0 rounded-md border border-outline-variant bg-bg-card p-4 ">
           <div className="mb-4 flex flex-col gap-3 border-b border-outline-variant/30 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h3 className="font-headline text-sm font-bold uppercase tracking-wide text-text-primary">Journal Records</h3>
@@ -385,7 +385,7 @@ export default function TradingJournalView({
                 placeholder="Search symbol, status, notes"
                 value={filterQuery}
                 onChange={(event) => setFilterQuery(event.target.value)}
-                className="w-full rounded-lg border border-outline-variant bg-bg-base py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none sm:w-72"
+                className="w-full rounded-md border border-outline-variant bg-bg-base py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none sm:w-72"
               />
             </label>
           </div>
@@ -397,13 +397,13 @@ export default function TradingJournalView({
                 Loading journal trades
               </div>
             ) : filteredTrades.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-outline-variant p-10 text-center text-sm text-text-muted">
+              <div className="rounded-md border border-dashed border-outline-variant p-10 text-center text-sm text-text-muted">
                 No journal trades found.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[920px] text-left text-xs">
-                  <thead className="sticky top-0 bg-bg-base/80 text-[10px] uppercase tracking-wider text-text-muted">
+                  <thead className="sticky top-0 bg-bg-base/80 text-xs uppercase tracking-wider text-text-muted">
                     <tr>
                       <th className="px-3 py-3">Trade</th>
                       <th className="px-3 py-3">Portfolio</th>
@@ -431,7 +431,7 @@ export default function TradingJournalView({
                         <tr key={trade.id} className="border-t border-outline-variant/25 align-top hover:bg-bg-base/35">
                           <td className="px-3 py-4">
                             <div className="flex items-center gap-2">
-                              <span className={`rounded border px-2 py-0.5 text-[9px] font-bold ${isBuy ? 'border-bull-green/35 bg-bull-green/10 text-bull-green' : 'border-bear-red/35 bg-bear-red/10 text-bear-red'}`}>
+                              <span className={`rounded border px-2 py-0.5 text-xs font-bold ${isBuy ? 'border-bull-green/35 bg-bull-green/10 text-bull-green' : 'border-bear-red/35 bg-bear-red/10 text-bear-red'}`}>
                                 {trade.type}
                               </span>
                               <button
@@ -442,7 +442,7 @@ export default function TradingJournalView({
                                 {trade.symbol}
                               </button>
                             </div>
-                            <div className="mt-1 text-[10px] text-text-muted">{dateFormatted}</div>
+                            <div className="mt-1 text-xs text-text-muted">{dateFormatted}</div>
                           </td>
                           <td className="px-3 py-4 text-text-secondary">
                             {trade.portfolioId != null ? (
@@ -460,7 +460,7 @@ export default function TradingJournalView({
                             <div className={(trade.returnPct ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}>{(trade.returnPct ?? 0).toFixed(2)}%</div>
                           </td>
                           <td className="px-3 py-4">
-                            <span className={`rounded-full border px-2 py-1 text-[10px] font-bold ${trade.status === 'OPEN' ? 'border-primary/30 bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary'}`}>
+                            <span className={`rounded-full border px-2 py-1 text-xs font-bold ${trade.status === 'OPEN' ? 'border-primary/30 bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary'}`}>
                               {trade.status}
                             </span>
                           </td>
@@ -473,7 +473,7 @@ export default function TradingJournalView({
                                 <button
                                   type="button"
                                   onClick={() => void handleRemove(trade.id)}
-                                  className="rounded border border-bear-red/35 bg-bear-red/10 px-2 py-1 text-[10px] font-bold text-bear-red"
+                                  className="rounded border border-bear-red/35 bg-bear-red/10 px-2 py-1 text-xs font-bold text-bear-red"
                                 >
                                   Delete
                                 </button>
@@ -515,8 +515,8 @@ export default function TradingJournalView({
 function StatTile({ label, value, tone = 'neutral' }: { label: string; value: string; tone?: 'neutral' | 'primary' | 'positive' | 'negative' }) {
   const toneClass = tone === 'primary' ? 'text-primary' : tone === 'positive' ? 'text-bull-green' : tone === 'negative' ? 'text-bear-red' : 'text-text-primary';
   return (
-    <div className="rounded-lg border border-outline-variant bg-bg-card p-4">
-      <div className="text-[10px] font-label-caps uppercase tracking-wide text-text-muted">{label}</div>
+    <div className="rounded-md border border-outline-variant bg-bg-card p-4">
+      <div className="text-xs font-label-caps uppercase tracking-wide text-text-muted">{label}</div>
       <div className={`mt-1 font-data-mono text-xl font-bold ${toneClass}`}>{value}</div>
     </div>
   );
@@ -530,7 +530,7 @@ function SideButton({ active, tone, onClick, children }: { active: boolean; tone
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg border py-2 font-bold ${active ? activeClass : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
+      className={`rounded-md border py-2 font-bold ${active ? activeClass : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
     >
       {children}
     </button>
@@ -542,7 +542,7 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg border py-2 font-bold ${active ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
+      className={`rounded-md border py-2 font-bold ${active ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
     >
       {children}
     </button>
@@ -552,7 +552,7 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
 function NumberField({ label, value, onChange, prefix }: { label: string; value: string; onChange: (value: string) => void; prefix?: string }) {
   return (
     <div>
-      <label className="mb-1 block text-[10px] font-label-caps uppercase tracking-wide text-text-muted">{label}</label>
+      <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">{label}</label>
       <div className="relative">
         {prefix ? <DollarSign className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" /> : null}
         <input
@@ -562,7 +562,7 @@ function NumberField({ label, value, onChange, prefix }: { label: string; value:
           step="any"
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className={`w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 font-data-mono font-bold text-text-primary focus:border-primary focus:outline-none ${prefix ? 'pl-8' : ''}`}
+          className={`w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 font-data-mono font-bold text-text-primary focus:border-primary focus:outline-none ${prefix ? 'pl-8' : ''}`}
         />
       </div>
     </div>
@@ -572,7 +572,7 @@ function NumberField({ label, value, onChange, prefix }: { label: string; value:
 function CalcTile({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[9px] uppercase tracking-wide text-text-muted">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-text-muted">{label}</div>
       <div className="mt-1 truncate font-data-mono text-sm font-bold text-text-primary">{value}</div>
     </div>
   );

@@ -57,9 +57,9 @@ import {
   updateJournalTrade,
   updatePortfolioPosition,
 } from './client';
+import { API_BASE_URL as API_BASE } from './config';
 import { server } from '../test/server';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 type RequestAssertion = (request: Request) => void | Promise<void>;

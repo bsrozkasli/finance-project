@@ -3,9 +3,9 @@ import { http, HttpResponse } from 'msw';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import App from './App';
+import { API_BASE_URL as API_BASE } from './api/config';
 import { server } from './test/server';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const emptyPaged = { content: [], totalElements: 0, totalPages: 0, number: 0 };
@@ -13,6 +13,9 @@ const emptyPaged = { content: [], totalElements: 0, totalPages: 0, number: 0 };
 const installShellHandlers = () => {
   server.use(
     http.get(apiUrl('/assets'), () => HttpResponse.json([])),
+    http.get(apiUrl('/fundamentals/:symbol'), () => new HttpResponse(null, { status: 503 })),
+    http.get(apiUrl('/fundamentals/:symbol/ratios'), () => new HttpResponse(null, { status: 503 })),
+    http.get(apiUrl('/news/:symbol'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolios'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolio/summary'), () => HttpResponse.json({ totalValue: 0, cashBalance: 0, dailyPnL: 0, dailyPnLPercent: 0, totalPnL: 0, totalReturn: 0 })),
     http.get(apiUrl('/portfolio/performance'), () => HttpResponse.json({ period: '1M', series: [] })),
@@ -45,7 +48,7 @@ const renderAppAt = async (path: string) => {
     </MemoryRouter>,
   );
 
-  await screen.findByText('Nexus Terminal');
+  await screen.findByText('Mercek');
 };
 
 describe('App route contract', () => {

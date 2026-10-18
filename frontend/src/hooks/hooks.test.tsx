@@ -15,8 +15,8 @@ import { useSparkline } from './useSparkline';
 import { useTechnicalAnalysis } from './useTechnicalAnalysis';
 import { useWatchlistResearch } from './useWatchlistResearch';
 import { useWatchlists } from './useWatchlists';
+import { API_BASE_URL as API_BASE } from '../api/config';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const asset = { symbol: 'AAPL', name: 'Apple Inc.', type: 'STOCK' };

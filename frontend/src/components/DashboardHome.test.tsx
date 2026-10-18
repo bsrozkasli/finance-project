@@ -3,10 +3,10 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import type { CalendarEvent, News, Portfolio, Stock } from '../types';
+import { API_BASE_URL as API_BASE } from '../api/config';
 import { server } from '../test/server';
 import DashboardHome from './DashboardHome';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 
 const stock = (symbol: string, price: number): Stock => ({
   symbol,
@@ -81,6 +81,27 @@ const installPositionPerformanceHandler = () => {
 };
 
 describe('DashboardHome portfolio return comparison', () => {
+  it('shows missing price coverage without presenting cost as market value', async () => {
+    render(
+      <DashboardHome
+        stocks={[]}
+        portfolios={[{ id: '1', name: 'ALFA', holdings: [{ symbol: 'AAPL', quantity: 2, costPrice: 100 }] }]}
+        activePortfolioId="1"
+        onSelectPortfolioId={vi.fn()}
+        onSelectStock={vi.fn()}
+        onOpenTradingJournal={vi.fn()}
+        onNavigateToNews={vi.fn()}
+        news={[]}
+        calendarEvents={[]}
+      />,
+    );
+
+    expect(screen.getByText(/0\/1 pozisyonun güncel fiyatı var/)).toBeInTheDocument();
+    expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('—');
+    expect(screen.getByText('Güncel değer').parentElement).not.toHaveTextContent('$200.00');
+    expect(screen.getByText('Maliyet').parentElement).toHaveTextContent('$200.00');
+  });
+
   it('loads comparison series, shows hover-synchronized values, and renders revised overview panels', async () => {
     const requests: Array<{ portfolioIds: string | null; benchmarks: string | null; period: string | null }> = [];
 

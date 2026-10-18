@@ -1,0 +1,100 @@
+{
+  "verified_at": "2026-10-17T16:29:08.330Z",
+  "exit_code": 0,
+  "groups": 22,
+  "results": [
+    {
+      "name": "54 votes and all transcript documents match the original independent agent files",
+      "status": "pass"
+    },
+    {
+      "name": "Research opens on Overview with six correctly ordered sections",
+      "status": "pass"
+    },
+    {
+      "name": "Real eight-row financial table, 13px numbers and 40/32px density",
+      "status": "pass"
+    },
+    {
+      "name": "Wide nonmodal source panel keeps the financial area at least 900px and returns focus",
+      "status": "pass"
+    },
+    {
+      "name": "Narrow source drawer: modal, Escape, focus return and report URL",
+      "status": "pass"
+    },
+    {
+      "name": "Panel resize preserves its logical opener; modal Tab stays inside the drawer",
+      "status": "pass"
+    },
+    {
+      "name": "Graph controls, unavailable OHLC and four data states never create market data",
+      "status": "pass"
+    },
+    {
+      "name": "Six analyst roles remain in documented order without fabricated AI output",
+      "status": "pass"
+    },
+    {
+      "name": "Session watchlist and keyboard search support add, remove, no match and Enter",
+      "status": "pass"
+    },
+    {
+      "name": "Journal previews only user text, escapes HTML and persists during view navigation",
+      "status": "pass"
+    },
+    {
+      "name": "Transaction form is only a preview; desktop focus mode enters and exits",
+      "status": "pass"
+    },
+    {
+      "name": "Skip link keeps the current task; Enter on search close closes without opening a result",
+      "status": "pass"
+    },
+    {
+      "name": "Council displays all 18 tallies, both minority votes and full verbatim transcripts",
+      "status": "pass"
+    },
+    {
+      "name": "Responsive views and six research sections: 320px",
+      "status": "pass"
+    },
+    {
+      "name": "Responsive views and six research sections: 390px",
+      "status": "pass"
+    },
+    {
+      "name": "Responsive views and six research sections: 768px",
+      "status": "pass"
+    },
+    {
+      "name": "Responsive views and six research sections: 1024px",
+      "status": "pass"
+    },
+    {
+      "name": "Responsive views and six research sections: 1440px",
+      "status": "pass"
+    },
+    {
+      "name": "Responsive views and six research sections: 1920px",
+      "status": "pass"
+    },
+    {
+      "name": "Mobile source drawer and readable five-task navigation",
+      "status": "pass"
+    },
+    {
+      "name": "Mobile targets meet 44px and selected research tab remains visible after rendering",
+      "status": "pass"
+    },
+    {
+      "name": "Reload clears prototype data and performs no external network calls",
+      "status": "pass"
+    }
+  ],
+  "document_count": 21,
+  "artifact_sha256": "b565ff345e5a55baabcfae546567b7429d59b9e484900dcc510294d275cd9460",
+  "transcript_sha256": "da9c2728e9890cc0809b76f0ee69045effb764d57150d71fd2605af4f1e92b2f",
+  "errors": [],
+  "external_requests": []
+}

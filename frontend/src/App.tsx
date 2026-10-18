@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
+import { lazy, Suspense, useState, useEffect, useMemo } from 'react';
+import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import type { Stock, Trade, Watchlist, Portfolio } from './types';
 import type { JournalTrade } from './api/client';
 import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction } from './api/client';
@@ -14,20 +14,26 @@ import { useJournalTrades } from './hooks/useJournalTrades';
 // Component Imports
 import TopBar from './components/TopBar';
 import LeftNav from './components/LeftNav';
-import DashboardHome from './components/DashboardHome';
-import ChartWorkspace from './components/ChartWorkspace';
-import WatchlistsView from './components/WatchlistsView';
-import NewsFeedView from './components/NewsFeedView';
-import AiReportsView from './components/AiReportsView';
-import PortfolioManagerView from './components/PortfolioManagerView';
-import TradingJournalView from './components/TradingJournalView';
 
 // Modals & Drawers
-import StockDetailModal from './components/StockDetailModal';
-import ManageAssetsDrawer from './components/ManageAssetsDrawer';
-import TradeActionModal from './components/TradeActionModal';
 import SettingsModal from './components/SettingsModal';
-import TradingJournalModal from './components/TradingJournalModal';
+
+const DashboardHome = lazy(() => import('./components/DashboardHome'));
+const ResearchWorkspace = lazy(() => import('./components/research/ResearchWorkspace'));
+const WatchlistsView = lazy(() => import('./components/WatchlistsView'));
+const NewsFeedView = lazy(() => import('./components/NewsFeedView'));
+const AiReportsView = lazy(() => import('./components/AiReportsView'));
+const PortfolioManagerView = lazy(() => import('./components/PortfolioManagerView'));
+const TradingJournalView = lazy(() => import('./components/TradingJournalView'));
+const StockDetailModal = lazy(() => import('./components/StockDetailModal'));
+const ManageAssetsDrawer = lazy(() => import('./components/ManageAssetsDrawer'));
+const TradeActionModal = lazy(() => import('./components/TradeActionModal'));
+const TradingJournalModal = lazy(() => import('./components/TradingJournalModal'));
+
+function ResearchRoute(props: { stocks: Stock[]; assets: import('./api/types').Asset[]; onSelectStock: (stock: Stock) => void; watchlists: Watchlist[]; onAddToWatchlist: (symbol: string, id: string) => Promise<void> }) {
+  const { symbol } = useParams();
+  return <ResearchWorkspace key={symbol ?? 'all'} symbol={symbol} {...props} />;
+}
 
 const mapJournalTradeToUiTrade = (trade: JournalTrade): Trade => ({
   id: String(trade.id),
@@ -95,12 +101,14 @@ function PortfolioRoute({
 }
 export default function App() {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [focusMode,setFocusMode]=useState(false);
+  const pageTitle=pathname.startsWith('/portfolio')?'Portföy':pathname.startsWith('/watchlist')?'İzleme Listem':pathname.startsWith('/journal')||pathname.startsWith('/transactions')?'Günlük':pathname.startsWith('/dashboard')?'Bugün':'Araştır';
 
   // Core Persistent States
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [activePortfolioId, setActivePortfolioId] = useState<string>('port-1');
-  const [volatility, setVolatility] = useState<'low' | 'normal' | 'high'>('normal');
 
   // Modal Open/Close States
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
@@ -231,11 +239,6 @@ export default function App() {
     setActivePortfolioId(id);
   };
 
-  const saveVolatilityState = (v: 'low' | 'normal' | 'high') => {
-    setVolatility(v);
-    localStorage.setItem('nexus_volatility', v);
-  };
-
   // 4. Watchlist handlers
   const handleAddStockToWatchlist = async (watchlistId: string, symbol: string) => {
     const normalizedSymbol = symbol.trim().toUpperCase();
@@ -302,81 +305,32 @@ export default function App() {
     const tradeDate = new Date().toISOString().slice(0, 10);
     const journalNotes = newTrade.notes?.trim() || `${newTrade.symbol} ${newTrade.type} trade`;
 
-    try {
-      if (numericTargetPortfolioId) {
-        await createPortfolioTransaction(numericTargetPortfolioId, {
-          symbol: newTrade.symbol,
-          action: newTrade.type,
-          quantity: newTrade.quantity,
-          price: newTrade.price,
-          tradeDate,
-          source: newTrade.source ?? 'MANUAL',
-          notes: newTrade.notes,
-          journalNotes,
-        });
-        await Promise.allSettled([reloadInvestmentPortfolio(), reloadJournalTrades()]);
-      } else {
-        await addJournalTradeRecord({
-          symbol: newTrade.symbol,
-          type: newTrade.type,
-          quantity: newTrade.quantity,
-          purchasePrice: newTrade.price,
-          currentPrice: newTrade.price,
-          openedAt: tradeDate,
-          status: newTrade.type === 'SELL' ? 'CLOSED' : 'OPEN',
-          notes: journalNotes,
-          portfolioId: undefined,
-        });
-        void reloadJournalTrades();
-      }
-    } catch (error) {
-      console.error('Failed to save trade transaction', error);
-      return;
+    if (numericTargetPortfolioId) {
+      await createPortfolioTransaction(numericTargetPortfolioId, {
+        symbol: newTrade.symbol,
+        action: newTrade.type,
+        quantity: newTrade.quantity,
+        price: newTrade.price,
+        tradeDate,
+        source: newTrade.source ?? 'MANUAL',
+        notes: newTrade.notes,
+        journalNotes,
+      });
+      await Promise.all([reloadInvestmentPortfolio(), reloadJournalTrades()]);
+    } else {
+      await addJournalTradeRecord({
+        symbol: newTrade.symbol,
+        type: newTrade.type,
+        quantity: newTrade.quantity,
+        purchasePrice: newTrade.price,
+        currentPrice: newTrade.price,
+        openedAt: tradeDate,
+        status: newTrade.type === 'SELL' ? 'CLOSED' : 'OPEN',
+        notes: journalNotes,
+        portfolioId: undefined,
+      });
+      await reloadJournalTrades();
     }
-
-    const updatedPortfolios = portfolios.map((p) => {
-      if (p.id !== targetPortfolioId) return p;
-
-      const updatedHoldings = [...p.holdings];
-      const index = updatedHoldings.findIndex((h) => h.symbol === newTrade.symbol);
-
-      if (newTrade.type === 'BUY') {
-        if (index >= 0) {
-          const existing = updatedHoldings[index];
-          const nextQty = existing.quantity + newTrade.quantity;
-          const nextCost = (existing.quantity * existing.costPrice + newTrade.quantity * newTrade.price) / nextQty;
-          updatedHoldings[index] = {
-            symbol: newTrade.symbol,
-            quantity: nextQty,
-            costPrice: Math.round(nextCost * 100) / 100,
-          };
-        } else {
-          updatedHoldings.push({
-            symbol: newTrade.symbol,
-            quantity: newTrade.quantity,
-            costPrice: newTrade.price,
-          });
-        }
-      } else if (index >= 0) {
-        const existing = updatedHoldings[index];
-        const nextQty = existing.quantity - newTrade.quantity;
-        if (nextQty <= 0) {
-          updatedHoldings.splice(index, 1);
-        } else {
-          updatedHoldings[index] = {
-            ...existing,
-            quantity: nextQty,
-          };
-        }
-      }
-
-      return {
-        ...p,
-        holdings: updatedHoldings,
-      };
-    });
-
-    setPortfolios(updatedPortfolios);
   };
 
   const handleRemoveTrade = async (id: string) => {
@@ -390,92 +344,45 @@ export default function App() {
     const numericTargetPortfolioId = numericPortfolioId(targetPortfolioId);
     const transactionId = tradeToRemove.transactionId ? Number(tradeToRemove.transactionId) : undefined;
 
-    try {
-      if (numericTargetPortfolioId && transactionId && Number.isFinite(transactionId)) {
-        await deletePortfolioTransaction(numericTargetPortfolioId, transactionId);
-        await Promise.allSettled([reloadInvestmentPortfolio(), reloadJournalTrades()]);
-      } else {
-        await removeJournalTradeRecord(tradeId);
-        void reloadJournalTrades();
-      }
-    } catch (error) {
-      console.error('Failed to remove journal trade', error);
-      return;
+    if (numericTargetPortfolioId && transactionId && Number.isFinite(transactionId)) {
+      await deletePortfolioTransaction(numericTargetPortfolioId, transactionId);
+      await Promise.all([reloadInvestmentPortfolio(), reloadJournalTrades()]);
+    } else {
+      await removeJournalTradeRecord(tradeId);
+      await reloadJournalTrades();
     }
-
-
-    const updatedPortfolios = portfolios.map((p) => {
-      if (p.id !== targetPortfolioId) return p;
-
-      const updatedHoldings = [...p.holdings];
-      const index = updatedHoldings.findIndex((h) => h.symbol === tradeToRemove.symbol);
-
-      if (index >= 0) {
-        const existing = updatedHoldings[index];
-        if (tradeToRemove.type === 'BUY') {
-          const nextQty = existing.quantity - tradeToRemove.quantity;
-          if (nextQty <= 0) {
-            updatedHoldings.splice(index, 1);
-          } else {
-            updatedHoldings[index] = {
-              ...existing,
-              quantity: nextQty,
-            };
-          }
-        } else {
-          const nextQty = existing.quantity + tradeToRemove.quantity;
-          updatedHoldings[index] = {
-            ...existing,
-            quantity: nextQty,
-          };
-        }
-      } else if (tradeToRemove.type === 'SELL') {
-        updatedHoldings.push({
-          symbol: tradeToRemove.symbol,
-          quantity: tradeToRemove.quantity,
-          costPrice: tradeToRemove.price,
-        });
-      }
-
-      return {
-        ...p,
-        holdings: updatedHoldings,
-      };
-    });
-
-    setPortfolios(updatedPortfolios);
   };
-  // 6. Reset local UI preferences only. Backend portfolio, journal, and watchlist data is not deleted.
-  const handleResetDatabase = () => {
-    localStorage.removeItem('nexus_volatility');
-    setVolatility('normal');
-    localStorage.setItem('nexus_volatility', 'normal');
-    alert('Local UI preferences were reset. Backend data was not deleted.');
-  };
-
   // renderView is replaced by Routes
 
   return (
-    <div className="min-h-screen bg-bg-base flex flex-col text-text-primary antialiased selection:bg-primary/20 select-none overflow-hidden">
-
-      {/* 1. Global Terminal Top Header */}
-      <TopBar
-        stocks={stocks}
-        onSelectStock={(s) => openStockDetails(s)}
-        onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
-      />
+    <div className={`desk-app ${focusMode ? 'desk-focus-mode' : ''}`}>
+      <a className="desk-skip" href="#main-content" onClick={event=>{event.preventDefault();document.getElementById('main-content')?.focus();}}>İçeriğe geç</a>
 
       {/* 2. Main Workspace Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="desk-app-layout">
         {/* Left Nav menu */}
         <LeftNav
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenManageAssets={() => setIsManageAssetsOpen(true)}
         />
 
+        <div className="desk-shell">
+      {/* 1. Global Terminal Top Header */}
+      <TopBar
+        pageTitle={pageTitle}
+        focusMode={focusMode}
+        onToggleFocus={() => setFocusMode(value => !value)}
+        stocks={stocks}
+        assets={assets}
+        onSelectStock={(s) => navigate(`/workspace/${encodeURIComponent(s.symbol)}`)}
+        onSelectAsset={(asset) => navigate(`/workspace/${encodeURIComponent(asset.symbol)}`)}
+        onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+
         {/* Dynamic active view panel */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <Routes>
+        <main id="main-content" tabIndex={-1} className="desk-main">
+          <Suspense fallback={<div role="status" className="p-8 text-text-secondary">Sayfa yükleniyor…</div>}><Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={
               <DashboardHome
@@ -486,19 +393,26 @@ export default function App() {
                 onSelectStock={(s) => openStockDetails(s)}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
                 onNavigateToNews={() => navigate('/news')}
+                onNavigateToResearch={() => navigate('/workspace')}
                 news={news}
                 calendarEvents={calendarEvents}
               />
             } />
             <Route path="/charts" element={<Navigate to="/workspace" replace />} />
             <Route path="/workspace" element={
-              <ChartWorkspace
+              <ResearchRoute
+                assets={assets}
+                watchlists={watchlists}
+                onAddToWatchlist={handleAddStockToWatchlist}
                 stocks={stocks}
                 onSelectStock={(s) => openStockDetails(s)}
               />
             } />
             <Route path="/workspace/:symbol" element={
-              <ChartWorkspace
+              <ResearchRoute
+                assets={assets}
+                watchlists={watchlists}
+                onAddToWatchlist={handleAddStockToWatchlist}
                 stocks={stocks}
                 onSelectStock={(s) => openStockDetails(s)}
               />
@@ -578,14 +492,15 @@ export default function App() {
             } />
             <Route path="/portfolios" element={<Navigate to="/portfolio" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          </Routes></Suspense>
         </main>
+        </div>
       </div>
 
       {/* --- Overlays & Modals --- */}
 
       {/* Stock Detailed Modal */}
-      {(selectedStock || selectedDetailSymbol) && (
+      <Suspense fallback={null}>{(selectedStock || selectedDetailSymbol) && (
         <StockDetailModal
           stock={selectedStock}
           symbol={selectedDetailSymbol}
@@ -598,20 +513,20 @@ export default function App() {
           onOpenTradeModal={(sym) => setTradeModalSymbol(sym)}
           position={activePortfolio?.holdings.find((holding) => holding.symbol === (selectedStock?.symbol ?? selectedDetailSymbol ?? '')) ?? null}
         />
-      )}
+      )}</Suspense>
 
       {/* Manage Portfolio Assets slide-drawer */}
-      <ManageAssetsDrawer
+      <Suspense fallback={null}><ManageAssetsDrawer
         isOpen={isManageAssetsOpen}
         onClose={() => setIsManageAssetsOpen(false)}
         stocks={stocks}
         holdings={activePortfolio ? activePortfolio.holdings : []}
         portfolioId={activePortfolio?.id}
         onExecuteTrade={handleExecuteTrade}
-      />
+      /></Suspense>
 
       {/* Transaction order input modal */}
-      {tradeModalSymbol && (
+      <Suspense fallback={null}>{tradeModalSymbol && (
         <TradeActionModal
           isOpen={!!tradeModalSymbol}
           onClose={() => setTradeModalSymbol(null)}
@@ -620,19 +535,16 @@ export default function App() {
           holdings={activePortfolio ? activePortfolio.holdings : []}
           onExecuteTrade={handleExecuteTrade}
         />
-      )}
+      )}</Suspense>
 
       {/* Settings configuration modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
-        volatility={volatility}
-        onUpdateVolatility={saveVolatilityState}
-        onResetDatabase={handleResetDatabase}
       />
 
       {/* Pop-up Trading Journal Ledger Modal */}
-      <TradingJournalModal
+      <Suspense fallback={null}><TradingJournalModal
         isOpen={isTradingJournalOpen}
         onClose={() => setIsTradingJournalOpen(false)}
         trades={trades}
@@ -640,7 +552,7 @@ export default function App() {
         portfolios={portfolios}
         onRemoveTrade={handleRemoveTrade}
         onOpenTradeModal={(sym) => setTradeModalSymbol(sym)}
-      />
+      /></Suspense>
 
     </div>
   );

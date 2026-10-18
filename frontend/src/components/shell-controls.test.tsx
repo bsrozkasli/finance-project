@@ -49,6 +49,34 @@ function LocationProbe() {
 }
 
 describe('TopBar', () => {
+  it('focuses saved-asset search with Ctrl+K and opens its keyboard-selected result', async () => {
+    const onSelectStock = vi.fn();
+    render(<TopBar stocks={stocks} onSelectStock={onSelectStock} onOpenTradingJournal={vi.fn()} />);
+    await user().keyboard('{Control>}k{/Control}');
+    const input = screen.getByRole('combobox', { name: 'Kayıtlı varlıklarda ara' });
+    expect(input).toHaveFocus();
+    await user().type(input, 'micro');
+    await user().keyboard('{ArrowDown}{Enter}');
+    expect(onSelectStock).toHaveBeenCalledWith(stocks[1]);
+    expect(input).toHaveValue('');
+  });
+  it('keeps a saved asset searchable when its price history is unavailable', async () => {
+    const onSelectAsset = vi.fn();
+    render(
+      <TopBar
+        stocks={[]}
+        assets={[{ symbol: 'AAA', name: 'Alpha Inc.', type: 'STOCK' }]}
+        onSelectStock={vi.fn()}
+        onSelectAsset={onSelectAsset}
+        onOpenTradingJournal={vi.fn()}
+      />,
+    );
+    await user().type(screen.getByPlaceholderText('Kayıtlı varlıklarda ara'), 'AAA');
+    expect(screen.getByText('Fiyat yok')).toBeInTheDocument();
+    await user().click(screen.getByRole('option', { name: /AAA.*Alpha Inc./ }));
+    expect(onSelectAsset).toHaveBeenCalledWith({ symbol: 'AAA', name: 'Alpha Inc.', type: 'STOCK' });
+  });
+
   it('filters symbols, selects a search result, and clears the search box', async () => {
     const onSelectStock = vi.fn();
 
@@ -56,15 +84,15 @@ describe('TopBar', () => {
       <TopBar stocks={stocks} onSelectStock={onSelectStock} onOpenTradingJournal={vi.fn()} />,
     );
 
-    const searchBox = screen.getByPlaceholderText(/search symbols/i);
+    const searchBox = screen.getByPlaceholderText(/kayıtlı varlıklarda ara/i);
     await user().type(searchBox, 'micro');
 
-    expect(screen.getByText('Matching Instruments')).toBeInTheDocument();
-    await user().click(screen.getByRole('button', { name: /MSFT.*Microsoft Corp/i }));
+    expect(screen.getByText(/Eşleşen varlıklar/)).toBeInTheDocument();
+    await user().click(screen.getByRole('option', { name: /MSFT.*Microsoft Corp/i }));
 
     expect(onSelectStock).toHaveBeenCalledWith(stocks[1]);
     expect(searchBox).toHaveValue('');
-    expect(screen.queryByText('Matching Instruments')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Eşleşen varlıklar/)).not.toBeInTheDocument();
   });
 
   it('opens the trading journal from the header action', async () => {
@@ -74,7 +102,7 @@ describe('TopBar', () => {
       <TopBar stocks={stocks} onSelectStock={vi.fn()} onOpenTradingJournal={onOpenTradingJournal} />,
     );
 
-    await user().click(screen.getByRole('button', { name: /trading journal/i }));
+    await user().click(screen.getByRole('button', { name: /günlük/i }));
 
     expect(onOpenTradingJournal).toHaveBeenCalledTimes(1);
   });
@@ -91,15 +119,13 @@ describe('LeftNav', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: /overview/i })).toHaveAttribute('href', '/dashboard');
-    expect(screen.getByRole('link', { name: /portfolio management/i })).toHaveAttribute('href', '/portfolio');
-    expect(screen.getByRole('link', { name: /technical chart/i })).toHaveAttribute('href', '/workspace');
-    expect(screen.getByRole('link', { name: /watchlists/i })).toHaveAttribute('href', '/watchlist');
-    expect(screen.getByRole('link', { name: /news feed/i })).toHaveAttribute('href', '/news');
-    expect(screen.getByRole('link', { name: /ai analysis/i })).toHaveAttribute('href', '/reports');
-    expect(screen.getByRole('link', { name: /trading journal/i })).toHaveAttribute('href', '/journal');
+    expect(screen.getByRole('link', { name: 'Bugün' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByRole('link', { name: 'Araştır' })).toHaveAttribute('href', '/workspace');
+    expect(screen.getByRole('link', { name: 'İzleme Listem' })).toHaveAttribute('href', '/watchlist');
+    expect(screen.getByRole('link', { name: 'Portföy' })).toHaveAttribute('href', '/portfolio');
+    expect(screen.getByRole('link', { name: 'Günlük' })).toHaveAttribute('href', '/journal');
 
-    await user().click(screen.getByRole('link', { name: /watchlists/i }));
+    await user().click(screen.getByRole('link', { name: 'İzleme Listem' }));
     expect(screen.getByTestId('location-path')).toHaveTextContent('/watchlist');
   });
 
@@ -113,8 +139,8 @@ describe('LeftNav', () => {
       </MemoryRouter>,
     );
 
-    await user().click(screen.getByRole('button', { name: /manage assets/i }));
-    await user().click(screen.getByRole('button', { name: /system settings/i }));
+    await user().click(screen.getByRole('button', { name: /varlıkları yönet/i }));
+    await user().click(screen.getByRole('button', { name: /ayarlar/i }));
 
     expect(onOpenManageAssets).toHaveBeenCalledTimes(1);
     expect(onOpenSettings).toHaveBeenCalledTimes(1);

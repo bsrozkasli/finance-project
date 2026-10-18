@@ -158,9 +158,9 @@ describe('WatchlistsView', () => {
   it('renders a focused research workspace from the watchlist snapshot', () => {
     renderView();
 
-    expect(screen.getByRole('heading', { name: 'Watchlist Research' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'İzleme listem' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Core Growth Coverage' })).toBeInTheDocument();
-    expect(screen.getByText('Healthy')).toBeInTheDocument();
+    expect(screen.getByText('Sağlıklı')).toBeInTheDocument();
 
     const table = screen.getByRole('table');
     expect(within(table).getByText('AAPL')).toBeInTheDocument();
@@ -169,12 +169,18 @@ describe('WatchlistsView', () => {
     expect(screen.getByText('AAPL - AAPL Incorporated')).toBeInTheDocument();
   });
 
+  it('exposes the active watchlist selector by its visible label', () => {
+    renderView();
+
+    expect(screen.getByRole('combobox', { name: 'Active List' })).toHaveDisplayValue('Core Growth');
+  });
+
   it('filters snapshot rows and normalizes added symbols', async () => {
     const user = userEvent.setup();
     const onAddStockToWatchlist = vi.fn();
     renderView({ onAddStockToWatchlist });
 
-    await user.type(screen.getByPlaceholderText('Search symbols'), 'msft');
+    await user.type(screen.getByPlaceholderText('Sembol ara'), 'msft');
     const table = screen.getByRole('table');
     expect(within(table).queryByText('AAPL')).not.toBeInTheDocument();
     expect(within(table).getByText('MSFT')).toBeInTheDocument();

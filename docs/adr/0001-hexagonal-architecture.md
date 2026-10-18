@@ -36,6 +36,7 @@ The Spring Boot backend will use hexagonal architecture with framework-free doma
 
 ## References
 
-- SPEC.md Section 3
-- AGENTS.md Section 2
-- backend/src/main/java/com/ozkaslibasar/financeproject/config/DomainConfig.java
+- `docs/spec/current-system/architecture.md` (Backend Hexagonal Boundary)
+- `AGENTS.md` (Conventions That Differ From Defaults)
+- `backend/src/main/java/com/ozkaslibasar/financeproject/config/DomainConfig.java`
+- `backend/src/test/java/com/ozkaslibasar/financeproject/ArchitectureTest.java`

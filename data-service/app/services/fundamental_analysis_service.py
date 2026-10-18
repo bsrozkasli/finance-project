@@ -32,7 +32,7 @@ class FundamentalAnalysisService:
         .cashflow) to derive profitability, liquidity, leverage, cash-flow,
         and year-over-year growth metrics.
         """
-        ticker = yf.Ticker(symbol)
+        ticker = yf.Ticker(symbol)  # .info and statements stay direct reads: ADR-0006 D2 exception
 
         info = cls._safe_info(ticker)
         financials = cls._safe_df(ticker, "financials")

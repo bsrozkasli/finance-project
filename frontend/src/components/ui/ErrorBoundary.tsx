@@ -27,10 +27,10 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
     return (
       <div className="min-h-screen bg-bg-base text-text-primary flex items-center justify-center p-6 font-sans">
         <div className="w-full max-w-lg rounded-lg border border-outline-variant bg-bg-primary p-6 shadow-xl">
-          <p className="text-[10px] uppercase tracking-wider text-bear-red font-label-caps">Application Error</p>
-          <h1 className="mt-2 font-headline text-xl font-bold">Something went wrong</h1>
+          <p className="text-[10px] uppercase tracking-wider text-bear-red font-label-caps">Uygulama hatası</p>
+          <h1 className="mt-2 font-headline text-xl font-bold">Bir sorun oluştu</h1>
           <p className="mt-3 text-sm text-text-secondary">
-            The interface hit an unexpected rendering error. Reload the page after checking the browser console for details.
+            Ekran beklenmedik bir hatayla karşılaştı. Ayrıntılar için tarayıcı konsolunu kontrol edip sayfayı yeniden yükleyin.
           </p>
           <pre className="mt-4 max-h-40 overflow-auto rounded border border-outline-variant bg-bg-base p-3 text-xs text-text-secondary whitespace-pre-wrap">
             {this.state.error.message}
@@ -40,7 +40,7 @@ export default class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBo
             onClick={() => window.location.reload()}
             className="mt-5 rounded bg-primary px-4 py-2 text-sm font-bold text-bg-base hover:bg-primary-container transition-colors"
           >
-            Reload
+            Yeniden yükle
           </button>
         </div>
       </div>

@@ -3,6 +3,8 @@ from datetime import datetime
 from typing import Optional
 from enum import Enum
 
+from app.models.availability import SectionAvailability
+
 
 class TechnicalIndicators(BaseModel):
     rsi: float | None = Field(default=None)
@@ -112,6 +114,7 @@ class SentimentAnalysisResponse(BaseModel):
     article_count: int
     articles_analyzed: list[NewsArticle]
     calculated_at: datetime
+    availability: SectionAvailability
 
 
 class LlmInsightRequest(BaseModel):

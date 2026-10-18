@@ -1,0 +1,912 @@
+from __future__ import annotations
+
+import unittest
+from contextlib import contextmanager
+from pathlib import Path
+from textwrap import dedent
+
+from scripts.validate_product_docs import validate_product_docs
+
+
+TEST_TEMP_ROOT = Path(__file__).resolve().parents[2] / ".cache" / "product-doc-validation-tests"
+TEST_TEMP_ROOT.mkdir(parents=True, exist_ok=True)
+
+
+class ValidateProductDocsTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.fixture_path = TEST_TEMP_ROOT / self._testMethodName
+        self.fixture_path.mkdir(parents=True, exist_ok=True)
+        for path in self.fixture_path.rglob("*.md"):
+            path.unlink()
+
+    @contextmanager
+    def fixture(self):
+        yield self.fixture_path
+
+    def write(self, root: Path, relative: str, content: str) -> None:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(dedent(content).strip() + "\n", encoding="utf-8")
+
+    def codes(self, root: Path, complete: bool = False) -> set[str]:
+        return {error.code for error in validate_product_docs(root, complete=complete)}
+
+    def test_research_epic_preserves_target_date_selection_rule(self) -> None:
+        path = Path(__file__).resolve().parents[2] / "docs/product/epics/EPIC-003-end-to-end-asset-research.md"
+        text = path.read_text(encoding="utf-8")
+
+        self.assertIn("fiscal date nearest 24 months", text)
+        self.assertIn("between two eligible fiscal dates by distance from 24 months", text)
+
+    def test_research_epic_preserves_etf_substitution_gate(self) -> None:
+        path = Path(__file__).resolve().parents[2] / "docs/product/epics/EPIC-003-end-to-end-asset-research.md"
+        text = path.read_text(encoding="utf-8")
+
+        self.assertIn("only when rights prevent", text)
+        self.assertIn("lower Evidence Strength", text)
+
+    def test_rejects_duplicate_ids(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "evidence/backend.md",
+                """
+                # Backend Evidence
+                ## Audit Metadata
+                ## Evidence Records
+                ### CAP-CUR-BE-001
+                ### CAP-CUR-BE-001
+                ## Limitations
+                """,
+            )
+
+            self.assertIn("DUPLICATE_ID", self.codes(root))
+
+    def test_rejects_missing_required_story_heading(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            sections = [
+                "User Story",
+                "Business Value",
+                "Scope",
+                "Out of Scope",
+                "Preconditions",
+                "Data and Provenance",
+                "Degradation",
+                "Testing",
+                "Dependencies",
+                "Traceability",
+                "Definition of Done",
+            ]
+            body = "# STORY-000-01 Audit backend\n" + "\n".join(
+                f"## {section}\n- recorded" for section in sections
+            )
+            self.write(root, "stories/EPIC-000/STORY-000-01-audit.md", body)
+
+            self.assertIn("MISSING_SECTION", self.codes(root))
+
+    def test_rejects_unknown_requirement_reference(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Executive Summary
+                ## Product Scope
+                ## Functional Requirements
+                | `PRD-FR-001` | Proposed |
+                ## Non-Functional Requirements
+                | `PRD-NFR-001` | Proposed |
+                ## Testing Strategy
+                ## Degradation
+                ## References
+                """,
+            )
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Capability Gap Map
+                ## Gap Map
+                | Requirement | Evidence |
+                | `PRD-FR-999` | None |
+                ## Traceability
+                """,
+            )
+
+            self.assertIn("UNKNOWN_REFERENCE", self.codes(root))
+
+    def test_gap_map_requires_one_primary_row_per_requirement(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Executive Summary
+                ## Product Scope
+                ## Functional Requirements
+                | `CAP-TGT-001` | Approved |
+                | `PRD-FR-001` | Approved |
+                ## Non-Functional Requirements
+                | `PRD-NFR-001` | `CAP-TGT-001` | Approved |
+                ## Testing Strategy
+                ## Degradation
+                """,
+            )
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | OQ-1 | None | fixture | Blocked |
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | OQ-1 | None | fixture | Blocked |
+                ## Traceability
+                """,
+            )
+
+            codes = self.codes(root)
+            self.assertIn("GAP_DUPLICATE_REQUIREMENT", codes)
+            self.assertIn("GAP_MISSING_REQUIREMENT", codes)
+            self.assertNotIn("UNKNOWN_REFERENCE", codes)
+
+    def test_gap_map_rejects_invalid_class_or_owner(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Maybe | Missing behavior | `EPIC-099` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+
+            codes = self.codes(root)
+            self.assertIn("GAP_CLASS", codes)
+            self.assertIn("GAP_EPIC_OWNER", codes)
+
+    def test_gap_map_accepts_forward_epic_owner_until_epic_artifact_exists(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+
+            self.assertNotIn("UNKNOWN_REFERENCE", self.codes(root))
+
+    def test_epic_story_plan_accepts_forward_same_owner_story_references(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "epics/EPIC-000-verification.md",
+                """
+                # EPIC-000 Verification
+                ## Outcome
+                ## Problem
+                ## Scope
+                ## Out of Scope
+                ## Requirements
+                ## Dependencies
+                ## Risks
+                ## Success Evidence
+                ## Story Plan
+                1. STORY-000-01 audit backend.
+                2. STORY-000-02 audit data-service.
+                """,
+            )
+
+            self.assertNotIn("UNKNOWN_REFERENCE", self.codes(root))
+
+    def test_epic_forward_story_exception_stays_in_owner_story_plan(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "epics/EPIC-000-verification.md",
+                """
+                # EPIC-000 Verification
+                ## Outcome
+                ## Problem
+                ## Scope
+                ## Out of Scope
+                ## Requirements
+                ## Dependencies
+                ## Risks
+                - STORY-000-03 is not a plan item.
+                ## Success Evidence
+                ## Story Plan
+                1. STORY-000-01 audit backend.
+                2. STORY-001-01 belongs to another epic.
+                """,
+            )
+
+            errors = validate_product_docs(root)
+
+            self.assertEqual(
+                {"STORY-000-03", "STORY-001-01"},
+                {
+                    identifier
+                    for error in errors
+                    if error.code == "UNKNOWN_REFERENCE"
+                    for identifier in ("STORY-000-03", "STORY-001-01")
+                    if identifier in error.message
+                },
+            )
+
+    def test_delivery_epic_rejects_wrong_and_duplicate_requirement_owner(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n| `PRD-FR-002` | Approved |")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                | `PRD-FR-002` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-002` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                | `PRD-FR-002` | Wrongly own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Inspect source. | None |
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-002-outcome.md",
+                """
+                # EPIC-002 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-002` | Own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-002-01` | Inspect source. | None |
+                """,
+            )
+
+            codes = self.codes(root)
+
+            self.assertIn("EPIC_REQUIREMENT_OWNER", codes)
+            self.assertIn("EPIC_REQUIREMENT_DUPLICATE", codes)
+
+    def test_delivery_epic_requires_every_mapped_requirement(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |\n| `PRD-FR-002` | Approved |")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                | `PRD-FR-002` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Inspect source. | None |
+                """,
+            )
+
+            self.assertIn("EPIC_REQUIREMENT_MISSING", self.codes(root))
+
+    def test_delivery_epic_story_plan_rejects_duplicate_foreign_and_empty_entries(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(root, "PRD.md", "# PRD\n| `CAP-TGT-001` | Approved |\n| `PRD-FR-001` | Approved |")
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Show evidence. | None |
+                | `STORY-001-01` | Show evidence again. | None |
+                | `STORY-002-01` | Foreign owner. | None |
+                | `STORY-001-03` |  | None |
+                | `STORY-001-04` | Show data. |  |
+                """,
+            )
+
+            codes = self.codes(root)
+
+            self.assertIn("EPIC_STORY_DUPLICATE", codes)
+            self.assertIn("EPIC_STORY_OWNER", codes)
+            self.assertIn("EPIC_STORY_FIELDS", codes)
+
+    def test_delivery_epic_tables_accept_owned_requirements_and_forward_stories(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Executive Summary
+                ## Product Scope
+                ## Functional Requirements
+                | `CAP-TGT-001` | Approved |
+                | `PRD-FR-001` | Approved |
+                ## Non-Functional Requirements
+                ## Testing Strategy
+                ## Degradation
+                """,
+            )
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                - Phase: V1 Foundation.
+                ## Outcome
+                ## Problem
+                ## Scope
+                ## Out of Scope
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Dependencies
+                ## Risks
+                ## Success Evidence
+                - Fixture verifies the expected result.
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Show evidence. | OQ-3 |
+                """,
+            )
+
+            errors = validate_product_docs(root)
+
+            self.assertEqual([], errors)
+
+    def test_delivery_epic_rejects_deferred_value_mvp_promotion(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-050` | `CAP-TGT-009` | None | Deferred | Missing | `EPIC-009` | Post-V1 | None | fixture | Deferred |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-009-outcome.md",
+                """
+                # EPIC-009 Outcome
+                - Phase: Value MVP.
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-050` | Own it. |
+                ## Success Evidence
+                - Fixture verifies read-only behavior.
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-009-01` | Reconcile records. | EPIC-002 |
+                """,
+            )
+
+            self.assertIn("EPIC_PHASE", self.codes(root))
+
+    def test_delivery_epic_rejects_deferred_gap_readiness_promotion(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-050` | `CAP-TGT-009` | None | Deferred | Missing | `EPIC-009` | Post-V1 | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+
+            self.assertIn("EPIC_DEFERRED_READINESS", self.codes(root))
+
+    def test_delivery_complete_rejects_absent_epic_without_plan_seven_artifacts(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.assertIn(
+                "DELIVERY_EPIC_MISSING",
+                {error.code for error in validate_product_docs(root, delivery_complete=True)},
+            )
+
+    def test_delivery_epic_rejects_placeholder_dependency_and_evidence(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing | `EPIC-001` | OQ-2 | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root,
+                "epics/EPIC-001-outcome.md",
+                """
+                # EPIC-001 Outcome
+                - Phase: V1 Foundation.
+                ## Requirements
+                | Requirement | Boundary |
+                |---|---|
+                | `PRD-FR-001` | Own it. |
+                ## Success Evidence
+                ## Story Plan
+                | Proposed story | Outcome | Dependency |
+                |---|---|---|
+                | `STORY-001-01` | Show evidence. | None |
+                """,
+            )
+
+            codes = self.codes(root)
+            self.assertIn("EPIC_STORY_DEPENDENCY", codes)
+            self.assertIn("EPIC_SUCCESS_EVIDENCE", codes)
+
+    def test_rejects_e2_without_locator(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "evidence/backend.md",
+                """
+                # Backend Evidence
+                ## Audit Metadata
+                ## Evidence Records
+                ### CAP-CUR-BE-001
+                - Evidence Level: E2 - Implementation Verified
+                - Commit: abc1234
+                - Evidence Locator:
+                - Reviewer: reviewer
+                - Review Date: 2026-10-01
+                - Environment: local
+                - Verification: code inspection
+                - Limitations: tests not run
+                ## Limitations
+                """,
+            )
+
+            self.assertIn("EVIDENCE_LOCATOR", self.codes(root))
+
+    def test_rejects_evidence_record_without_legacy_claims(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "evidence/backend.md",
+                """
+                # Backend Evidence
+                ## Audit Metadata
+                ## Evidence Records
+                ### CAP-CUR-BE-001
+                - Summary: backend endpoint evidence
+                - Evidence Level: E1 - Documented Claim
+                - Contract: endpoint contract
+                - Evidence Locator: docs/current.md#endpoint
+                - Verification: documentation review
+                - Limitations: runtime not executed
+                ## Limitations
+                """,
+            )
+
+            self.assertIn("MISSING_EVIDENCE_FIELD", self.codes(root))
+
+    def test_rejects_target_requirement_marked_implemented(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Executive Summary
+                ## Product Scope
+                ## Functional Requirements
+                | `CAP-TGT-001` | Implemented |
+                | `PRD-FR-001` | Implemented |
+                ## Non-Functional Requirements
+                | `PRD-NFR-001` | Proposed |
+                ## Testing Strategy
+                ## Degradation
+                ## References
+                """,
+            )
+
+            self.assertIn("TARGET_IMPLEMENTED", self.codes(root))
+
+    def test_rejects_target_spec_without_degradation_requirement(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Target Requirements
+                ### CAP-TGT-001
+                - Status: Proposed
+                """,
+            )
+
+            self.assertIn("MISSING_DEGRADATION", self.codes(root))
+
+    def test_rejects_conflict_without_disposition(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "evidence/legacy-document-conflicts.md",
+                """
+                # Legacy Conflicts
+                ## Conflict Records
+                ### DOC-CONFLICT-001
+                - Claim A: legacy authentication is global
+                - Claim B: current routes are unauthenticated
+                """,
+            )
+
+            self.assertIn("CONFLICT_DISPOSITION", self.codes(root))
+
+    def test_policy_artifact_is_not_capability_evidence(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+            self.write(
+                root,
+                "CONTRIBUTING.md",
+                """
+                # Authoring Contract
+                ## Artifact Taxonomy
+                ## Stable IDs and Statuses
+                ## Evidence Contract
+                ## Authoring Workflow
+                - Evidence Level: E2 - Implementation Verified
+                """,
+            )
+
+            errors = validate_product_docs(root)
+
+            self.assertNotIn("EVIDENCE_LOCATOR", {error.code for error in errors})
+
+    def test_complete_mode_requires_canonical_artifacts(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory)
+
+            errors = validate_product_docs(root, complete=True)
+
+            self.assertTrue(any(error.code == "COMPLETE_ARTIFACT" for error in errors))
+
+    def test_complete_mode_rejects_missing_index_links(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(
+                root,
+                "README.md",
+                "# Product Index\n[Missing annex](evidence/missing.md)\n[External](https://example.com/reference)",
+            )
+            self.write(
+                root.parent,
+                "README.md",
+                "# Documentation Index\n[Missing epic](product/epics/missing.md)",
+            )
+
+            complete_errors = validate_product_docs(root, complete=True)
+            incremental_errors = validate_product_docs(root)
+
+            self.assertEqual(
+                {root / "README.md", root.parent / "README.md"},
+                {error.path for error in complete_errors if error.code == "INDEX_LINK_MISSING"},
+            )
+            self.assertNotIn("INDEX_LINK_MISSING", {error.code for error in incremental_errors})
+
+    def test_complete_mode_rejects_missing_reference_style_index_links(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(
+                root,
+                "README.md",
+                "# Product Index\n[Missing annex][annex]\n[annex]: evidence/missing.md",
+            )
+            self.write(
+                root.parent,
+                "README.md",
+                "# Documentation Index\n[Missing epic][]\n[Missing epic]: product/epics/missing.md",
+            )
+
+            errors = validate_product_docs(root, complete=True)
+
+            self.assertEqual(
+                {root / "README.md", root.parent / "README.md"},
+                {error.path for error in errors if error.code == "INDEX_LINK_MISSING"},
+            )
+
+    def test_complete_mode_requires_unique_canonical_navigation(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(root, "PRD.md", "# PRD")
+            self.write(root, "README.md", "# Product Index\n[PRD](PRD.md)\n[Again](PRD.md)")
+            self.write(root.parent, "README.md", "# Documentation Index")
+
+            errors = validate_product_docs(root, complete=True)
+
+            self.assertIn("INDEX_NAV_MISSING", {error.code for error in errors})
+            self.assertIn("INDEX_NAV_DUPLICATE", {error.code for error in errors})
+            self.assertTrue(
+                any(
+                    error.code == "INDEX_NAV_MISSING" and error.path == root.parent / "README.md"
+                    for error in errors
+                )
+            )
+
+    def test_complete_mode_rejects_duplicate_repository_index_entry(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(root, "README.md", "# Product Index")
+            self.write(
+                root.parent,
+                "README.md",
+                "# Documentation Index\n[Product](product/README.md)\n[Product again][product]\n[product]: product/README.md",
+            )
+
+            errors = validate_product_docs(root, complete=True)
+
+            self.assertTrue(
+                any(
+                    error.code == "INDEX_NAV_DUPLICATE" and error.path == root.parent / "README.md"
+                    for error in errors
+                )
+            )
+
+    def test_accepts_minimal_complete_document_set(self) -> None:
+        with self.fixture() as directory:
+            root = Path(directory) / "product"
+            self.write(
+                root,
+                "PRD.md",
+                """
+                # PRD
+                ## Executive Summary
+                ## Product Scope
+                ## Functional Requirements
+                | `CAP-TGT-001` | Proposed |
+                | `PRD-FR-001` | Proposed |
+                ## Non-Functional Requirements
+                | `PRD-NFR-001` | Proposed |
+                ## Testing Strategy
+                ## Degradation
+                ## References
+                """,
+            )
+            self.write(
+                root,
+                "CURRENT_STATE_BASELINE.md",
+                """
+                # Current-State Baseline
+                ## Method
+                ## Capability Inventory
+                ## Limitations
+                """,
+            )
+            self.write(
+                root,
+                "CAPABILITY_GAP_MAP.md",
+                """
+                # Capability Gap Map
+                ## Gap Map
+                | Requirement | Target | Current | Gap class | Gap | Epic | Dependency | Risk | Acceptance | Readiness |
+                |---|---|---|---|---|---|---|---|---|---|
+                | `PRD-FR-001` | `CAP-TGT-001` | None | Behavior | Missing behavior | `EPIC-001` | None | None | fixture | Ready |
+                | `PRD-NFR-001` | `CAP-TGT-001` | None | Verification | Missing proof | `EPIC-001` | None | None | fixture | Ready |
+                ## Traceability
+                """,
+            )
+            self.write(
+                root.parent,
+                "superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md",
+                "# Foundation",
+            )
+            for annex in ("backend", "data-service", "frontend", "cross-runtime"):
+                self.write(
+                    root,
+                    f"evidence/{annex}.md",
+                    "# Evidence\n## Audit Metadata\n## Evidence Records\n## Limitations",
+                )
+            self.write(
+                root,
+                "evidence/legacy-document-conflicts.md",
+                "# Legacy Conflicts\n## Conflict Records\n- Disposition: Retained.\n",
+            )
+
+            epic_sections = [
+                "Outcome",
+                "Problem",
+                "Scope",
+                "Out of Scope",
+                "Requirements",
+                "Dependencies",
+                "Risks",
+                "Success Evidence",
+                "Story Plan",
+            ]
+            for number in range(11):
+                epic_id = f"EPIC-{number:03d}"
+                body = f"# {epic_id} Outcome\n" + "\n".join(
+                    f"## {section}\n- recorded" for section in epic_sections
+                )
+                if number >= 1:
+                    if number <= 4:
+                        phase = "V1 Foundation"
+                    elif number <= 7:
+                        phase = "Value MVP"
+                    else:
+                        phase = "Post-V1"
+                    body = body.replace(
+                        f"# {epic_id} Outcome\n",
+                        f"# {epic_id} Outcome\n- Phase: {phase}.\n",
+                    ).replace(
+                        "## Success Evidence\n- recorded",
+                        "## Success Evidence\n- Fixture verifies the expected result.",
+                    ).replace(
+                        "## Story Plan\n- recorded",
+                        f"## Story Plan\n| Proposed story | Outcome | Dependency |\n|---|---|---|\n| `STORY-{number:03d}-01` | Show evidence. | OQ-3 |",
+                    )
+                if number == 1:
+                    body = body.replace(
+                        "## Requirements\n- recorded",
+                        "## Requirements\n| Requirement | Boundary |\n|---|---|\n| `PRD-FR-001` | Owned. |\n| `PRD-NFR-001` | Owned. |",
+                    )
+                self.write(root, f"epics/{epic_id}-outcome.md", body)
+
+            story_sections = [
+                "User Story",
+                "Business Value",
+                "Scope",
+                "Out of Scope",
+                "Preconditions",
+                "Acceptance Criteria",
+                "Data and Provenance",
+                "Degradation",
+                "Testing",
+                "Dependencies",
+                "Traceability",
+                "Definition of Done",
+            ]
+            for number in range(1, 7):
+                story_id = f"STORY-000-{number:02d}"
+                body = f"# {story_id} Verification\n" + "\n".join(
+                    f"## {section}\n- recorded" for section in story_sections
+                )
+                self.write(
+                    root,
+                    f"stories/EPIC-000/{story_id}-verification.md",
+                    body,
+                )
+
+            product_targets = [
+                "../superpowers/specs/2026-09-29-investment-platform-product-foundation-design.md",
+                "CURRENT_STATE_BASELINE.md",
+                "PRD.md",
+                "CAPABILITY_GAP_MAP.md",
+                *[path.relative_to(root).as_posix() for path in sorted((root / "evidence").glob("*.md"))],
+                *[path.relative_to(root).as_posix() for path in sorted((root / "epics").glob("*.md"))],
+                *[
+                    path.relative_to(root).as_posix()
+                    for path in sorted((root / "stories/EPIC-000").glob("*.md"))
+                ],
+            ]
+            self.write(
+                root,
+                "README.md",
+                "# Product Documentation\n" + "\n".join(f"[Artifact]({target})" for target in product_targets),
+            )
+            self.write(root.parent, "README.md", "# Documentation\n[Product](product/README.md)")
+
+            errors = validate_product_docs(root, complete=True, delivery_complete=True)
+
+            self.assertEqual([], errors)
+
+
+if __name__ == "__main__":
+    unittest.main()

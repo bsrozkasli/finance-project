@@ -3,10 +3,11 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 import type { Portfolio, Stock } from '../types';
+import { API_BASE_URL as API_BASE } from '../api/config';
+import { deleteInvestmentPortfolio } from '../api/client';
 import { server } from '../test/server';
 import PortfolioManagerView from './PortfolioManagerView';
 
-const API_BASE = 'http://localhost:8080/api/v1';
 const apiUrl = (path: string) => `${API_BASE}${path}`;
 
 const makeStock = (symbol: string, price: number): Stock => ({
@@ -142,16 +143,24 @@ const renderPortfolio = (
 );
 
 describe('PortfolioManagerView', () => {
+  it('marks the portfolio total unavailable when one holding has no price', async () => {
+    installPortfolioHandlers();
+    server.use(http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([])));
+    renderPortfolio(portfolio, [makeStock('AAPL', 210)]);
+    expect(await screen.findByRole('status')).toHaveTextContent('1/2 pozisyonun fiyatı var');
+    expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('-');
+  });
+
   it('renders the active portfolio command surface without the old trading control center', async () => {
     installPortfolioHandlers();
 
     renderPortfolio();
 
     expect(screen.getByRole('heading', { name: 'Growth' })).toBeInTheDocument();
-    expect(screen.getByText('Performance Analysis (USD)')).toBeInTheDocument();
-    expect(screen.getByText('Asset Allocation')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Current Holdings' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Transaction History' })).toBeInTheDocument();
+    expect(screen.getByText('Performans analizi (USD)')).toBeInTheDocument();
+    expect(screen.getByText('Varlık dağılımı')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pozisyonlar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'İşlem geçmişi' })).toBeInTheDocument();
     expect(screen.queryByText('Trading & Portfolio Control Center')).not.toBeInTheDocument();
     expect(screen.queryByText('Thematic Asset Allocation')).not.toBeInTheDocument();
 
@@ -168,11 +177,11 @@ describe('PortfolioManagerView', () => {
 
     renderPortfolio();
 
-    await user.click(screen.getByRole('button', { name: 'Monthly View' }));
-    expect(screen.getByText('Monthly Performance')).toBeInTheDocument();
-    expect(screen.getByText('Period Selection')).toBeInTheDocument();
-    expect(screen.getByText('Monthly Return')).toBeInTheDocument();
-    expect(screen.getByText('Total Return (Selected Range)')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Aylık görünüm' }));
+    expect(screen.getByText('Aylık performans')).toBeInTheDocument();
+    expect(screen.getByText('Dönem seçimi')).toBeInTheDocument();
+    expect(screen.getByText('Aylık getiri')).toBeInTheDocument();
+    expect(screen.getByText('Toplam getiri (seçilen dönem)')).toBeInTheDocument();
 
     const startMonth = screen.getByLabelText('Start Month') as HTMLSelectElement;
     const endMonth = screen.getByLabelText('End Month') as HTMLSelectElement;
@@ -181,7 +190,7 @@ describe('PortfolioManagerView', () => {
     await user.selectOptions(startMonth, '2026-03');
     expect(Array.from(endMonth.options).map((option) => option.value)).not.toContain('2026-02');
 
-    await user.click(screen.getByRole('button', { name: 'Transaction History' }));
+    await user.click(screen.getByRole('button', { name: 'İşlem geçmişi' }));
     await waitFor(() => expect(screen.getByText('Initial buy')).toBeInTheDocument());
     expect(screen.getByText('Purchase Amount')).toBeInTheDocument();
     expect(screen.getByText('Average Cost')).toBeInTheDocument();
@@ -208,15 +217,15 @@ describe('PortfolioManagerView', () => {
       onSelectPortfolioId,
     });
 
-    await user.click(screen.getByRole('button', { name: 'Create Portfolio' }));
+    await user.click(screen.getByRole('button', { name: 'Portföy oluştur' }));
     await user.type(screen.getByPlaceholderText('Growth, Income, Hedge...'), 'Income');
-    const createButtons = screen.getAllByRole('button', { name: 'Create Portfolio' });
+    const createButtons = screen.getAllByRole('button', { name: 'Portföy oluştur' });
     await user.click(createButtons[createButtons.length - 1]);
     await waitFor(() => expect(onCreatePortfolio).toHaveBeenCalledWith('Income'));
     expect(onSelectPortfolioId).toHaveBeenCalledWith('3');
 
-    await user.click(screen.getByRole('button', { name: 'Delete Portfolio' }));
-    const deleteButtons = screen.getAllByRole('button', { name: 'Delete Portfolio' });
+    await user.click(screen.getByRole('button', { name: 'Portföyü sil' }));
+    const deleteButtons = screen.getAllByRole('button', { name: 'Portföyü sil' });
     await user.click(deleteButtons[deleteButtons.length - 1]);
     await waitFor(() => expect(onDeletePortfolio).toHaveBeenCalledWith('2'));
     expect(onSelectPortfolioId).toHaveBeenCalledWith('1');
@@ -231,9 +240,9 @@ describe('PortfolioManagerView', () => {
       activePortfolioId: portfolio.id,
     });
 
-    await user.click(screen.getByRole('button', { name: 'Delete Portfolio' }));
+    await user.click(screen.getByRole('button', { name: 'Portföyü sil' }));
     expect(screen.getByText('Sell or transfer all holdings before deleting this portfolio.')).toBeInTheDocument();
-    const deleteButtons = screen.getAllByRole('button', { name: 'Delete Portfolio' });
+    const deleteButtons = screen.getAllByRole('button', { name: 'Portföyü sil' });
     expect(deleteButtons[deleteButtons.length - 1]).toBeDisabled();
   });
   it('keeps an unpriced holding visible without fabricating allocation values', async () => {
@@ -276,8 +285,41 @@ describe('PortfolioManagerView', () => {
 
     renderPortfolio({ id: '1', name: 'Empty', holdings: [] }, [makeStock('AAPL', 210)]);
 
-    expect(screen.getByText('No holdings are available for allocation analysis.')).toBeInTheDocument();
+    expect(screen.getByText('Dağılım için pozisyon bulunamadı.')).toBeInTheDocument();
     expect(screen.getByText('No current holdings are available.')).toBeInTheDocument();
     expect(screen.queryByText('AAPL')).not.toBeInTheDocument();
+  });
+
+  it('shows the backend conflict message when the server rejects a deletion the UI allowed', async () => {
+    server.use(
+      http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([])),
+      http.get(apiUrl('/portfolios/:portfolioId/transactions'), () => HttpResponse.json([])),
+      http.delete(apiUrl('/portfolios/2'), () => HttpResponse.json({
+        timestamp: '2026-10-17T10:00:00Z',
+        status: 409,
+        error: 'Conflict',
+        message: 'Portfolio cannot be deleted while it has active holdings',
+        path: '/api/v1/portfolios/2',
+      }, { status: 409 })),
+    );
+    const user = userEvent.setup();
+    const stalePortfolio: Portfolio = { id: '2', name: 'Stale', holdings: [] };
+    const onSelectPortfolioId = vi.fn();
+
+    renderPortfolio(stalePortfolio, [], {
+      portfolios: [portfolio, stalePortfolio],
+      activePortfolioId: stalePortfolio.id,
+      onDeletePortfolio: async () => {
+        await deleteInvestmentPortfolio(2);
+      },
+      onSelectPortfolioId,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Portföyü sil' }));
+    const deleteButtons = screen.getAllByRole('button', { name: 'Portföyü sil' });
+    await user.click(deleteButtons[deleteButtons.length - 1]);
+
+    expect(await screen.findByText('Portfolio cannot be deleted while it has active holdings')).toBeInTheDocument();
+    expect(onSelectPortfolioId).not.toHaveBeenCalled();
   });
 });

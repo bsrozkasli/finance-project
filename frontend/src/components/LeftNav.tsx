@@ -1,91 +1,48 @@
 import { Link, useLocation } from 'react-router-dom';
-import {
-  BarChart3,
-  TrendingUp,
-  LayoutList,
-  Newspaper,
-  Sparkles,
-  Settings,
-  HelpCircle,
-  Briefcase,
-  BookOpen,
-  SlidersHorizontal
-} from 'lucide-react';
+import { BookOpen, Briefcase, HelpCircle, LayoutList, Search, Settings, SlidersHorizontal, House } from 'lucide-react';
 
 interface LeftNavProps {
   onOpenSettings: () => void;
   onOpenManageAssets: () => void;
 }
 
+const items = [
+  { path: '/dashboard', label: 'Bugün', icon: House, matches: ['/dashboard'] },
+  { path: '/workspace', label: 'Araştır', icon: Search, matches: ['/workspace', '/news', '/reports'] },
+  { path: '/watchlist', label: 'İzleme Listem', icon: LayoutList, matches: ['/watchlist'] },
+  { path: '/portfolio', label: 'Portföy', icon: Briefcase, matches: ['/portfolio'] },
+  { path: '/journal', label: 'Günlük', icon: BookOpen, matches: ['/journal', '/transactions'] },
+];
+
 export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavProps) {
-  const location = useLocation();
-  const currentPath = location.pathname;
-
-  const menuItems = [
-    { path: '/dashboard', label: 'Overview', icon: BarChart3 },
-    { path: '/portfolio', label: 'Portfolio Management', icon: Briefcase },
-    { path: '/workspace', label: 'Technical Chart', icon: TrendingUp },
-    { path: '/watchlist', label: 'Watchlists', icon: LayoutList },
-    { path: '/news', label: 'News Feed', icon: Newspaper },
-    { path: '/reports', label: 'AI Analysis', icon: Sparkles },
-    { path: '/journal', label: 'Trading Journal', icon: BookOpen },
-  ];
-
+  const { pathname } = useLocation();
   return (
-    <aside className="w-16 md:w-56 bg-bg-base border-r border-outline-variant flex flex-col justify-between shrink-0 z-10">
-      <div className="py-6 flex flex-col gap-1 px-2 md:px-3">
-        <div className="hidden md:block text-[10px] text-text-muted font-label-caps uppercase tracking-wider px-3 mb-2">
-          Workspace
-        </div>
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = currentPath === item.path || (currentPath.startsWith(item.path) && item.path !== '/');
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              aria-label={item.label}
-              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-left transition-all group ${
-                isActive
-                  ? 'bg-primary-container/15 text-primary border-l-4 border-primary font-semibold'
-                  : 'text-text-secondary hover:text-text-primary hover:bg-bg-card/50'
-              }`}
-            >
-              <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-primary' : 'text-text-muted group-hover:text-text-primary transition-colors'}`} />
-              <span className="hidden md:inline text-sm truncate font-sans">{item.label}</span>
-            </Link>
-          );
-        })}
+    <aside className="desk-sidebar" aria-label="Ana gezinme">
+      <div>
+        <Link to="/dashboard" className="desk-brand" aria-label="Mercek ana sayfa"><span aria-hidden="true">m</span>mercek<span className="desk-brand-dot">.</span></Link>
+        <div className="desk-nav-caption">YATIRIM ARAŞTIRMA ALANI</div>
+        <nav className="flex md:flex-col md:gap-1" aria-label="Ana menü">
+          {items.map(({ path, label, icon: Icon, matches }) => {
+            const active = matches.some((match) => pathname === match || pathname.startsWith(`${match}/`));
+            return (
+              <Link
+                key={path}
+                to={path}
+                aria-current={active ? 'page' : undefined}
+                className="desk-nav-item"
+              >
+                <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                <span>{label}</span>
+              </Link>
+            );
+          })}
+        </nav>
       </div>
-      <div className="py-6 px-2 md:px-3 border-t border-outline-variant/30 flex flex-col gap-1">
-        <button
-          type="button"
-          aria-label="Manage Assets"
-          onClick={onOpenManageAssets}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card/50 text-left transition-all group"
-        >
-          <SlidersHorizontal className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
-          <span className="hidden md:inline text-xs font-sans">Manage Assets</span>
-        </button>
-        <button
-          type="button"
-          aria-label="System Settings"
-          onClick={onOpenSettings}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card/50 text-left transition-all group"
-        >
-          <Settings className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
-          <span className="hidden md:inline text-xs font-sans">System Settings</span>
-        </button>
-        <a
-          href="https://github.com/bsrozkasli/finance-project"
-          target="_blank"
-          rel="noreferrer"
-          aria-label="GitHub Source"
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card/50 text-left transition-all group"
-        >
-          <HelpCircle className="w-5 h-5 text-text-muted group-hover:text-text-primary transition-colors shrink-0" />
-          <span className="hidden md:inline text-xs font-sans">GitHub Source</span>
-        </a>
+      <div className="desk-sidebar-tools">
+        <p>Kanıtı incele.<br/>Kararını kendin ver.</p>
+        <button type="button" onClick={onOpenManageAssets} aria-label="Varlıkları yönet" className="flex items-center gap-3 min-h-11 px-3 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card text-sm text-left focus-visible:outline-2 focus-visible:outline-primary"><SlidersHorizontal className="w-5 h-5" />Varlıkları yönet</button>
+        <button type="button" onClick={onOpenSettings} aria-label="Ayarlar" className="flex items-center gap-3 min-h-11 px-3 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card text-sm text-left focus-visible:outline-2 focus-visible:outline-primary"><Settings className="w-5 h-5" />Ayarlar</button>
+        <a href="https://github.com/bsrozkasli/finance-project" target="_blank" rel="noreferrer" aria-label="GitHub Source" className="flex items-center gap-3 min-h-11 px-3 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card text-sm focus-visible:outline-2 focus-visible:outline-primary"><HelpCircle className="w-5 h-5" />Kaynak kodu</a>
       </div>
     </aside>
   );

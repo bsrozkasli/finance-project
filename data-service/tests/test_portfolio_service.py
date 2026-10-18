@@ -1,12 +1,15 @@
 import numpy as np
 import pandas as pd
-import yfinance as yf
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
 from app.models.portfolio import OptimizationObjective, OptimizationRequest
+from app.providers.base import OHLCVBar
+from app.providers.market_data_resolver import MarketDataResolver
+from app.services import portfolio_service
 from app.services.portfolio_service import PortfolioService
 from main import app
 
@@ -114,32 +117,54 @@ async def test_rebalance_check_endpoint_flags_sell_when_current_weight_exceeds_t
     assert actions["AAPL"]["requires_rebalance"] is True
 
 
-
-def test_fetch_price_matrix_uses_yfinance_close_prices_without_live_call(monkeypatch):
-    index = pd.date_range(end=pd.Timestamp.now(tz="UTC"), periods=4, freq="D")
-    raw = pd.DataFrame(
-        {
-            ("Close", "AAPL"): [100.0, 101.0, 102.0, 103.0],
-            ("Close", "MSFT"): [200.0, 201.0, 202.0, 203.0],
-            ("Open", "AAPL"): [99.0, 100.0, 101.0, 102.0],
-            ("Open", "MSFT"): [199.0, 200.0, 201.0, 202.0],
-        },
-        index=index,
+def _session_bar(days_ago: int, close: float) -> OHLCVBar:
+    session = datetime.now(timezone.utc).date() - timedelta(days=days_ago)
+    return OHLCVBar(
+        timestamp=datetime(session.year, session.month, session.day, 5, tzinfo=timezone.utc),
+        open=close, high=close, low=close, close=close, volume=1000,
     )
-    raw.columns = pd.MultiIndex.from_tuples(raw.columns)
-    captured: dict[str, Any] = {}
 
-    def fake_download(**kwargs):
-        # Mocking external yfinance I/O boundary; tests must not call financial APIs live.
-        captured.update(kwargs)
-        return raw
 
-    monkeypatch.setattr(yf, "download", fake_download)
+def _install_resolver(monkeypatch, scripted_provider, ohlcv: dict):
+    provider = scripted_provider("fx-portfolio", ohlcv=ohlcv)
+    monkeypatch.setattr(portfolio_service, "get_resolver", lambda: MarketDataResolver([provider]))
+    return provider
+
+
+def test_fetch_price_matrix_uses_resolver_closes_without_live_call(monkeypatch, scripted_provider):
+    today = datetime.now(timezone.utc).date()
+    provider = _install_resolver(monkeypatch, scripted_provider, {
+        # Day 50 is outside the 45-day lookback; day 0 (today) is excluded by the end-exclusive window.
+        "AAPL": [_session_bar(50, 1.0)] + [_session_bar(n, 104.0 - n) for n in (4, 3, 2, 1, 0)],
+        "MSFT": [_session_bar(n, 204.0 - n) for n in (4, 3, 2, 1, 0)],
+    })
 
     prices = PortfolioService._fetch_price_matrix([" aapl ", "MSFT"], lookback_days=45)
 
-    pd.testing.assert_frame_equal(prices, raw["Close"])
-    assert captured["tickers"] == "AAPL MSFT"
-    assert captured["auto_adjust"] is False
-    assert captured["actions"] is False
-    assert captured["progress"] is False
+    expected = pd.DataFrame(
+        {"AAPL": [100.0, 101.0, 102.0, 103.0], "MSFT": [200.0, 201.0, 202.0, 203.0]},
+        index=pd.DatetimeIndex([pd.Timestamp(today - timedelta(days=n)) for n in (4, 3, 2, 1)], name="Date"),
+    )
+    pd.testing.assert_frame_equal(prices, expected, check_index_type=False, check_freq=False)
+    assert [(call[1], call[2]) for call in provider.calls_for("ohlcv")] == [
+        (("AAPL", "1d", "3mo"), {"adjusted": True}),
+        (("MSFT", "1d", "3mo"), {"adjusted": True}),
+    ]
+
+
+def test_fetch_price_matrix_drops_symbol_without_history(monkeypatch, scripted_provider):
+    _install_resolver(monkeypatch, scripted_provider, {
+        "AAPL": [_session_bar(n, 100.0 + n) for n in (4, 3, 2, 1)],
+        "MSFT": [],
+    })
+
+    prices = PortfolioService._fetch_price_matrix(["AAPL", "MSFT"], lookback_days=45)
+
+    assert list(prices.columns) == ["AAPL"]
+
+
+def test_fetch_price_matrix_raises_when_no_symbol_has_history(monkeypatch, scripted_provider):
+    _install_resolver(monkeypatch, scripted_provider, {})
+
+    with pytest.raises(ValueError, match="No historical price data"):
+        PortfolioService._fetch_price_matrix(["AAPL", "MSFT"], lookback_days=45)

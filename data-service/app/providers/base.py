@@ -2,7 +2,8 @@
 Base types and IMarketDataProvider Protocol for the provider abstraction layer.
 
 Business logic must depend ONLY on these interfaces — never on yfinance,
-Tiingo SDK, or Finnhub SDK directly.
+Tiingo SDK, or Finnhub SDK directly. Recorded exceptions to this rule are listed
+in docs/adr/0006-data-service-price-history-through-resolver.md.
 """
 
 from __future__ import annotations
@@ -169,6 +170,7 @@ class IMarketDataProvider(Protocol):
         symbol: str,
         interval: str = "1d",
         period: str = "1y",
+        adjusted: bool = False,
     ) -> list[OHLCVBar]:
         """
         Fetch historical OHLCV bars.
@@ -177,6 +179,7 @@ class IMarketDataProvider(Protocol):
             symbol:   Ticker symbol (e.g. 'AAPL').
             interval: Bar interval compatible with the provider ('1d', '1h', …).
             period:   Lookback period ('1mo', '3mo', '1y', …).
+            adjusted: True for split- and dividend-adjusted prices (ADR-0006).
 
         Returns:
             Non-null, possibly empty list of bars in ascending timestamp order.

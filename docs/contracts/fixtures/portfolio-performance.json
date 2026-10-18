@@ -1,0 +1,8 @@
+{
+  "period": "1M",
+  "series": [
+    { "date": "2026-10-15", "portfolioValue": 200, "benchmarkValue": 200.0 },
+    { "date": "2026-10-16", "portfolioValue": 220, "benchmarkValue": 220.0 }
+  ],
+  "metrics": { "sharpe": null, "maxDrawdown": 0.0 }
+}

@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 import httpx
 
 from app.config import settings
+from app.errors import DependencyUnavailableError
 from app.models.earnings import (
     EarningsAnalysisResponse,
     EarningsMetrics,
@@ -36,11 +37,11 @@ class EarningsAnalysisService:
             ``EarningsAnalysisResponse`` with metrics, score, and history.
 
         Raises:
-            ValueError: If the Finnhub API key is not configured.
+            DependencyUnavailableError: If the Finnhub API key is not configured.
         """
 
         if not settings.FINNHUB_API_KEY:
-            raise ValueError("FINNHUB_API_KEY is not configured")
+            raise DependencyUnavailableError("FINNHUB_API_KEY is not configured")
 
         symbol = symbol.strip().upper()
 

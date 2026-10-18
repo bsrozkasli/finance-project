@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
 
+from app.models.availability import SectionAvailability
 from app.models.composite import (
     CompositeInvestmentScore,
     CompositeScoreBreakdown,
@@ -12,6 +13,61 @@ from app.services.factor_analysis_service import FactorAnalysisService
 from app.services.risk_analytics_service import RiskAnalyticsService
 from app.services.earnings_analysis_service import EarningsAnalysisService
 from app.services.enhanced_sentiment_service import EnhancedSentimentService
+
+_LEGACY_NEUTRAL = 50  # legacy default kept by C0a; availability says it is not evidence
+_VALUATION_GRADE_SCORES = (("VERY CHEAP", 95), ("CHEAP", 75), ("FAIR", 50), ("VERY EXPENSIVE", 5), ("EXPENSIVE", 25))
+
+
+def _missing(result) -> bool:
+    return result is None or isinstance(result, Exception)
+
+
+def _factor_score(factor_res, attribute: str) -> tuple[int, SectionAvailability]:
+    if _missing(factor_res):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("factor_component_unavailable")
+    if not hasattr(factor_res, attribute):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("factor_score_not_mapped")
+    value = getattr(factor_res, attribute)
+    if value is None:
+        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("factor_score_missing")
+    return int(value), SectionAvailability.available()
+
+
+def _valuation_score(val_res) -> tuple[int, SectionAvailability]:
+    if _missing(val_res):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("valuation_component_unavailable")
+    if not hasattr(val_res, "valuation_grade"):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("valuation_grade_not_mapped")
+    if val_res.valuation_grade is None:
+        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("valuation_grade_missing")
+    grade_str = getattr(val_res.valuation_grade, "value", str(val_res.valuation_grade)).upper()
+    for keyword, score in _VALUATION_GRADE_SCORES:
+        if keyword in grade_str:
+            return score, SectionAvailability.available()
+    return _LEGACY_NEUTRAL, SectionAvailability.insufficient("valuation_grade_unrecognized")
+
+
+def _earnings_score(earn_res) -> tuple[int, SectionAvailability]:
+    if _missing(earn_res):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("earnings_component_unavailable")
+    if not hasattr(earn_res, "earnings_score"):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("earnings_score_not_mapped")
+    if earn_res.earnings_score is None:
+        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("earnings_score_missing")
+    return int(earn_res.earnings_score), SectionAvailability.available()
+
+
+def _sentiment_score(sent_res) -> tuple[int, SectionAvailability]:
+    if _missing(sent_res):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("sentiment_component_unavailable")
+    if not hasattr(sent_res, "sentiment_score"):
+        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("sentiment_score_not_mapped")
+    if sent_res.sentiment_score is None:
+        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("sentiment_score_missing")
+    score = int(sent_res.sentiment_score)
+    if getattr(sent_res, "unavailable_components", []):
+        return score, SectionAvailability.insufficient("sentiment_sections_unavailable")
+    return score, SectionAvailability.available()
 
 
 class CompositeScoreService:
@@ -65,51 +121,30 @@ class CompositeScoreService:
         )
 
         fund_res, val_res, factor_res, risk_res, earn_res, sent_res = results
+        fetched = {
+            "fundamental": fund_res, "valuation": val_res, "factor": factor_res,
+            "risk": risk_res, "earnings": earn_res, "sentiment": sent_res,
+        }
+        unavailable_components = [name for name, result in fetched.items() if _missing(result)]
 
         success_count = sum(1 for r in results if r is not None and not isinstance(r, Exception))
         total_calls = 6
         confidence = success_count / total_calls if total_calls > 0 else 0.0
 
-        # Default neutral scores
-        quality_score = 50
-        growth_score = 50
-        momentum_score = 50
-        risk_score = 50
-
-        if factor_res and not isinstance(factor_res, Exception):
-            if hasattr(factor_res, "quality_score") and factor_res.quality_score is not None:
-                quality_score = int(factor_res.quality_score)
-            if hasattr(factor_res, "growth_score") and factor_res.growth_score is not None:
-                growth_score = int(factor_res.growth_score)
-            if hasattr(factor_res, "momentum_score") and factor_res.momentum_score is not None:
-                momentum_score = int(factor_res.momentum_score)
-            if hasattr(factor_res, "low_volatility_score") and factor_res.low_volatility_score is not None:
-                risk_score = int(factor_res.low_volatility_score)
+        quality_score, quality_availability = _factor_score(factor_res, "quality_score")
+        growth_score, growth_availability = _factor_score(factor_res, "growth_score")
+        momentum_score, momentum_availability = _factor_score(factor_res, "momentum_score")
+        risk_score, risk_availability = _factor_score(factor_res, "low_volatility_score")
 
         fundamental_score = (quality_score + growth_score) // 2
+        if quality_availability.status == "available" and growth_availability.status == "available":
+            fundamental_availability = SectionAvailability.available()
+        else:
+            fundamental_availability = SectionAvailability.unavailable("derived_from_defaulted_fields")
 
-        valuation_score = 50
-        if val_res and not isinstance(val_res, Exception):
-            if hasattr(val_res, "valuation_grade") and val_res.valuation_grade is not None:
-                grade_str = getattr(val_res.valuation_grade, "value", str(val_res.valuation_grade)).upper()
-                if "VERY CHEAP" in grade_str:
-                    valuation_score = 95
-                elif "CHEAP" in grade_str:
-                    valuation_score = 75
-                elif "FAIR" in grade_str:
-                    valuation_score = 50
-                elif "VERY EXPENSIVE" in grade_str:
-                    valuation_score = 5
-                elif "EXPENSIVE" in grade_str:
-                    valuation_score = 25
-
-        earnings_score = 50
-        if earn_res and not isinstance(earn_res, Exception) and hasattr(earn_res, "earnings_score") and earn_res.earnings_score is not None:
-            earnings_score = int(earn_res.earnings_score)
-
-        sentiment_score = 50
-        if sent_res and not isinstance(sent_res, Exception) and hasattr(sent_res, "sentiment_score") and sent_res.sentiment_score is not None:
-            sentiment_score = int(sent_res.sentiment_score)
+        valuation_score, valuation_availability = _valuation_score(val_res)
+        earnings_score, earnings_availability = _earnings_score(earn_res)
+        sentiment_score, sentiment_availability = _sentiment_score(sent_res)
 
         overall_float = (
             fundamental_score * 0.25 +
@@ -167,5 +202,16 @@ class CompositeScoreService:
             recommendation=recommendation,
             breakdown=breakdown,
             confidence=confidence,
-            calculated_at=datetime.now(timezone.utc)
+            calculated_at=datetime.now(timezone.utc),
+            breakdown_availability={
+                "fundamental_score": fundamental_availability,
+                "valuation_score": valuation_availability,
+                "quality_score": quality_availability,
+                "growth_score": growth_availability,
+                "momentum_score": momentum_availability,
+                "risk_score": risk_availability,
+                "earnings_score": earnings_availability,
+                "sentiment_score": sentiment_availability,
+            },
+            unavailable_components=unavailable_components,
         )

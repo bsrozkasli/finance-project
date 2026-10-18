@@ -206,26 +206,26 @@ export default function WatchlistsView({
       <div className="flex-1 overflow-y-auto bg-bg-primary p-4 sm:p-6">
         <div className="rounded-lg border border-outline-variant bg-bg-card p-6 shadow-lg">
           <div className="max-w-xl">
-            <div className="text-[10px] font-label-caps uppercase tracking-wider text-text-muted">Watchlists</div>
-            <h2 className="mt-2 font-headline text-2xl font-bold text-text-primary">Create a Watchlist</h2>
+            <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">İzleme listeleri</div>
+            <h2 className="mt-2 font-headline text-2xl font-bold text-text-primary">İzleme listesi oluşturun</h2>
             <p className="mt-2 text-sm text-text-secondary">
-              Build a focused list of symbols before loading research snapshots.
+              Araştırmak istediğiniz sembolleri bir listede toplayın.
             </p>
             <div className="mt-5 flex max-w-md gap-2">
               <input
                 value={newWatchlistName}
                 onChange={(event) => setNewWatchlistName(event.target.value)}
-                placeholder="Watchlist name"
+                placeholder="Liste adı"
                 className="min-w-0 flex-1 rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
               />
               <button
                 type="button"
                 onClick={handleCreateWatchlist}
                 disabled={creatingWatchlist || !newWatchlistName.trim()}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-bg-base shadow-sm disabled:opacity-60"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-bg-base  disabled:opacity-60"
               >
                 {creatingWatchlist ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Create
+                Oluştur
               </button>
             </div>
             {actionError ? <div className="mt-3 text-xs text-bear-red">{actionError}</div> : null}
@@ -239,10 +239,10 @@ export default function WatchlistsView({
     <div className="flex-1 overflow-y-auto bg-bg-primary p-4 sm:p-6">
       <div className="mb-5 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <div className="text-[10px] font-label-caps uppercase tracking-wider text-text-muted">Watchlist Workspace</div>
-          <h2 className="mt-1 font-headline text-2xl font-bold tracking-tight text-text-primary">Watchlist Research</h2>
+          <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">İzleme alanı</div>
+          <h2 className="mt-1 font-headline text-2xl font-bold tracking-tight text-text-primary">İzleme listem</h2>
           <p className="mt-1 max-w-2xl text-sm text-text-secondary">
-            Screen symbol groups with price, technical, fundamental, earnings, and data-quality context.
+            Varlıkları fiyat, teknik, temel veri ve veri kalitesi bağlamında inceleyin.
           </p>
         </div>
 
@@ -250,17 +250,17 @@ export default function WatchlistsView({
           <input
             value={newWatchlistName}
             onChange={(event) => setNewWatchlistName(event.target.value)}
-            placeholder="New watchlist"
+            placeholder="Yeni liste adı"
             className="rounded-lg border border-outline-variant bg-bg-card px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
           />
           <button
             type="button"
             onClick={handleCreateWatchlist}
             disabled={creatingWatchlist || !newWatchlistName.trim()}
-            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-bg-base shadow-sm disabled:opacity-60"
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-bg-base  disabled:opacity-60"
           >
             {creatingWatchlist ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Create
+            Oluştur
           </button>
         </div>
       </div>
@@ -275,10 +275,11 @@ export default function WatchlistsView({
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
-            <label className="mb-2 block text-[10px] font-label-caps uppercase tracking-wider text-text-muted">
+            <label htmlFor="active-watchlist" className="mb-2 block text-xs font-label-caps uppercase tracking-wider text-text-muted">
               Active List
             </label>
             <select
+              id="active-watchlist"
               value={activeWatchlist?.id ?? ''}
               onChange={(event) => handleSelectWatchlist(event.target.value)}
               className="w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary focus:border-primary focus:outline-none"
@@ -302,7 +303,7 @@ export default function WatchlistsView({
           </section>
 
           <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
-            <label className="mb-2 block text-[10px] font-label-caps uppercase tracking-wider text-text-muted">
+            <label className="mb-2 block text-xs font-label-caps uppercase tracking-wider text-text-muted">
               Add Symbol
             </label>
             <div className="flex gap-2">
@@ -330,8 +331,8 @@ export default function WatchlistsView({
 
           <section className="rounded-lg border border-outline-variant bg-bg-card p-3 shadow-lg">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-[10px] font-label-caps uppercase tracking-wider text-text-muted">Symbols</div>
-              <div className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 font-data-mono text-[10px] text-text-muted">
+              <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Symbols</div>
+              <div className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 font-data-mono text-xs text-text-muted">
                 {activeSymbols.length}
               </div>
             </div>
@@ -364,12 +365,12 @@ export default function WatchlistsView({
                             <CompanyLogo symbol={symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
                             <div className="min-w-0">
                               <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
-                              <div className="truncate text-[10px] text-text-muted">
+                              <div className="truncate text-xs text-text-muted">
                                 {row?.name ?? stock?.name ?? 'Metadata unavailable'}
                               </div>
                             </div>
                           </div>
-                          <span className={`shrink-0 rounded-full border px-2 py-1 font-data-mono text-[9px] font-bold ${statusClass(row?.overallStatus ?? 'EMPTY')}`}>
+                          <span className={`shrink-0 rounded-full border px-2 py-1 font-data-mono text-xs font-bold ${statusClass(row?.overallStatus ?? 'EMPTY')}`}>
                             {statusLabel(row?.overallStatus ?? 'EMPTY')}
                           </span>
                         </div>
@@ -402,7 +403,7 @@ export default function WatchlistsView({
           <section className="rounded-lg border border-outline-variant bg-bg-card shadow-lg">
             <div className="flex flex-col gap-4 border-b border-outline-variant/40 p-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="text-[10px] font-label-caps uppercase tracking-wider text-text-muted">Research Snapshot</div>
+                <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Research Snapshot</div>
                 <h3 className="mt-1 font-headline text-xl font-bold text-text-primary">
                   {activeWatchlist?.name ?? 'Watchlist'} Coverage
                 </h3>
@@ -414,7 +415,7 @@ export default function WatchlistsView({
                   <input
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Search symbols"
+                    placeholder="Sembol ara"
                     className="w-full rounded-lg border border-outline-variant bg-bg-base py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none sm:w-56"
                   />
                 </label>
@@ -424,27 +425,27 @@ export default function WatchlistsView({
                   className="inline-flex items-center justify-center gap-2 rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary hover:border-primary/40"
                 >
                   <RefreshCw className={`h-4 w-4 ${researchLoading ? 'animate-spin' : ''}`} />
-                  Refresh
+                  Yenile
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 border-b border-outline-variant/30 p-4 md:grid-cols-4">
-              <SnapshotTile icon={<CheckCircle2 className="h-4 w-4" />} label="Healthy" value={`${statusCounts.OK ?? 0}/${researchRows.length}`} />
-              <SnapshotTile icon={<Clock3 className="h-4 w-4" />} label="Generated" value={formatDateTime(researchSnapshot?.generatedAt)} />
-              <SnapshotTile icon={<Activity className="h-4 w-4" />} label="Concurrency" value={researchSnapshot?.policy.providerConcurrencyLimit ? String(researchSnapshot.policy.providerConcurrencyLimit) : 'N/A'} />
-              <SnapshotTile icon={<TrendingUp className="h-4 w-4" />} label="Timeout" value={researchSnapshot?.policy.providerTimeoutMillis ? `${researchSnapshot.policy.providerTimeoutMillis} ms` : 'N/A'} />
+              <SnapshotTile icon={<CheckCircle2 className="h-4 w-4" />} label="Sağlıklı" value={`${statusCounts.OK ?? 0}/${researchRows.length}`} />
+              <SnapshotTile icon={<Clock3 className="h-4 w-4" />} label="Oluşturulma" value={formatDateTime(researchSnapshot?.generatedAt)} />
+              <SnapshotTile icon={<Activity className="h-4 w-4" />} label="Eşzamanlılık" value={researchSnapshot?.policy?.providerConcurrencyLimit ? String(researchSnapshot.policy.providerConcurrencyLimit) : '—'} />
+              <SnapshotTile icon={<TrendingUp className="h-4 w-4" />} label="Zaman aşımı" value={researchSnapshot?.policy?.providerTimeoutMillis ? `${researchSnapshot.policy.providerTimeoutMillis} ms` : '—'} />
             </div>
 
             {researchError ? (
               <div className="m-4 flex items-center gap-2 rounded-lg border border-bear-red/30 bg-bear-red/10 p-4 text-sm text-bear-red">
                 <AlertCircle className="h-4 w-4" />
-                Snapshot could not be loaded. Watchlist controls remain available.
+                Araştırma özeti yüklenemedi. İzleme listesi kullanılabilir.
               </div>
             ) : researchLoading && researchRows.length === 0 ? (
               <div className="m-4 flex items-center justify-center gap-2 rounded-lg border border-outline-variant/40 bg-bg-base/40 p-8 text-sm text-text-muted">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading research snapshot
+                Araştırma özeti yükleniyor
               </div>
             ) : researchRows.length === 0 ? (
               <div className="m-4 rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-text-muted">
@@ -457,7 +458,7 @@ export default function WatchlistsView({
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1060px] text-left text-xs">
-                  <thead className="sticky top-0 bg-bg-base/80 text-[10px] uppercase tracking-wider text-text-muted">
+                  <thead className="sticky top-0 bg-bg-base/80 text-xs uppercase tracking-wider text-text-muted">
                     <tr>
                       <th className="px-4 py-3">Symbol</th>
                       <th className="px-4 py-3">Last Price</th>
@@ -487,7 +488,7 @@ export default function WatchlistsView({
                               <CompanyLogo symbol={row.symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
                               <div className="min-w-0">
                                 <div className="font-data-mono font-bold text-text-primary">{row.symbol}</div>
-                                <div className="max-w-40 truncate text-[10px] text-text-muted">{row.name ?? stock?.name ?? 'Metadata unavailable'}</div>
+                                <div className="max-w-40 truncate text-xs text-text-muted">{row.name ?? stock?.name ?? 'Metadata unavailable'}</div>
                               </div>
                             </div>
                           </td>
@@ -496,7 +497,7 @@ export default function WatchlistsView({
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatNumber(row.technical.data?.rsi14, 1)}</td>
                           <td className="px-4 py-4">
                             <div className="font-data-mono font-bold text-text-primary">{row.technical.data?.action ?? 'N/A'}</div>
-                            <div className="text-[10px] text-text-muted">{formatPercentRatio(row.technical.data?.confidence)}</div>
+                            <div className="text-xs text-text-muted">{formatPercentRatio(row.technical.data?.confidence)}</div>
                           </td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatPercentRatio(row.fundamentals.data?.roe)}</td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatNumber(row.fundamentals.data?.debtToEquity)}</td>
@@ -504,7 +505,7 @@ export default function WatchlistsView({
                             <div className="font-data-mono text-text-primary">
                               {row.earnings.data?.quarters?.[0]?.period ?? 'N/A'}
                             </div>
-                            <div className="text-[10px] text-text-muted">
+                            <div className="text-xs text-text-muted">
                               {formatPercentRatio(row.earnings.data?.quarters?.[0]?.surprisePct)}
                             </div>
                           </td>
@@ -537,7 +538,7 @@ function SummaryTile({ label, value, tone = 'neutral' }: { label: string; value:
   const toneClass = tone === 'positive' ? 'text-bull-green' : tone === 'negative' ? 'text-bear-red' : 'text-text-primary';
   return (
     <div className="rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3">
-      <div className="text-[9px] uppercase tracking-wide text-text-muted">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-text-muted">{label}</div>
       <div className={`mt-1 font-data-mono text-base font-bold ${toneClass}`}>{value}</div>
     </div>
   );
@@ -546,7 +547,7 @@ function SummaryTile({ label, value, tone = 'neutral' }: { label: string; value:
 function SnapshotTile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3">
-      <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-text-muted">
+      <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-text-muted">
         <span className="text-primary">{icon}</span>
         {label}
       </div>
@@ -558,7 +559,7 @@ function SnapshotTile({ icon, label, value }: { icon: React.ReactNode; label: st
 function StatusPill({ status, title }: { status: WatchlistResearchStatus; title?: string }) {
   return (
     <span
-      className={`inline-flex rounded-full border px-2 py-1 font-data-mono text-[10px] font-bold ${statusClass(status)}`}
+      className={`inline-flex rounded-full border px-2 py-1 font-data-mono text-xs font-bold ${statusClass(status)}`}
       title={title}
     >
       {statusLabel(status)}
@@ -596,13 +597,13 @@ function SelectedInstrumentPanel({
     <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <div className="text-[10px] font-label-caps uppercase tracking-wider text-text-muted">Selected Instrument</div>
+          <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Selected Instrument</div>
           <h3 className="mt-1 truncate font-headline text-xl font-bold text-text-primary">
             {symbol}{stock ? ` - ${stock.name}` : ''}
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
             {row ? <StatusPill status={row.overallStatus} /> : <StatusPill status="EMPTY" />}
-            <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-[10px] text-text-muted">
+            <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-xs text-text-muted">
               Updated {formatDateTime(row?.price.observedAt)}
             </span>
           </div>
@@ -619,7 +620,7 @@ function SelectedInstrumentPanel({
           <button
             type="button"
             onClick={() => onOpenTradeModal(symbol)}
-            className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-bg-base shadow-sm"
+            className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-bg-base "
           >
             Trade
           </button>
@@ -649,7 +650,7 @@ function SelectedInstrumentPanel({
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3">
-      <div className="text-[9px] uppercase tracking-wide text-text-muted">{label}</div>
+      <div className="text-xs uppercase tracking-wide text-text-muted">{label}</div>
       <div className="mt-1 truncate font-data-mono text-sm font-bold text-text-primary">{value}</div>
     </div>
   );
@@ -669,11 +670,11 @@ function ResearchSource({
   return (
     <div className="rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="text-[10px] font-bold uppercase tracking-wide text-text-muted">{label}</div>
+        <div className="text-xs font-bold uppercase tracking-wide text-text-muted">{label}</div>
         <StatusPill status={status} />
       </div>
       <div className="mt-2 truncate text-xs text-text-secondary">{source ?? 'No provider'}</div>
-      {message ? <div className="mt-1 truncate text-[10px] text-text-muted">{message}</div> : null}
+      {message ? <div className="mt-1 truncate text-xs text-text-muted">{message}</div> : null}
     </div>
   );
 }

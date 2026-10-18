@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import httpx
 
 from app.config import settings
+from app.models.availability import SectionAvailability
 from app.models.sentiment import (
     AnalystRecommendation,
     EnhancedSentimentResponse,
@@ -37,16 +38,17 @@ class EnhancedSentimentService:
         now = datetime.now(timezone.utc)
 
         # 1. News sentiment (reuse existing service)
-        news_score, news_label = await cls._fetch_news_sentiment(symbol)
+        news_score, news_label, news_availability = await cls._fetch_news_sentiment(symbol)
 
         # 2. Analyst recommendations (Finnhub)
-        analyst_score, analyst_consensus, analyst_data = await cls._fetch_analyst_data(symbol)
+        analyst_score, analyst_consensus, analyst_data, analyst_availability = await cls._fetch_analyst_data(symbol)
 
         # 3. Insider transactions (Finnhub)
-        insider_score, insider_summary, insider_txns = await cls._fetch_insider_data(symbol)
+        insider_score, insider_summary, insider_txns, insider_availability = await cls._fetch_insider_data(symbol)
 
         # 4. Composite score  (0-100)
         sentiment_score = cls._compute_composite(news_score, analyst_score, insider_score)
+        sections = {"news": news_availability, "analyst": analyst_availability, "insider": insider_availability}
 
         return EnhancedSentimentResponse(
             symbol=symbol,
@@ -60,30 +62,34 @@ class EnhancedSentimentService:
             recent_insider_transactions=insider_txns,
             sentiment_score=sentiment_score,
             calculated_at=now,
+            news_availability=news_availability,
+            analyst_availability=analyst_availability,
+            insider_availability=insider_availability,
+            unavailable_components=[name for name, availability in sections.items() if availability.status != "available"],
         )
 
     # --- news --------------------------------------------------------------
 
     @classmethod
-    async def _fetch_news_sentiment(cls, symbol: str) -> tuple[float, str]:
+    async def _fetch_news_sentiment(cls, symbol: str) -> tuple[float, str, SectionAvailability]:
         """Delegate to the existing ``SentimentService`` for LLM-based news
-        sentiment.  Returns ``(score, label)`` defaulting to neutral on error.
+        sentiment.  Returns ``(score, label, availability)`` defaulting to neutral on error.
         """
         try:
             from app.services.sentiment_service import SentimentService
 
             news_result = await SentimentService.analyze_sentiment(symbol)
-            return news_result.score, news_result.label
+            return news_result.score, news_result.label, news_result.availability
         except Exception:
             logger.warning("News sentiment fetch failed for %s, defaulting to neutral", symbol)
-            return 0.0, "NEUTRAL"
+            return 0.0, "NEUTRAL", SectionAvailability.unavailable("news_sentiment_failed")
 
     # --- analyst recommendations -------------------------------------------
 
     @classmethod
     async def _fetch_analyst_data(
         cls, symbol: str
-    ) -> tuple[float, str, AnalystRecommendation | None]:
+    ) -> tuple[float, str, AnalystRecommendation | None, SectionAvailability]:
         """Fetch the most-recent analyst recommendation from Finnhub and
         compute a normalised score in ``[-1, 1]``.
         """
@@ -97,7 +103,7 @@ class EnhancedSentimentService:
                 data = response.json()
 
             if not data:
-                return 0.0, "Hold", None
+                return 0.0, "Hold", None, SectionAvailability.insufficient("no_analyst_recommendations")
 
             # Most-recent entry is first in the list
             latest = data[0]
@@ -123,11 +129,16 @@ class EnhancedSentimentService:
             )
             consensus = cls._analyst_consensus_label(analyst_score)
 
-            return analyst_score, consensus, analyst_rec
+            if strong_buy + buy + hold + sell + strong_sell > 0:
+                availability = SectionAvailability.available()
+            else:
+                availability = SectionAvailability.insufficient("analyst_counts_empty")
+
+            return analyst_score, consensus, analyst_rec, availability
 
         except Exception:
             logger.warning("Analyst data fetch failed for %s, defaulting to neutral", symbol)
-            return 0.0, "Hold", None
+            return 0.0, "Hold", None, SectionAvailability.unavailable("analyst_fetch_failed")
 
     @staticmethod
     def _compute_analyst_score(
@@ -158,7 +169,7 @@ class EnhancedSentimentService:
     @classmethod
     async def _fetch_insider_data(
         cls, symbol: str
-    ) -> tuple[float, str, list[InsiderTransaction]]:
+    ) -> tuple[float, str, list[InsiderTransaction], SectionAvailability]:
         """Fetch insider transactions from Finnhub and compute a directional
         score based on buy/sell activity weighted by executive seniority.
         """
@@ -173,7 +184,7 @@ class EnhancedSentimentService:
 
             transactions_raw = raw.get("data", [])
             if not transactions_raw:
-                return 0.0, "No recent insider activity", []
+                return 0.0, "No recent insider activity", [], SectionAvailability.insufficient("no_insider_transactions")
 
             # Take last 10 transactions
             transactions_raw = transactions_raw[:10]
@@ -219,11 +230,11 @@ class EnhancedSentimentService:
             insider_score = max(-1.0, min(1.0, cumulative_score))
             summary = cls._insider_summary_label(insider_score, len(insider_txns))
 
-            return insider_score, summary, insider_txns
+            return insider_score, summary, insider_txns, SectionAvailability.available()
 
         except Exception:
             logger.warning("Insider data fetch failed for %s, defaulting to neutral", symbol)
-            return 0.0, "No insider data available", []
+            return 0.0, "No insider data available", [], SectionAvailability.unavailable("insider_fetch_failed")
 
     @staticmethod
     def _is_c_suite(name: str, title: str) -> bool:

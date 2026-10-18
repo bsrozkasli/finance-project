@@ -1,0 +1,23 @@
+{
+  "agent": "workflow",
+  "votes": [
+    {"id":"D01","choice":"A","reason":"Uzun finansal tablo ve analist metni için açık veri yüzeyi önceliğim.","reservation":"Karanlık ortamda açık yüzey daha parlak kalır."},
+    {"id":"D02","choice":"A","reason":"Etkileşimi veri eskiliği ve kısmi kanıt uyarısından ayırır.","reservation":"Kimlik yalnız kobalt renge dayanırsa sıradanlaşır."},
+    {"id":"D03","choice":"B","reason":"Beş görevli gezinmede açık menü yeterli; koyu sol bloğun görsel ağırlığını gereksiz buluyorum.","reservation":"Gezinmenin açık veri alanından ayrımı daha zayıftır; seçili zemin, çizgi ve metin birlikte gereklidir."},
+    {"id":"D04","choice":"A","reason":"40px varsayılan okunurluk, 32px isteğe bağlı yoğunluk sağlar.","reservation":"İlk açılışta aynı yükseklikte daha az satır görünür."},
+    {"id":"D05","choice":"A","reason":"Kalıcı kısa kaynak satırı bulunabilirliği korur; isteğe bağlı panel karşılaştırma genişliğini yalnız yeterli alanda kullanır.","reservation":"1440px ve 900px koşulları birlikte uygulanmalı; 280px panel başlangıçta kapalı olmalı."},
+    {"id":"D06","choice":"A","reason":"Mevcut portföy kanıtını ve günlük inceleme sırasını izler; desteklenmeyen araştırma kuyruğu gerektirmez.","reservation":"Portföyü olmayan kullanıcıda oluşturma eylemi ve boş durum anlamlı olmalıdır."},
+    {"id":"D07","choice":"A","reason":"Grafik fiyat bağlamından ayrıntılı finansal kanıta geçişi sağlar; ilk iki turdaki sıramı koruyorum.","reservation":"Bu sıra uzun vadeli araştırmayı teknik alım sinyali akışına dönüştürmemeli."},
+    {"id":"D08","choice":"A","reason":"Genel bakış hisse ve ETF için finansal tabloyu zorunlu kılmadan ortak başlangıç sağlar.","reservation":"Doğrudan bölüm bağlantıları seçilen görevi açabilmeli."},
+    {"id":"D09","choice":"A","reason":"Kayıt eylemiyle sayfaya gitmeyi ayırır; panelde eylem rekabetini azaltır.","reservation":"Görüntüleme ekranında primary buton bulunması zorunlu değildir."},
+    {"id":"D10","choice":"A","reason":"Aramanın mevcut kayıt kapsamını kontrol açılmadan açıklar.","reservation":"Tüm piyasa araması ileride gerçekten eklenirse bu label yeniden değerlendirilir."},
+    {"id":"D11","choice":"A","reason":"Güncel değer, maliyet ve kapsamı ayrı kavramlar olarak belirginleştirir.","reservation":"Güncel sözcüğünün yanında gözlem zamanı bulunmalı; canlı veri anlamına gelmemeli."},
+    {"id":"D12","choice":"A","reason":"12px kaynak bilgisi alt sınırı ve 14px gövde uzun araştırma metnini destekler.","reservation":"Daha az satırı yazıyı küçülterek telafi etmeyelim."},
+    {"id":"D13","choice":"A","reason":"İlk turdaki 192px menü ve 24px kenar önerime uyuyor; 16px panel arası dengeli alan bırakır.","reservation":"Dar ekranlarda masaüstü ölçüleri sabit uygulanmamalı."},
+    {"id":"D14","choice":"A","reason":"Önizleme sözcüğü kalıcı kayıt yapılmadığını eylemin kendisinde belirtir.","reservation":"Düzenleyicinin yanında yenilemede silinme bilgisi de kalmalı; başarı bildirimi olmamalı."},
+    {"id":"D15","choice":"A","reason":"Günlük diğer dört görev kadar doğrudan erişilebilir kalır.","reservation":"Etiketleri sığdırmak için anlaşılmaz kısaltma veya çok küçük metin kullanılmamalı."},
+    {"id":"D16","choice":"A","reason":"Analistlerin sabit sırası görünür kalır ve AI raporunun yapısı anlaşılır.","reservation":"Rol başlıkları sonuç varmış gibi görünmemeli; bağlı olmayan prototipte açık veri durumu, sahte ilerleme ve anlatı olmamalı."},
+    {"id":"D17","choice":"A","reason":"Kayıt ile emir verme ve kaynak ayrıntısı ile dış kaynak açma ayrımını nesneli etiketler güçlendirir.","reservation":"Uzun etiketlerin mobil yerleşimi sarma ve yeterli hedef alanıyla çözülmeli."},
+    {"id":"D18","choice":"A","reason":"Kaynaklı rapor kesiti dolu araştırma yüzeyinin hiyerarşisini değerlendirmeye olanak verir.","reservation":"Açılışın araştırma olması gerçek ürünün Bugün varsayılanını değiştirmez; rapor kesiti canlı hesap verisi değildir."}
+  ]
+}

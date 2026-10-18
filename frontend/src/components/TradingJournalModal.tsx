@@ -8,7 +8,7 @@ interface TradingJournalModalProps {
   trades: Trade[];
   stocks: Stock[];
   portfolios: Portfolio[];
-  onRemoveTrade: (id: string) => void;
+  onRemoveTrade: (id: string) => Promise<void> | void;
   onOpenTradeModal: (symbol: string) => void;
 }
 
@@ -25,6 +25,7 @@ export default function TradingJournalModal({
   const [selectedType, setSelectedType] = useState<'ALL' | 'BUY' | 'SELL'>('ALL');
   const [selectedPortfolio, setSelectedPortfolio] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
+  const [removeError, setRemoveError] = useState('');
 
   const symbols = useMemo(() => {
     const list = new Set<string>();
@@ -77,21 +78,23 @@ export default function TradingJournalModal({
             </div>
             <div>
               <h3 className="font-headline text-base font-bold text-text-primary uppercase tracking-wide">
-                Trading Journal
+                İşlem günlüğü
               </h3>
               <p className="text-xs text-text-secondary mt-0.5">
-                Filter, review, and manage all buy and sell orders across your portfolios.
+                Portföylerinizdeki alış ve satış kayıtlarını inceleyin.
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
+            aria-label="Kapat"
             className="p-1.5 hover:bg-bg-card rounded-lg border border-outline-variant/60 text-text-secondary hover:text-text-primary transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
+        {removeError && <p role="alert" className="mx-5 mt-3 rounded-lg border border-bear-red/40 bg-bear-red/10 p-3 text-sm text-bear-red">{removeError}</p>}
         <div className="grid grid-cols-1 sm:grid-cols-4 border-b border-outline-variant/35 bg-bg-card/15 divide-y sm:divide-y-0 sm:divide-x divide-outline-variant/30 shrink-0 text-xs">
           <div className="p-4 flex flex-col justify-between">
             <span className="text-text-muted text-[10px] uppercase font-label-caps tracking-wider">Trade Count</span>
@@ -240,13 +243,18 @@ export default function TradingJournalModal({
                         <td className="py-3 px-4 text-text-secondary max-w-xs truncate" title={trade.notes}>{trade.notes}</td>
                         <td className="py-3 px-4 text-center">
                           <button
-                            onClick={() => {
-                              if (confirm('Delete this trade? The portfolio position will be recalculated automatically.')) {
-                                onRemoveTrade(trade.id);
+                            onClick={async () => {
+                              if (!confirm('Bu işlem silinsin mi? Portföy pozisyonu yeniden hesaplanır.')) return;
+                              setRemoveError('');
+                              try {
+                                await onRemoveTrade(trade.id);
+                              } catch {
+                                setRemoveError('İşlem silinemedi. Daha sonra yeniden deneyin.');
                               }
                             }}
                             className="p-1.5 text-text-muted hover:text-bear-red hover:bg-bear-red/10 rounded-lg transition-colors"
-                            title="Delete Trade"
+                            title="İşlemi sil"
+                            aria-label="İşlemi sil"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>

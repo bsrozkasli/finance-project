@@ -8,7 +8,7 @@ interface TradeActionModalProps {
   symbol: string;
   stocks: Stock[];
   holdings: Holding[];
-  onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void;
+  onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void> | void;
 }
 
 export default function TradeActionModal({
@@ -21,44 +21,50 @@ export default function TradeActionModal({
 }: TradeActionModalProps) {
   const [type, setType] = useState<'BUY' | 'SELL'>('BUY');
   const [quantity, setQuantity] = useState<number>(1);
-  const [price, setPrice] = useState<number>(100);
+  const [price, setPrice] = useState<number>(0);
   const [notes, setNotes] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
-  const activeStock = stocks.find((stock) => stock.symbol === symbol) || stocks[0];
+  const activeStock = stocks.find((stock) => stock.symbol === symbol);
 
   useEffect(() => {
-    if (activeStock) {
-      setPrice(activeStock.price);
-    }
+    setPrice(activeStock?.price ?? 0);
   }, [activeStock]);
 
-  if (!isOpen || !activeStock) return null;
+  if (!isOpen) return null;
 
-  const handleExecute = (event: React.FormEvent) => {
+  const handleExecute = async (event: React.FormEvent) => {
     event.preventDefault();
+    setSaveError('');
     if (quantity <= 0 || price <= 0) {
-      alert('Invalid quantity or unit price.');
+      alert('Geçerli miktar ve birim fiyat girin.');
       return;
     }
 
     if (type === 'SELL') {
       const owned = holdings.find((holding) => holding.symbol === symbol);
       if (!owned || owned.quantity < quantity) {
-        alert(`Insufficient quantity. You own ${owned ? owned.quantity.toFixed(4) : 0} shares of ${symbol}, but you are trying to sell ${quantity}.`);
+        alert(`Yetersiz miktar. ${symbol} için ${owned ? owned.quantity.toFixed(4) : 0} adet var; ${quantity} adet satılamaz.`);
         return;
       }
     }
 
-    onExecuteTrade({
-      symbol,
-      type,
-      quantity,
-      price,
-      notes: notes.trim() || `${symbol} manual trade order was submitted.`,
-    });
-
-    alert(`${symbol} trade was completed and saved to the journal.`);
-    onClose();
+    setSaving(true);
+    try {
+      await onExecuteTrade({
+        symbol,
+        type,
+        quantity,
+        price,
+        notes: notes.trim() || `${symbol} için manuel işlem kaydı.`,
+      });
+      onClose();
+    } catch {
+      setSaveError('İşlem kaydedilemedi. Bilgileri kontrol edip yeniden deneyin.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -68,11 +74,12 @@ export default function TradeActionModal({
           <div className="flex items-center gap-2">
             <DollarSign className="w-4 h-4 text-primary" />
             <h3 className="font-headline text-sm font-bold text-text-primary uppercase tracking-wide">
-              Order Entry ({symbol})
+              İşlem kaydı ({symbol})
             </h3>
           </div>
           <button
             onClick={onClose}
+            aria-label="Kapat"
             className="p-1.5 hover:bg-bg-card rounded-lg border border-outline-variant/60 text-text-secondary hover:text-text-primary transition-colors"
           >
             <X className="w-4 h-4" />
@@ -82,18 +89,18 @@ export default function TradeActionModal({
         <form onSubmit={handleExecute} className="p-5 space-y-4 text-xs">
           <div className="flex items-center justify-between bg-bg-base/50 border border-outline-variant/35 p-3 rounded-lg font-data-mono">
             <div>
-              <span className="text-text-muted text-[9px] block">INSTRUMENT</span>
-              <span className="text-xs font-bold text-text-primary">{activeStock.name}</span>
+              <span className="text-text-muted text-[9px] block">VARLIK</span>
+              <span className="text-xs font-bold text-text-primary">{activeStock?.name ?? symbol}</span>
             </div>
             <div className="text-right">
-              <span className="text-text-muted text-[9px] block">LAST PRICE</span>
-              <span className="text-xs font-bold text-primary">${activeStock.price.toFixed(2)}</span>
+              <span className="text-text-muted text-[9px] block">SON FİYAT</span>
+              <span className="text-xs font-bold text-primary">{activeStock ? `$${activeStock.price.toFixed(2)}` : 'Fiyat yok'}</span>
             </div>
           </div>
 
           <div>
             <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-              Order Side
+                İşlem yönü
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -105,7 +112,7 @@ export default function TradeActionModal({
                     : 'bg-bg-base border-outline-variant/50 text-text-secondary hover:text-text-primary'
                 }`}
               >
-                Buy
+                Alış
               </button>
               <button
                 type="button"
@@ -116,7 +123,7 @@ export default function TradeActionModal({
                     : 'bg-bg-base border-outline-variant/50 text-text-secondary hover:text-text-primary'
                 }`}
               >
-                Sell
+                Satış
               </button>
             </div>
           </div>
@@ -124,7 +131,7 @@ export default function TradeActionModal({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-                Quantity
+                Miktar
               </label>
               <input
                 type="number"
@@ -137,7 +144,7 @@ export default function TradeActionModal({
             </div>
             <div>
               <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-                Limit Price ($)
+                Birim fiyat ($)
               </label>
               <input
                 type="number"
@@ -152,10 +159,10 @@ export default function TradeActionModal({
 
           <div>
             <label className="block text-text-muted font-label-caps text-[9px] uppercase mb-1">
-              Trade Note / Investment Thesis
+                İşlem notu / yatırım tezi
             </label>
             <textarea
-              placeholder="Example: Added to the position after a confirmed support bounce..."
+              placeholder="İşlem gerekçenizi yazın..."
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={2}
@@ -164,18 +171,20 @@ export default function TradeActionModal({
           </div>
 
           <div className="bg-bg-base/30 p-2.5 rounded border border-outline-variant/20 flex justify-between items-baseline font-data-mono">
-            <span className="text-text-muted text-[10px]">ESTIMATED ORDER VALUE:</span>
+            <span className="text-text-muted text-[10px]">İŞLEM TUTARI:</span>
             <span className="text-xs font-bold text-text-primary">
               ${(quantity * price).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
 
+          {saveError && <p role="alert" className="rounded-lg border border-bear-red/40 bg-bear-red/10 p-3 text-bear-red">{saveError}</p>}
           <button
             type="submit"
+            disabled={saving}
             className="w-full py-2.5 bg-primary hover:bg-primary-container text-bg-base font-bold rounded-lg shadow-md transition-all flex items-center justify-center gap-1.5 uppercase tracking-wider"
           >
             <TrendingUp className="w-4 h-4 stroke-[2.5]" />
-            <span>Send Order</span>
+            <span>{saving ? 'Kaydediliyor…' : 'İşlemi kaydet'}</span>
           </button>
         </form>
       </div>

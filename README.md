@@ -1,204 +1,141 @@
-# 📊 Hybrid Financial Analysis Engine
+# Finance Project
 
-Welcome to the **Hybrid Financial Analysis Engine**! This is a state-of-the-art, high-performance web application designed for comprehensive financial analysis, technical indicator evaluation, portfolio optimization, and AI-driven market insights. 
+Finance Project is a brownfield investment research and portfolio
+decision-support platform. It combines persistent portfolio/journal/watchlist
+workflows with provider-backed market evidence, deterministic analytics, and
+optional Azure OpenAI analysis.
 
-The project is structured as a **Monorepo** comprising three primary services designed to run in harmony:
-1.  **Spring Boot Backend** (`backend/`): A pure Java 17 enterprise core utilizing Hexagonal Architecture.
-2.  **FastAPI Data Service** (`data-service/`): A high-frequency analytics, technical analysis, and portfolio optimization engine.
-3.  **Vite + React Frontend** (`frontend/`): A state-of-the-art interactive dashboard with high-end premium aesthetics.
+The repository is a monorepo with three application runtimes:
 
----
+- `backend/`: Spring Boot 3.4 and Java 17 public API, domain orchestration,
+  PostgreSQL persistence, and Redis caching.
+- `data-service/`: FastAPI provider resolution, technical/fundamental/valuation/
+  risk/portfolio analytics, and optional AI reasoning.
+- `frontend/`: Vite, React, and TypeScript browser application.
 
-## 🏛️ System Architecture
-
-The following diagram illustrates the data flow and boundary interactions between the three primary services:
+## Architecture
 
 ```mermaid
-graph TD
-    subgraph Frontend [Client Web UI - Vite + React + TS]
-        Dashboard[Interactive Dashboard]
-        AssetGrid[Asset Grid Component]
-        ChartOverlay[Chart Overlay Component]
-        RightSidebar[Right Sidebar Component]
-    end
-
-    subgraph Backend [Backend API Gateway - Spring Boot 3.4]
-        WebConfig[Web Config / CORS]
-        AssetController[Asset Controller]
-        PriceController[Price Controller]
-        DomainConfig[Domain Registry Config]
-        
-        subgraph Ports [Outbound Ports]
-            AssetRepoPort[Asset Repository Port]
-            PriceRepoPort[Price Repository Port]
-        end
-        
-        subgraph Adapters [Spring Adapters]
-            YahooAdapter[Yahoo/Tiingo Market Data Client]
-            DBAdapter[Postgres DB Persistence]
-            RedisAdapter[Redis Cache Adapter]
-            DSPriceAdapter[Data Service Price Client]
-        end
-    end
-
-    subgraph DataService [Data & Analytics Service - FastAPI]
-        FastAPI_Main[FastAPI Gateway]
-        TechAnalysis[Technical Analysis Service]
-        PatternDetect[Pattern Detection Service]
-        PortfolioOpt[Portfolio Optimizer]
-        
-        subgraph ExtAPIs [External Integrations]
-            YFinance[yfinance API]
-            Finnhub[Finnhub Sentiment API]
-            Anthropic[Anthropic Claude API]
-        end
-    end
-
-    %% Connections
-    Dashboard -->|Calls HTTP Port 8080| AssetController
-    Dashboard -->|Calls HTTP Port 8080| PriceController
-    AssetGrid -.-> Dashboard
-    ChartOverlay -.-> Dashboard
-    RightSidebar -.-> Dashboard
-
-    AssetController --> DomainConfig
-    PriceController --> DomainConfig
-    
-    DomainConfig --> AssetRepoPort
-    DomainConfig --> PriceRepoPort
-    
-    PriceRepoPort --> DBAdapter
-    AssetRepoPort --> DBAdapter
-    PriceRepoPort --> RedisAdapter
-    
-    PriceController -->|Lazy Load Fallback| DSPriceAdapter
-    DSPriceAdapter -->|Calls Port 8000| FastAPI_Main
-    
-    FastAPI_Main --> TechAnalysis
-    FastAPI_Main --> PatternDetect
-    FastAPI_Main --> PortfolioOpt
-    
-    TechAnalysis -->|Fetch Historical Prices| YFinance
-    PatternDetect -->|Fetch OHLCV Matrix| YFinance
-    PortfolioOpt -->|Fetch Covariance Matrix| YFinance
-    
-    PatternDetect -.->|Contextual Analysis| Anthropic
-    PortfolioOpt -.->|Stress Scenario| Anthropic
-    FastAPI_Main -->|News & Sentiment| Finnhub
+flowchart LR
+    UI[React frontend :5173] -->|/api/v1| API[Spring backend :8080]
+    API --> PG[(PostgreSQL :5433)]
+    API --> RD[(Redis :6379)]
+    API -->|DATA_SERVICE_URL| DS[FastAPI data-service :8000]
+    API --> BP[Backend provider adapters]
+    DS --> PR[Provider resolver and analytics]
+    PR --> YF[Yahoo/yfinance]
+    PR --> TI[Tiingo]
+    PR --> FH[Finnhub]
+    DS --> MC[FRED and FMP]
+    DS --> AI[Azure OpenAI optional]
 ```
 
----
+The backend follows hexagonal architecture: framework-free domain code reaches
+persistence, caches, providers, and the data-service through ports and adapters.
+The frontend calls the Spring API for normal application flows. Missing provider
+or AI evidence degrades explicitly and is never replaced with fake data.
 
-## 🚀 Core Features
+See:
 
-### 1. Hexagonal Java Backend Core
-*   **Hexagonal (Ports & Adapters) Architecture**: Complete decoupling of core domain models and logic from third-party frameworks, keeping the business logic pristine and easily testable.
-*   **Lazy-Loaded Price History Engine**: Price controllers query local Postgres storage first. On a cache/db miss, they delegate on-demand loading of price candles to the FastAPI data-service, persist the fetched data, and return it.
-*   **Robust Caching**: Utilizes Redis for high-frequency `latestPriceCache` caching to avoid hitting external rate limits.
+- [Current-system contract](SPEC.md)
+- [Architecture details](docs/spec/current-system/architecture.md)
+- [HTTP and browser contracts](docs/spec/current-system/contracts.md)
+- [Domain and persistence rules](docs/spec/current-system/domain-and-data.md)
+- [Operations and providers](docs/spec/current-system/operations.md)
+- [Target product PRD](docs/product/PRD.md)
 
-### 2. Advanced Python Analytics & Technical indicators
-*   **Technical Indicator Pipeline**: Fast calculations of RSI, MACD (signal & histogram), Bollinger Bands, ATR, EMA, and SMA using `pandas-ta`.
-*   **Pattern Recognition Engine**: Built-in algorithmic detection of classical chart patterns (e.g., Double Tops/Bottoms, Head and Shoulders) from OHLCV data.
-*   **Modern Portfolio Optimization**: Markowitz Mean-Variance Optimization, Risk Parity, and custom target risk thresholds calculated with `PyPortfolioOpt` and `cvxpy`.
-*   **AI Context & Sentiment Integrations**: News sentiment feeds via Finnhub, combined with Anthropic Claude for intelligent stress-testing and pattern explanation text.
+## Local Ports
 
-### 3. Premium Interactive Dashboard
-*   **High-End Dark Aesthetics**: Glassmorphic UI containers, curated harmonized gradients, dynamic hover effects, and custom fonts.
-*   **Active Chart Overlays**: Live canvas plotting historical price candles alongside Bollinger Bands, SMA, EMA, and other indicators.
-*   **Granular Signals**: Comprehensive sidebar reflecting BUY/HOLD/SELL suggestions with confidence metrics alongside AI insights.
+| Service | Port |
+|---|---:|
+| Backend | `8080` |
+| Data-service | `8000` |
+| Frontend | `5173` |
+| PostgreSQL | `5433` |
+| Redis | `6379` |
+| Prometheus | `9090` |
+| Grafana | `3000` |
+| MongoDB (configured/reserved) | `27017` |
 
----
+## Configuration
 
-## ⚙️ Service Ports & Environment
+Copy `.env.example` to `.env` and provide at least the database password required
+by your local Compose/backend setup. Provider and AI capabilities are conditional:
 
-The systems expect a fixed deployment mapping for local development:
-
-| Part | Tech Stack | Dev Port | Main Responsibilities |
-| :--- | :--- | :--- | :--- |
-| **Backend** | Spring Boot 3.4 / Java 17 | `8080` | Domain processing, persistence, Redis caching, Yahoo/Tiingo market data adapters |
-| **Data-Service**| FastAPI / Python 3.10+ | `8000` | PyPortfolioOpt, pandas-ta indicators, yfinance proxy, AI insights |
-| **Frontend** | Vite / React / TypeScript | `5173` | Rich interactive visualization, client-side hooks, lifted state |
-| **PostgreSQL**| Database | `5433` | Historical OHLCV candle storage, tracked assets metadata |
-| **Redis** | In-Memory Cache | `6379` | High-frequency latest price endpoints caching |
-
----
-
-## API Documentation
-
-- API Docs: http://localhost:8080/swagger-ui.html (backend ayaktayken)
-- OpenAPI spec: docs/openapi.yaml
-
-## 🛠️ Step-by-Step Local Deployment
-
-### 1. Configure the Environment
-Create a `.env` file in the root workspace folder based on `.env.example`:
 ```ini
-DB_NAME=financedb
-DB_USERNAME=finance_user
-DB_PASSWORD=your_secure_password
-REDIS_PORT=6379
-FINNHUB_API_KEY=your_finnhub_api_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
+DB_PASSWORD=replace_me
+TIINGO_API_KEY=
+FINNHUB_API_KEY=
+FRED_API_KEY=
+FMP_API_KEY=
+AZURE_OPENAI_API_KEY=
+AZURE_OPENAI_ENDPOINT=
+AZURE_OPENAI_DEPLOYMENT_NAME=
+AZURE_OPENAI_API_VERSION=2024-05-01-preview
+DATA_SERVICE_URL=http://localhost:8000
 ```
 
-### 2. Spin Up Infrastructure (Docker)
-Start the PostgreSQL, Redis, and FastAPI services:
+Do not commit `.env` or expose keys to the frontend. Missing optional keys produce
+the degradation described in
+[operations.md](docs/spec/current-system/operations.md), not synthetic responses.
+
+## Local Development
+
+Start infrastructure and the containerized data-service:
+
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-### 3. Start the Spring Boot Backend
-Navigate to the `backend/` directory and run:
-```bash
-cd backend
-# Windows
+Start the backend from `backend/`:
+
+```powershell
 .\mvnw.cmd spring-boot:run
-# macOS/Linux
-./mvnw spring-boot:run
 ```
 
-### 4. Start the Frontend Dev Server
-Navigate to the `frontend/` directory, install packages, and launch:
+Start the frontend from `frontend/`:
+
 ```bash
-cd frontend
 npm install
 npm run dev
 ```
-Open `http://localhost:5173` in your browser.
 
----
+Open `http://localhost:5173`.
 
-## 🧪 Running the Test Suites
+## Verification
 
-### Backend Unit & Integration Tests
-Run from the `backend/` directory:
-```bash
+Run checks for every touched runtime:
+
+```powershell
+# backend/
 .\mvnw.cmd test
-```
-> [!IMPORTANT]
-> The backend integration tests use **Testcontainers** to spin up a real PostgreSQL 16 instance. **Docker must be running** on your machine for the context-loading tests to pass.
 
-### Data-Service Python Tests
-Navigate to `data-service/` and run:
-```bash
-cd data-service
+# data-service/
 python -m pytest
-```
 
-### Frontend Linters & Verification
-Validate TypeScript and code styling in `frontend/`:
-```bash
-cd frontend
+# frontend/
 npm run lint
+npm run test:coverage
 npm run build
+
+# repository root after Compose changes
+docker compose config --quiet
 ```
 
----
+Frontend routed critical flows and release readiness also require `npm run e2e`.
+The full test-only policy and S1-S10 smoke catalog live in
+[verification.md](docs/agent/verification.md).
 
-## 🤝 Contribution Guidelines
-For architectural principles, code conventions, or design tokens guidelines, please read the [CONTRIBUTING.md](file:///c:/Users/basar/IdeaProjects/finance-project/CONTRIBUTING.md) and [AGENTS.md](file:///c:/Users/basar/IdeaProjects/finance-project/AGENTS.md) documents.
+## API Documentation
 
+- Backend Swagger UI: `http://localhost:8080/swagger-ui.html`
+- Backend API docs: `http://localhost:8080/api-docs`
+- Supporting OpenAPI artifact: [docs/openapi.yaml](docs/openapi.yaml)
 
-## Architecture Decisions
+## Contribution and Decisions
 
-- Architecture Decisions: docs/adr/
+- [Contribution guide](CONTRIBUTING.md)
+- [Agent instructions](AGENTS.md)
+- [Documentation map](docs/README.md)
+- [Architecture decisions](docs/adr/README.md)
+- [Legacy archive manifest](docs/LEGACY_ARCHIVE_MANIFEST.md)

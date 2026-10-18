@@ -150,7 +150,7 @@ test('loads the dashboard and navigates primary frontend routes', async ({ page 
   testInfo.setTimeout(60_000);
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: 'Nexus Terminal' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Bugün neye odaklanalım?' })).toBeVisible();
   await expect(page.getByText('AAPL').first()).toBeVisible();
 
   for (const path of [
@@ -163,21 +163,23 @@ test('loads the dashboard and navigates primary frontend routes', async ({ page 
   ] as const) {
     await page.goto(path, { waitUntil: 'domcontentloaded' });
     await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(page.getByText('Uygulama hatası')).toHaveCount(0);
+    if (path === '/watchlist') {
+      await expect(page.getByRole('heading', { name: 'İzleme listem' })).toBeVisible();
+    }
   }
 });
 
 test('opens shell actions without leaving the backend API boundary', async ({ page }) => {
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
-  await page.getByPlaceholder('Search symbols, names, or sectors...').fill('micro');
-  await expect(page.getByRole('button', { name: /MSFT.*Microsoft Corp/i })).toBeVisible();
+  await page.getByPlaceholder('Kayıtlı varlıklarda ara').fill('micro');
+  await expect(page.getByRole('option', { name: /MSFT.*Microsoft Corp/i })).toBeVisible();
 
-  await page.getByRole('button', { name: /System Settings/i }).click();
-  await expect(page.getByText('Nexus Terminal System Settings')).toBeVisible();
-
-  await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
-  await page.getByRole('banner').getByRole('button', { name: 'Trading Journal' }).click();
-  await expect(page.getByText(/Trading Journal/i).last()).toBeVisible();
+  await page.locator('button[aria-label="Ayarlar"]:visible').click();
+  await expect(page.getByRole('dialog', { name: 'Ayarlar' })).toBeVisible();
+  await page.getByRole('button', { name: 'Kapat' }).click();
+  await expect(page.getByRole('dialog', { name: 'Ayarlar' })).not.toBeVisible();
 });
 
 test('has no critical accessibility violations on the dashboard', async ({ page }) => {
@@ -187,4 +189,39 @@ test('has no critical accessibility violations on the dashboard', async ({ page 
   const criticalViolations = results.violations.filter((violation) => violation.impact === 'critical');
 
   expect(criticalViolations).toEqual([]);
+});
+
+test('dark research desk keeps evidence, source focus and six tasks usable', async ({ page }, testInfo) => {
+  await page.route(`${API_BASE}/fundamentals/AAPL`,route=>route.fulfill({json:{symbol:'AAPL',revenue:[{year:2024,value:1000},{year:2025,value:1200}],netIncome:[{year:2025,value:0}],eps:[],freeCashFlow:[]}}));
+  await page.goto('/workspace/AAPL');
+  await expect(page.getByRole('tab',{name:'Genel bakış',exact:true})).toHaveAttribute('aria-selected','true');
+  await expect(page.getByRole('heading',{name:'Apple Inc.',exact:true})).toBeVisible();
+  const colors=await page.locator('.desk-app').evaluate(node=>getComputedStyle(node).backgroundColor);
+  expect(colors).toBe('rgb(14, 18, 24)');
+  await page.getByRole('tab',{name:'Finansallar',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Yıllık finansallar'})).toContainText('1.200');
+  await page.getByRole('button',{name:'Kompakt',exact:true}).click();
+  await expect(page.getByRole('table',{name:'Yıllık finansallar'})).toHaveClass(/is-compact/);
+  await page.getByRole('button',{name:'Kaynak ayrıntıları',exact:true}).click();
+  await expect(page.getByRole('dialog',{name:'Kaynak ayrıntıları',exact:true})).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button',{name:'Kaynak ayrıntıları',exact:true})).toBeFocused();
+  await page.getByRole('tab',{name:'Grafik',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Heikin Ashi',exact:true})).toBeVisible();
+  await page.getByRole('tab',{name:'AI raporu',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Portföy Yöneticisi',exact:true})).toBeVisible();
+  await page.screenshot({path:`../.cache/dark-implementation/app-${testInfo.project.name}.png`,fullPage:true});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1)).toBe(true);
+  const axe=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+  expect(axe.violations.map(item=>({id:item.id,nodes:item.nodes.map(node=>node.target)}))).toEqual([]);
+  if(testInfo.project.name.includes('desktop')){
+    await page.setViewportSize({width:1440,height:1000});
+    await page.getByRole('button',{name:'Kaynak ayrıntıları',exact:true}).click();
+    await expect(page.locator('#research-source-aside')).toBeVisible();
+    expect(await page.locator('.research-content').evaluate(node=>node.getBoundingClientRect().width)).toBeGreaterThanOrEqual(900);
+    await page.setViewportSize({width:1280,height:800});
+    await expect(page.getByRole('dialog',{name:'Kaynak ayrıntıları',exact:true})).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button',{name:'Kaynak ayrıntıları',exact:true})).toBeFocused();
+  }
 });

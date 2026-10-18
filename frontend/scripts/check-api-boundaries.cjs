@@ -5,6 +5,7 @@ const projectRoot = process.cwd();
 const apiDir = path.join(projectRoot, 'src', 'api');
 const clientPath = path.join(apiDir, 'client.ts');
 const httpPath = path.join(apiDir, 'http.ts');
+const configPath = path.join(apiDir, 'config.ts');
 
 const expectedBarrelExports = [
   'http',
@@ -59,9 +60,16 @@ if (!fs.existsSync(httpPath)) {
   fail('src/api/http.ts is missing');
 } else {
   const httpSource = read(httpPath);
-  if (!httpSource.includes("baseURL: 'http://localhost:8080/api/v1'")) {
-    fail('http.ts must own the fixed Spring API base URL');
+  if (!httpSource.includes('baseURL: API_BASE_URL') || !/from\s+['"]\.\/config['"]/.test(httpSource)) {
+    fail('http.ts must create the Axios instance with API_BASE_URL from config.ts');
   }
+}
+
+// config.ts resolves VITE_API_BASE_URL and owns the Spring API default.
+if (!fs.existsSync(configPath)) {
+  fail('src/api/config.ts is missing');
+} else if (!read(configPath).includes("'http://localhost:8080/api/v1'")) {
+  fail('config.ts must own the default Spring API base URL');
 }
 
 for (const filePath of listTypeScriptFiles(apiDir)) {

@@ -1,2 +1,5 @@
 /mvnw text eol=lf
 *.cmd text eol=crlf
+
+# Preserve legacy documentation snapshots without normalizing their contents.
+archive/legacy-docs-2026-09-29/** -diff

@@ -59,10 +59,12 @@ const seedIntegratedDatabase = async (): Promise<void> => {
       assets
     RESTART IDENTITY CASCADE;
 
-    INSERT INTO assets (symbol, name, type) VALUES
-      ('AAPL', 'Apple Inc.', 'STOCK'),
-      ('MSFT', 'Microsoft Corp.', 'STOCK'),
-      ('DRAM', 'Global X DRAM Test Asset', 'STOCK');
+    -- metadata_status is NOT NULL without a DB default. Seeded rows carry no provider
+    -- metadata, so they are honestly marked UNAVAILABLE (AssetMetadataStatus default).
+    INSERT INTO assets (symbol, name, type, metadata_status) VALUES
+      ('AAPL', 'Apple Inc.', 'STOCK', 'UNAVAILABLE'),
+      ('MSFT', 'Microsoft Corp.', 'STOCK', 'UNAVAILABLE'),
+      ('DRAM', 'Global X DRAM Test Asset', 'STOCK', 'UNAVAILABLE');
 
     INSERT INTO price_history (asset_id, open_price, close_price, high_price, low_price, volume, price_timestamp) VALUES
       ('AAPL', 100.0000, 102.0000, 105.0000,  99.0000, 1000.0000, '2026-07-08T20:00:00Z'),

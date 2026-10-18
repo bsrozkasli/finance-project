@@ -1,0 +1,11 @@
+# Tur 3 — A: Nihai oy açıklamam
+
+Diğer iki Tur 2 metnini ve ortak pusulanın tamamını okudum. Stock Rover’ın resmî dashboard kesitini görüntü aracıyla açtım; ek gözlemimi Tur 2 metnime ekledim. Fiscal.ai için görüntü görmediğimden bu platformu oylarıma dayanak yapmıyorum. Oy dosyamda 18 kararın her birinde A seçeneğini seçtim. Bu, sonuç veya uzlaşma ilanı değildir; pusuladaki ifadeler kendi tercihlerimle örtüşüyor. Moderatörün sayımını bekliyorum.
+
+Temel tercihim beyaz araştırma yüzeyi, grafit görev kabuğu ve kobalt etkileşim. D03’te B’nin açık sidebar görüşüne katılmıyorum. Beş görevli dar koyu menünün, şirket bağlamındaki araştırma kontrollerinden daha açık ayrıldığını düşünüyorum. Açık sidebar’ın parlaklık geçişini yumuşatması güçlü bir karşı gerekçe; sonuç hangi yönde olursa bu kayıp kayıtta kalmalı. Kobaltın kurumsal sıradanlığını da kabul ediyorum. Görsel kimliğin asıl sınavı tablo ritmi, kaynak düzeni ve alan ağırlıkları olacak.
+
+D05’te her genişlikte modal yerine uyarlanan kaynak panelini seçtim. Tablo en az 900px kaldığında açık panelle veri ve kaynak birlikte okunabilir. Dar alanda aynı yaklaşım modal çekmeceye dönüşür. Bunun uygulama maliyeti iki ayrı odak davranışıdır; sırf görsel sadelik için bütün ekranları modal içine taşımayı tercih etmiyorum. Başlangıçta panel kapalı kalır; kaynak satırı ve açık metinli düğme görünürdür.
+
+C’nin 40/32px yoğunluğunu ve tek baskın kayıt eylemini benimsedim. B’nin göreve göre genişleyen finansal tablo yaklaşımı ilk önerimdeki kalıcı sütunu değiştirdi. Bunlar diğer görüşlerden aldığım somut düzeltmeler. Günlük konusunda da kendi Tur 2 metnimdeki “Prototipte saklandı” ifadesinden vazgeçiyorum: **“Taslağı önizle”** ve oturum sınırı daha doğru. Kaydedildi çağrışımı prototipin akıcılığından daha ağır basıyor.
+
+Prototip incelemesinde şirket başlığının büyük boşluk üretip üretmediğine, 13px rakamların kolon düzenine, 12px kaynak metinlerinin kontrastına ve 40px satırın görsel ağırlığına bakacağım. 1440px kaynak paneli eşiği gerçek tabloyla doğrulanmalı. Mobilde beş görevin uzun etiketlerini, yatay sekmelerin devam işaretini ve uzun butonların taşmasını kontrol edeceğim. Araştırmayla açılma oyum, kaynaklı rapor kesitinde tasarımın gerçekten değerlendirilebilmesi için; statik örnek asla canlı hesap veya fiyat gibi sunulmamalı.

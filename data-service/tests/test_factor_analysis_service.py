@@ -1,12 +1,36 @@
+"""FactorAnalysisService reads momentum/volatility history through the resolver."""
+
 from __future__ import annotations
 
-from datetime import datetime
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
 
+from app.providers.market_data_resolver import MarketDataResolver
+from app.services import factor_analysis_service
 from app.services.factor_analysis_service import FactorAnalysisService
+
+
+def test_factor_momentum_uses_resolver_adjusted_history(monkeypatch, scripted_provider, bars):
+    # ADR-0006 D2: .info remains a direct yfinance read; stub it with an empty dict.
+    monkeypatch.setattr(
+        factor_analysis_service,
+        "yf",
+        SimpleNamespace(Ticker=lambda symbol: SimpleNamespace(ticker=symbol, info={})),
+    )
+    provider = scripted_provider("fx-factor", ohlcv=bars([100.0 + index for index in range(253)]))
+    monkeypatch.setattr(factor_analysis_service, "get_resolver", lambda: MarketDataResolver([provider]))
+
+    result = FactorAnalysisService.analyze_factors("AAPL")
+
+    # Ramp ends at 352; 22 sessions back is 331, so 1-month return = 21 / 331.
+    assert result.scores.momentum_components["return_1m"] == pytest.approx(21 / 331)
+    assert [(call[1][0], call[2]) for call in provider.calls_for("ohlcv")] == [
+        ("AAPL", {"adjusted": True}),
+        ("SPY", {"adjusted": True}),
+    ]
 
 
 class _TickerWithInfo:
@@ -85,16 +109,19 @@ def test_price_factors_are_missing_without_enough_history() -> None:
     assert set(volatility_components.values()) == {None}
 
 
-def test_download_failure_degrades_to_empty_history(monkeypatch: pytest.MonkeyPatch) -> None:
-    def raise_provider_error(*args: object, **kwargs: object) -> pd.DataFrame:
-        raise RuntimeError("provider timeout")
+def test_provider_failure_degrades_to_missing_price_factors(
+    monkeypatch: pytest.MonkeyPatch,
+    scripted_provider,
+) -> None:
+    # Mock external ticker and resolver price-history I/O; tests must never call Yahoo live.
+    monkeypatch.setattr("app.services.factor_analysis_service.yf.Ticker", lambda symbol: _TickerWithInfo({}))
+    provider = scripted_provider("fx-factor-down", ohlcv=RuntimeError("provider timeout"))
+    monkeypatch.setattr(factor_analysis_service, "get_resolver", lambda: MarketDataResolver([provider]))
 
-    # Mock external market-data I/O; tests must never call Yahoo live.
-    monkeypatch.setattr("app.services.factor_analysis_service.yf.download", raise_provider_error)
+    response = FactorAnalysisService.analyze_factors("AAPL")
 
-    result = FactorAnalysisService._safe_download("AAPL", datetime(2026, 1, 1), datetime(2026, 2, 1))
-
-    assert result.empty
+    assert response.scores.momentum_score is None
+    assert response.scores.low_volatility_score is None
 
 
 @pytest.mark.parametrize(
@@ -107,16 +134,15 @@ def test_download_failure_degrades_to_empty_history(monkeypatch: pytest.MonkeyPa
 )
 def test_factor_analysis_exposes_missing_scores_without_fabricating_zeroes(
     monkeypatch: pytest.MonkeyPatch,
+    scripted_provider,
     info: dict[str, object],
     expected_growth: int | None,
     expected_dominant: str | None,
 ) -> None:
     # Mock external ticker and price-history I/O; tests must never call Yahoo live.
     monkeypatch.setattr("app.services.factor_analysis_service.yf.Ticker", lambda symbol: _TickerWithInfo(info))
-    monkeypatch.setattr(
-        "app.services.factor_analysis_service.yf.download",
-        lambda *args, **kwargs: pd.DataFrame(),
-    )
+    provider = scripted_provider("fx-factor-empty")
+    monkeypatch.setattr(factor_analysis_service, "get_resolver", lambda: MarketDataResolver([provider]))
 
     response = FactorAnalysisService.analyze_factors("aapl")
 

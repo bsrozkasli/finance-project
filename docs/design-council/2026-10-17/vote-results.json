@@ -1,0 +1,698 @@
+{
+  "counted_at": "2026-10-17T16:06:29.797130+00:00",
+  "agents": [
+    "visual",
+    "workflow",
+    "interaction"
+  ],
+  "moderator_votes": 0,
+  "total_votes": 54,
+  "unanimous": 16,
+  "majority": 2,
+  "decisions": [
+    {
+      "id": "D01",
+      "topic": "Ana analiz teması",
+      "options": {
+        "A": "Beyaz veri yüzeyi + nötr açık canvas",
+        "B": "Nötr koyu veri yüzeyi + koyu canvas"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D01",
+          "choice": "A",
+          "reason": "Uzun tablo ve raporlar için beyaz ortak araştırma yüzeyini tercih ediyorum.",
+          "reservation": "Karanlık odada parlaklık farkı oluşur."
+        },
+        {
+          "agent": "workflow",
+          "id": "D01",
+          "choice": "A",
+          "reason": "Uzun finansal tablo ve analist metni için açık veri yüzeyi önceliğim.",
+          "reservation": "Karanlık ortamda açık yüzey daha parlak kalır."
+        },
+        {
+          "agent": "interaction",
+          "id": "D01",
+          "choice": "A",
+          "reason": "Uzun rapor ve tabloyu açık veri yüzeyinde okumayı tercih ediyorum.",
+          "reservation": "Karanlık ortamda parlaklık farkı prototipte değerlendirilmeli."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Beyaz veri yüzeyi + nötr açık canvas",
+      "unanimous": true
+    },
+    {
+      "id": "D02",
+      "topic": "Etkileşim vurgusu",
+      "options": {
+        "A": "Kobalt `#2458D3`; amber yalnız veri uyarısında",
+        "B": "Amber ana seçim/eylem; uyarı ikon + metinle ayrılır"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D02",
+          "choice": "A",
+          "reason": "Kobalt etkileşimi finansal yön ve amber veri uyarısından ayırır.",
+          "reservation": "Tek başına ayırt edici marka kimliği oluşturmaz."
+        },
+        {
+          "agent": "workflow",
+          "id": "D02",
+          "choice": "A",
+          "reason": "Etkileşimi veri eskiliği ve kısmi kanıt uyarısından ayırır.",
+          "reservation": "Kimlik yalnız kobalt renge dayanırsa sıradanlaşır."
+        },
+        {
+          "agent": "interaction",
+          "id": "D02",
+          "choice": "A",
+          "reason": "Etkileşim rengi finansal yön ve veri uyarısından ayrılıyor.",
+          "reservation": "Gerçek token çiftlerinin kontrastı ölçülmeli."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Kobalt `#2458D3`; amber yalnız veri uyarısında",
+      "unanimous": true
+    },
+    {
+      "id": "D03",
+      "topic": "Gezinme kabuğu",
+      "options": {
+        "A": "Grafit `#191E25` üst ve sol menü",
+        "B": "Grafit üst bar + açık gri sol menü"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D03",
+          "choice": "A",
+          "reason": "Dar grafit kabuk beş ana görevi şirket araştırması kontrollerinden ayırır.",
+          "reservation": "B'nin açık sidebar tercihinin daha sakin parlaklık geçişi avantajını kabul ediyorum."
+        },
+        {
+          "agent": "workflow",
+          "id": "D03",
+          "choice": "B",
+          "reason": "Beş görevli gezinmede açık menü yeterli; koyu sol bloğun görsel ağırlığını gereksiz buluyorum.",
+          "reservation": "Gezinmenin açık veri alanından ayrımı daha zayıftır; seçili zemin, çizgi ve metin birlikte gereklidir."
+        },
+        {
+          "agent": "interaction",
+          "id": "D03",
+          "choice": "A",
+          "reason": "Grafit kabuk beş görevi şirket içindeki araştırma kontrollerinden ayırıyor.",
+          "reservation": "Koyu kabuğun açık içeriğe göre baskınlaşması izlenmeli."
+        }
+      ],
+      "counts": {
+        "A": 2,
+        "B": 1
+      },
+      "winner": "A",
+      "result": "Grafit `#191E25` üst ve sol menü",
+      "unanimous": false
+    },
+    {
+      "id": "D04",
+      "topic": "Tablo ritmi",
+      "options": {
+        "A": "Varsayılan40px, kullanıcı seçerse kompakt32px",
+        "B": "Varsayılan36px, kullanıcı seçerse rahat44px"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D04",
+          "choice": "A",
+          "reason": "40px okunurluğu, 32px kullanıcı tercihiyle daha çok satırı destekler.",
+          "reservation": "İlk açılışta daha az satır görünür; mobil eylem hedefleri ayrıca korunmalı."
+        },
+        {
+          "agent": "workflow",
+          "id": "D04",
+          "choice": "A",
+          "reason": "40px varsayılan okunurluk, 32px isteğe bağlı yoğunluk sağlar.",
+          "reservation": "İlk açılışta aynı yükseklikte daha az satır görünür."
+        },
+        {
+          "agent": "interaction",
+          "id": "D04",
+          "choice": "A",
+          "reason": "Varsayılan 40px okunurluk, isteğe bağlı 32px daha çok satır sunuyor.",
+          "reservation": "Mobil eylemler kompakt satıra sıkıştırılmamalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Varsayılan40px, kullanıcı seçerse kompakt32px",
+      "unanimous": true
+    },
+    {
+      "id": "D05",
+      "topic": "Kaynak ayrıntıları",
+      "options": {
+        "A": "Kısa kaynak/dönem/birim satırı kalıcı; panel başlangıçta kapalı. ≥1440px ve tablo≥900px kalıyorsa isteğe bağlı280px yan panel; diğer durumda modal drawer",
+        "B": "Kısa kaynak satırı kalıcı; ayrıntı her genişlikte modal pencere"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D05",
+          "choice": "A",
+          "reason": "Geniş ekranda kaynak ile kanıtı birlikte okumayı sağlar; dar ekranda tablo alanını korur.",
+          "reservation": "Modal ve modal olmayan odak davranışları farklı uygulanmalı."
+        },
+        {
+          "agent": "workflow",
+          "id": "D05",
+          "choice": "A",
+          "reason": "Kalıcı kısa kaynak satırı bulunabilirliği korur; isteğe bağlı panel karşılaştırma genişliğini yalnız yeterli alanda kullanır.",
+          "reservation": "1440px ve 900px koşulları birlikte uygulanmalı; 280px panel başlangıçta kapalı olmalı."
+        },
+        {
+          "agent": "interaction",
+          "id": "D05",
+          "choice": "A",
+          "reason": "Kaynak bağlamı görünürken ayrıntı tablonun zorunlu genişliğini tüketmiyor; yeterli alanda nonmodal panel yararlı.",
+          "reservation": "1440px viewport ve 900px kalan tablo koşulları birlikte uygulanmalı; nonmodal panel odak hapsetmemeli, modal drawer hapsetmeli."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Kısa kaynak/dönem/birim satırı kalıcı; panel başlangıçta kapalı. ≥1440px ve tablo≥900px kalıyorsa isteğe bağlı280px yan panel; diğer durumda modal drawer",
+      "unanimous": true
+    },
+    {
+      "id": "D06",
+      "topic": "Bugün hiyerarşisi",
+      "options": {
+        "A": "Portföy durumu → performans/dağılım → pozisyonlar → haber/takvim; makro kısa şerit",
+        "B": "Araştırmaya giriş → izleme listesi → portföy özeti; araştırma merkezli ilk görünüm"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D06",
+          "choice": "A",
+          "reason": "Mevcut portföy kanıtından hareket eder; desteklenmeyen araştırma kuyruğu gerektirmez.",
+          "reservation": "Portföyü olmayan kullanıcının boş durumu ayrıca anlamlı olmalı."
+        },
+        {
+          "agent": "workflow",
+          "id": "D06",
+          "choice": "A",
+          "reason": "Mevcut portföy kanıtını ve günlük inceleme sırasını izler; desteklenmeyen araştırma kuyruğu gerektirmez.",
+          "reservation": "Portföyü olmayan kullanıcıda oluşturma eylemi ve boş durum anlamlı olmalıdır."
+        },
+        {
+          "agent": "interaction",
+          "id": "D06",
+          "choice": "A",
+          "reason": "Mevcut portföy kanıtından başlayan sıra otomatik araştırma önceliği üretmiyor.",
+          "reservation": "Portföy yokken tek oluşturma eylemi ve araştırma erişimi anlaşılır kalmalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Portföy durumu → performans/dağılım → pozisyonlar → haber/takvim; makro kısa şerit",
+      "unanimous": true
+    },
+    {
+      "id": "D07",
+      "topic": "Araştırma bölümleri",
+      "options": {
+        "A": "Genel bakış / Grafik / Finansallar / Risk / Haberler / AI raporu",
+        "B": "Genel bakış / Finansallar / Grafik / Risk / Haberler / AI raporu"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D07",
+          "choice": "A",
+          "reason": "Genel bakıştan fiyat bağlamına ve ayrıntılı finansallara ilerleyen diziyi tercih ediyorum.",
+          "reservation": "Uzun vadeli analist finansalları daha erken isteyebilir; bölüm derin bağlantıları önemlidir."
+        },
+        {
+          "agent": "workflow",
+          "id": "D07",
+          "choice": "A",
+          "reason": "Grafik fiyat bağlamından ayrıntılı finansal kanıta geçişi sağlar; ilk iki turdaki sıramı koruyorum.",
+          "reservation": "Bu sıra uzun vadeli araştırmayı teknik alım sinyali akışına dönüştürmemeli."
+        },
+        {
+          "agent": "interaction",
+          "id": "D07",
+          "choice": "A",
+          "reason": "Genel bakıştan sonra Grafik, mevcut teknik araştırma akışına anlaşılır erişim veriyor.",
+          "reservation": "Dar ekranda tam adların devamı görünür olmalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Genel bakış / Grafik / Finansallar / Risk / Haberler / AI raporu",
+      "unanimous": true
+    },
+    {
+      "id": "D08",
+      "topic": "Araştırmada ilk sekme",
+      "options": {
+        "A": "Genel bakış; seçilen görev ana yüzeyi devralır",
+        "B": "Finansallar; rapor tablosu ilk yüzey"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D08",
+          "choice": "A",
+          "reason": "Genel bakış farklı varlık türlerine ve araştırma sorularına uygun giriş sağlar.",
+          "reservation": "Genel bakış gereksiz metrik kartlarıyla şişmemeli."
+        },
+        {
+          "agent": "workflow",
+          "id": "D08",
+          "choice": "A",
+          "reason": "Genel bakış hisse ve ETF için finansal tabloyu zorunlu kılmadan ortak başlangıç sağlar.",
+          "reservation": "Doğrudan bölüm bağlantıları seçilen görevi açabilmeli."
+        },
+        {
+          "agent": "interaction",
+          "id": "D08",
+          "choice": "A",
+          "reason": "Genel bakış farklı hisse ve ETF kanıtlarını tek başlangıçta karşılayabilir.",
+          "reservation": "Genel bakış tekrar eden KPI kartlarıyla şişmemeli."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Genel bakış; seçilen görev ana yüzeyi devralır",
+      "unanimous": true
+    },
+    {
+      "id": "D09",
+      "topic": "Buton hiyerarşisi",
+      "options": {
+        "A": "Aktif formda en çok1primary; gezinme link; ekleme secondary; silme nesnesi açık kırmızı",
+        "B": "Görüntüleme ekranında1primary gezinme + formda1primary; diğerleri secondary"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D09",
+          "choice": "A",
+          "reason": "Görüntüleme ekranında primary zorunluluğu eylem rekabeti yaratır; formdaki kayıt önceliklidir.",
+          "reservation": "Primary bulunmayan ekranlarda bağlantıların bulunabilirliği korunmalı."
+        },
+        {
+          "agent": "workflow",
+          "id": "D09",
+          "choice": "A",
+          "reason": "Kayıt eylemiyle sayfaya gitmeyi ayırır; panelde eylem rekabetini azaltır.",
+          "reservation": "Görüntüleme ekranında primary buton bulunması zorunlu değildir."
+        },
+        {
+          "agent": "interaction",
+          "id": "D09",
+          "choice": "A",
+          "reason": "Tek baskın kayıt eylemi ve gerçek gezinme linkleri eylem hiyerarşisini açık tutuyor.",
+          "reservation": "Görüntüleme ekranının primary butona ihtiyacı olmayabilir."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Aktif formda en çok1primary; gezinme link; ekleme secondary; silme nesnesi açık kırmızı",
+      "unanimous": true
+    },
+    {
+      "id": "D10",
+      "topic": "Arama etiketi",
+      "options": {
+        "A": "“Kayıtlı varlıklarda ara”; Ctrl/⌘K, oklar, Enter, Escape, sonuç sayısı",
+        "B": "“Şirket veya sembol ara”; sonuçlarda kapsam açıklaması, aynı klavye davranışı"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D10",
+          "choice": "A",
+          "reason": "Arama etiketinde gerçek mevcut varlık kapsamını baştan söyler.",
+          "reservation": "Genel piyasa araması sonradan eklenirse label yeniden değerlendirilmelidir."
+        },
+        {
+          "agent": "workflow",
+          "id": "D10",
+          "choice": "A",
+          "reason": "Aramanın mevcut kayıt kapsamını kontrol açılmadan açıklar.",
+          "reservation": "Tüm piyasa araması ileride gerçekten eklenirse bu label yeniden değerlendirilir."
+        },
+        {
+          "agent": "interaction",
+          "id": "D10",
+          "choice": "A",
+          "reason": "Kayıtlı varlık kapsamını aramadan önce açıklıyor; genel piyasa araması vaat etmiyor.",
+          "reservation": "Kısayol metin alanlarında yazmayı kesmemeli."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "“Kayıtlı varlıklarda ara”; Ctrl/⌘K, oklar, Enter, Escape, sonuç sayısı",
+      "unanimous": true
+    },
+    {
+      "id": "D11",
+      "topic": "Finansal özet label'ları",
+      "options": {
+        "A": "“Güncel değer”, “Maliyet”, “Fiyat kapsamı”; toplam bilinmiyorsa açıklama + bilinen ara toplam",
+        "B": "“Portföy değeri”, “Toplam maliyet”, “Fiyatlanan pozisyonlar”; aynı doğruluk ve ara toplam kuralları"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D11",
+          "choice": "A",
+          "reason": "Güncel değer ile maliyeti açıkça ayırır; fiyat kapsamını kısa ve sürekli görünür kılar.",
+          "reservation": "Kapsamın adet mi ağırlık mı olduğu açıklamada belirtilmeli."
+        },
+        {
+          "agent": "workflow",
+          "id": "D11",
+          "choice": "A",
+          "reason": "Güncel değer, maliyet ve kapsamı ayrı kavramlar olarak belirginleştirir.",
+          "reservation": "Güncel sözcüğünün yanında gözlem zamanı bulunmalı; canlı veri anlamına gelmemeli."
+        },
+        {
+          "agent": "interaction",
+          "id": "D11",
+          "choice": "A",
+          "reason": "Güncel değer ile maliyetin ayrı adları ve fiyat kapsamı eksik fiyatı açık tutuyor.",
+          "reservation": "Ara toplam toplam değer gibi büyük ve açıklamasız sunulmamalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "“Güncel değer”, “Maliyet”, “Fiyat kapsamı”; toplam bilinmiyorsa açıklama + bilinen ara toplam",
+      "unanimous": true
+    },
+    {
+      "id": "D12",
+      "topic": "Yazı ölçeği",
+      "options": {
+        "A": "Gövde14px, tablo13px, yardımcı bilgi12px; şirket26px/panel16px",
+        "B": "Gövde13px, tablo13px, yardımcı bilgi11px; şirket24px/panel14px"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D12",
+          "choice": "A",
+          "reason": "14px gövde ve 12px yardımcı bilgi araştırma ve kaynak metinlerini okunur tutar.",
+          "reservation": "Daha büyük şirket başlığı tek satıra sığmadığında esnemeli."
+        },
+        {
+          "agent": "workflow",
+          "id": "D12",
+          "choice": "A",
+          "reason": "12px kaynak bilgisi alt sınırı ve 14px gövde uzun araştırma metnini destekler.",
+          "reservation": "Daha az satırı yazıyı küçülterek telafi etmeyelim."
+        },
+        {
+          "agent": "interaction",
+          "id": "D12",
+          "choice": "A",
+          "reason": "Yardımcı bilgiyi 12px altına indirmeyen ölçek veri durumu ve kaynağı okunur tutuyor.",
+          "reservation": "Yazı büyümesinde satır ve butonlar taşmamalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Gövde14px, tablo13px, yardımcı bilgi12px; şirket26px/panel16px",
+      "unanimous": true
+    },
+    {
+      "id": "D13",
+      "topic": "Ölçü ve yüzey",
+      "options": {
+        "A": "192pxsidebar,56pxüstbar,24pxkenar,16pxpanelarası,6pxpanel/4pxkontrol radius; gölge yalnız üstkatmanda",
+        "B": "184pxsidebar,56pxüstbar,20pxkenar,18pxpanelarası,4pxpanel/kontrol radius; gölge yalnız üstkatmanda"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D13",
+          "choice": "A",
+          "reason": "24px kenar, 16px panel arası ve 6px panel radius daha rahat ve tutarlı ölçek kurar.",
+          "reservation": "192px sidebar ilk 184px önerimden geniş; dar viewport'ta ana tablo alanı izlenmeli."
+        },
+        {
+          "agent": "workflow",
+          "id": "D13",
+          "choice": "A",
+          "reason": "İlk turdaki 192px menü ve 24px kenar önerime uyuyor; 16px panel arası dengeli alan bırakır.",
+          "reservation": "Dar ekranlarda masaüstü ölçüleri sabit uygulanmamalı."
+        },
+        {
+          "agent": "interaction",
+          "id": "D13",
+          "choice": "A",
+          "reason": "24px kenarlar ve 192px menü etiketlerin rahat okunmasına yer veriyor.",
+          "reservation": "Küçük ekranlarda masaüstü ölçüleri sabit tutulmamalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "192pxsidebar,56pxüstbar,24pxkenar,16pxpanelarası,6pxpanel/4pxkontrol radius; gölge yalnız üstkatmanda",
+      "unanimous": true
+    },
+    {
+      "id": "D14",
+      "topic": "Prototip günlüğü eylemi",
+      "options": {
+        "A": "“Taslağı önizle”; “Prototip taslağı — yalnız bu açık oturumda tutulur”; başarı değil önizleme",
+        "B": "“Taslağı bu oturumda göster”; “Sunucuya kaydedilmez; yenilemede silinir”; başarı değil önizleme"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D14",
+          "choice": "A",
+          "reason": "Taslağı önizle kalıcılık iddiası taşımayan anlaşılır bir eylemdir.",
+          "reservation": "Tur2'deki Prototipte saklandı ifademden vazgeçiyorum; önizleme sunucu başarısı gibi görünmemeli."
+        },
+        {
+          "agent": "workflow",
+          "id": "D14",
+          "choice": "A",
+          "reason": "Önizleme sözcüğü kalıcı kayıt yapılmadığını eylemin kendisinde belirtir.",
+          "reservation": "Düzenleyicinin yanında yenilemede silinme bilgisi de kalmalı; başarı bildirimi olmamalı."
+        },
+        {
+          "agent": "interaction",
+          "id": "D14",
+          "choice": "B",
+          "reason": "Sunucuya kaydedilmemesi ve yenilemede kaybolması aynı açıklamada somut biçimde belirtiliyor.",
+          "reservation": "Taslağı bu oturumda göster ifadesi önizlemeyi kaydetme başarısı gibi sunmamalı."
+        }
+      ],
+      "counts": {
+        "A": 2,
+        "B": 1
+      },
+      "winner": "A",
+      "result": "“Taslağı önizle”; “Prototip taslağı — yalnız bu açık oturumda tutulur”; başarı değil önizleme",
+      "unanimous": false
+    },
+    {
+      "id": "D15",
+      "topic": "Mobil ana görevler",
+      "options": {
+        "A": "Beş görev alt menüde tam anlaşılır etiketlerle görünür",
+        "B": "Dört görev + “Diğer” menüsünde Günlük; beş görev erişilebilir"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D15",
+          "choice": "A",
+          "reason": "Beş ana görevin her biri doğrudan ve aynı seviyede erişilebilir kalır.",
+          "reservation": "Uzun Türkçe etiketler gerçek dar ekranda ölçülmeli."
+        },
+        {
+          "agent": "workflow",
+          "id": "D15",
+          "choice": "A",
+          "reason": "Günlük diğer dört görev kadar doğrudan erişilebilir kalır.",
+          "reservation": "Etiketleri sığdırmak için anlaşılmaz kısaltma veya çok küçük metin kullanılmamalı."
+        },
+        {
+          "agent": "interaction",
+          "id": "D15",
+          "choice": "A",
+          "reason": "Mevcut beş görev görünür ve eşit erişimde kalıyor; Günlük saklanmıyor.",
+          "reservation": "320px genişlikte uzun label kırılması ve hedefler kontrol edilmeli."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Beş görev alt menüde tam anlaşılır etiketlerle görünür",
+      "unanimous": true
+    },
+    {
+      "id": "D16",
+      "topic": "AI sunumu",
+      "options": {
+        "A": "Son sekmede altı analist sabit sırada görünür; her rolde gerçek veri yoksa açık durum, sahte ilerleme/rapor yok",
+        "B": "Son sekmede tek açık unavailable durumu; analist sırası ayrı “Nasıl çalışır” açıklamasında"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D16",
+          "choice": "A",
+          "reason": "Altı analist sırası ürünün araştırma yapısını görünür kılar; yokluk açık rol durumuyla anlaşılır.",
+          "reservation": "Rollerin kartları gerçek zamanlı yürütme telemetrisi gibi sunulmamalı."
+        },
+        {
+          "agent": "workflow",
+          "id": "D16",
+          "choice": "A",
+          "reason": "Analistlerin sabit sırası görünür kalır ve AI raporunun yapısı anlaşılır.",
+          "reservation": "Rol başlıkları sonuç varmış gibi görünmemeli; bağlı olmayan prototipte açık veri durumu, sahte ilerleme ve anlatı olmamalı."
+        },
+        {
+          "agent": "interaction",
+          "id": "D16",
+          "choice": "A",
+          "reason": "Mevcut altı rol ve sırası, gerçek çıktı olmadığında açık durumla birlikte anlaşılır kalıyor.",
+          "reservation": "Ayrı unavailable satırlar sahte aşama ilerlemesi gibi canlandırılmamalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Son sekmede altı analist sabit sırada görünür; her rolde gerçek veri yoksa açık durum, sahte ilerleme/rapor yok",
+      "unanimous": true
+    },
+    {
+      "id": "D17",
+      "topic": "Eylem label uzunluğu",
+      "options": {
+        "A": "“İzleme listesine ekle”, “Kaynak ayrıntıları”, “İşlem kaydı ekle”; anlam nesneyle açık",
+        "B": "“İzle”, “Kaynak”, “İşlem ekle”; nesne yakın başlıktan anlaşılır"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D17",
+          "choice": "A",
+          "reason": "Nesneyi adlandıran eylemler öğrenme ve erişilebilir ad bakımından daha açıktır.",
+          "reservation": "Dar ekranda metin sarabilir; küçük yazıya veya belirsiz ikona dönüştürülmemeli."
+        },
+        {
+          "agent": "workflow",
+          "id": "D17",
+          "choice": "A",
+          "reason": "Kayıt ile emir verme ve kaynak ayrıntısı ile dış kaynak açma ayrımını nesneli etiketler güçlendirir.",
+          "reservation": "Uzun etiketlerin mobil yerleşimi sarma ve yeterli hedef alanıyla çözülmeli."
+        },
+        {
+          "agent": "interaction",
+          "id": "D17",
+          "choice": "A",
+          "reason": "Nesneyi adlandıran etiketler kaynağı, liste eklemeyi ve işlem kaydını açıklaştırıyor.",
+          "reservation": "Dar alanda metni belirsiz kısaltmaya dönüştürmeden yerleşim uyarlanmalı."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "“İzleme listesine ekle”, “Kaynak ayrıntıları”, “İşlem kaydı ekle”; anlam nesneyle açık",
+      "unanimous": true
+    },
+    {
+      "id": "D18",
+      "topic": "HTML açılış ekranı",
+      "options": {
+        "A": "Araştır / Genel bakış; kaynağı belirtilmiş rapor kesitiyle görsel tasarımı değerlendirme",
+        "B": "Bugün; bağlı olmayan hesabın gerçek boş durumuyla ilk oturumu değerlendirme"
+      },
+      "votes": [
+        {
+          "agent": "visual",
+          "id": "D18",
+          "choice": "A",
+          "reason": "Kaynaklı gerçek rapor kesitiyle araştırma hiyerarşisini değerlendirmek görsel incelemeyi somutlaştırır.",
+          "reservation": "Statik kesit canlı fiyat veya bağlı hesap izlenimi yaratmamalı; Bugün ayrıca erişilebilir olmalı."
+        },
+        {
+          "agent": "workflow",
+          "id": "D18",
+          "choice": "A",
+          "reason": "Kaynaklı rapor kesiti dolu araştırma yüzeyinin hiyerarşisini değerlendirmeye olanak verir.",
+          "reservation": "Açılışın araştırma olması gerçek ürünün Bugün varsayılanını değiştirmez; rapor kesiti canlı hesap verisi değildir."
+        },
+        {
+          "agent": "interaction",
+          "id": "D18",
+          "choice": "A",
+          "reason": "Araştırma genel bakışında doğrulanmış rapor kesitiyle görünüş ve hiyerarşi somut değerlendirilebilir.",
+          "reservation": "Rapor tarihi ve prototip verisi sınırı görünür olmalı; fiyat veya AI sonucu üretilmemeli."
+        }
+      ],
+      "counts": {
+        "A": 3,
+        "B": 0
+      },
+      "winner": "A",
+      "result": "Araştır / Genel bakış; kaynağı belirtilmiş rapor kesitiyle görsel tasarımı değerlendirme",
+      "unanimous": true
+    }
+  ]
+}

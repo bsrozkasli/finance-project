@@ -37,6 +37,6 @@ The multi-agent analysis pipeline will execute sequentially in this order: Funda
 
 ## References
 
-- SPEC.md Section 3
-- AGENTS.md Section 3
-- data-service/app/routers/agent_analysis.py
+- `docs/spec/current-system/architecture.md` (Agent-Analysis Flow)
+- `data-service/app/trading_agents/metrics_trading_graph.py`
+- `data-service/app/routers/agent_analysis.py`

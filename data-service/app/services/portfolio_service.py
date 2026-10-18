@@ -6,7 +6,6 @@ from typing import Iterable, Any
 
 import numpy as np
 import pandas as pd
-import yfinance as yf
 from pypfopt import EfficientFrontier, expected_returns
 from pypfopt.risk_models import CovarianceShrinkage
 
@@ -18,6 +17,8 @@ from app.models.portfolio import (
     OptimizationResponse,
     PortfolioMetrics,
 )
+from app.dependencies import get_resolver
+from app.services.price_history import fetch_close_matrix
 
 
 class PortfolioService:
@@ -34,33 +35,12 @@ class PortfolioService:
         if len(tickers) < cls.MIN_ASSETS:
             raise ValueError(f"At least {cls.MIN_ASSETS} assets are required for portfolio optimization")
 
-        end_date = pd.Timestamp.now(tz="UTC")
-        start_date = end_date - pd.Timedelta(days=lookback_days)
-
-        data = yf.download(
-            tickers=" ".join(tickers),
-            start=start_date.strftime("%Y-%m-%d"),
-            end=end_date.strftime("%Y-%m-%d"),
-            auto_adjust=False,
-            actions=False,
-            progress=False,
-        )
-
-        if data is None or data.empty:
-            raise ValueError("No historical price data was returned for the requested symbols")
-
-        if isinstance(data.columns, pd.MultiIndex):
-            if "Close" not in data.columns.get_level_values(0):
-                raise ValueError("No close prices were returned for the requested symbols")
-            prices = data["Close"].copy()
-        else:
-            if "Close" not in data.columns:
-                raise ValueError("No close prices were returned for the requested symbols")
-            prices = data["Close"].to_frame(name=tickers[0])
+        # Adjusted closes keep splits and dividends out of expected returns (ADR-0006 D5).
+        prices = fetch_close_matrix(get_resolver(), tickers, lookback_days=lookback_days, adjusted=True)
 
         prices = prices.dropna(how="all")
         if prices.empty:
-            raise ValueError("No usable close prices were returned for the requested symbols")
+            raise ValueError("No historical price data was returned for the requested symbols")
 
         missing_ratio = prices.isna().mean()
         prices = prices.loc[:, missing_ratio <= cls.MAX_MISSING_RATIO]

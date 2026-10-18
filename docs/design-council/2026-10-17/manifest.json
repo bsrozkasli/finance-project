@@ -1,0 +1,96 @@
+{
+  "built_at": "2026-10-17T16:28:52.370629+00:00",
+  "artifact": "docs\\prototypes\\mercek-design-council.html",
+  "document_count": 21,
+  "documents": [
+    {
+      "file": "00-protocol.md",
+      "sha256": "db0eae7d17dae637e634aa63aaca789145a083755575fcf0f902d839a8c1e243"
+    },
+    {
+      "file": "sources.md",
+      "sha256": "851cd024c6079b4f414b37986e31c0f457664e847f3fe658a5bdd00e305fab32"
+    },
+    {
+      "file": "round1-visual.md",
+      "sha256": "c3249a9f2aef5f9a9457497947a2b431f5e0e86f972e90349a3b50764a14c4f1"
+    },
+    {
+      "file": "round1-workflow.md",
+      "sha256": "d5a14804e4c3a1c340e7116e0a4a8bcd5ee52d90116fd3d007be9d08cfc1d192"
+    },
+    {
+      "file": "round1-interaction.md",
+      "sha256": "d31fd8bfd6100416df541e69b53778a03d96d117de78688ba3188e11f2a0630a"
+    },
+    {
+      "file": "round2-brief.md",
+      "sha256": "12c1bfad6f555d077c318a73327678235f743cd68f46e497c24b55d664416363"
+    },
+    {
+      "file": "round2-visual.md",
+      "sha256": "751a000f345809a8dc0b79a498900981fe8baa383ee7dcd6526d598060b07c5d"
+    },
+    {
+      "file": "round2-workflow.md",
+      "sha256": "f4caf0e68a662d900477432193d26e3d1485fbc71f76d6c931b53a308b6e5734"
+    },
+    {
+      "file": "round2-interaction.md",
+      "sha256": "49d22dad78f65db2d65fa97d3a1058f7cd1b6b85468ed1a0dbe40555dcfff9a2"
+    },
+    {
+      "file": "ballot.md",
+      "sha256": "2113028ae33b1c03ce255793e54f21a516c16deca670d70f985c6b1dfac6f3bf"
+    },
+    {
+      "file": "round3-visual.md",
+      "sha256": "b15275935d02a236492675274a512f0833c01682c6813266ed0b42fb8be8cff5"
+    },
+    {
+      "file": "round3-workflow.md",
+      "sha256": "848b7e2ed6fd9b8d06bc0deace3390c916f80c6fda9cef9b96a7a63efafd893f"
+    },
+    {
+      "file": "round3-interaction.md",
+      "sha256": "ba942c7fce85ddbd00aa2bac0c6ccef6fad51b18e8db0598043d8c687ec53425"
+    },
+    {
+      "file": "decisions.md",
+      "sha256": "9335c6ce33377c475bdeadd788b2ee044774a50015c9d8f3615b8362b0366871"
+    },
+    {
+      "file": "visual-spec.md",
+      "sha256": "2b8919aa381bd0a6ff302ed52aa0a7b159c7c1c55883467498342209d4362a47"
+    },
+    {
+      "file": "component-contract.md",
+      "sha256": "51510433fe9a9413a26dc235c1e9a655ca9c5b867c98c034a0d70d529a5ba99a"
+    },
+    {
+      "file": "review-visual.md",
+      "sha256": "99bdb22b0fc7cb4f6a0752729b1262acb518caa24dda6751b5b11b57c3cf9763"
+    },
+    {
+      "file": "review-workflow.md",
+      "sha256": "0fa592ad59321c87eca9831cd2faa777b8601ef9365b7d8d8ec64b2f7830f946"
+    },
+    {
+      "file": "review-interaction.md",
+      "sha256": "b72d23349cf8765f720a3998191a1f911ef66277edeb997c6a4927f8ee932075"
+    },
+    {
+      "file": "review-resolution.md",
+      "sha256": "1ed268296b8107d8725f545c7f1d94e48bf441672680eecc2f09f14e2b8cf156"
+    },
+    {
+      "file": "verification.md",
+      "sha256": "b10d67fcd14f9b77f0627b0fcda28213b0b96900e725228fa3e9a96436b0b95b"
+    }
+  ],
+  "votes": {
+    "count": 54,
+    "unanimous": 16,
+    "majority": 2
+  }
+}

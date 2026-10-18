@@ -4,7 +4,10 @@ const zlib = require('node:zlib');
 
 const distAssetsDir = path.join(process.cwd(), 'dist', 'assets');
 const maxTotalJsBytes = 700 * 1024;
-const maxTotalJsGzipBytes = 210 * 1024;
+// Total across all chunks, including lazily loaded routes. The research-desk
+// redesign code-splits every page (~100 KiB gzipped on first load) at the cost
+// of ~214 KiB in total, so the total budget keeps ~10 KiB of headroom.
+const maxTotalJsGzipBytes = 225 * 1024;
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 

@@ -1,0 +1,26 @@
+# HTTP Contract Fixtures
+
+Each JSON file is a representative Spring `/api/v1` response body shared by the
+backend and frontend test suites. Values are test data derived by hand from the
+stub scenario in `PortfolioDashboardContractTest`; they are not market data and
+must never be served to users.
+
+- Backend: `ContractFixtures.assertSameShape` compares the serialized field-path
+  set of a real controller response with the fixture (values are ignored, `null`
+  is a leaf).
+- Frontend: `src/api/contract.test.ts` parses every fixture with a strict zod
+  schema that mirrors the TypeScript type in `src/api/client.ts`.
+
+This detects drift between a fixture and the backend response shape, and between a
+fixture and the frontend zod schema. The zod schema is hand-mirrored and must be kept
+in sync with `src/api/client.ts` by hand; a TypeScript-only interface rename in
+`client.ts` is not detected (test files are excluded from `tsc`).
+To add a fixture: write the JSON with every array non-empty and every object
+non-null, add a backend shape test for the endpoint, and add a frontend schema test.
+
+| Fixture | Endpoint |
+|---|---|
+| `portfolio-summary.json` | `GET /portfolio/summary` |
+| `portfolio-performance.json` | `GET /portfolio/performance?period=&benchmark=` |
+| `portfolio-enriched-positions.json` | `GET /portfolio/positions/enriched` |
+| `error-response.json` | Any Spring 4xx/5xx handled by `GlobalExceptionHandler` |

@@ -1,8 +1,15 @@
-import axios from 'axios';
+import axios, { isCancel } from 'axios';
+import { API_BASE_URL } from './config';
+import { toApiError } from './errors';
 
 export const apiClient = axios.create({
-  baseURL: 'http://localhost:8080/api/v1',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error: unknown) => Promise.reject(isCancel(error) ? error : toApiError(error)),
+);

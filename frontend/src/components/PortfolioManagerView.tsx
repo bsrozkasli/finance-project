@@ -187,7 +187,7 @@ export default function PortfolioManagerView({
   }, [activePortfolio, stockMap]);
   const displayedPositions = useMemo<LocalPositionPerformance[]>(() => {
     if (positionPerformance.length === 0) return fallbackPositions;
-    return positionPerformance.map((position) => ({
+    const enriched = positionPerformance.map((position) => ({
       ...position,
       company: stockMap[position.symbol.toUpperCase()]?.name ?? position.company ?? position.symbol,
       currentPrice: position.currentPrice,
@@ -201,6 +201,8 @@ export default function PortfolioManagerView({
       totalReturn: position.totalReturn ?? null,
       quantity: activePortfolio?.holdings.find((holding) => holding.symbol === position.symbol)?.quantity,
     }));
+    const enrichedSymbols = new Set(enriched.map((position) => position.symbol));
+    return [...enriched, ...fallbackPositions.filter((position) => !enrichedSymbols.has(position.symbol))];
   }, [activePortfolio?.holdings, fallbackPositions, positionPerformance, stockMap]);
 
   const allocationPositions = useMemo(
@@ -211,19 +213,18 @@ export default function PortfolioManagerView({
   );
 
   const portfolioSummary = useMemo(() => {
-    const pricingComplete = displayedPositions.every((position) => position.marketValue != null);
-    const totalValue = pricingComplete
-      ? displayedPositions.reduce((sum, position) => sum + (position.marketValue ?? 0), 0)
-      : null;
-    const totalCost = pricingComplete
-      ? displayedPositions.reduce((sum, position) => sum + ((position.quantity ?? 1) * position.costPrice), 0)
-      : null;
-    const totalPnl = totalValue == null || totalCost == null ? null : totalValue - totalCost;
-    const totalReturn = totalCost != null && totalPnl != null && totalCost > 0 ? (totalPnl / totalCost) * 100 : null;
+    const pricedPositions = displayedPositions.filter((position) => position.currentPrice != null && position.marketValue != null);
+    const pricedSubtotal = pricedPositions.reduce((sum, position) => sum + (position.marketValue ?? 0), 0);
+    const totalCost = pricedPositions.reduce((sum, position) => sum + ((position.quantity ?? 1) * position.costPrice), 0);
+    const totalCount = activePortfolio?.holdings.length ?? 0;
+    const complete = pricedPositions.length === totalCount;
+    const totalValue = complete ? pricedSubtotal : null;
+    const totalPnl = complete ? pricedSubtotal - totalCost : null;
+    const totalReturn = complete && totalCost > 0 && totalPnl != null ? (totalPnl / totalCost) * 100 : null;
     const largestWeight = allocationPositions.reduce((max, position) => Math.max(max, position.weight), 0);
 
-    return { totalValue, totalCost, totalPnl, totalReturn, largestWeight };
-  }, [allocationPositions, displayedPositions]);
+    return { totalValue, totalCost, totalPnl, totalReturn, largestWeight, pricedCount: pricedPositions.length, totalCount, complete };
+  }, [activePortfolio?.holdings.length, allocationPositions, displayedPositions]);
 
   const allPerformanceData = useMemo(() => {
     if (!activePortfolio || activePortfolio.holdings.length === 0) return [];
@@ -491,16 +492,9 @@ export default function PortfolioManagerView({
     : null;
   return (
     <div className="flex-1 overflow-y-auto bg-bg-primary p-4 md:p-6 space-y-6">
-      <section className="bg-bg-card border border-outline-variant rounded-xl overflow-hidden shadow-md">
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_560px] gap-6 p-6 md:p-8 min-h-72 items-center">
+      <section className="bg-bg-card border border-outline-variant rounded-md overflow-hidden ">
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_560px] gap-6 p-5 md:p-6 items-center">
           <div className="flex items-center gap-8">
-            <div className="hidden sm:flex h-28 w-28 items-end justify-center rounded-xl border border-outline-variant/25 bg-bg-base/35 p-4">
-              <div className="flex items-end gap-2">
-                <span className="h-10 w-8 rounded-t-md bg-bear-red/80" />
-                <span className="h-20 w-8 rounded-t-md bg-primary/80" />
-                <span className="h-14 w-8 rounded-t-md bg-warning-amber/80" />
-              </div>
-            </div>
             <div>
               <div className="mb-2 flex items-center gap-2 text-xs font-bold text-text-muted">
                 <span>US</span>
@@ -510,18 +504,18 @@ export default function PortfolioManagerView({
                 {activePortfolio?.name || 'Portfolio'}
               </h1>
               <p className="mt-3 max-w-xl text-sm text-text-secondary">
-                Active portfolio performance, allocation, concentration, and ledger history.
+                Portföy performansı, dağılım ve işlem geçmişi.
               </p>
               <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end">
-                <label className="min-w-56 text-[10px] font-label-caps font-bold uppercase tracking-widest text-text-muted">
-                  Active Portfolio
+                <label className="min-w-56 text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">
+                  Aktif portföy
                   <select
                     value={activePortfolio?.id ?? ''}
                     onChange={(event) => onSelectPortfolioId(event.target.value)}
-                    className="mt-1 w-full rounded-lg border border-outline-variant/40 bg-bg-base px-3 py-2 text-xs font-bold text-text-primary focus:outline-none focus:border-primary"
-                    aria-label="Select active portfolio"
+                    className="mt-1 w-full rounded-md border border-outline-variant/40 bg-bg-base px-3 py-2 text-xs font-bold text-text-primary focus:outline-none focus:border-primary"
+                    aria-label="Aktif portföy seç"
                   >
-                    {!activePortfolio && <option value="">Select portfolio</option>}
+                    {!activePortfolio && <option value="">Portföy seç</option>}
                     {portfolios.map((portfolio) => (
                       <option key={portfolio.id} value={portfolio.id} className="bg-bg-card text-text-primary">
                         {portfolio.name}
@@ -535,10 +529,10 @@ export default function PortfolioManagerView({
                     setPortfolioActionError('');
                                     setIsCreatePortfolioOpen(true);
                   }}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-primary/25 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/15"
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-primary/25 bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/15"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Create Portfolio</span>
+                  <span>Portföy oluştur</span>
                 </button>
                 <button
                   type="button"
@@ -547,19 +541,19 @@ export default function PortfolioManagerView({
                                     setIsDeletePortfolioOpen(true);
                   }}
                   disabled={!activePortfolio || isDeletingPortfolio}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-bear-red/30 bg-bear-red/10 px-3 text-xs font-bold text-bear-red hover:bg-bear-red/15 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="inline-flex h-9 items-center gap-2 rounded-md border border-bear-red/30 bg-bear-red/10 px-3 text-xs font-bold text-bear-red hover:bg-bear-red/15 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span>Delete Portfolio</span>
+                  <span>Portföyü sil</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-bull-green/30 bg-bg-base/30 p-5">
+          <div className="rounded-md border border-bull-green/30 bg-bg-base/30 p-5">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_1px_1fr] gap-5 items-center">
               <div>
-                <div className="mb-4 text-[11px] font-label-caps font-bold uppercase tracking-widest text-text-muted">Recent Months</div>
+                <div className="mb-4 text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">Son aylar</div>
                 <div className="space-y-3">
                   {latestMonthlyReturns.length === 0 ? (
                     <div className="text-xs text-text-muted">Monthly history is unavailable.</div>
@@ -575,7 +569,7 @@ export default function PortfolioManagerView({
               </div>
               <div className="hidden h-36 bg-outline-variant/25 sm:block" />
               <div className="text-center">
-                <div className="text-[11px] font-label-caps font-bold uppercase tracking-widest text-text-muted">Total Return</div>
+                <div className="text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">Toplam getiri</div>
                 <div className={`mt-6 font-data-mono text-5xl font-black ${returnColor(portfolioSummary.totalReturn)}`}>
                   {formatReturn(portfolioSummary.totalReturn)}
                 </div>
@@ -584,38 +578,39 @@ export default function PortfolioManagerView({
             <button
               type="button"
               onClick={() => setMonthlyModalOpen(true)}
-              className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl border border-primary/15 bg-primary/10 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/15"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-md border border-primary/15 bg-primary/10 px-4 py-3 text-sm font-bold text-primary hover:bg-primary/15"
             >
               <CalendarDays className="h-4 w-4" />
-              <span>Monthly View</span>
+              <span>Aylık görünüm</span>
             </button>
           </div>
         </div>
       </section>
 
+      {!portfolioSummary.complete && <p role="status" className="rounded-md border border-warning-amber/35 bg-warning-amber/10 p-4 text-sm text-warning-amber">{portfolioSummary.pricedCount}/{portfolioSummary.totalCount} pozisyonun fiyatı var. Toplam değer ve getiri hesaplanamıyor.</p>}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="Portfolio Value" value={formatCurrency(portfolioSummary.totalValue)} tone="neutral" />
-        <MetricCard label="Best Performer" value={healthMetrics.best ? `${healthMetrics.best.symbol} ${formatReturn(healthMetrics.best.totalReturn)}` : '-'} tone="positive" />
-        <MetricCard label="Worst Performer" value={healthMetrics.worst ? `${healthMetrics.worst.symbol} ${formatReturn(healthMetrics.worst.totalReturn)}` : '-'} tone="negative" />
-        <MetricCard label="Largest Weight" value={healthMetrics.largest ? `${healthMetrics.largest.symbol} ${healthMetrics.largest.weight.toFixed(1)}%` : '-'} tone={portfolioSummary.largestWeight > 25 ? 'warning' : 'neutral'} />
+        <MetricCard label="Güncel değer" value={formatCurrency(portfolioSummary.totalValue)} tone="neutral" />
+        <MetricCard label="En yüksek getiri" value={healthMetrics.best ? `${healthMetrics.best.symbol} ${formatReturn(healthMetrics.best.totalReturn)}` : '-'} tone="positive" />
+        <MetricCard label="En düşük getiri" value={healthMetrics.worst ? `${healthMetrics.worst.symbol} ${formatReturn(healthMetrics.worst.totalReturn)}` : '-'} tone="negative" />
+        <MetricCard label="En büyük ağırlık" value={healthMetrics.largest ? `${healthMetrics.largest.symbol} ${healthMetrics.largest.weight.toFixed(1)}%` : '-'} tone={portfolioSummary.largestWeight > 25 ? 'warning' : 'neutral'} />
       </section>
 
 
-      <section className="bg-bg-card border border-outline-variant rounded-xl p-6 shadow-md">
+      <section className="bg-bg-card border border-outline-variant rounded-md p-6 ">
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="font-headline text-xl font-bold text-text-primary">Performance Analysis (USD)</h2>
+            <h2 className="font-headline text-xl font-bold text-text-primary">Performans analizi (USD)</h2>
             <p className="mt-1 text-sm text-text-secondary">USD-based cumulative performance</p>
           </div>
-          <div className="flex rounded-xl border border-outline-variant/35 bg-bg-base p-1">
+          <div className="flex rounded-md border border-outline-variant/35 bg-bg-base p-1">
             {performanceRanges.map((range) => (
               <button
                 key={range}
                 onClick={() => setPerformanceRange(range)}
-                className={`min-w-16 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${performanceRange === range ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                className={`min-w-16 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${performanceRange === range ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
               >
                 <span className="block">{range}</span>
-                <span className={`block font-data-mono text-[10px] ${returnColor(rangedPerformanceData[rangedPerformanceData.length - 1]?.returnPct)}`}>
+                <span className={`block font-data-mono text-xs ${returnColor(rangedPerformanceData[rangedPerformanceData.length - 1]?.returnPct)}`}>
                   {formatReturn(rangedPerformanceData[rangedPerformanceData.length - 1]?.returnPct)}
                 </span>
               </button>
@@ -625,14 +620,14 @@ export default function PortfolioManagerView({
 
         <div className="relative h-72">
           {hoveredPoint && (
-            <div className="absolute z-20 rounded-lg border border-outline-variant bg-bg-primary px-3 py-2 text-xs shadow-lg" style={{ left: Math.min(hoveredPoint.x + 12, 430), top: Math.max(hoveredPoint.y - 26, 8) }}>
+            <div className="absolute z-20 rounded-md border border-outline-variant bg-bg-primary px-3 py-2 text-xs " style={{ left: Math.min(hoveredPoint.x + 12, 430), top: Math.max(hoveredPoint.y - 26, 8) }}>
               <div className="font-data-mono text-text-muted">{formatDate(hoveredPoint.date)}</div>
               <div className="mt-1 font-data-mono font-bold text-text-primary">{formatCurrency(hoveredPoint.value)}</div>
-              <div className={`font-data-mono text-[11px] ${returnColor(hoveredPoint.returnPct)}`}>{formatReturn(hoveredPoint.returnPct)}</div>
+              <div className={`font-data-mono text-xs ${returnColor(hoveredPoint.returnPct)}`}>{formatReturn(hoveredPoint.returnPct)}</div>
             </div>
           )}
           {performanceChart.points.length < 2 ? (
-            <div className="flex h-full items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
+            <div className="flex h-full items-center justify-center rounded-md border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
               Performance history is unavailable for this portfolio.
             </div>
           ) : (
@@ -675,18 +670,18 @@ export default function PortfolioManagerView({
         </div>
       </section>
       <section className="grid grid-cols-1 xl:grid-cols-[600px_minmax(0,1fr)] gap-6">
-        <div className="bg-bg-card border border-outline-variant rounded-xl p-6 shadow-md">
+        <div className="bg-bg-card border border-outline-variant rounded-md p-6 ">
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
-              <h2 className="font-headline text-2xl font-bold text-text-primary">Asset Allocation</h2>
-              <p className="mt-1 text-sm text-text-secondary">Weight and performance</p>
+              <h2 className="font-headline text-2xl font-bold text-text-primary">Varlık dağılımı</h2>
+              <p className="mt-1 text-sm text-text-secondary">Ağırlık ve performans</p>
             </div>
-            <div className="flex rounded-xl border border-outline-variant/35 bg-bg-base p-1">
+            <div className="flex rounded-md border border-outline-variant/35 bg-bg-base p-1">
               {allocationModes.map((mode) => (
                 <button
                   key={mode.id}
                   onClick={() => setAllocationMode(mode.id)}
-                  className={`rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
+                  className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
                 >
                   {mode.label}
                 </button>
@@ -694,8 +689,8 @@ export default function PortfolioManagerView({
             </div>
           </div>
           {displayedPositions.length === 0 ? (
-            <div className="flex min-h-72 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
-              No holdings are available for allocation analysis.
+            <div className="flex items-center justify-center rounded-md border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
+              Dağılım için pozisyon bulunamadı.
             </div>
           ) : allocationPositions.length === 0 ? (
             <div className="flex min-h-72 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
@@ -722,19 +717,19 @@ export default function PortfolioManagerView({
           )}
         </div>
 
-        <div className="bg-bg-card border border-outline-variant rounded-xl overflow-hidden shadow-md">
+        <div className="bg-bg-card border border-outline-variant rounded-md overflow-hidden ">
           <div className="flex border-b border-outline-variant/30 bg-bg-card/45 px-5">
             <button
               onClick={() => setActiveTab('holdings')}
               className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'holdings' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
             >
-              Current Holdings
+              Pozisyonlar
             </button>
             <button
               onClick={() => setActiveTab('transactions')}
               className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'transactions' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
             >
-              Transaction History
+              İşlem geçmişi
             </button>
           </div>
 
@@ -747,13 +742,13 @@ export default function PortfolioManagerView({
       </section>
 
       {healthMetrics.unpriced > 0 && (
-        <div className="rounded-xl border border-outline-variant/35 bg-bg-card px-4 py-3 text-xs text-text-muted">
+        <div className="rounded-md border border-outline-variant/35 bg-bg-card px-4 py-3 text-xs text-text-muted">
           {healthMetrics.unpriced} holding(s) do not have refreshed market history and are excluded from some period-return calculations.
         </div>
       )}
 
       {positionError && (
-        <div className="rounded-xl border border-warning-amber/35 bg-warning-amber/10 px-4 py-3 text-xs text-warning-amber">
+        <div className="rounded-md border border-warning-amber/35 bg-warning-amber/10 px-4 py-3 text-xs text-warning-amber">
           Live position metrics are unavailable; local holding values are shown without fabricated period returns.
         </div>
       )}
@@ -762,25 +757,25 @@ export default function PortfolioManagerView({
         <button
           type="button"
           onClick={onOpenTradingJournal}
-          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-sm font-bold text-primary shadow-lg backdrop-blur hover:bg-primary/15"
+          className="fixed bottom-5 right-5 z-30 flex items-center gap-2 rounded-md border border-primary/25 bg-primary/10 px-4 py-3 text-sm font-bold text-primary  backdrop-blur hover:bg-primary/15"
         >
           <BookOpen className="h-4 w-4" />
-          <span>Open Trading Journal</span>
+          <span>İşlem günlüğünü aç</span>
         </button>
       )}
 
       {isCreatePortfolioOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/75 p-4 backdrop-blur-md">
-          <div className="w-full max-w-md overflow-hidden rounded-xl border border-outline-variant bg-bg-primary shadow-2xl">
+          <div className="w-full max-w-md overflow-hidden rounded-md border border-outline-variant bg-bg-primary shadow-2xl">
             <div className="flex items-center justify-between border-b border-outline-variant/30 bg-bg-card/60 p-5">
-              <h2 className="font-headline text-lg font-bold text-text-primary">Create Portfolio</h2>
+              <h2 className="font-headline text-lg font-bold text-text-primary">Portföy oluştur</h2>
               <button
                 type="button"
                 onClick={() => {
                   setIsCreatePortfolioOpen(false);
                   setPortfolioActionError('');
                 }}
-                className="rounded-lg bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
+                className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
                 aria-label="Close create portfolio"
               >
                 <X className="h-4 w-4" />
@@ -795,11 +790,11 @@ export default function PortfolioManagerView({
                   onChange={(event) => setNewPortfolioName(event.target.value)}
                   maxLength={40}
                   placeholder="Growth, Income, Hedge..."
-                  className="mt-1 w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary"
+                  className="mt-1 w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary"
                 />
               </label>
               {portfolioActionError && (
-                <div className="rounded-lg border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
+                <div className="rounded-md border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
                   {portfolioActionError}
                 </div>
               )}
@@ -807,17 +802,17 @@ export default function PortfolioManagerView({
                 <button
                   type="button"
                   onClick={() => setIsCreatePortfolioOpen(false)}
-                  className="rounded-lg border border-outline-variant/40 bg-bg-base px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
+                  className="rounded-md border border-outline-variant/40 bg-bg-base px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isCreatingPortfolio}
-                  className="inline-flex items-center gap-2 rounded-lg border border-primary/25 bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-md border border-primary/25 bg-primary/10 px-4 py-2 text-xs font-bold text-primary hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>{isCreatingPortfolio ? 'Creating...' : 'Create Portfolio'}</span>
+                  <span>{isCreatingPortfolio ? 'Oluşturuluyor…' : 'Portföy oluştur'}</span>
                 </button>
               </div>
             </form>
@@ -827,37 +822,37 @@ export default function PortfolioManagerView({
 
       {isDeletePortfolioOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/75 p-4 backdrop-blur-md">
-          <div className="w-full max-w-md overflow-hidden rounded-xl border border-outline-variant bg-bg-primary shadow-2xl">
+          <div className="w-full max-w-md overflow-hidden rounded-md border border-outline-variant bg-bg-primary shadow-2xl">
             <div className="flex items-center justify-between border-b border-outline-variant/30 bg-bg-card/60 p-5">
-              <h2 className="font-headline text-lg font-bold text-text-primary">Delete Portfolio</h2>
+              <h2 className="font-headline text-lg font-bold text-text-primary">Portföyü sil</h2>
               <button
                 type="button"
                 onClick={() => {
                   setIsDeletePortfolioOpen(false);
                   setPortfolioActionError('');
                 }}
-                className="rounded-lg bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
+                className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
                 aria-label="Close delete portfolio"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-4 p-5">
-              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
-                <div className="text-[10px] font-label-caps font-bold uppercase tracking-widest text-text-muted">Selected Portfolio</div>
+              <div className="rounded-md border border-outline-variant/35 bg-bg-card p-4">
+                <div className="text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">Selected Portfolio</div>
                 <div className="mt-2 font-data-mono text-lg font-black text-text-primary">{activePortfolio?.name || '-'}</div>
               </div>
               {deleteBlockReason ? (
-                <div className="rounded-lg border border-warning-amber/35 bg-warning-amber/10 px-3 py-2 text-xs font-semibold text-warning-amber">
+                <div className="rounded-md border border-warning-amber/35 bg-warning-amber/10 px-3 py-2 text-xs font-semibold text-warning-amber">
                   {deleteBlockReason}
                 </div>
               ) : (
-                <div className="rounded-lg border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
+                <div className="rounded-md border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
                   This action deletes the empty portfolio. Transaction history for this portfolio will no longer be shown.
                 </div>
               )}
               {portfolioActionError && (
-                <div className="rounded-lg border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
+                <div className="rounded-md border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
                   {portfolioActionError}
                 </div>
               )}
@@ -865,7 +860,7 @@ export default function PortfolioManagerView({
                 <button
                   type="button"
                   onClick={() => setIsDeletePortfolioOpen(false)}
-                  className="rounded-lg border border-outline-variant/40 bg-bg-base px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
+                  className="rounded-md border border-outline-variant/40 bg-bg-base px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
                 >
                   Cancel
                 </button>
@@ -873,10 +868,10 @@ export default function PortfolioManagerView({
                   type="button"
                   onClick={handleDeletePortfolio}
                   disabled={Boolean(deleteBlockReason) || isDeletingPortfolio}
-                  className="inline-flex items-center gap-2 rounded-lg border border-bear-red/30 bg-bear-red/10 px-4 py-2 text-xs font-bold text-bear-red hover:bg-bear-red/15 disabled:cursor-not-allowed disabled:opacity-45"
+                  className="inline-flex items-center gap-2 rounded-md border border-bear-red/30 bg-bear-red/10 px-4 py-2 text-xs font-bold text-bear-red hover:bg-bear-red/15 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span>{isDeletingPortfolio ? 'Deleting...' : 'Delete Portfolio'}</span>
+                  <span>{isDeletingPortfolio ? 'Siliniyor…' : 'Portföyü sil'}</span>
                 </button>
               </div>
             </div>
@@ -885,24 +880,24 @@ export default function PortfolioManagerView({
       )}
       {monthlyModalOpen && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-bg-base/75 p-4 backdrop-blur-md">
-          <div className="w-full max-w-3xl overflow-hidden rounded-xl border border-outline-variant bg-bg-primary shadow-2xl">
+          <div className="w-full max-w-3xl overflow-hidden rounded-md border border-outline-variant bg-bg-primary shadow-2xl">
             <div className="flex items-start justify-between border-b border-outline-variant/30 bg-bg-card/60 p-5">
               <div>
-                <h2 className="font-headline text-lg font-bold text-text-primary">Monthly Performance</h2>
-                <span className="mt-2 inline-block rounded-full bg-primary/15 px-2 py-1 text-[10px] font-bold uppercase text-primary">
+                <h2 className="font-headline text-lg font-bold text-text-primary">Aylık performans</h2>
+                <span className="mt-2 inline-block rounded-full bg-primary/15 px-2 py-1 text-xs font-bold uppercase text-primary">
                   {activePortfolio?.name || 'Portfolio'}
                 </span>
               </div>
-              <button onClick={() => setMonthlyModalOpen(false)} className="rounded-lg bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary">
+              <button onClick={() => setMonthlyModalOpen(false)} className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="space-y-4 p-5">
-              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
+              <div className="rounded-md border border-outline-variant/35 bg-bg-card p-4">
                 <div className="mb-3 flex items-center gap-2 text-sm font-bold text-text-primary">
                   <CalendarDays className="h-4 w-4" />
-                  <span>Period Selection</span>
+                  <span>Dönem seçimi</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="text-xs font-bold text-text-secondary">
@@ -911,7 +906,7 @@ export default function PortfolioManagerView({
                       value={startMonth}
                       onChange={(event) => setStartMonth(event.target.value)}
                       disabled={startMonthOptions.length === 0}
-                      className="mt-1 w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-1 w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {startMonthOptions.map((month) => (
                         <option key={month.sort} value={month.sort} className="bg-bg-card text-text-primary">
@@ -926,7 +921,7 @@ export default function PortfolioManagerView({
                       value={endMonth}
                       onChange={(event) => setEndMonth(event.target.value)}
                       disabled={endMonthOptions.length === 0}
-                      className="mt-1 w-full rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
+                      className="mt-1 w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 text-text-primary disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {endMonthOptions.map((month) => (
                         <option key={month.sort} value={month.sort} className="bg-bg-card text-text-primary">
@@ -938,9 +933,9 @@ export default function PortfolioManagerView({
                 </div>
               </div>
 
-              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
+              <div className="rounded-md border border-outline-variant/35 bg-bg-card p-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <h3 className="font-headline text-sm font-bold text-text-primary">Monthly Return</h3>
+                  <h3 className="font-headline text-sm font-bold text-text-primary">Aylık getiri</h3>
                   <span className="text-xs text-text-muted">{filteredMonthlyReturns.length} months shown</span>
                 </div>
                 <div className="flex h-64 items-end gap-3 border-b border-outline-variant/25 px-2 pb-8 pt-4">
@@ -951,19 +946,19 @@ export default function PortfolioManagerView({
                     return (
                       <div key={month.sort} className="flex h-full flex-1 flex-col items-center justify-end gap-2">
                         <div className={`w-full max-w-8 rounded-t ${month.returnPct >= 0 ? 'bg-primary' : 'bg-bear-red'}`} style={{ height: `${height}%` }} title={`${month.label}: ${formatReturn(month.returnPct)}`} />
-                        <span className="-rotate-45 whitespace-nowrap text-[9px] text-text-muted">{month.label}</span>
+                        <span className="-rotate-45 whitespace-nowrap text-xs text-text-muted">{month.label}</span>
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4">
-                <h3 className="font-headline text-sm font-bold text-text-primary">Total Return (Selected Range)</h3>
+              <div className="rounded-md border border-outline-variant/35 bg-bg-card p-4">
+                <h3 className="font-headline text-sm font-bold text-text-primary">Toplam getiri (seçilen dönem)</h3>
                 <div className="mt-4 h-4 rounded-full bg-bg-base">
                   <div className="h-4 rounded-full bg-primary" style={{ width: `${Math.min(100, Math.max(2, Math.abs(totalMonthlyReturn ?? 0)))}%` }} />
                 </div>
-                <div className={`mt-4 rounded-xl border border-primary/25 bg-primary/10 p-4 font-data-mono text-2xl font-black ${returnColor(totalMonthlyReturn)}`}>
+                <div className={`mt-4 rounded-md border border-primary/25 bg-primary/10 p-4 font-data-mono text-2xl font-black ${returnColor(totalMonthlyReturn)}`}>
                   {activePortfolio?.name || 'Portfolio'} {formatReturn(totalMonthlyReturn)}
                 </div>
               </div>
@@ -977,8 +972,8 @@ export default function PortfolioManagerView({
 function MetricCard({ label, value, tone }: { label: string; value: string; tone: 'neutral' | 'positive' | 'negative' | 'warning' }) {
   const color = tone === 'positive' ? 'text-bull-green' : tone === 'negative' ? 'text-bear-red' : tone === 'warning' ? 'text-warning-amber' : 'text-text-primary';
   return (
-    <div className="rounded-xl border border-outline-variant/35 bg-bg-card p-4 shadow-sm">
-      <div className="text-[10px] font-label-caps font-bold uppercase tracking-widest text-text-muted">{label}</div>
+    <div className="rounded-md border border-outline-variant/35 bg-bg-card p-4 ">
+      <div className="text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">{label}</div>
       <div className={`mt-2 truncate font-data-mono text-lg font-black ${color}`}>{value}</div>
     </div>
   );
@@ -1004,7 +999,7 @@ function HoldingsTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[1100px] text-left text-xs">
-        <thead className="bg-bg-base/40 text-[10px] uppercase tracking-wider text-text-muted">
+        <thead className="bg-bg-base/40 text-xs uppercase tracking-wider text-text-muted">
           <tr>
             <th className="px-4 py-3">Added Date</th>
             <th className="px-4 py-3">Stock</th>
@@ -1031,7 +1026,7 @@ function HoldingsTable({
                   </div>
                   <div>
                     <div className="font-data-mono font-black text-text-primary">{position.symbol}</div>
-                    <div className="max-w-36 truncate text-[10px] text-text-muted">{position.company}</div>
+                    <div className="max-w-36 truncate text-xs text-text-muted">{position.company}</div>
                   </div>
                 </div>
               </td>
@@ -1074,7 +1069,7 @@ function TransactionTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[900px] text-left text-xs">
-        <thead className="bg-bg-base/40 text-[10px] uppercase tracking-wider text-text-muted">
+        <thead className="bg-bg-base/40 text-xs uppercase tracking-wider text-text-muted">
           <tr>
             <th className="px-4 py-3">Date</th>
             <th className="px-4 py-3">Action</th>
