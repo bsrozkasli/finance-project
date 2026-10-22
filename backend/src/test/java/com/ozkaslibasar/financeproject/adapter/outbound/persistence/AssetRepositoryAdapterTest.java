@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.persistence;
 
 import com.ozkaslibasar.financeproject.domain.model.Asset;
+import com.ozkaslibasar.financeproject.domain.model.AssetMetadataStatus;
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,5 +42,17 @@ class AssetRepositoryAdapterTest {
         assertThat(retrieved).isPresent();
         assertThat(retrieved.get().name()).isEqualTo("Apple Inc.");
         assertThat(retrieved.get().type()).isEqualTo(AssetType.STOCK);
+    }
+
+    @Test
+    void shouldPersistAndReadBackUnresolvedTypeWithoutBecomingStock() {
+        Asset unresolved = new Asset("ZZZZ", "ZZZZ", AssetType.UNRESOLVED, null, null, null, "ZZZZ", AssetMetadataStatus.UNAVAILABLE);
+
+        assetRepositoryAdapter.save(unresolved);
+
+        Optional<Asset> retrieved = assetRepositoryAdapter.findBySymbol("ZZZZ");
+        assertThat(retrieved).isPresent();
+        assertThat(retrieved.get().type()).isEqualTo(AssetType.UNRESOLVED);
+        assertThat(retrieved.get().metadataStatus()).isEqualTo(AssetMetadataStatus.UNAVAILABLE);
     }
 }

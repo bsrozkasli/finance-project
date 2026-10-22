@@ -59,6 +59,7 @@ public class YahooChartResponseDto {
         private String symbol;
         private String currency;
         private String exchangeName;
+        private String instrumentType;
     }
 
     @Data

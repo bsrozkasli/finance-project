@@ -222,6 +222,13 @@ The Spring response uses snake_case JSON fields for the analysis summaries,
 portfolio-manager reasoning, metrics, generation time, and cache status. The cache
 flag is `from_cache`; consumers must not silently rename it to `fromCache`.
 
+### Instrument type and `UNRESOLVED` (additive, 2026-10-17)
+
+- `GET /api/v1/assets/{symbol}/info` (data-service) adds nullable `quote_type`: the provider-reported instrument class (`yfinance` `quoteType`), or `null` when the provider gives none. Other providers leave it `null`.
+- Spring `type` on `/api/v1/assets*` and watchlist research rows is a string. It is now one of `STOCK`, `ETF`, `INDEX`, `CRYPTO`, `FOREX`, or `UNRESOLVED`. `UNRESOLVED` means no provider or trusted mapping established the type; it is never eligible for stock or ETF evaluation and is never inferred from names, exchanges, or symbol spelling.
+- Provider mapping: `EQUITY`→`STOCK`, `ETF`→`ETF`, `INDEX`→`INDEX`, `CRYPTOCURRENCY`→`CRYPTO`, `CURRENCY`→`FOREX`; anything else or absent→`UNRESOLVED`.
+- Rows persisted before this change as `STOCK` with `metadata_status=UNAVAILABLE` are unchanged; relabelling needs a reviewed row count (see `docs/product/evidence/oq5-unresolved-instrument-consumer-matrix.md`).
+
 ### C0a availability fields (additive, 2026-10-15)
 
 C0a added a `SectionAvailability` value object to four data-service response

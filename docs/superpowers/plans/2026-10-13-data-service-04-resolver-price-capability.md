@@ -1,5 +1,7 @@
 # Data-Service Boundary Hardening Plan 4 — Resolver Price-History Capability Implementation Plan
 
+**Status:** Complete (2026-10-13) — commits `9819a21`, `4a08b44`, `9eb61f5`, `0ce0b0d`, `550521f`. Step checkboxes were not ticked during execution; the plan-set table is the record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Record the provider-boundary decision as ADR-0006 and give the resolver what analytics need to stop calling yfinance for price history: an explicit `adjusted` flag, a Tiingo daily-only guard, and tested helpers that turn bars into the DataFrames the services already consume.

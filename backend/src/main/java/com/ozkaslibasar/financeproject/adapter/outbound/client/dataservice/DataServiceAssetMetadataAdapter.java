@@ -39,7 +39,7 @@ public class DataServiceAssetMetadataAdapter implements AssetMetadataPort {
             return Optional.of(new AssetMetadata(
                     response.getSymbol().toUpperCase(),
                     response.getName(),
-                    inferType(response),
+                    AssetType.fromQuoteType(response.getQuoteType()),
                     response.getExchange(),
                     response.getCurrency(),
                     response.getSector(),
@@ -50,21 +50,6 @@ public class DataServiceAssetMetadataAdapter implements AssetMetadataPort {
             log.warn("Asset metadata unavailable for {}: {}", symbol, e.getMessage());
             return Optional.empty();
         }
-    }
-
-    private AssetType inferType(AssetInfoDto response) {
-        String joined = ((response.getExchange() == null ? "" : response.getExchange()) + " "
-                + (response.getIndustry() == null ? "" : response.getIndustry())).toUpperCase();
-        if (joined.contains("ETF")) {
-            return AssetType.ETF;
-        }
-        if (joined.contains("INDEX")) {
-            return AssetType.INDEX;
-        }
-        if (joined.contains("CRYPTO")) {
-            return AssetType.CRYPTO;
-        }
-        return AssetType.STOCK;
     }
 
     @Data
@@ -78,5 +63,7 @@ public class DataServiceAssetMetadataAdapter implements AssetMetadataPort {
         @JsonProperty("market_cap")
         private Long marketCap;
         private String source;
+        @JsonProperty("quote_type")
+        private String quoteType;
     }
 }

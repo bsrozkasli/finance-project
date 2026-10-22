@@ -1,5 +1,7 @@
 # Data-Service Boundary Hardening Plan 1 — Resolver Degradation Characterization Implementation Plan
 
+**Status:** Complete (2026-10-13) — commits `9348c5d`. Step checkboxes were not ticked during execution; the plan-set table is the record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Pin the documented `MarketDataResolver` degradation contract — registration order, fallback, blacklist, recovery, explicit exhaustion, and wire-level `[]`/health output — with stub-only tests that later plans rely on.

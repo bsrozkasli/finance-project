@@ -16,8 +16,8 @@
 |---|---|
 | Plan set | Data-Service Boundary Hardening |
 | Total plans | 6 |
-| Overall status | Not started — awaiting maintainer review of this plan set |
-| Current executable plan | Plan 1 after the execution preconditions below pass |
+| Overall status | Complete — all six plans executed 2026-10-13 and merged to `main`. Verified 2026-10-22 on `main` `c38a53f`: data-service `python -m pytest -q` 201 passed, 1 skipped, 1 xfailed; GitHub Actions `ci` run 39128666296 green. |
+| Current executable plan | None |
 | Runtime scope | `data-service/` only, plus the data-service rows of `docs/spec/current-system/*.md`, `SPEC.md` open questions, and `docs/adr/` |
 | Product discussion language | Turkish |
 | Product artifact language | English |
@@ -71,12 +71,12 @@ Plans 2, 3, and 4 depend only on Plan 1 and may run in any order. Plan 5 needs P
 
 | Plan | File | Outcome | Status |
 |---:|---|---|---|
-| 1 | [`2026-10-13-data-service-01-resolver-characterization.md`](2026-10-13-data-service-01-resolver-characterization.md) | Shared provider doubles; fallback, blacklist, recovery, exhaustion, and wire-level degradation tests | Not started |
-| 2 | [`2026-10-13-data-service-02-config-and-provider-chain.md`](2026-10-13-data-service-02-config-and-provider-chain.md) | Unused MongoDB settings removed; `PROVIDER_CHAIN` controls registration order | Not started |
-| 3 | [`2026-10-13-data-service-03-cache-observability.md`](2026-10-13-data-service-03-cache-observability.md) | Macro/calendar cache hit, miss, and Redis-error counters | Not started |
-| 4 | [`2026-10-13-data-service-04-resolver-price-capability.md`](2026-10-13-data-service-04-resolver-price-capability.md) | ADR-0006; `adjusted` OHLCV contract; Tiingo daily-only guard; price-history helpers | Not started |
-| 5 | [`2026-10-13-data-service-05-price-history-migration.md`](2026-10-13-data-service-05-price-history-migration.md) | Technical, pattern, risk, factor-momentum, and portfolio price history served by the resolver | Not started |
-| 6 | [`2026-10-13-data-service-06-failure-semantics.md`](2026-10-13-data-service-06-failure-semantics.md) | Research 422/503/500 mapping; `/full` and `/patterns` defects fixed | Not started |
+| 1 | [`2026-10-13-data-service-01-resolver-characterization.md`](2026-10-13-data-service-01-resolver-characterization.md) | Shared provider doubles; fallback, blacklist, recovery, exhaustion, and wire-level degradation tests | Complete — `9348c5d` |
+| 2 | [`2026-10-13-data-service-02-config-and-provider-chain.md`](2026-10-13-data-service-02-config-and-provider-chain.md) | Unused MongoDB settings removed; `PROVIDER_CHAIN` controls registration order | Complete — `bb4da5f` (MongoDB settings removed from `app/config.py`; `PROVIDER_CHAIN` order) |
+| 3 | [`2026-10-13-data-service-03-cache-observability.md`](2026-10-13-data-service-03-cache-observability.md) | Macro/calendar cache hit, miss, and Redis-error counters | Complete — `95ee580` |
+| 4 | [`2026-10-13-data-service-04-resolver-price-capability.md`](2026-10-13-data-service-04-resolver-price-capability.md) | ADR-0006; `adjusted` OHLCV contract; Tiingo daily-only guard; price-history helpers | Complete — `9819a21`, `4a08b44` (ADR-0006 Accepted), `9eb61f5`, `0ce0b0d`, `550521f` |
+| 5 | [`2026-10-13-data-service-05-price-history-migration.md`](2026-10-13-data-service-05-price-history-migration.md) | Technical, pattern, risk, factor-momentum, and portfolio price history served by the resolver | Complete — `363c4df`, `401cad4`, `44747f0`, `b4ba631`, `3bccd6f` |
+| 6 | [`2026-10-13-data-service-06-failure-semantics.md`](2026-10-13-data-service-06-failure-semantics.md) | Research 422/503/500 mapping; `/full` and `/patterns` defects fixed | Complete — `775947c`, `d475beb` |
 
 ## Plan Set Locked Decisions
 

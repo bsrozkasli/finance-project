@@ -1,0 +1,15 @@
+{
+  "min_history_sessions": 30,
+  "missing_sessions_min_business_days": 3,
+  "return_spike_max_net_fraction": 0.5,
+  "return_spike_robust_z": 8.0,
+  "robust_min_periods": 30,
+  "robust_window_sessions": 63,
+  "split_factors": [1.5, 2, 3, 4, 5, 8, 10, 15, 20, 25, 50, 100],
+  "split_persistence_sessions": 5,
+  "split_persistence_tolerance": 0.10,
+  "split_ratio_tolerance": 0.05,
+  "stale_run_min_bars": 5,
+  "thresholds_version": "dq-thresholds-v1",
+  "volume_robust_z": 8.0
+}
