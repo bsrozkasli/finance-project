@@ -98,7 +98,7 @@ describe('TradingJournalView', () => {
   });
 
   it('calculates quantity from amount and saves a linked portfolio transaction', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderJournal();
 
     await user.clear(screen.getByLabelText('İşlem tutarı'));
@@ -144,7 +144,7 @@ describe('TradingJournalView', () => {
     const addTrade = vi.fn().mockResolvedValue({ id: 1 });
     const reload = vi.fn();
     mockedUseJournalTrades.mockReturnValue({ ...defaultHookState, addTrade, reload });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderJournal({ portfolios: [] });
 
     await user.clear(screen.getByLabelText('Sembol'));
