@@ -90,6 +90,24 @@ change together when API routing changes.
   larger dialogs load on demand through React `lazy` and `Suspense`.
 - `/workspace/:symbol` selects the requested symbol when priced history is
   available. A missing symbol or history produces an explicit empty state.
+- Araştır composes six tabs in a fixed order: Genel bakış, Grafik,
+  Finansallar, Risk, Haberler, AI raporu (`components/research/`). Source
+  details open as a nonmodal side panel only at viewport ≥1440px with the data
+  area still ≥900px; otherwise as a modal drawer that returns focus.
+- Bugün (`DashboardHome`) has a single `h1` and opens with the portfolio
+  summary in the order Güncel değer, Maliyet, Fiyat kapsamı, Toplam kâr /
+  zarar. When any holding lacks a price, the current total stays `—` and the
+  priced subtotal is labelled "Fiyatı bulunan pozisyonların ara toplamı".
+- The news page lists only the sources that delivered headlines in the current
+  feed; no publisher is shown as a source unless it appears in the feed.
+- UI copy is Turkish and uses one state vocabulary: "Yüklenemedi" (request
+  failed), "Veri yok" (empty), "Kısmi veri" (partial coverage), "Yetersiz
+  geçmiş" (insufficient history). Unknown financial values render as `—`, never
+  as `0`. Dialogs (`ManageAssetsDrawer`, `TradingJournalModal`,
+  `SettingsModal`) are named `role="dialog"` elements that close with Escape;
+  validation and save results appear inside the dialog rather than through
+  browser `alert`/`confirm`/`prompt`. Known gaps: `StockDetailModal` and three
+  research hooks still carry English copy, and dates use en-US month names.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted
