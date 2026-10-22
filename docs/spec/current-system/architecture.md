@@ -104,10 +104,10 @@ change together when API routing changes.
   failed), "Veri yok" (empty), "Kısmi veri" (partial coverage), "Yetersiz
   geçmiş" (insufficient history). Unknown financial values render as `—`, never
   as `0`. Dialogs (`ManageAssetsDrawer`, `TradingJournalModal`,
-  `SettingsModal`) are named `role="dialog"` elements that close with Escape;
-  validation and save results appear inside the dialog rather than through
-  browser `alert`/`confirm`/`prompt`. Known gaps: `StockDetailModal` and three
-  research hooks still carry English copy, and dates use en-US month names.
+  `SettingsModal`, `StockDetailModal`) are named `role="dialog"` elements that
+  close with Escape; validation and save results appear inside the dialog
+  rather than through browser `alert`/`confirm`/`prompt`. Known gap: dates use
+  en-US month names.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted

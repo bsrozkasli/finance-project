@@ -133,7 +133,7 @@ describe('useMarketOverviewData', () => {
     const { result } = renderHook(() => useMarketOverviewData(['AAPL'], ['AAPL']));
     await flush();
     await act(async () => { await result.current.reload(); });
-    expect(result.current.error).toContain('Company profiles');
+    expect(result.current.error).toBe('Şirket profilleri yüklenemedi');
     expect(result.current.quotes.AAPL.data?.symbol).toBe('AAPL');
   });
 

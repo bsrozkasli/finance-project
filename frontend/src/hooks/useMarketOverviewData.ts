@@ -72,7 +72,7 @@ export function useMarketOverviewData(priceSymbols: string[], profileSymbols: st
     let cancelled = false;
     void fetchBatchAssetProfiles(profileKey.split(','))
       .then((response) => { if (!cancelled) setProfiles(response.profiles); })
-      .catch(() => { if (!cancelled) setProfileError('Company profiles are temporarily unavailable'); });
+      .catch(() => { if (!cancelled) setProfileError('Şirket profilleri yüklenemedi'); });
     return () => { cancelled = true; };
   }, [profileKey]);
 
@@ -87,7 +87,7 @@ export function useMarketOverviewData(priceSymbols: string[], profileSymbols: st
       setLastUpdated(response.generatedAt);
       setQuoteError(null);
     } catch {
-      if (isCurrent()) setQuoteError('Live prices are temporarily unavailable');
+      if (isCurrent()) setQuoteError('Canlı fiyatlar yüklenemedi');
     }
   }, [priceKey]);
 

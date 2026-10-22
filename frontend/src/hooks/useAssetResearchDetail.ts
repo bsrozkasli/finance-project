@@ -27,7 +27,7 @@ export function useAssetResearchDetail(symbol: string | null) {
     } catch (reason) {
       if (!isCurrent()) return;
       setData(null);
-      setError(reason instanceof Error ? reason.message : 'Company detail is unavailable');
+      setError(reason instanceof Error ? reason.message : 'Şirket ayrıntıları yüklenemedi');
     } finally {
       if (isCurrent()) setLoading(false);
     }

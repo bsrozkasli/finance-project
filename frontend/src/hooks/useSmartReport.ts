@@ -56,7 +56,7 @@ export const useSmartReport = (symbol: string | null) => {
         }
       } catch (err: unknown) {
         if (isMounted) {
-          setError(err instanceof Error ? err.message : 'Failed to fetch smart report');
+          setError(err instanceof Error ? err.message : 'Akıllı rapor yüklenemedi');
           setReport(null);
         }
       } finally {
