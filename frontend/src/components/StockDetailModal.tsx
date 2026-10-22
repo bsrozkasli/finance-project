@@ -278,7 +278,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
         {/* Header section */}
         <div className="p-5 border-b border-outline-variant flex items-center justify-between shrink-0 bg-bg-card/40">
           <div className="flex items-center gap-3">
-            <CompanyLogo symbol={effectiveSymbol} logoUrl={profile?.logoUrl ?? stock?.logoUrl} className="h-10 w-10" />            <div>
+            <CompanyLogo symbol={effectiveSymbol} logoUrl={profile?.logoUrl ?? stock?.logoUrl} website={profile?.website ?? stock?.website} className="h-10 w-10" />            <div>
               <div className="flex items-baseline gap-2">
                 <h3 className="font-headline text-lg font-bold text-text-primary">{displayName}</h3>
                 <span className="font-data-mono text-xs text-text-muted">({effectiveSymbol})</span>

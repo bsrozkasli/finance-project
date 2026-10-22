@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import type { WatchlistResearchRow, WatchlistResearchStatus } from '../api/client';
 import { useWatchlistResearchSnapshot } from '../hooks/useWatchlistResearchSnapshot';
-import type { Stock, Watchlist } from '../types';
+import type { CompanyLogoSource, Stock, Watchlist } from '../types';
 import { formatDateTime } from '../utils/formatters';
 import CompanyLogo from './CompanyLogo';
 import StatusPill from './StatusPill';
@@ -21,6 +21,7 @@ import { statusClass, statusLabel } from './sectionStatus';
 
 interface WatchlistsViewProps {
   stocks: Stock[];
+  logoSources?: Record<string, CompanyLogoSource>;
   watchlists: Watchlist[];
   onAddStockToWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
   onRemoveStockFromWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
@@ -58,6 +59,7 @@ const formatVolume = (value: number | null | undefined) => {
 
 export default function WatchlistsView({
   stocks,
+  logoSources = {},
   watchlists,
   onAddStockToWatchlist,
   onRemoveStockFromWatchlist,
@@ -341,7 +343,7 @@ export default function WatchlistsView({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-2">
-                            <CompanyLogo symbol={symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
+                            <CompanyLogo symbol={symbol} logoUrl={stock?.logoUrl ?? logoSources[symbol]?.logoUrl} website={stock?.website ?? logoSources[symbol]?.website} className="h-8 w-8" />
                             <div className="min-w-0">
                               <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
                               <div className="truncate text-xs text-text-muted">
@@ -464,7 +466,7 @@ export default function WatchlistsView({
                         >
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-2">
-                              <CompanyLogo symbol={row.symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
+                              <CompanyLogo symbol={row.symbol} logoUrl={stock?.logoUrl ?? logoSources[row.symbol]?.logoUrl} website={stock?.website ?? logoSources[row.symbol]?.website} className="h-8 w-8" />
                               <div className="min-w-0">
                                 <div className="font-data-mono font-bold text-text-primary">{row.symbol}</div>
                                 <div className="max-w-40 truncate text-xs text-text-muted">{row.name ?? stock?.name ?? 'Şirket bilgisi yok'}</div>

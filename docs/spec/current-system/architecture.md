@@ -84,6 +84,9 @@ change together when API routing changes.
 - Browser routes and backend endpoints are separate contracts. Adding or changing
   a browser route does not implicitly rename an `/api/v1` endpoint.
 - Styling uses the CSS variables defined in `frontend/src/index.css`.
+- Company icons use the profile logo when available, then the HTTPS website's
+  `/favicon.ico`; failed or absent images fall back to the symbol initials.
+  Profiles are requested for tracked assets, holdings, and watchlist symbols.
 - The five primary Turkish navigation tasks are Bugün (`/dashboard`), Araştır
   (`/workspace`), İzleme Listem (`/watchlist`), Portföy (`/portfolio`), and
   Günlük (`/journal`). Existing deep links remain routable. Route views and

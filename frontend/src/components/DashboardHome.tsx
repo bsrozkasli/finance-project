@@ -11,7 +11,7 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
-import type { CalendarEvent, News, Stock, Portfolio } from '../types';
+import type { CalendarEvent, News, Stock, Portfolio, CompanyLogoSource } from '../types';
 import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerformance } from '../api/client';
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
 import { valuePortfolio } from '../utils/portfolioValuation';
@@ -20,6 +20,7 @@ import PriceFreshness from './PriceFreshness';
 
 interface DashboardHomeProps {
   stocks: Stock[];
+  logoSources?: Record<string, CompanyLogoSource>;
   portfolios: Portfolio[];
   activePortfolioId: string;
   onSelectPortfolioId: (id: string) => void;
@@ -33,6 +34,7 @@ interface DashboardHomeProps {
 
 export default function DashboardHome({
   stocks,
+  logoSources = {},
   portfolios,
   activePortfolioId,
   onSelectPortfolioId,
@@ -1050,7 +1052,7 @@ export default function DashboardHome({
                         </td>
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
-                            <CompanyLogo symbol={pos.symbol} logoUrl={matchedStock?.logoUrl} className="h-8 w-8" />
+                            <CompanyLogo symbol={pos.symbol} logoUrl={matchedStock?.logoUrl ?? logoSources[pos.symbol]?.logoUrl} website={matchedStock?.website ?? logoSources[pos.symbol]?.website} className="h-8 w-8" />
                             <div>
                               <div className="font-data-mono font-bold text-text-primary group-hover:text-primary transition-colors text-xs">
                                 {pos.symbol}
