@@ -37,12 +37,12 @@ const toPositiveNumber = (value: string): number | null => {
 };
 
 const formatCurrency = (value: number | null | undefined) => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+  if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
 };
 
 const formatNumber = (value: number | null | undefined, digits = 4) => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+  if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: digits }).format(value);
 };
 
@@ -126,13 +126,13 @@ export default function TradingJournalView({
   };
 
   const validate = () => {
-    if (!normalizedSymbol) return 'Symbol is required.';
-    if (!price) return 'Purchase price must be greater than zero.';
-    if (!calculatedQuantity || calculatedQuantity <= 0) return 'Quantity must be greater than zero.';
-    if (!calculatedGross || calculatedGross <= 0) return 'Trade amount must be greater than zero.';
-    if (commission < 0) return 'Commission cannot be negative.';
-    if (!tradeDate) return 'Trade date is required.';
-    if (linkPortfolio && selectedPortfolioId == null) return 'Select a portfolio or switch to journal-only mode.';
+    if (!normalizedSymbol) return 'Sembol gerekli.';
+    if (!price) return 'Alış fiyatı sıfırdan büyük olmalı.';
+    if (!calculatedQuantity || calculatedQuantity <= 0) return 'Miktar sıfırdan büyük olmalı.';
+    if (!calculatedGross || calculatedGross <= 0) return 'İşlem tutarı sıfırdan büyük olmalı.';
+    if (commission < 0) return 'Komisyon negatif olamaz.';
+    if (!tradeDate) return 'İşlem tarihi gerekli.';
+    if (linkPortfolio && selectedPortfolioId == null) return 'Bir portföy seçin veya yalnız günlük kaydına geçin.';
     return null;
   };
 
@@ -184,7 +184,7 @@ export default function TradingJournalView({
       void reload();
     } catch (err) {
       console.error('Failed to save journal trade', err);
-      setFormError('Trade could not be saved. Check the selected portfolio and symbol, then try again.');
+      setFormError('İşlem kaydedilemedi. Seçili portföyü ve sembolü kontrol edip tekrar deneyin.');
     } finally {
       setSaving(false);
     }
@@ -197,7 +197,7 @@ export default function TradingJournalView({
       void reload();
     } catch (err) {
       console.error('Failed to remove journal trade', err);
-      setFormError('Trade could not be deleted. Please try again.');
+      setFormError('İşlem silinemedi. Tekrar deneyin.');
     }
   };
 
@@ -225,7 +225,7 @@ export default function TradingJournalView({
         <StatTile label="Toplam" value={String(stats?.totalTrades ?? trades.length)} />
         <StatTile label="Açık" value={String(stats?.openTrades ?? 0)} tone="primary" />
         <StatTile label="Kapalı" value={String(stats?.closedTrades ?? 0)} />
-        <StatTile label="Ort. getiri" value={`${(stats?.avgReturn ?? 0).toFixed(2)}%`} tone={(stats?.avgReturn ?? 0) >= 0 ? 'positive' : 'negative'} />
+        <StatTile label="Ort. getiri" value={stats?.avgReturn == null ? '—' : `${stats.avgReturn.toFixed(2)}%`} tone={stats?.avgReturn == null ? 'neutral' : stats.avgReturn >= 0 ? 'positive' : 'negative'} />
       </div>
 
       {(error || formError) ? (
@@ -249,15 +249,15 @@ export default function TradingJournalView({
 
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div>
-              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Symbol</label>
+              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Sembol</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
                 <input
                   value={symbolInput}
                   onChange={(event) => setSymbolInput(event.target.value.toUpperCase())}
                   onBlur={() => selectSymbol(symbolInput)}
-                  placeholder="Search or type ticker"
-                  aria-label="Symbol"
+                  placeholder="Sembol arayın veya yazın"
+                  aria-label="Sembol"
                   className="w-full rounded-md border border-outline-variant bg-bg-base py-2 pl-9 pr-3 font-data-mono font-bold text-text-primary placeholder:font-sans placeholder:text-text-muted focus:border-primary focus:outline-none"
                 />
               </div>
@@ -276,28 +276,28 @@ export default function TradingJournalView({
                 </div>
               ) : null}
               {!matchedStock && normalizedSymbol ? (
-                <div className="mt-2 text-xs text-warning-amber">Symbol is not in the local market list; it will be saved as typed.</div>
+                <div className="mt-2 text-xs text-warning-amber">Sembol yerel piyasa listesinde yok; yazıldığı gibi kaydedilecek.</div>
               ) : null}
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <SideButton active={type === 'BUY'} tone="positive" onClick={() => setType('BUY')}>BUY</SideButton>
-              <SideButton active={type === 'SELL'} tone="negative" onClick={() => setType('SELL')}>SELL</SideButton>
+              <SideButton active={type === 'BUY'} tone="positive" onClick={() => setType('BUY')}>Alış (BUY)</SideButton>
+              <SideButton active={type === 'SELL'} tone="negative" onClick={() => setType('SELL')}>Satış (SELL)</SideButton>
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]">
               <div>
-                <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Portfolio</label>
+                <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Portföy</label>
                 <select
                   value={portfolioId}
-                  aria-label="Portfolio"
+                  aria-label="Portföy"
                   onChange={(event) => {
                     setPortfolioId(event.target.value);
                     setLinkPortfolio(Boolean(event.target.value));
                   }}
                   className="w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 font-bold text-text-primary focus:border-primary focus:outline-none"
                 >
-                  <option value="">No portfolio</option>
+                  <option value="">Portföy yok</option>
                   {portfolios.map((portfolio) => (
                     <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>
                   ))}
@@ -311,31 +311,31 @@ export default function TradingJournalView({
                   onChange={(event) => setLinkPortfolio(event.target.checked)}
                   className="accent-primary"
                 />
-                Link ledger
+                Deftere bağla
               </label>
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Entry Mode</label>
+              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Giriş türü</label>
               <div className="grid grid-cols-2 gap-2">
-                <ModeButton active={entryMode === 'AMOUNT'} onClick={() => setEntryMode('AMOUNT')}>Amount</ModeButton>
-                <ModeButton active={entryMode === 'QUANTITY'} onClick={() => setEntryMode('QUANTITY')}>Quantity</ModeButton>
+                <ModeButton active={entryMode === 'AMOUNT'} onClick={() => setEntryMode('AMOUNT')}>Tutar</ModeButton>
+                <ModeButton active={entryMode === 'QUANTITY'} onClick={() => setEntryMode('QUANTITY')}>Miktar</ModeButton>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <NumberField label="Purchase Price" value={priceInput} onChange={setPriceInput} prefix="$" />
+              <NumberField label="Alış fiyatı" value={priceInput} onChange={setPriceInput} prefix="$" />
               {entryMode === 'AMOUNT' ? (
-                <NumberField label="Trade Amount" value={amountInput} onChange={setAmountInput} prefix="$" />
+                <NumberField label="İşlem tutarı" value={amountInput} onChange={setAmountInput} prefix="$" />
               ) : (
-                <NumberField label="Quantity" value={quantityInput} onChange={setQuantityInput} />
+                <NumberField label="Miktar" value={quantityInput} onChange={setQuantityInput} />
               )}
-              <NumberField label="Commission" value={commissionInput} onChange={setCommissionInput} prefix="$" />
+              <NumberField label="Komisyon" value={commissionInput} onChange={setCommissionInput} prefix="$" />
               <div>
-                <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Trade Date</label>
+                <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">İşlem tarihi</label>
                 <input
                   type="date"
-                  aria-label="Trade Date"
+                  aria-label="İşlem tarihi"
                   value={tradeDate}
                   onChange={(event) => setTradeDate(event.target.value)}
                   className="w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 font-data-mono font-bold text-text-primary focus:border-primary focus:outline-none"
@@ -344,19 +344,19 @@ export default function TradingJournalView({
             </div>
 
             <div className="grid grid-cols-3 gap-2 rounded-md border border-outline-variant/40 bg-bg-base/45 p-3">
-              <CalcTile label="Quantity" value={formatNumber(calculatedQuantity)} />
-              <CalcTile label="Gross" value={formatCurrency(calculatedGross)} />
-              <CalcTile label="Net Cost" value={formatCurrency(calculatedNet)} />
+              <CalcTile label="Miktar" value={formatNumber(calculatedQuantity)} />
+              <CalcTile label="Brüt" value={formatCurrency(calculatedGross)} />
+              <CalcTile label="Net maliyet" value={formatCurrency(calculatedNet)} />
             </div>
 
             <div>
-              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Description</label>
+              <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Açıklama</label>
               <textarea
-                placeholder="Trade thesis, execution reason, risk note, exit condition..."
+                placeholder="Yatırım tezi, işlem gerekçesi, risk notu, çıkış koşulu…"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 rows={4}
-                aria-label="Description"
+                aria-label="Açıklama"
                 className="w-full rounded-md border border-outline-variant bg-bg-base p-3 text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
               />
             </div>
@@ -367,7 +367,7 @@ export default function TradingJournalView({
               className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-bg-base  disabled:opacity-60"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              {saving ? 'Saving...' : canLinkPortfolio ? 'Save to Portfolio Ledger' : 'Save Journal Trade'}
+              {saving ? 'Kaydediliyor…' : canLinkPortfolio ? 'Portföy defterine kaydet' : 'Günlüğe kaydet'}
             </button>
           </form>
         </section>
@@ -375,14 +375,15 @@ export default function TradingJournalView({
         <section className="min-w-0 rounded-md border border-outline-variant bg-bg-card p-4 ">
           <div className="mb-4 flex flex-col gap-3 border-b border-outline-variant/30 pb-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="font-headline text-sm font-bold uppercase tracking-wide text-text-primary">Journal Records</h3>
-              <div className="mt-1 text-xs text-text-muted">{filteredTrades.length} visible of {trades.length} loaded</div>
+              <h3 className="font-headline text-sm font-bold uppercase tracking-wide text-text-primary">Günlük kayıtları</h3>
+              <div className="mt-1 text-xs text-text-muted">{trades.length} kayıttan {filteredTrades.length} tanesi gösteriliyor</div>
             </div>
             <label className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
               <input
                 type="text"
-                placeholder="Search symbol, status, notes"
+                placeholder="Sembol, durum veya notlarda ara"
+                aria-label="Günlük kayıtlarında ara"
                 value={filterQuery}
                 onChange={(event) => setFilterQuery(event.target.value)}
                 className="w-full rounded-md border border-outline-variant bg-bg-base py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none sm:w-72"
@@ -394,26 +395,26 @@ export default function TradingJournalView({
             {loading ? (
               <div className="flex items-center justify-center gap-2 py-14 text-sm text-text-muted">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Loading journal trades
+                Günlük kayıtları yükleniyor…
               </div>
             ) : filteredTrades.length === 0 ? (
               <div className="rounded-md border border-dashed border-outline-variant p-10 text-center text-sm text-text-muted">
-                No journal trades found.
+                Veri yok: günlük kaydı bulunamadı.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[920px] text-left text-xs">
                   <thead className="sticky top-0 bg-bg-base/80 text-xs uppercase tracking-wider text-text-muted">
                     <tr>
-                      <th className="px-3 py-3">Trade</th>
-                      <th className="px-3 py-3">Portfolio</th>
-                      <th className="px-3 py-3">Quantity</th>
-                      <th className="px-3 py-3">Entry</th>
-                      <th className="px-3 py-3">Total</th>
-                      <th className="px-3 py-3">PnL</th>
-                      <th className="px-3 py-3">Status</th>
-                      <th className="px-3 py-3">Description</th>
-                      <th className="px-3 py-3 text-right">Actions</th>
+                      <th className="px-3 py-3">İşlem</th>
+                      <th className="px-3 py-3">Portföy</th>
+                      <th className="px-3 py-3">Miktar</th>
+                      <th className="px-3 py-3">Giriş fiyatı</th>
+                      <th className="px-3 py-3">Toplam</th>
+                      <th className="px-3 py-3">Kâr / zarar</th>
+                      <th className="px-3 py-3">Durum</th>
+                      <th className="px-3 py-3">Açıklama</th>
+                      <th className="px-3 py-3 text-right">Eylemler</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -448,24 +449,24 @@ export default function TradingJournalView({
                             {trade.portfolioId != null ? (
                               <span className="inline-flex items-center gap-1">
                                 <Link2 className="h-3 w-3" />
-                                {portfolioNameById[String(trade.portfolioId)] ?? `Portfolio ${trade.portfolioId}`}
+                                {portfolioNameById[String(trade.portfolioId)] ?? `Portföy ${trade.portfolioId}`}
                               </span>
-                            ) : 'Journal only'}
+                            ) : 'Yalnız günlük'}
                           </td>
                           <td className="px-3 py-4 font-data-mono font-bold text-text-primary">{formatNumber(trade.quantity)}</td>
                           <td className="px-3 py-4 font-data-mono text-text-primary">{formatCurrency(trade.purchasePrice)}</td>
                           <td className="px-3 py-4 font-data-mono font-bold text-primary">{formatCurrency(totalCost)}</td>
                           <td className="px-3 py-4 font-data-mono">
-                            <div className={(trade.pnl ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}>{formatCurrency(trade.pnl ?? 0)}</div>
-                            <div className={(trade.returnPct ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}>{(trade.returnPct ?? 0).toFixed(2)}%</div>
+                            <div className={trade.pnl == null ? 'text-text-muted' : trade.pnl >= 0 ? 'text-bull-green' : 'text-bear-red'}>{formatCurrency(trade.pnl)}</div>
+                            <div className={trade.returnPct == null ? 'text-text-muted' : trade.returnPct >= 0 ? 'text-bull-green' : 'text-bear-red'}>{trade.returnPct == null ? '—' : `${trade.returnPct.toFixed(2)}%`}</div>
                           </td>
                           <td className="px-3 py-4">
                             <span className={`rounded-full border px-2 py-1 text-xs font-bold ${trade.status === 'OPEN' ? 'border-primary/30 bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary'}`}>
-                              {trade.status}
+                              {trade.status === 'OPEN' ? 'Açık' : 'Kapalı'}
                             </span>
                           </td>
                           <td className="max-w-72 px-3 py-4 text-text-secondary">
-                            <div className="line-clamp-2">{trade.notes || trade.strategy || 'No description'}</div>
+                            <div className="line-clamp-2">{trade.notes || trade.strategy || 'Açıklama yok'}</div>
                           </td>
                           <td className="px-3 py-4 text-right">
                             {deleting ? (
@@ -475,13 +476,13 @@ export default function TradingJournalView({
                                   onClick={() => void handleRemove(trade.id)}
                                   className="rounded border border-bear-red/35 bg-bear-red/10 px-2 py-1 text-xs font-bold text-bear-red"
                                 >
-                                  Delete
+                                  Sil
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setDeleteCandidateId(null)}
                                   className="rounded border border-outline-variant bg-bg-base p-1 text-text-muted hover:text-text-primary"
-                                  aria-label="Cancel delete"
+                                  aria-label="Silmeyi iptal et"
                                 >
                                   <X className="h-3 w-3" />
                                 </button>
@@ -491,8 +492,8 @@ export default function TradingJournalView({
                                 type="button"
                                 onClick={() => setDeleteCandidateId(trade.id)}
                                 className="rounded border border-outline-variant/35 bg-bg-base p-1.5 text-text-muted transition-colors hover:border-bear-red/35 hover:bg-bear-red/10 hover:text-bear-red"
-                                title="Delete trade"
-                                aria-label={`Delete ${trade.symbol} trade`}
+                                title="İşlemi sil"
+                                aria-label={`${trade.symbol} işlemini sil`}
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
