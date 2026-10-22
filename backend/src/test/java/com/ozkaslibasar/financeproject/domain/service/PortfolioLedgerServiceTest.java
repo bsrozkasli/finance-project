@@ -434,6 +434,64 @@ class PortfolioLedgerServiceTest {
     }
 
     @Test
+    void shouldReplaySameDayPersistedTransactionsByIdRegardlessOfReadOrder() {
+        PortfolioTransaction buy = withId(1L, tx("AAPL", PortfolioTransactionAction.BUY, "2", "100", "0", "1", date(2026, 6, 1)));
+        PortfolioTransaction sell = withId(2L, tx("AAPL", PortfolioTransactionAction.SELL, "1", "110", "0", "1", date(2026, 6, 1)));
+
+        // BUY costs 200; SELL removes 100 basis for 110 proceeds: one share, 100 basis, 10 profit.
+        for (List<PortfolioTransaction> readOrder : List.of(List.of(buy, sell), List.of(sell, buy))) {
+            when(transactionPort.findByPortfolioIdAndUserId(PORTFOLIO_ID, USER_ID)).thenReturn(readOrder);
+
+            List<PortfolioHolding> holdings = ledgerService.calculateHoldings(PORTFOLIO_ID, USER_ID);
+
+            assertThat(holdings).hasSize(1);
+            PortfolioHolding holding = holdings.get(0);
+            assertThat(holding.symbol()).isEqualTo("AAPL");
+            assertThat(holding.quantity()).isEqualByComparingTo("1");
+            assertThat(holding.costBasis()).isEqualByComparingTo("100");
+            assertThat(holding.averageCost()).isEqualByComparingTo("100");
+            assertThat(holding.realizedPnl()).isEqualByComparingTo("10");
+        }
+    }
+
+    @Test
+    void shouldRejectSameDayPersistedSellBeforeLaterIdBuyEvenWhenReadOrderIsReversed() {
+        PortfolioTransaction sell = withId(1L, tx("AAPL", PortfolioTransactionAction.SELL, "1", "110", "0", "1", date(2026, 6, 1)));
+        PortfolioTransaction buy = withId(2L, tx("AAPL", PortfolioTransactionAction.BUY, "2", "100", "0", "1", date(2026, 6, 1)));
+
+        // No shares exist at event 1; the later BUY cannot fund the earlier SELL.
+        assertThatThrownBy(() -> ledgerService.calculateHoldings(List.of(buy, sell)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sell quantity exceeds current holding");
+    }
+
+    @Test
+    void shouldRetainSameDayInputOrderAmongTransactionsWithoutIds() {
+        PortfolioTransaction buy = tx("AAPL", PortfolioTransactionAction.BUY, "2", "100", "0", "1", date(2026, 6, 1));
+        PortfolioTransaction sell = tx("AAPL", PortfolioTransactionAction.SELL, "1", "110", "0", "1", date(2026, 6, 1));
+
+        PortfolioHolding holding = ledgerService.calculateHoldings(List.of(buy, sell)).get(0);
+        assertThat(holding.quantity()).isEqualByComparingTo("1");
+        assertThat(holding.costBasis()).isEqualByComparingTo("100");
+        assertThat(holding.realizedPnl()).isEqualByComparingTo("10");
+        assertThatThrownBy(() -> ledgerService.calculateHoldings(List.of(sell, buy)))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldValidateUnsavedSameDaySellAfterPersistedBuy() {
+        PortfolioTransaction buy = withId(1L, tx("AAPL", PortfolioTransactionAction.BUY, "2", "100", "0", "1", date(2026, 6, 1)));
+        PortfolioTransaction sell = tx("AAPL", PortfolioTransactionAction.SELL, "1", "110", "0", "1", date(2026, 6, 1));
+        when(transactionPort.findByPortfolioIdAndUserId(PORTFOLIO_ID, USER_ID)).thenReturn(List.of(buy));
+        when(transactionPort.save(sell)).thenReturn(withId(2L, sell));
+
+        PortfolioTransaction accepted = ledgerService.addTransaction(sell);
+
+        assertThat(accepted.id()).isEqualTo(2L);
+        assertThat(accepted.action()).isEqualTo(PortfolioTransactionAction.SELL);
+    }
+
+    @Test
     void shouldClarifyDividendPriceSemanticsBeforeAssertingPerShareCalculation() {
         List<PortfolioHolding> holdings = ledgerService.calculateHoldings(List.of(
                 tx("AAPL", PortfolioTransactionAction.BUY, "10", "100", "0", "1", date(2026, 6, 1)),
@@ -448,6 +506,13 @@ class PortfolioLedgerServiceTest {
         PortfolioTransaction buy = tx("AAPL", PortfolioTransactionAction.BUY, "1", "100", "0", "1", date(2026, 6, 1));
         List<PortfolioHolding> holdings = ledgerService.calculateHoldings(List.of(buy, buy));
         assertThat(holdings).hasSize(1);
+    }
+
+    private static PortfolioTransaction withId(Long id, PortfolioTransaction transaction) {
+        return new PortfolioTransaction(id, transaction.portfolioId(), transaction.userId(), transaction.symbol(),
+                transaction.assetType(), transaction.action(), transaction.quantity(), transaction.price(),
+                transaction.currency(), transaction.fee(), transaction.fxRateToBase(), transaction.tradeDate(),
+                transaction.source(), transaction.notes(), transaction.createdAt(), transaction.updatedAt());
     }
 
     private static LocalDate date(int year, int month, int day) {
