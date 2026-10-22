@@ -1,7 +1,7 @@
 # Frontend ürün deneyimi ve üretim planı
 
 **Revizyon:** 2026-10-16  
-**Durum:** İlk üretim dilimi uygulanıyor; tamamlananlar ve kalan işler aşağıda kayıtlıdır.
+**Durum:** Tamamlandı (2026-10-22). P0–P3 dilimleri ve 2026-10-22 kayıtlarındaki açık kalanlar PR #51, #52, #53 ve `fix/journal-unknown-current-price` ile kapandı. Ayrıntılar aşağıdaki uygulama kayıtlarındadır.
 
 ## Amaç ve karar yetkisi
 
@@ -102,3 +102,5 @@ Açık kalanlar: `StockDetailModal` ile `useSmartReport`, `useAssetResearchDetai
 Güncelleme — 2026-10-22, dal `feat/frontend-turkish-research-copy`: `StockDetailModal` ve dört hook Türkçeleştirildi; modal adlandırılmış dialog oldu ve Escape ile kapanıyor. Aynı dilimde üç gösterim hatası düzeltildi: günlük değişim yüzde puanı iki kez 100 ile çarpılıyordu; sağlayıcı hedef fiyat göndermediğinde `$0.00` hedef ve `-100%` potansiyel gösteriliyordu; 52 haftalık aralık bilinmiyorken konum `0%` olarak çiziliyordu. Tarih biçimi ve `currentPrice` kararı açık kalıyor.
 
 Güncelleme — 2026-10-22, dal `feat/frontend-turkish-dates`: tarihler `tr-TR` biçiminde (`9 Tem 2026`); Portföy dağılım modları Türkçe (Günlük getiri / Toplam getiri / Ağırlık). Para tutarları `$1,234.56` biçiminde kalır. Açık kalan: `currentPrice` sözleşme kararı.
+
+Güncelleme — 2026-10-22, dal `fix/journal-unknown-current-price`: P0 günlük fiyat doğruluğu. Piyasa fiyatı bilinmiyorken günlük formu alış fiyatını `currentPrice` olarak göndermiyor. Backend bilinmeyen güncel fiyatı uydurmuyor: `currentPrice`, `marketValue`, `pnl` ve `returnPct` `null` kalıyor, `V6__allow_unknown_journal_market_values.sql` bu sütunlardaki `NOT NULL` kısıtını kaldırıyor. Fiyatlı işlem yoksa kazanma oranı, ortalama getiri ve en iyi/en kötü işlem de `null`. Eski kayıtlar değiştirilmedi. Doğrulama: backend `mvnw test` 529 test, 0 hata, 17 atlandı (Docker gerektirenler; migration CI'da PostgreSQL ile sınanır); frontend lint, API sınırı, coverage 28 dosya / 183 test, build, bundle 687.9 KiB.
