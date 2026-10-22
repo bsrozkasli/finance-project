@@ -54,7 +54,7 @@ public class AssetResolutionService {
         return new Asset(
                 canonicalSymbol,
                 canonicalSymbol,
-                AssetType.STOCK,
+                AssetType.UNRESOLVED,
                 null,
                 null,
                 null,

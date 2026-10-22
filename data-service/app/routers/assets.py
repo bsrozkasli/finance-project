@@ -17,6 +17,7 @@ class AssetInfoResponse(BaseModel):
     sector: Optional[str] = None
     industry: Optional[str] = None
     market_cap: Optional[int] = None
+    quote_type: Optional[str] = None
     source: str = "provider-chain"
 
 
@@ -25,7 +26,6 @@ class AssetProfileResponse(AssetInfoResponse):
     website: Optional[str] = None
     logo_url: Optional[str] = None
     country: Optional[str] = None
-    quote_type: Optional[str] = None
     full_time_employees: Optional[int] = None
 
 
@@ -63,7 +63,7 @@ def get_asset_info(symbol: str) -> AssetInfoResponse:
     return AssetInfoResponse(
         symbol=info.symbol.upper(), name=info.name, exchange=info.exchange,
         currency=info.currency, sector=info.sector, industry=info.industry,
-        market_cap=info.market_cap,
+        market_cap=info.market_cap, quote_type=info.quote_type,
     )
 
 

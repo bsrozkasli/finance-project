@@ -170,7 +170,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
   const targetPriceForUpside = analystTargetPrice ?? analystRating?.targetPrice ?? null;
   const analystUpside = targetPriceForUpside == null || currentPrice == null || currentPrice === 0 ? '-' : (((targetPriceForUpside - currentPrice) / currentPrice) * 100).toFixed(1);
   const displayName = profile?.name ?? stock?.name ?? name ?? effectiveSymbol;
-  const displaySector = profile?.sector ?? stock?.sector ?? 'STOCK';
+  const displaySector = profile?.sector ?? stock?.sector ?? 'Type unavailable';
   const displayIndustry = (profile?.industry ?? stock?.industry) || 'Provider-backed details';
   const marketChangePercent = stock?.changePercent ?? (quote?.regularChangePercent == null ? null : quote.regularChangePercent * 100);
   const ratios = researchData.ratios;

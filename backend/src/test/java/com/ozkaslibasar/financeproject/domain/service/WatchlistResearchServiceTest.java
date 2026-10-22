@@ -93,5 +93,27 @@ class WatchlistResearchServiceTest {
         assertThat(row.institutional().status()).isEqualTo("FAILED");
         assertThat(row.overallStatus()).isEqualTo("OK");
     }
-}
 
+    @Test
+    void shouldReportUnresolvedTypeWhenNoMetadataSourceIdentifiesTheSymbol() {
+        WatchlistResearchService service = new WatchlistResearchService(
+                assetRepositoryPort,
+                assetMetadataPort,
+                priceRepositoryPort,
+                priceChartClientPort,
+                technicalAnalysisPort,
+                researchDataPort);
+
+        WatchlistResearchService.WatchlistResearchSnapshot snapshot = service.buildSnapshot(
+                new Watchlist(1L, "default", "Core", List.of("ZZZZ"), null, null),
+                null,
+                50,
+                0,
+                false);
+
+        WatchlistResearchService.WatchlistResearchRow row = snapshot.rows().get(0);
+        assertThat(row.type()).isEqualTo("UNRESOLVED");
+        assertThat(row.name()).isNull();
+        assertThat(row.metadataStatus()).isEqualTo("EMPTY");
+    }
+}

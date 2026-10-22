@@ -85,3 +85,56 @@ def test_asset_profile_and_market_quote_preserve_provider_fields(monkeypatch):
     assert quote.json()["market_state"] == "POST_MARKET"
     assert quote.json()["post_market_price"] == 212.0
     assert quote.json()["delayed"] is True
+
+class ResolverWithQuoteType:
+    def get_asset_info(self, symbol: str):
+        return AssetInfo(symbol=symbol, name="SPDR S&P 500 ETF Trust", exchange="PCX", quote_type="ETF")
+
+
+def test_asset_info_exposes_provider_quote_type(monkeypatch):
+    from app.routers import assets
+
+    monkeypatch.setattr(assets, "get_resolver", lambda: ResolverWithQuoteType())
+    response = TestClient(app).get("/api/v1/assets/SPY/info")
+
+    assert response.status_code == 200
+    assert response.json()["quote_type"] == "ETF"
+
+
+def test_asset_info_quote_type_is_null_when_provider_gives_none(monkeypatch):
+    from app.routers import assets
+
+    monkeypatch.setattr(assets, "get_resolver", lambda: ResolverWithMetadata())
+    response = TestClient(app).get("/api/v1/assets/PANW/info")
+
+    assert response.status_code == 200
+    assert response.json()["quote_type"] is None
+
+
+def test_yahoo_provider_passes_through_provider_quote_type(monkeypatch):
+    from app.providers import yahoo_provider
+
+    class FakeTicker:
+        info = {"symbol": "SPY", "shortName": "SPDR S&P 500 ETF Trust", "exchange": "PCX", "quoteType": "ETF"}
+
+    monkeypatch.setattr(yahoo_provider.yf, "Ticker", lambda symbol: FakeTicker())
+
+    info = yahoo_provider.YahooProvider().get_asset_info("SPY")
+
+    assert info is not None
+    assert info.quote_type == "ETF"
+
+
+def test_yahoo_provider_leaves_quote_type_none_when_absent(monkeypatch):
+    from app.providers import yahoo_provider
+
+    class FakeTicker:
+        info = {"symbol": "XYZ", "shortName": "Xyz Corp", "exchange": "NMS"}
+
+    monkeypatch.setattr(yahoo_provider.yf, "Ticker", lambda symbol: FakeTicker())
+
+    info = yahoo_provider.YahooProvider().get_asset_info("XYZ")
+
+    assert info is not None
+    assert info.quote_type is None
+
