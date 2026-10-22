@@ -36,6 +36,11 @@ describe('ResearchWorkspace', () => {
         await screen.findByText('1.200');
         expect(screen.getByText('Fiyat verisi yok')).toBeInTheDocument();
     });
+    it('labels an unresolved instrument type as unknown instead of showing the raw value', async () => {
+        render(<MemoryRouter><ResearchWorkspace {...props} assets={[{symbol: 'ZZZ', name: 'Zeta', type: 'UNRESOLVED'}]} symbol="ZZZ"/></MemoryRouter>);
+        expect(screen.getByText('Tür bilinmiyor')).toBeInTheDocument();
+        expect(screen.queryByText('UNRESOLVED')).not.toBeInTheDocument();
+    });
     it('shows reported zero, missing period cells and unknown units truthfully in the annual table', async () => {
         render(desk());
         await user().click(screen.getByRole('tab', {name: 'Finansallar'}));
