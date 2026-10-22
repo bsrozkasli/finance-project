@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   fetchBatchAssetProfiles,
   fetchBatchLatestPrices,
@@ -56,11 +56,15 @@ export function useMarketOverviewData(priceSymbols: string[], profileSymbols: st
   const [quotes, setQuotes] = useState<Record<string, AssetResearchSection<MarketQuote>>>({});
   const [profiles, setProfiles] = useState<Record<string, AssetResearchSection<CompanyProfile>>>({});
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const quoteRequestId = useRef(0);
+  const activeLoadQuotes = useRef<(() => Promise<void>) | null>(null);
   const priceKey = useMemo(() => [...new Set(priceSymbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))].sort().join(','), [priceSymbols]);
   const profileKey = useMemo(() => [...new Set(profileSymbols.map((symbol) => symbol.trim().toUpperCase()).filter(Boolean))].sort().join(','), [profileSymbols]);
 
   useEffect(() => {
+    setProfileError(null);
     if (!profileKey) {
       setProfiles({});
       return;
@@ -68,27 +72,32 @@ export function useMarketOverviewData(priceSymbols: string[], profileSymbols: st
     let cancelled = false;
     void fetchBatchAssetProfiles(profileKey.split(','))
       .then((response) => { if (!cancelled) setProfiles(response.profiles); })
-      .catch(() => { if (!cancelled) setError('Company profiles are temporarily unavailable'); });
+      .catch(() => { if (!cancelled) setProfileError('Company profiles are temporarily unavailable'); });
     return () => { cancelled = true; };
   }, [profileKey]);
 
-  const loadQuotes = useCallback(async () => {
-    if (!priceKey || document.visibilityState !== 'visible') return;
+  const loadQuotes = useCallback(async function loadCurrentQuotes(): Promise<void> {
+    if (activeLoadQuotes.current !== loadCurrentQuotes || !priceKey || document.visibilityState !== 'visible') return;
+    const id = ++quoteRequestId.current;
+    const isCurrent = () => activeLoadQuotes.current === loadCurrentQuotes && id === quoteRequestId.current;
     try {
       const response = await fetchBatchLatestPrices(priceKey.split(','));
+      if (!isCurrent()) return;
       setQuotes((current) => ({ ...current, ...response.quotes }));
       setLastUpdated(response.generatedAt);
-      setError(null);
+      setQuoteError(null);
     } catch {
-      setError('Live prices are temporarily unavailable');
+      if (isCurrent()) setQuoteError('Live prices are temporarily unavailable');
     }
   }, [priceKey]);
 
   useEffect(() => {
+    activeLoadQuotes.current = loadQuotes;
+    setQuotes({});
+    setLastUpdated(null);
+    setQuoteError(null);
     if (!priceKey) {
-      setQuotes({});
-      setLastUpdated(null);
-      return;
+      return () => { activeLoadQuotes.current = null; };
     }
 
     let disposed = false;
@@ -116,10 +125,11 @@ export function useMarketOverviewData(priceSymbols: string[], profileSymbols: st
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       disposed = true;
+      activeLoadQuotes.current = null;
       if (timeoutId) window.clearTimeout(timeoutId);
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [loadQuotes, priceKey]);
 
-  return { quotes, profiles, lastUpdated, error, reload: loadQuotes };
+  return { quotes, profiles, lastUpdated, error: quoteError ?? profileError, reload: loadQuotes };
 }
