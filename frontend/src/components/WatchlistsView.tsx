@@ -28,44 +28,44 @@ interface WatchlistsViewProps {
 
 const statusStyles: Record<WatchlistResearchStatus, { label: string; className: string }> = {
   OK: { label: 'OK', className: 'border-bull-green/30 bg-bull-green/10 text-bull-green' },
-  STALE: { label: 'Stale', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  EMPTY: { label: 'Empty', className: 'border-outline-variant bg-bg-base text-text-muted' },
-  FAILED: { label: 'Failed', className: 'border-bear-red/30 bg-bear-red/10 text-bear-red' },
-  RATE_LIMITED: { label: 'Rate limited', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  INSUFFICIENT_DATA: { label: 'Low data', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  PENDING_REFRESH: { label: 'Refreshing', className: 'border-primary/30 bg-primary/10 text-primary' },
+  STALE: { label: 'Eski veri', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
+  EMPTY: { label: 'Veri yok', className: 'border-outline-variant bg-bg-base text-text-muted' },
+  FAILED: { label: 'Yüklenemedi', className: 'border-bear-red/30 bg-bear-red/10 text-bear-red' },
+  RATE_LIMITED: { label: 'İstek sınırı', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
+  INSUFFICIENT_DATA: { label: 'Yetersiz geçmiş', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
+  PENDING_REFRESH: { label: 'Yenileniyor', className: 'border-primary/30 bg-primary/10 text-primary' },
 };
 
 const formatCurrency = (value: number | null | undefined) => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+  if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(value);
 };
 
 const formatPercentRatio = (value: number | null | undefined) => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+  if (value == null || !Number.isFinite(value)) return '—';
   const pct = value * 100;
   return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
 };
 
 const formatPercentPoints = (value: number | null | undefined) => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+  if (value == null || !Number.isFinite(value)) return '—';
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 };
 
 const formatNumber = (value: number | null | undefined, digits = 2) => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+  if (value == null || !Number.isFinite(value)) return '—';
   return value.toFixed(digits);
 };
 
 const formatVolume = (value: number | null | undefined) => {
-  if (value == null || !Number.isFinite(value)) return 'N/A';
+  if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 };
 
 const formatDateTime = (value: string | null | undefined) => {
-  if (!value) return 'N/A';
+  if (!value) return '—';
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'N/A';
+  if (Number.isNaN(date.getTime())) return '—';
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
@@ -154,7 +154,7 @@ export default function WatchlistsView({
       setSelectedSymbol(symbol);
     } catch (error) {
       console.error('Failed to add symbol to watchlist', error);
-      setActionError(`Could not add ${symbol}.`);
+      setActionError(`${symbol} eklenemedi.`);
     } finally {
       setAddingTicker(false);
     }
@@ -171,7 +171,7 @@ export default function WatchlistsView({
       setNewWatchlistName('');
     } catch (error) {
       console.error('Failed to create watchlist', error);
-      setActionError(`Could not create ${name}.`);
+      setActionError(`${name} oluşturulamadı.`);
     } finally {
       setCreatingWatchlist(false);
     }
@@ -189,7 +189,7 @@ export default function WatchlistsView({
       await reloadResearchSnapshot();
     } catch (error) {
       console.error('Failed to remove symbol from watchlist', error);
-      setActionError(`Could not remove ${symbol}.`);
+      setActionError(`${symbol} kaldırılamadı.`);
     } finally {
       setRemovingSymbol(null);
     }
@@ -276,7 +276,7 @@ export default function WatchlistsView({
         <aside className="space-y-4">
           <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
             <label htmlFor="active-watchlist" className="mb-2 block text-xs font-label-caps uppercase tracking-wider text-text-muted">
-              Active List
+              Aktif liste
             </label>
             <select
               id="active-watchlist"
@@ -292,11 +292,11 @@ export default function WatchlistsView({
             </select>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
-              <SummaryTile label="Symbols" value={String(activeSymbols.length)} />
-              <SummaryTile label="Loaded" value={String(researchRows.length)} />
+              <SummaryTile label="Sembol" value={String(activeSymbols.length)} />
+              <SummaryTile label="Yüklenen" value={String(researchRows.length)} />
               <SummaryTile
-                label="Avg Change"
-                value={averageChange == null ? 'N/A' : formatPercentPoints(averageChange)}
+                label="Ort. değişim"
+                value={averageChange == null ? '—' : formatPercentPoints(averageChange)}
                 tone={averageChange == null ? 'neutral' : averageChange >= 0 ? 'positive' : 'negative'}
               />
             </div>
@@ -304,7 +304,7 @@ export default function WatchlistsView({
 
           <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
             <label className="mb-2 block text-xs font-label-caps uppercase tracking-wider text-text-muted">
-              Add Symbol
+              Sembol ekle
             </label>
             <div className="flex gap-2">
               <input
@@ -322,7 +322,7 @@ export default function WatchlistsView({
                 onClick={handleAddTicker}
                 disabled={addingTicker || !tickerToAdd.trim()}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-bg-base disabled:opacity-60"
-                aria-label="Add symbol"
+                aria-label="Sembol ekle"
               >
                 {addingTicker ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               </button>
@@ -339,7 +339,7 @@ export default function WatchlistsView({
             <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
               {activeSymbols.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-outline-variant p-5 text-center text-xs text-text-muted">
-                  Add a symbol to start tracking this watchlist.
+                  Veri yok: bu listeyi izlemeye başlamak için sembol ekleyin.
                 </div>
               ) : (
                 activeSymbols.map((symbol) => {
@@ -366,7 +366,7 @@ export default function WatchlistsView({
                             <div className="min-w-0">
                               <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
                               <div className="truncate text-xs text-text-muted">
-                                {row?.name ?? stock?.name ?? 'Metadata unavailable'}
+                                {row?.name ?? stock?.name ?? 'Şirket bilgisi yok'}
                               </div>
                             </div>
                           </div>
@@ -377,7 +377,7 @@ export default function WatchlistsView({
                         <div className="mt-3 flex items-center justify-between font-data-mono text-xs">
                           <span className="text-text-primary">{formatCurrency(row?.price.data?.lastPrice ?? stock?.price)}</span>
                           <span className={stock && stock.changePercent < 0 ? 'text-bear-red' : 'text-bull-green'}>
-                            {stock ? formatPercentPoints(stock.changePercent) : 'N/A'}
+                            {stock ? formatPercentPoints(stock.changePercent) : '—'}
                           </span>
                         </div>
                       </button>
@@ -385,8 +385,8 @@ export default function WatchlistsView({
                         type="button"
                         onClick={() => void handleRemoveTicker(symbol)}
                         disabled={removingSymbol !== null}
-                        aria-label={`Remove ${symbol} from watchlist`}
-                        title={`Remove ${symbol}`}
+                        aria-label={`${symbol} sembolünü listeden kaldır`}
+                        title={`${symbol} sembolünü kaldır`}
                         className="flex w-10 shrink-0 items-center justify-center border-l border-outline-variant/30 text-text-muted hover:text-bear-red disabled:opacity-50"
                       >
                         {removingSymbol === symbol ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -405,7 +405,7 @@ export default function WatchlistsView({
               <div>
                 <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Research Snapshot</div>
                 <h3 className="mt-1 font-headline text-xl font-bold text-text-primary">
-                  {activeWatchlist?.name ?? 'Watchlist'} Coverage
+                  {activeWatchlist?.name ?? 'İzleme listesi'} kapsamı
                 </h3>
               </div>
 
@@ -449,26 +449,26 @@ export default function WatchlistsView({
               </div>
             ) : researchRows.length === 0 ? (
               <div className="m-4 rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-text-muted">
-                No research rows are available for this watchlist yet.
+                Veri yok: bu liste için henüz araştırma satırı yok.
               </div>
             ) : visibleRows.length === 0 ? (
               <div className="m-4 rounded-lg border border-dashed border-outline-variant p-8 text-center text-sm text-text-muted">
-                No symbols match the current search.
+                Veri yok: aramayla eşleşen sembol yok.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1060px] text-left text-xs">
                   <thead className="sticky top-0 bg-bg-base/80 text-xs uppercase tracking-wider text-text-muted">
                     <tr>
-                      <th className="px-4 py-3">Symbol</th>
-                      <th className="px-4 py-3">Last Price</th>
-                      <th className="px-4 py-3">Volume</th>
+                      <th className="px-4 py-3">Sembol</th>
+                      <th className="px-4 py-3">Son fiyat</th>
+                      <th className="px-4 py-3">Hacim</th>
                       <th className="px-4 py-3">RSI 14</th>
-                      <th className="px-4 py-3">Signal</th>
+                      <th className="px-4 py-3">Sinyal</th>
                       <th className="px-4 py-3">ROE</th>
-                      <th className="px-4 py-3">Debt / Equity</th>
-                      <th className="px-4 py-3">Earnings</th>
-                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Borç / özsermaye</th>
+                      <th className="px-4 py-3">Kazanç</th>
+                      <th className="px-4 py-3">Durum</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -488,7 +488,7 @@ export default function WatchlistsView({
                               <CompanyLogo symbol={row.symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
                               <div className="min-w-0">
                                 <div className="font-data-mono font-bold text-text-primary">{row.symbol}</div>
-                                <div className="max-w-40 truncate text-xs text-text-muted">{row.name ?? stock?.name ?? 'Metadata unavailable'}</div>
+                                <div className="max-w-40 truncate text-xs text-text-muted">{row.name ?? stock?.name ?? 'Şirket bilgisi yok'}</div>
                               </div>
                             </div>
                           </td>
@@ -496,7 +496,7 @@ export default function WatchlistsView({
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatVolume(row.price.data?.volume)}</td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatNumber(row.technical.data?.rsi14, 1)}</td>
                           <td className="px-4 py-4">
-                            <div className="font-data-mono font-bold text-text-primary">{row.technical.data?.action ?? 'N/A'}</div>
+                            <div className="font-data-mono font-bold text-text-primary">{row.technical.data?.action ?? '—'}</div>
                             <div className="text-xs text-text-muted">{formatPercentRatio(row.technical.data?.confidence)}</div>
                           </td>
                           <td className="px-4 py-4 font-data-mono text-text-primary">{formatPercentRatio(row.fundamentals.data?.roe)}</td>
@@ -583,7 +583,7 @@ function SelectedInstrumentPanel({
   if (!symbol) {
     return (
       <section className="rounded-lg border border-outline-variant bg-bg-card p-8 text-center text-sm text-text-muted shadow-lg">
-        Select a symbol to inspect its latest research context.
+        Son araştırma bağlamını incelemek için bir sembol seçin.
       </section>
     );
   }
@@ -597,7 +597,7 @@ function SelectedInstrumentPanel({
     <section className="rounded-lg border border-outline-variant bg-bg-card p-4 shadow-lg">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Selected Instrument</div>
+          <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Seçili varlık</div>
           <h3 className="mt-1 truncate font-headline text-xl font-bold text-text-primary">
             {symbol}{stock ? ` - ${stock.name}` : ''}
           </h3>
@@ -615,33 +615,33 @@ function SelectedInstrumentPanel({
             onClick={() => onSelectStock(stock, symbol, row?.name ?? undefined)}
             className="rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary hover:border-primary/40"
           >
-            Open Details
+            Ayrıntıları aç
           </button>
           <button
             type="button"
             onClick={() => onOpenTradeModal(symbol)}
             className="rounded-lg bg-primary px-3 py-2 text-sm font-bold text-bg-base "
           >
-            Trade
+            İşlem kaydı ekle
           </button>
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Metric label="Last Price" value={formatCurrency(price?.lastPrice ?? stock?.price)} />
-        <Metric label="Day Range" value={`${formatCurrency(price?.low ?? stock?.low)} / ${formatCurrency(price?.high ?? stock?.high)}`} />
-        <Metric label="Volume" value={formatVolume(price?.volume)} />
+        <Metric label="Son fiyat" value={formatCurrency(price?.lastPrice ?? stock?.price)} />
+        <Metric label="Gün aralığı" value={`${formatCurrency(price?.low ?? stock?.low)} / ${formatCurrency(price?.high ?? stock?.high)}`} />
+        <Metric label="Hacim" value={formatVolume(price?.volume)} />
         <Metric label="RSI 14" value={formatNumber(technical?.rsi14, 1)} />
-        <Metric label="Signal" value={technical?.action ?? 'N/A'} />
+        <Metric label="Sinyal" value={technical?.action ?? '—'} />
         <Metric label="ROE" value={formatPercentRatio(fundamentals?.roe ?? stock?.roe)} />
-        <Metric label="Debt / Equity" value={formatNumber(fundamentals?.debtToEquity ?? stock?.debtEquity)} />
-        <Metric label="Quality" value={formatNumber(institutional?.qualityComposite, 1)} />
+        <Metric label="Borç / özsermaye" value={formatNumber(fundamentals?.debtToEquity ?? stock?.debtEquity)} />
+        <Metric label="Kalite" value={formatNumber(institutional?.qualityComposite, 1)} />
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-3 lg:grid-cols-3">
-        <ResearchSource label="Price" status={row?.price.status ?? 'EMPTY'} source={row?.price.source} message={row?.price.message} />
-        <ResearchSource label="Technical" status={row?.technical.status ?? 'EMPTY'} source={row?.technical.source} message={row?.technical.message} />
-        <ResearchSource label="Fundamentals" status={row?.fundamentals.status ?? 'EMPTY'} source={row?.fundamentals.source} message={row?.fundamentals.message} />
+        <ResearchSource label="Fiyat" status={row?.price.status ?? 'EMPTY'} source={row?.price.source} message={row?.price.message} />
+        <ResearchSource label="Teknik" status={row?.technical.status ?? 'EMPTY'} source={row?.technical.source} message={row?.technical.message} />
+        <ResearchSource label="Temel veriler" status={row?.fundamentals.status ?? 'EMPTY'} source={row?.fundamentals.source} message={row?.fundamentals.message} />
       </div>
     </section>
   );
@@ -673,7 +673,7 @@ function ResearchSource({
         <div className="text-xs font-bold uppercase tracking-wide text-text-muted">{label}</div>
         <StatusPill status={status} />
       </div>
-      <div className="mt-2 truncate text-xs text-text-secondary">{source ?? 'No provider'}</div>
+      <div className="mt-2 truncate text-xs text-text-secondary">{source ?? 'Sağlayıcı yok'}</div>
       {message ? <div className="mt-1 truncate text-xs text-text-muted">{message}</div> : null}
     </div>
   );

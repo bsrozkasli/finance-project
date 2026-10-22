@@ -91,7 +91,7 @@ test.describe('integrated system smoke', () => {
     // The TopBar search is also a combobox; target the watchlist <select> itself.
     await expect(page.locator('select').filter({ hasText: 'Core' }).first()).toBeVisible();
     await page.getByPlaceholder('AAPL, MSFT...').fill('msft');
-    await page.getByRole('button', { name: 'Add symbol' }).click();
+    await page.getByRole('button', { name: 'Sembol ekle' }).click();
 
     await expect(page.getByText('MSFT').first()).toBeVisible();
 
