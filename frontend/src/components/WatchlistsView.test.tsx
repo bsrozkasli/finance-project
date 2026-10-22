@@ -161,6 +161,9 @@ describe('WatchlistsView', () => {
     expect(screen.getByRole('heading', { name: 'İzleme listem' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Core Growth kapsamı' })).toBeInTheDocument();
     expect(screen.getByText('Sağlıklı')).toBeInTheDocument();
+    expect(screen.getByText('Araştırma özeti')).toBeInTheDocument();
+    expect(screen.getByText('Semboller')).toBeInTheDocument();
+    expect(screen.getByText(/^Son gözlem /)).toBeInTheDocument();
 
     const table = screen.getByRole('table');
     expect(within(table).getByText('AAPL')).toBeInTheDocument();

@@ -331,7 +331,7 @@ export default function WatchlistsView({
 
           <section className="rounded-lg border border-outline-variant bg-bg-card p-3 shadow-lg">
             <div className="mb-3 flex items-center justify-between gap-3">
-              <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Symbols</div>
+              <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Semboller</div>
               <div className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 font-data-mono text-xs text-text-muted">
                 {activeSymbols.length}
               </div>
@@ -403,7 +403,7 @@ export default function WatchlistsView({
           <section className="rounded-lg border border-outline-variant bg-bg-card shadow-lg">
             <div className="flex flex-col gap-4 border-b border-outline-variant/40 p-4 lg:flex-row lg:items-center lg:justify-between">
               <div>
-                <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Research Snapshot</div>
+                <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Araştırma özeti</div>
                 <h3 className="mt-1 font-headline text-xl font-bold text-text-primary">
                   {activeWatchlist?.name ?? 'İzleme listesi'} kapsamı
                 </h3>
@@ -604,7 +604,7 @@ function SelectedInstrumentPanel({
           <div className="mt-2 flex flex-wrap gap-2">
             {row ? <StatusPill status={row.overallStatus} /> : <StatusPill status="EMPTY" />}
             <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-xs text-text-muted">
-              Updated {formatDateTime(row?.price.observedAt)}
+              Son gözlem {formatDateTime(row?.price.observedAt)}
             </span>
           </div>
         </div>
