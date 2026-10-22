@@ -1,6 +1,6 @@
 # Mercek V3 — gerçek uygulama ekranlarından frontend görsel analizi
 
-Tarih: 2026-10-17. Durum: kullanıcı incelemesi için HTML tasarım önerisi.
+Tarih: 2026-10-17. Durum: **Yerini aldı.** `docs/design-council/2026-10-17/decisions.md` bu V3 görsel yönünün yerine geçti; üretim uygulaması `2026-10-17-dark-council-frontend-implementation.md` ile yürütülür. Bu belge tarihsel kayıttır; aşağıdaki uygulama adımları yürütülmez.
 
 ## Düzeltilen kapsam
 
