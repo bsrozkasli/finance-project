@@ -144,7 +144,7 @@ describe('LeftNav', () => {
 
     expect(onOpenManageAssets).toHaveBeenCalledTimes(1);
     expect(onOpenSettings).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('link', { name: /github source/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Kaynak kodu (GitHub)' })).toHaveAttribute(
       'href',
       'https://github.com/bsrozkasli/finance-project',
     );

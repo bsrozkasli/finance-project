@@ -24,7 +24,7 @@ export function useAnalystRatings(symbol: string | null) {
       setData({ recommendations: recs, priceTarget: pt });
       setLastFetched(new Date());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch analyst data');
+      setError(e instanceof Error ? e.message : 'Analist verisi yüklenemedi');
       setData(null);
     } finally {
       setLoading(false);

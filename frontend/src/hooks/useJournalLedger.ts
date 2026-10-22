@@ -31,7 +31,7 @@ export function useJournalLedger() {
       );
       setTransactions(settled.flatMap(result => result.status === 'fulfilled' ? result.value : []));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load portfolio ledger');
+      setError(e instanceof Error ? e.message : 'Portföy defteri yüklenemedi');
       setPortfolios([]);
       setTransactions([]);
     } finally {

@@ -52,10 +52,10 @@ export const useLivePrice = (symbol: string | null) => {
         const live = toLivePrice(bars);
         if (!cancelled) {
           setData(live);
-          setError(live ? null : 'No price data available');
+          setError(live ? null : 'Veri yok: fiyat bulunamadı');
         }
       } catch {
-        if (!cancelled) setError('Failed to fetch latest price');
+        if (!cancelled) setError('Son fiyat yüklenemedi');
       } finally {
         if (!cancelled) {
           setLoading(false);

@@ -42,7 +42,7 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
         <p>Kanıtı incele.<br/>Kararını kendin ver.</p>
         <button type="button" onClick={onOpenManageAssets} aria-label="Varlıkları yönet" className="flex items-center gap-3 min-h-11 px-3 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card text-sm text-left focus-visible:outline-2 focus-visible:outline-primary"><SlidersHorizontal className="w-5 h-5" />Varlıkları yönet</button>
         <button type="button" onClick={onOpenSettings} aria-label="Ayarlar" className="flex items-center gap-3 min-h-11 px-3 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card text-sm text-left focus-visible:outline-2 focus-visible:outline-primary"><Settings className="w-5 h-5" />Ayarlar</button>
-        <a href="https://github.com/bsrozkasli/finance-project" target="_blank" rel="noreferrer" aria-label="GitHub Source" className="flex items-center gap-3 min-h-11 px-3 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card text-sm focus-visible:outline-2 focus-visible:outline-primary"><HelpCircle className="w-5 h-5" />Kaynak kodu</a>
+        <a href="https://github.com/bsrozkasli/finance-project" target="_blank" rel="noreferrer" aria-label="Kaynak kodu (GitHub)" className="flex items-center gap-3 min-h-11 px-3 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-card text-sm focus-visible:outline-2 focus-visible:outline-primary"><HelpCircle className="w-5 h-5" />Kaynak kodu</a>
       </div>
     </aside>
   );

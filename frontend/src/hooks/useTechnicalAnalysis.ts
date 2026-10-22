@@ -17,14 +17,14 @@ export function useTechnicalAnalysis(symbol: string | null, interval = '1d', ran
       ]);
       if (analysis.status !== 'fulfilled' && signals.status !== 'fulfilled') {
         const failure = analysis.reason ?? signals.reason;
-        throw failure instanceof Error ? failure : new Error('Technical analysis and signals are unavailable');
+        throw failure instanceof Error ? failure : new Error('Teknik analiz ve sinyaller yüklenemedi');
       }
       const indicators: Partial<TechnicalResult> = analysis.status === 'fulfilled' ? analysis.value : {};
       const signal: Partial<TechnicalResult> = signals.status === 'fulfilled' ? signals.value : {};
       setData({ ...indicators, signalAction: signal.signalAction ?? undefined, signalConfidence: signal.signalConfidence ?? undefined });
       setLastFetched(new Date());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Technical analysis unavailable');
+      setError(e instanceof Error ? e.message : 'Teknik analiz yüklenemedi');
       setData(null);
     } finally {
       setLoading(false);

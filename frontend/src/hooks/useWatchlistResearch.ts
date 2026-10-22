@@ -37,7 +37,7 @@ export function useWatchlistResearch(symbol: string | null) {
         oneYear: oneYear.status === 'fulfilled' ? oneYear.value as PriceHistory[] : [],
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load research data');
+      setError(e instanceof Error ? e.message : 'Araştırma verisi yüklenemedi');
       setData(emptySnapshot);
     } finally {
       setLoading(false);

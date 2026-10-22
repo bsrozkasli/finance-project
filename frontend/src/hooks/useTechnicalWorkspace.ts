@@ -8,7 +8,7 @@ export function useTechnicalWorkspace(symbol: string | null, interval = '1d', ra
   const load = useCallback(async (ticker: string) => {
     setLoading(true);
     try { setData(await fetchTechnicalWorkspace(ticker, interval, range)); setError(null); }
-    catch (reason) { setData(null); setError(reason instanceof Error ? reason.message : 'Technical workspace unavailable'); }
+    catch (reason) { setData(null); setError(reason instanceof Error ? reason.message : 'Teknik çalışma alanı yüklenemedi'); }
     finally { setLoading(false); }
   }, [interval, range]);
   useEffect(() => { if (symbol) void load(symbol); else { setData(null); setError(null); } }, [load, symbol]);

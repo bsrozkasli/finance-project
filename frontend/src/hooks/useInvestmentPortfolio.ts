@@ -109,7 +109,7 @@ export function useInvestmentPortfolio(
       setSelectedPortfolioIdState(nextSelectedId);
       await loadSelectedData(nextSelectedId);
     } catch (e) {
-      setError(errorMessage(e, 'Failed to load investment portfolios'));
+      setError(errorMessage(e, 'Yatırım portföyleri yüklenemedi'));
       setPortfolios([]);
       setHoldings([]);
       setTransactions([]);
