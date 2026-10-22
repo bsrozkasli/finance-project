@@ -28,8 +28,8 @@ describe('formatters', () => {
   });
 
   describe('formatDate', () => {
-    it('formats ISO timestamps as an en-US calendar date', () => {
-      expect(formatDate('2026-07-09T12:00:00.000Z')).toBe('Jul 9, 2026');
+    it('formats ISO timestamps as a Turkish calendar date', () => {
+      expect(formatDate('2026-07-09T12:00:00.000Z')).toBe('9 Tem 2026');
     });
   });
 });

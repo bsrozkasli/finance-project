@@ -134,6 +134,7 @@ describe('TradingJournalView', () => {
     expect(row).not.toHaveTextContent('$0.00');
     expect(row).not.toHaveTextContent('0.00%');
     expect(row).toHaveTextContent('—');
+    expect(row).toHaveTextContent('1 Tem 2026');
     expect(screen.getByText('Ort. getiri').parentElement).toHaveTextContent('—');
     expect(screen.getByRole('columnheader', { name: 'Kâr / zarar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'AAPL işlemini sil' })).toBeInTheDocument();

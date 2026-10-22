@@ -46,13 +46,13 @@ interface LocalPositionPerformance extends Omit<PortfolioPositionPerformance,
 
 const performanceRanges: PerformanceRange[] = ['1M', '3M', '6M', '1Y', '2Y'];
 const allocationModes: Array<{ id: AllocationMode; label: string }> = [
-  { id: 'daily', label: 'Daily' },
-  { id: 'total', label: 'Total' },
-  { id: 'allocation', label: 'Allocation' },
+  { id: 'daily', label: 'Günlük getiri' },
+  { id: 'total', label: 'Toplam getiri' },
+  { id: 'allocation', label: 'Ağırlık' },
 ];
 
-const monthFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', year: '2-digit' });
-const dateFormatter = new Intl.DateTimeFormat('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+const monthFormatter = new Intl.DateTimeFormat('tr-TR', { month: 'short', year: '2-digit' });
+const dateFormatter = new Intl.DateTimeFormat('tr-TR', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const numericPortfolioId = (id: string | undefined): number | undefined => {
   if (!id) return undefined;

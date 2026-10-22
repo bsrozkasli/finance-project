@@ -231,7 +231,7 @@ export default function TradingJournalModal({
                 ) : (
                   filteredTrades.map((trade) => {
                     const totalCost = trade.quantity * trade.price;
-                    const dateFormatted = new Date(trade.date).toLocaleString('en-US', {
+                    const dateFormatted = new Date(trade.date).toLocaleString('tr-TR', {
                       month: 'short',
                       day: 'numeric',
                       hour: '2-digit',

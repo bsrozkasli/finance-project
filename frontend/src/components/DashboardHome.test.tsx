@@ -198,7 +198,7 @@ describe('DashboardHome portfolio return comparison', () => {
     expect(screen.getByText('Varlık dağılımı')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Günlük getiri' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ağırlık' })).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByText('02 Jan 2026')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('02 Oca 2026')).toBeInTheDocument());
     expect(screen.getByRole('columnheader', { name: 'Haftalık' })).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
 
@@ -214,7 +214,7 @@ describe('DashboardHome portfolio return comparison', () => {
       toJSON: () => ({}),
     });
     fireEvent.mouseMove(chart, { clientX: 600 });
-    expect(screen.getAllByText('9 Jul').length).toBeGreaterThan(1);
+    expect(screen.getAllByText('9 Tem').length).toBeGreaterThan(1);
     expect(screen.getByText(/USD 240\.00/)).toBeInTheDocument();
     expect(screen.getByText(/420\.00/)).toBeInTheDocument();
 

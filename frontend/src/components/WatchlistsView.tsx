@@ -66,7 +66,7 @@ const formatDateTime = (value: string | null | undefined) => {
   if (!value) return '—';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('tr-TR', {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',

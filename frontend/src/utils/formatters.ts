@@ -15,7 +15,7 @@ export const formatVolume = (value: number) => {
 };
 
 export const formatDate = (timestamp: string) => {
-  return new Intl.DateTimeFormat('en-US', {
+  return new Intl.DateTimeFormat('tr-TR', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

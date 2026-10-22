@@ -421,7 +421,7 @@ export default function TradingJournalView({
                     {filteredTrades.map((trade) => {
                       const isBuy = trade.type === 'BUY';
                       const totalCost = trade.quantity * trade.purchasePrice + (trade.commission ?? 0);
-                      const dateFormatted = new Date(trade.openedAt).toLocaleDateString('en-US', {
+                      const dateFormatted = new Date(trade.openedAt).toLocaleDateString('tr-TR', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
