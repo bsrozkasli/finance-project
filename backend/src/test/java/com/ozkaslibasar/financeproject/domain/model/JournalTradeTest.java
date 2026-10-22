@@ -114,7 +114,7 @@ class JournalTradeTest {
     }
 
     @Test
-    void should_defaultCurrentPriceToMurchasePrice_when_null() {
+    void should_preserveUnknownCurrentPrice_when_null() {
         JournalTrade trade = createTrade(
                 "user-1",
                 "AAPL",
@@ -128,7 +128,10 @@ class JournalTradeTest {
                 JournalTradeStatus.OPEN
         );
 
-        assertThat(trade.currentPrice()).isEqualByComparingTo("100");
+        assertThat(trade.currentPrice()).isNull();
+        assertThat(trade.marketValue()).isNull();
+        assertThat(trade.pnl()).isNull();
+        assertThat(trade.returnPct()).isNull();
     }
 
     @Test

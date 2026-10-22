@@ -101,6 +101,20 @@ class JournalTradeServiceTest {
     }
 
     @Test
+    void shouldLeaveReturnStatsUnknownWhenClosedTradesHaveNoCurrentPrice() {
+        when(tradePort.findByUserId("default")).thenReturn(List.of(unknownClosedTrade("MSFT")));
+
+        JournalTradeStats stats = service.stats("default");
+
+        assertThat(stats.totalTrades()).isEqualTo(1);
+        assertThat(stats.closedTrades()).isEqualTo(1);
+        assertThat(stats.winRate()).isNull();
+        assertThat(stats.avgReturn()).isNull();
+        assertThat(stats.bestTrade()).isNull();
+        assertThat(stats.worstTrade()).isNull();
+    }
+
+    @Test
     void shouldAddOpenTradeUsingFreshLatestPriceWhenCurrentPriceIsMissing() {
         when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.of(price("AAPL", "110")));
         when(tradePort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
@@ -114,7 +128,7 @@ class JournalTradeServiceTest {
     }
 
     @Test
-    void shouldUsePurchasePriceForClosedTradeWhenCurrentPriceIsMissing() {
+    void shouldPreserveUnknownPriceForClosedTradeWhenCurrentPriceIsMissing() {
         when(tradePort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         JournalTrade saved = service.add(command(
@@ -126,9 +140,24 @@ class JournalTradeServiceTest {
                 LocalDate.now(),
                 JournalTradeStatus.CLOSED));
 
-        assertThat(saved.currentPrice()).isEqualByComparingTo("200");
-        assertThat(saved.pnl()).isEqualByComparingTo("0");
+        assertThat(saved.currentPrice()).isNull();
+        assertThat(saved.marketValue()).isNull();
+        assertThat(saved.pnl()).isNull();
+        assertThat(saved.returnPct()).isNull();
         verify(priceRefreshService, never()).getFreshLatest("MSFT");
+    }
+
+    @Test
+    void shouldPreserveUnknownPriceForOpenTradeWhenRefreshIsUnavailable() {
+        when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.empty());
+        when(tradePort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        JournalTrade saved = service.add(command("AAPL", "2", "90", null, "4", null, JournalTradeStatus.OPEN));
+
+        assertThat(saved.currentPrice()).isNull();
+        assertThat(saved.marketValue()).isNull();
+        assertThat(saved.pnl()).isNull();
+        assertThat(saved.returnPct()).isNull();
     }
 
     @Test
@@ -173,6 +202,33 @@ class JournalTradeServiceTest {
 
     private JournalTrade closedTrade(String symbol, String quantity, String purchasePrice, String currentPrice) {
         return trade(symbol, quantity, purchasePrice, currentPrice, LocalDate.now(), JournalTradeStatus.CLOSED);
+    }
+
+    private JournalTrade unknownClosedTrade(String symbol) {
+        return new JournalTrade(
+                1L,
+                "default",
+                symbol,
+                symbol,
+                JournalTradeType.BUY,
+                BigDecimal.ONE,
+                BigDecimal.valueOf(100),
+                null,
+                null,
+                BigDecimal.ZERO,
+                "Momentum",
+                "",
+                List.of(),
+                LocalDate.now().minusDays(10),
+                LocalDate.now(),
+                JournalTradeStatus.CLOSED,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
     }
 
     private JournalTrade trade(

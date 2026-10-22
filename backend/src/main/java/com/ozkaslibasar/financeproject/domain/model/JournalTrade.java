@@ -51,13 +51,10 @@ public record JournalTrade(
         if (purchasePrice == null || purchasePrice.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("purchasePrice must be positive");
         }
-        if (currentPrice == null) {
-            currentPrice = purchasePrice;
-        }
         if (commission == null) {
             commission = BigDecimal.ZERO;
         }
-        if (marketValue == null) {
+        if (marketValue == null && currentPrice != null) {
             marketValue = quantity.multiply(currentPrice);
         }
         if (openedAt == null) {
@@ -66,10 +63,10 @@ public record JournalTrade(
         if (status == null) {
             status = closedAt == null ? JournalTradeStatus.OPEN : JournalTradeStatus.CLOSED;
         }
-        if (pnl == null) {
+        if (pnl == null && currentPrice != null) {
             pnl = currentPrice.subtract(purchasePrice).multiply(quantity).subtract(commission);
         }
-        if (returnPct == null) {
+        if (returnPct == null && pnl != null) {
             BigDecimal costBasis = purchasePrice.multiply(quantity).add(commission);
             returnPct = costBasis.compareTo(BigDecimal.ZERO) == 0
                     ? BigDecimal.ZERO

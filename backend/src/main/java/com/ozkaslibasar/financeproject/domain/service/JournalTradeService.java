@@ -43,28 +43,34 @@ public class JournalTradeService {
         List<JournalTrade> closed = all.stream()
                 .filter(trade -> trade.status() == JournalTradeStatus.CLOSED)
                 .toList();
-        long wins = closed.stream()
+        List<JournalTrade> pricedClosed = closed.stream()
+                .filter(trade -> trade.returnPct() != null)
+                .toList();
+        long wins = pricedClosed.stream()
                 .filter(trade -> trade.returnPct().compareTo(BigDecimal.ZERO) > 0)
                 .count();
-        BigDecimal avgReturn = closed.isEmpty()
-                ? BigDecimal.ZERO
-                : closed.stream()
+        BigDecimal avgReturn = pricedClosed.isEmpty()
+                ? null
+                : pricedClosed.stream()
                 .map(JournalTrade::returnPct)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(closed.size()), 4, RoundingMode.HALF_UP);
-        String best = all.stream()
+                .divide(BigDecimal.valueOf(pricedClosed.size()), 4, RoundingMode.HALF_UP);
+        List<JournalTrade> pricedTrades = all.stream()
+                .filter(trade -> trade.returnPct() != null)
+                .toList();
+        String best = pricedTrades.stream()
                 .max((left, right) -> left.returnPct().compareTo(right.returnPct()))
                 .map(JournalTrade::symbol)
                 .orElse(null);
-        String worst = all.stream()
+        String worst = pricedTrades.stream()
                 .min((left, right) -> left.returnPct().compareTo(right.returnPct()))
                 .map(JournalTrade::symbol)
                 .orElse(null);
-        BigDecimal winRate = closed.isEmpty()
-                ? BigDecimal.ZERO
+        BigDecimal winRate = pricedClosed.isEmpty()
+                ? null
                 : BigDecimal.valueOf(wins)
                 .multiply(BigDecimal.valueOf(100))
-                .divide(BigDecimal.valueOf(closed.size()), 4, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(pricedClosed.size()), 4, RoundingMode.HALF_UP);
         return new JournalTradeStats(all.size(), openTrades, closed.size(), winRate, avgReturn, best, worst);
     }
 
@@ -94,12 +100,15 @@ public class JournalTradeService {
         BigDecimal currentPrice = resolveCurrentPrice(
                 command.symbol(),
                 command.currentPrice(),
-                purchasePrice,
                 status);
-        BigDecimal marketValue = quantity.multiply(currentPrice);
-        BigDecimal pnl = currentPrice.subtract(purchasePrice).multiply(quantity).subtract(commission);
+        BigDecimal marketValue = currentPrice == null ? null : quantity.multiply(currentPrice);
+        BigDecimal pnl = currentPrice == null
+                ? null
+                : currentPrice.subtract(purchasePrice).multiply(quantity).subtract(commission);
         BigDecimal costBasis = purchasePrice.multiply(quantity).add(commission);
-        BigDecimal returnPct = costBasis.compareTo(BigDecimal.ZERO) == 0
+        BigDecimal returnPct = pnl == null
+                ? null
+                : costBasis.compareTo(BigDecimal.ZERO) == 0
                 ? BigDecimal.ZERO
                 : pnl.multiply(BigDecimal.valueOf(100)).divide(costBasis, 4, RoundingMode.HALF_UP);
         return new JournalTrade(
@@ -183,7 +192,6 @@ public class JournalTradeService {
     private BigDecimal resolveCurrentPrice(
             String symbol,
             BigDecimal requestedCurrentPrice,
-            BigDecimal fallbackPrice,
             JournalTradeStatus status) {
         if (requestedCurrentPrice != null) {
             return requestedCurrentPrice;
@@ -191,8 +199,8 @@ public class JournalTradeService {
         if (status == JournalTradeStatus.OPEN) {
             return priceRefreshService.getFreshLatest(symbol)
                     .map(PriceHistory::close)
-                    .orElse(fallbackPrice);
+                    .orElse(null);
         }
-        return fallbackPrice;
+        return null;
     }
 }
