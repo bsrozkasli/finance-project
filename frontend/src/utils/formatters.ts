@@ -21,3 +21,18 @@ export const formatDate = (timestamp: string) => {
     day: 'numeric',
   }).format(new Date(timestamp));
 };
+
+const ASSET_TYPE_LABELS: Record<string, string> = {
+  STOCK: 'Hisse senedi',
+  ETF: 'ETF',
+  CRYPTO: 'Kripto para',
+  FOREX: 'Döviz',
+  INDEX: 'Endeks',
+  UNRESOLVED: 'Tür bilinmiyor',
+};
+
+// The backend sends UNRESOLVED when no provider or trusted mapping established the type.
+export const assetTypeLabel = (type: string | null | undefined) => {
+  if (!type) return 'Tür bilinmiyor';
+  return ASSET_TYPE_LABELS[type.toUpperCase()] ?? type;
+};

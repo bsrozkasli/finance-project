@@ -55,6 +55,7 @@ describe('app market-data hooks', () => {
       pe: null,
       technicals: null,
     });
+    expect(result.current.stocks[0].sector).toBe('Hisse senedi');
     expect(result.current.stocks[0].sparkline).toEqual([100, 110]);
     expect(result.current.stocks[0].history.map((point) => point.date)).toEqual(['2026-07-08', '2026-07-09']);
   });

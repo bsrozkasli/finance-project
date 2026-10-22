@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatCurrency, formatDate, formatVolume } from './formatters';
+import { assetTypeLabel, formatCurrency, formatDate, formatVolume } from './formatters';
 
 describe('formatters', () => {
   describe('formatCurrency', () => {
@@ -30,6 +30,23 @@ describe('formatters', () => {
   describe('formatDate', () => {
     it('formats ISO timestamps as a Turkish calendar date', () => {
       expect(formatDate('2026-07-09T12:00:00.000Z')).toBe('9 Tem 2026');
+    });
+  });
+
+  describe('assetTypeLabel', () => {
+    it('labels backend asset types in Turkish and an unresolved type as unknown', () => {
+      expect(assetTypeLabel('STOCK')).toBe('Hisse senedi');
+      expect(assetTypeLabel('ETF')).toBe('ETF');
+      expect(assetTypeLabel('CRYPTO')).toBe('Kripto para');
+      expect(assetTypeLabel('FOREX')).toBe('Döviz');
+      expect(assetTypeLabel('INDEX')).toBe('Endeks');
+      expect(assetTypeLabel('UNRESOLVED')).toBe('Tür bilinmiyor');
+    });
+
+    it('never upgrades a missing or unknown type to a known one', () => {
+      expect(assetTypeLabel(null)).toBe('Tür bilinmiyor');
+      expect(assetTypeLabel('')).toBe('Tür bilinmiyor');
+      expect(assetTypeLabel('BOND')).toBe('BOND');
     });
   });
 });
