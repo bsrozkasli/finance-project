@@ -6,6 +6,7 @@ import type {Stock, Watchlist} from '../../types';
 import {useResearchEvidence} from '../../hooks/useResearchEvidence';
 import ResearchFinancials from './ResearchFinancials';
 import {metric} from './formatResearchMetric';
+import {assetTypeLabel} from '../../utils/formatters';
 import ResearchSources from './ResearchSources';
 import ResearchHistoryChart from './ResearchHistoryChart';
 
@@ -92,7 +93,7 @@ export default function ResearchWorkspace({
                                                          aria-hidden="true">{effectiveSymbol?.slice(0, 2) ?? 'M'}</span>
                 <div><p className="desk-eyebrow">Araştır / {effectiveSymbol ?? 'Varlık seçimi'}</p>
                     <h1>{asset?.name ?? stock?.name ?? effectiveSymbol ?? 'Bir varlık seç'}</h1><p
-                        className="desk-help">{asset?.type ?? 'Kayıtlı araştırma alanı'}</p></div>
+                        className="desk-help">{asset ? assetTypeLabel(asset.type) : 'Kayıtlı araştırma alanı'}</p></div>
             </div>
             <div className="desk-company-price">
                 <span>Son fiyat</span><strong>{stock ? `$${metric(stock.price)}` : '—'}</strong><small>{stock ? 'Son mevcut gözlem' : 'Fiyat verisi yok'}</small>

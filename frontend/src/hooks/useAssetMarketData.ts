@@ -3,6 +3,7 @@ import { fetchBatchPriceHistory } from '../api/client';
 import { getApiErrorMessage } from '../api/errors';
 import type { Asset, PriceHistory } from '../api/types';
 import type { Stock } from '../types';
+import { assetTypeLabel } from '../utils/formatters';
 
 export const mapAssetsToStocks = (
   assets: Asset[],
@@ -25,7 +26,7 @@ export const mapAssetsToStocks = (
     return {
       symbol: asset.symbol,
       name: asset.name,
-      sector: asset.type,
+      sector: assetTypeLabel(asset.type),
       industry: '',
       price,
       change,
