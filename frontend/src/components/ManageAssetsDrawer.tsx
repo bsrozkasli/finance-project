@@ -36,21 +36,38 @@ export default function ManageAssetsDrawer({
   const [closingSymbol, setClosingSymbol] = useState<string | null>(null);
   const [closePrice, setClosePrice] = useState('');
   const [closeError, setCloseError] = useState<string | null>(null);
+  const [wasOpen, setWasOpen] = useState(isOpen);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  // The drawer stays mounted while closed, often before prices load; on opening, fall back
+  // to the first loaded stock and its real price when the remembered symbol is not available.
+  if (isOpen !== wasOpen) {
+    setWasOpen(isOpen);
+    if (isOpen && !stocks.some((stock) => stock.symbol === selectedSymbol)) {
+      setSelectedSymbol(stocks[0]?.symbol || '');
+      setCostPrice(knownPrice(stocks[0]));
+    }
+  }
+  // The parent passes a new onClose on every render; reading it through a ref keeps the
+  // focus effect tied to opening and closing only, so a re-render never moves focus.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButtonRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
     };
     document.addEventListener('keydown', onKeyDown);
     return () => {
       document.removeEventListener('keydown', onKeyDown);
       previous?.focus();
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

@@ -203,6 +203,29 @@ describe('ManageAssetsDrawer', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('keeps focus in the field being edited when the parent re-renders', async () => {
+    const props = { isOpen: true, stocks, holdings, portfolioId: '10', onExecuteTrade: vi.fn() };
+    const { rerender } = render(<ManageAssetsDrawer {...props} onClose={() => undefined} />);
+
+    const quantity = screen.getByLabelText('Miktar');
+    await user().click(quantity);
+    rerender(<ManageAssetsDrawer {...props} onClose={() => undefined} />);
+
+    expect(quantity).toHaveFocus();
+  });
+
+  it('selects the first loaded stock when it opens after prices arrive', async () => {
+    const onExecuteTrade = vi.fn();
+    const base = { onClose: vi.fn(), holdings, portfolioId: '10', onExecuteTrade };
+    const { rerender } = render(<ManageAssetsDrawer {...base} isOpen={false} stocks={[]} />);
+
+    rerender(<ManageAssetsDrawer {...base} isOpen stocks={stocks} />);
+
+    expect(screen.getByLabelText('Ortalama maliyet (USD)')).toHaveValue(150.25);
+    await user().click(screen.getByRole('button', { name: 'Portföye kaydet' }));
+    expect(onExecuteTrade).toHaveBeenCalledWith(expect.objectContaining({ symbol: 'AAPL', quantity: 1, price: 150.25 }));
+  });
+
   it('shows invalid position input inside the drawer without a browser alert', async () => {
     const alertSpy = vi.spyOn(window, 'alert');
     const { onExecuteTrade } = renderDrawer();
