@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Sparkles, TrendingUp, AlertTriangle, RefreshCw, BarChart2, Briefcase } from 'lucide-react';
 import type { Stock } from '../types';
 import { useAnalystRatings } from '../hooks/useAnalystRatings';
@@ -23,6 +23,17 @@ interface StockDetailModalProps {
 // Lightweight Markdown to HTML component to guarantee seamless compile without external packages
 
 type AnalystRatingSummary = NonNullable<Stock['analystRating']>;
+
+const SCORE_LABELS: Record<string, string> = {
+  fundamental: 'Temel',
+  valuation: 'Değerleme',
+  quality: 'Kalite',
+  growth: 'Büyüme',
+  momentum: 'Momentum',
+  risk: 'Risk',
+  earnings: 'Kazanç',
+  sentiment: 'Duyarlılık',
+};
 
 const priceTargetValue = (priceTarget: { targetMean?: number; targetMedian?: number; targetHigh?: number; targetLow?: number } | null | undefined): number | null => {
   return priceTarget?.targetMean ?? priceTarget?.targetMedian ?? priceTarget?.targetHigh ?? priceTarget?.targetLow ?? null;
@@ -127,7 +138,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'technical' | 'analyst' | 'ai'>('overview');
-  const [copilotPrompt, setCopilotPrompt] = useState('Explain the current trend and the strongest support/resistance levels.');
+  const [copilotPrompt, setCopilotPrompt] = useState('Mevcut trendi ve en güçlü destek/direnç seviyelerini açıkla.');
   const [copilotResponse, setCopilotResponse] = useState<TechnicalCopilotResponse | null>(null);
   const [copilotLoading, setCopilotLoading] = useState(false);
   const effectiveSymbol = stock?.symbol ?? symbol ?? null;
@@ -143,15 +154,27 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
     () => buildAnalystRating(analystData?.recommendations ?? [], analystTargetPrice) ?? stock?.analystRating ?? null,
     [analystData?.recommendations, analystTargetPrice, stock?.analystRating]
   );
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCloseRef.current();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   if (!effectiveSymbol) return null;
 
-  const formatNullable = (value: number | null | undefined, digits = 2) => value == null ? '-' : value.toFixed(digits);
-  const formatMoney = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? '-' : `$${value.toFixed(2)}`;
+  const formatNullable = (value: number | null | undefined, digits = 2) => value == null ? '—' : value.toFixed(digits);
+  const formatMoney = (value: number | null | undefined) => value == null || !Number.isFinite(value) ? '—' : `$${value.toFixed(2)}`;
   const formatQuoteTimestamp = (value: string | null | undefined) => {
-    if (!value) return 'Timestamp unavailable';
+    if (!value) return 'Zaman bilgisi yok';
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'Timestamp unavailable' : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? 'Zaman bilgisi yok' : date.toLocaleString('tr-TR');
   };
   const historyFromResearch = researchData.oneYear.map((point) => ({
     date: point.timestamp.slice(0, 10),
@@ -167,11 +190,14 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
   const profile = assetDetail?.profile.data;
   const quote = assetDetail?.market.data;
   const currentPrice = stock?.price ?? quote?.regularPrice ?? latestHistoryPoint?.price ?? null;
-  const targetPriceForUpside = analystTargetPrice ?? analystRating?.targetPrice ?? null;
-  const analystUpside = targetPriceForUpside == null || currentPrice == null || currentPrice === 0 ? '-' : (((targetPriceForUpside - currentPrice) / currentPrice) * 100).toFixed(1);
+  // buildAnalystRating stores 0 when the provider sent no price target; a zero target is never real.
+  const ratingTargetPrice = analystRating && analystRating.targetPrice > 0 ? analystRating.targetPrice : null;
+  const targetPriceForUpside = analystTargetPrice ?? ratingTargetPrice;
+  const analystUpside = targetPriceForUpside == null || currentPrice == null || currentPrice === 0 ? null : (((targetPriceForUpside - currentPrice) / currentPrice) * 100).toFixed(1);
+  const analystUpsideText = analystUpside == null ? '—' : `${analystUpside}%`;
   const displayName = profile?.name ?? stock?.name ?? name ?? effectiveSymbol;
-  const displaySector = profile?.sector ?? stock?.sector ?? 'Type unavailable';
-  const displayIndustry = (profile?.industry ?? stock?.industry) || 'Provider-backed details';
+  const displaySector = profile?.sector ?? stock?.sector ?? 'Tür bilinmiyor';
+  const displayIndustry = (profile?.industry ?? stock?.industry) || 'Endüstri bilgisi yok';
   const marketChangePercent = stock?.changePercent ?? (quote?.regularChangePercent == null ? null : quote.regularChangePercent * 100);
   const ratios = researchData.ratios;
   const fundamentals = researchData.fundamentals;
@@ -183,32 +209,35 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
   const dividendYield = fundamentals?.dividendYield ?? stock?.divYield ?? null;
   const rsiDisplay = technicalData?.rsi != null
     ? technicalData.rsi.toFixed(1)
-    : stock?.technicals ? `${stock.technicals.rsi} - ${stock.technicals.rsiStatus}` : 'No data';
+    : stock?.technicals ? `${stock.technicals.rsi} - ${stock.technicals.rsiStatus}` : 'Veri yok';
   const macdDisplay = technicalData?.macd != null
     ? `${technicalData.macd.toFixed(2)}${technicalData.macdSignal != null ? ` / ${technicalData.macdSignal.toFixed(2)}` : ''}`
-    : stock?.technicals ? `${stock.technicals.macd} - ${stock.technicals.macdStatus}` : 'No data';
+    : stock?.technicals ? `${stock.technicals.macd} - ${stock.technicals.macdStatus}` : 'Veri yok';
   const sma50Value = technicalData?.sma50 ?? stock?.technicals?.sma50 ?? null;
 
   const buildSmartReportText = () => {
     if (!smartReport) {
-      return smartReportError || 'Backend smart report data is not available for this symbol.';
+      return smartReportError || 'Veri yok: bu sembol için akıllı rapor bulunamadı.';
     }
 
     const breakdown = smartReport.breakdown
       ? Object.entries(smartReport.breakdown)
-          .map(([key, value]) => `- **${key.replace('Score', '')}:** ${value == null ? 'Unavailable' : `${value.toFixed(0)} / 100`}`)
+          .map(([key, value]) => {
+            const name = key.replace('Score', '');
+            return `- **${SCORE_LABELS[name] ?? name}:** ${value == null ? 'Veri yok' : `${value.toFixed(0)} / 100`}`;
+          })
           .join('\n')
-      : '- Score breakdown is unavailable.';
-    const targetPriceText = targetPriceForUpside == null ? 'Unavailable' : '$' + targetPriceForUpside.toFixed(2);
+      : '- Veri yok: puan dağılımı bulunamadı.';
+    const targetPriceText = targetPriceForUpside == null ? 'Veri yok' : '$' + targetPriceForUpside.toFixed(2);
 
-    const overallScore = smartReport.overallScore == null ? 'Unavailable' : `${smartReport.overallScore.toFixed(0)} / 100`;
-    return `# Backend Smart Investment Report: ${smartReport.symbol}\n\n## Summary\n- **Overall score:** ${overallScore}\n- **Grade:** ${smartReport.grade ?? 'Unavailable'}\n- **Recommendation:** ${smartReport.recommendation ?? 'Unavailable'}\n\n## Score Breakdown\n${breakdown}\n\n## Analyst Context\n- **Consensus:** ${analystRating?.consensus ?? 'Unavailable'}\n- **Target price:** ${targetPriceText}\n- **Upside/downside:** ${analystUpside}%\n\nThis report is generated from backend provider data. Missing provider fields remain unavailable instead of being fabricated.`;
+    const overallScore = smartReport.overallScore == null ? 'Veri yok' : `${smartReport.overallScore.toFixed(0)} / 100`;
+    return `# Akıllı yatırım raporu: ${smartReport.symbol}\n\n## Özet\n- **Genel puan:** ${overallScore}\n- **Not:** ${smartReport.grade ?? 'Veri yok'}\n- **Öneri:** ${smartReport.recommendation ?? 'Veri yok'}\n\n## Puan dağılımı\n${breakdown}\n\n## Analist bağlamı\n- **Konsensüs:** ${analystRating?.consensus ?? 'Veri yok'}\n- **Hedef fiyat:** ${targetPriceText}\n- **Potansiyel:** ${analystUpsideText}\n\nBu rapor backend sağlayıcı verilerinden üretilir. Eksik sağlayıcı alanları uydurulmaz; "Veri yok" olarak kalır.`;
   };
 
   const handleTechnicalCopilot = async () => {
     setCopilotLoading(true);
     try { setCopilotResponse(await fetchTechnicalCopilot(effectiveSymbol, copilotPrompt, '1d', '1y')); }
-    catch (reason) { setCopilotResponse({ symbol: effectiveSymbol, answer: reason instanceof Error ? reason.message : 'Technical copilot unavailable', overlays: [], caveats: ['AI provider unavailable.'], generatedAt: new Date().toISOString() }); }
+    catch (reason) { setCopilotResponse({ symbol: effectiveSymbol, answer: reason instanceof Error ? reason.message : 'Teknik asistan yüklenemedi', overlays: [], caveats: ['Yapay zekâ sağlayıcısı kullanılamıyor.'], generatedAt: new Date().toISOString() }); }
     finally { setCopilotLoading(false); }
   };
   const handleGenerateReport = () => {
@@ -216,7 +245,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
     setErrorMessage('');
 
     if (smartReportLoading) {
-      setErrorMessage('Backend smart report is still loading. Try again in a moment.');
+      setErrorMessage('Akıllı rapor hâlâ yükleniyor. Birazdan yeniden deneyin.');
       return;
     }
 
@@ -232,12 +261,17 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
   const rangeMax = stock?.high52W ?? (displayHistory.length ? Math.max(...displayHistory.map((point) => point.high ?? point.price)) : null);
   const rangeMin = stock?.low52W ?? (displayHistory.length ? Math.min(...displayHistory.map((point) => point.low ?? point.price)) : null);
   const rangePercent = currentPrice == null || rangeMin == null || rangeMax == null || rangeMax === rangeMin
-    ? 0
+    ? null
     : Math.min(100, Math.max(0, ((currentPrice - rangeMin) / (rangeMax - rangeMin)) * 100));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-bg-base/75 backdrop-blur-md p-4 animate-fade-in">
-      <div className="bg-bg-primary border border-outline-variant rounded-2xl w-full max-w-4xl h-[85vh] overflow-hidden flex flex-col shadow-2xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${displayName} (${effectiveSymbol})`}
+        className="bg-bg-primary border border-outline-variant rounded-2xl w-full max-w-4xl h-[85vh] overflow-hidden flex flex-col shadow-2xl"
+      >
 
         {/* Header section */}
         <div className="p-5 border-b border-outline-variant flex items-center justify-between shrink-0 bg-bg-card/40">
@@ -254,7 +288,9 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
           </div>
 
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Kapat"
             className="p-1.5 hover:bg-bg-card rounded-lg border border-outline-variant/60 text-text-secondary hover:text-text-primary transition-colors"
           >
             <X className="w-4 h-4" />
@@ -271,7 +307,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                 : 'bg-bg-card/50 text-text-secondary border border-outline-variant/30 hover:text-text-primary'
             }`}
           >
-            Overview
+            Genel bakış
           </button>
           <button
             onClick={() => setActiveTab('technical')}
@@ -281,7 +317,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                 : 'bg-bg-card/50 text-text-secondary border border-outline-variant/30 hover:text-text-primary'
             }`}
           >
-            Technical
+            Teknik
           </button>
           <button
             onClick={() => setActiveTab('analyst')}
@@ -291,7 +327,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                 : 'bg-bg-card/50 text-text-secondary border border-outline-variant/30 hover:text-text-primary'
             }`}
           >
-            Analyst Consensus
+            Analist görüşü
           </button>
           <button
             onClick={() => setActiveTab('ai')}
@@ -302,7 +338,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Smart Report
+            Akıllı rapor
           </button>
         </div>
 
@@ -314,39 +350,39 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
             <div className="space-y-6 animate-fade-in">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                 <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg">
-                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Market Session</div>
-                  <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">{quote?.marketState ?? 'UNKNOWN'}</div>
-                  <div className="mt-1 text-[10px] text-text-muted">{quote?.delayed ? 'Provider-delayed quote' : quote ? formatQuoteTimestamp(quote.regularTimestamp) : assetDetailLoading ? 'Loading provider quote' : assetDetailError ?? assetDetail?.market.message ?? 'Quote unavailable'}</div>
+                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Piyasa oturumu</div>
+                  <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">{quote?.marketState ?? 'Bilinmiyor'}</div>
+                  <div className="mt-1 text-[10px] text-text-muted">{quote?.delayed ? 'Sağlayıcı fiyatı gecikmeli' : quote ? formatQuoteTimestamp(quote.regularTimestamp) : assetDetailLoading ? 'Fiyat yükleniyor' : assetDetailError ?? assetDetail?.market.message ?? 'Veri yok: fiyat bulunamadı'}</div>
                 </div>
                 <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg">
-                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Pre Market</div>
+                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Piyasa öncesi</div>
                   <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">{formatMoney(quote?.preMarketPrice)}</div>
-                  <div className="mt-1 text-[10px] text-text-muted">{quote?.preMarketChangePercent == null ? 'Unavailable' : `${(quote.preMarketChangePercent * 100).toFixed(2)}%`}</div>
+                  <div className="mt-1 text-[10px] text-text-muted">{quote?.preMarketChangePercent == null ? '—' : `${(quote.preMarketChangePercent * 100).toFixed(2)}%`}</div>
                 </div>
                 <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg">
-                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Post Market</div>
+                  <div className="text-[9px] font-label-caps uppercase text-text-muted">Piyasa sonrası</div>
                   <div className="mt-1 font-data-mono text-sm font-bold text-text-primary">{formatMoney(quote?.postMarketPrice)}</div>
-                  <div className="mt-1 text-[10px] text-text-muted">{quote?.postMarketChangePercent == null ? 'Unavailable' : `${(quote.postMarketChangePercent * 100).toFixed(2)}%`}</div>
+                  <div className="mt-1 text-[10px] text-text-muted">{quote?.postMarketChangePercent == null ? '—' : `${(quote.postMarketChangePercent * 100).toFixed(2)}%`}</div>
                 </div>
               </div>
 
               {profile?.description ? <p className="text-sm leading-relaxed text-text-secondary">{profile.description}</p> : null}
               {profile?.website ? <a className="text-xs text-primary hover:underline" href={profile.website} target="_blank" rel="noreferrer">{profile.website}</a> : null}
               <div className="border border-outline-variant/30 bg-bg-card p-3 rounded-lg text-xs text-text-secondary">
-                <span className="font-label-caps uppercase text-[9px] text-text-muted">Portfolio Position</span>
-                <span className="ml-2 font-data-mono font-bold text-text-primary">{position ? `${position.quantity} shares at ${formatMoney(position.costPrice)}` : 'Not held in active portfolio'}</span>
+                <span className="font-label-caps uppercase text-[9px] text-text-muted">Portföy pozisyonu</span>
+                <span className="ml-2 font-data-mono font-bold text-text-primary">{position ? `${position.quantity} adet, maliyet ${formatMoney(position.costPrice)}` : 'Aktif portföyde yok'}</span>
               </div>
               {/* Main Price Widget with 52W range */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-bg-card/25 border border-outline-variant/40 p-4 rounded-xl">
                 {/* Price tag */}
                 <div>
-                  <span className="text-[10px] font-label-caps text-text-muted block uppercase">Current Instrument Value</span>
+                  <span className="text-[10px] font-label-caps text-text-muted block uppercase">Güncel değer</span>
                   <div className="flex items-baseline gap-2 mt-1">
                     <span className="font-data-mono text-3xl font-bold text-text-primary">
                       {formatMoney(currentPrice)}
                     </span>
                     <span className={`font-data-mono text-sm font-bold ${(marketChangePercent ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                      {marketChangePercent != null ? `${marketChangePercent >= 0 ? '+' : ''}${(marketChangePercent * 100).toFixed(2)}%` : '-'}
+                      {marketChangePercent != null ? `${marketChangePercent >= 0 ? '+' : ''}${marketChangePercent.toFixed(2)}%` : '—'}
                     </span>
                   </div>
                 </div>
@@ -354,19 +390,21 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                 {/* 52-Week Range Slider Widget */}
                 <div className="md:col-span-2">
                   <div className="flex justify-between text-[10px] font-label-caps text-text-secondary mb-1">
-                    <span>52W LOW: {formatMoney(rangeMin)}</span>
-                    <span className="text-primary font-bold">52W SPREAD</span>
-                    <span>52W HIGH: {formatMoney(rangeMax)}</span>
+                    <span>52 hafta en düşük: {formatMoney(rangeMin)}</span>
+                    <span className="text-primary font-bold">52 haftalık aralık</span>
+                    <span>52 hafta en yüksek: {formatMoney(rangeMax)}</span>
                   </div>
                   <div className="w-full h-2 bg-bg-base border border-outline-variant rounded-full relative">
                     {/* Pointer marker */}
-                    <div
-                      className="absolute w-3 h-3 bg-primary rounded-full -top-0.5 border border-bg-primary shadow-lg"
-                      style={{ left: `${rangePercent}%`, transform: 'translateX(-50%)' }}
-                    />
+                    {rangePercent != null ? (
+                      <div
+                        className="absolute w-3 h-3 bg-primary rounded-full -top-0.5 border border-bg-primary shadow-lg"
+                        style={{ left: `${rangePercent}%`, transform: 'translateX(-50%)' }}
+                      />
+                    ) : null}
                   </div>
                   <div className="text-right text-[9px] text-text-muted font-data-mono mt-1">
-                    Current level: {rangePercent.toFixed(0)}% of yearly range</div>
+                    Yıllık aralıktaki konum: {rangePercent == null ? '—' : `${rangePercent.toFixed(0)}%`}</div>
                 </div>
               </div>
 
@@ -374,32 +412,32 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
               {/* Ratios Metrics Grid */}
               <div>
                 <h4 className="text-[10px] font-label-caps text-text-muted tracking-wider uppercase border-b border-outline-variant/30 pb-1.5 mb-3">
-                  Financial Ratios
+                  Finansal oranlar
                 </h4>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
-                    <span className="text-[9px] font-label-caps text-text-muted block">P/E RATIO</span>
+                    <span className="text-[9px] font-label-caps text-text-muted block">F/K</span>
                     <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(peRatio)}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
-                    <span className="text-[9px] font-label-caps text-text-muted block">P/B RATIO</span>
+                    <span className="text-[9px] font-label-caps text-text-muted block">PD/DD</span>
                     <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(pbRatio)}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
-                    <span className="text-[9px] font-label-caps text-text-muted block">DEBT / EQUITY</span>
+                    <span className="text-[9px] font-label-caps text-text-muted block">BORÇ / ÖZSERMAYE</span>
                     <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{formatNullable(debtEquity)}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
-                    <span className="text-[9px] font-label-caps text-text-muted block">ROE EFFICIENCY</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{roe == null ? '-' : `${roe.toFixed(1)}%`}</span>
+                    <span className="text-[9px] font-label-caps text-text-muted block">ÖZSERMAYE KÂRLILIĞI</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{roe == null ? '—' : `${roe.toFixed(1)}%`}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
-                    <span className="text-[9px] font-label-caps text-text-muted block">GROWTH % (YOY)</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{revenueGrowth == null ? '-' : `${revenueGrowth.toFixed(1)}%`}</span>
+                    <span className="text-[9px] font-label-caps text-text-muted block">GELİR BÜYÜMESİ (YILLIK)</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{revenueGrowth == null ? '—' : `${revenueGrowth.toFixed(1)}%`}</span>
                   </div>
                   <div className="bg-bg-card border border-outline-variant/35 p-3 rounded-lg text-center">
-                    <span className="text-[9px] font-label-caps text-text-muted block">DIVIDEND YIELD</span>
-                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{dividendYield == null ? '-' : `${dividendYield.toFixed(2)}%`}</span>
+                    <span className="text-[9px] font-label-caps text-text-muted block">TEMETTÜ VERİMİ</span>
+                    <span className="font-data-mono text-sm font-bold text-text-primary mt-1 block">{dividendYield == null ? '—' : `${dividendYield.toFixed(2)}%`}</span>
                   </div>
                 </div>
               </div>
@@ -412,39 +450,39 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
               <div className="bg-bg-card border border-outline-variant/30 rounded-xl p-6 space-y-4">
                 <h4 className="text-[11px] font-label-caps text-text-muted tracking-wider uppercase border-b border-outline-variant/30 pb-2 flex items-center gap-1.5">
                   <TrendingUp className="w-4 h-4 text-primary" />
-                  <span>Technical Analysis Indicators</span>
+                  <span>Teknik göstergeler</span>
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Gauge indicator */}
                   <div className="bg-bg-base/40 border border-outline-variant/20 rounded-lg p-5 flex flex-col items-center justify-center text-center">
-                    <span className="text-[9px] font-label-caps text-text-muted mb-2">OVERALL SIGNAL</span>
+                    <span className="text-[9px] font-label-caps text-text-muted mb-2">GENEL SİNYAL</span>
                     <span className="px-3 py-1 bg-bull-green/10 text-bull-green font-bold text-sm rounded-full tracking-wide">
-                      {technicalLoading ? 'Loading...' : technicalData?.signalAction ?? 'No data'}
+                      {technicalLoading ? 'Yükleniyor…' : technicalData?.signalAction ?? 'Veri yok'}
                     </span>
                     <p className="text-[11px] text-text-secondary mt-3 leading-relaxed">
-                      {technicalData?.signalConfidence == null ? 'No directional forecast is shown when the technical signal provider has no data.' : `Signal confidence ${(technicalData.signalConfidence * 100).toFixed(0)}%.`}
+                      {technicalData?.signalConfidence == null ? 'Teknik sinyal sağlayıcısında veri yoksa yön tahmini gösterilmez.' : `Sinyal güveni: ${(technicalData.signalConfidence * 100).toFixed(0)}%.`}
                     </p>
                   </div>
 
                   {/* Indicators Details */}
                   <div className="md:col-span-2 space-y-3 font-sans text-xs">
                     <div className="flex justify-between py-2 border-b border-outline-variant/20 items-center">
-                      <span className="text-text-secondary font-medium">RSI Indicator (14-day):</span>
+                      <span className="text-text-secondary font-medium">RSI (14 gün):</span>
                       <span className="font-data-mono font-bold text-primary bg-primary/5 px-2 py-0.5 rounded">
-                        {technicalLoading ? 'Loading...' : technicalError ? 'No data' : rsiDisplay}
+                        {technicalLoading ? 'Yükleniyor…' : technicalError ? 'Yüklenemedi' : rsiDisplay}
                       </span>
                     </div>
                     <div className="flex justify-between py-2 border-b border-outline-variant/20 items-center">
-                      <span className="text-text-secondary font-medium">MACD Signal (12, 26, 9):</span>
+                      <span className="text-text-secondary font-medium">MACD sinyali (12, 26, 9):</span>
                       <span className="font-data-mono font-bold text-bull-green bg-bull-green/5 px-2 py-0.5 rounded">
-                        {technicalLoading ? 'Loading...' : technicalError ? 'No data' : macdDisplay}
+                        {technicalLoading ? 'Yükleniyor…' : technicalError ? 'Yüklenemedi' : macdDisplay}
                       </span>
                     </div>
                     <div className="flex justify-between py-2 items-center">
-                      <span className="text-text-secondary font-medium">SMA 50-Day Support Level:</span>
+                      <span className="text-text-secondary font-medium">SMA (50 gün):</span>
                       <span className="font-data-mono font-bold text-text-primary">
-                        {technicalLoading ? 'Loading...' : sma50Value == null ? 'No data' : formatMoney(sma50Value)}
+                        {technicalLoading ? 'Yükleniyor…' : sma50Value == null ? 'Veri yok' : formatMoney(sma50Value)}
                       </span>
                     </div>
                   </div>
@@ -452,29 +490,29 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
 
                 <div className="bg-bg-base/40 border border-outline-variant/20 rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-label-caps text-text-muted uppercase">Calculated Support / Resistance</span>
-                    <span className="text-[10px] text-text-muted">{workspaceLoading ? 'Loading' : workspaceError ? 'Unavailable' : `${technicalWorkspace?.candles.length ?? 0} candles`}</span>
+                    <span className="text-[9px] font-label-caps text-text-muted uppercase">Hesaplanan destek / direnç</span>
+                    <span className="text-[10px] text-text-muted">{workspaceLoading ? 'Yükleniyor' : workspaceError ? 'Yüklenemedi' : `${technicalWorkspace?.candles.length ?? 0} mum`}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {(technicalWorkspace?.levels ?? []).map((level) => (
                       <div key={`${level.kind}-${level.price}`} className="flex items-center justify-between border border-outline-variant/20 px-3 py-2 rounded">
-                        <span className={`text-[10px] font-bold ${level.kind === 'SUPPORT' ? 'text-bull-green' : 'text-bear-red'}`}>{level.kind}</span>
+                        <span className={`text-[10px] font-bold ${level.kind === 'SUPPORT' ? 'text-bull-green' : 'text-bear-red'}`}>{level.kind === 'SUPPORT' ? 'Destek' : 'Direnç'}</span>
                         <span className="font-data-mono text-xs text-text-primary">{formatMoney(level.price)}</span>
-                        <span className="text-[9px] text-text-muted">{level.touches} touch{level.touches === 1 ? '' : 'es'}</span>
+                        <span className="text-[9px] text-text-muted">{level.touches} temas</span>
                       </div>
                     ))}
                   </div>
-                  {!workspaceLoading && !workspaceError && (technicalWorkspace?.levels.length ?? 0) === 0 ? <p className="text-[10px] text-text-muted">No provider-backed levels were calculated for this range.</p> : null}
+                  {!workspaceLoading && !workspaceError && (technicalWorkspace?.levels.length ?? 0) === 0 ? <p className="text-[10px] text-text-muted">Veri yok: bu aralık için seviye hesaplanmadı.</p> : null}
                 </div>
                 <div className="bg-bg-card border border-primary/20 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center gap-2 text-xs font-bold text-primary"><Sparkles className="w-4 h-4" /> Technical Copilot</div>
-                  <textarea value={copilotPrompt} onChange={(event) => setCopilotPrompt(event.target.value)} className="w-full min-h-20 bg-bg-base border border-outline-variant/40 rounded p-2 text-xs text-text-primary" />
-                  <button type="button" onClick={() => void handleTechnicalCopilot()} disabled={copilotLoading || !copilotPrompt.trim()} className="px-3 py-2 bg-primary text-bg-base rounded text-xs font-bold disabled:opacity-50">{copilotLoading ? 'Analyzing...' : 'Analyze chart'}</button>
+                  <div className="flex items-center gap-2 text-xs font-bold text-primary"><Sparkles className="w-4 h-4" /> Teknik asistan</div>
+                  <textarea aria-label="Teknik asistana soru" value={copilotPrompt} onChange={(event) => setCopilotPrompt(event.target.value)} className="w-full min-h-20 bg-bg-base border border-outline-variant/40 rounded p-2 text-xs text-text-primary" />
+                  <button type="button" onClick={() => void handleTechnicalCopilot()} disabled={copilotLoading || !copilotPrompt.trim()} className="px-3 py-2 bg-primary text-bg-base rounded text-xs font-bold disabled:opacity-50">{copilotLoading ? 'Analiz ediliyor…' : 'Grafiği analiz et'}</button>
                   {copilotResponse ? <div className="space-y-2 text-xs text-text-secondary"><p>{copilotResponse.answer}</p>{copilotResponse.overlays.length ? <div className="flex flex-wrap gap-2">{copilotResponse.overlays.map((overlay) => <span key={`${overlay.kind}-${overlay.price}`} className="border border-primary/30 px-2 py-1 rounded font-data-mono">{overlay.label}{overlay.price == null ? '' : ` ${formatMoney(overlay.price)}`}</span>)}</div> : null}{copilotResponse.caveats.map((caveat) => <p key={caveat} className="text-[10px] text-warning-amber">{caveat}</p>)}</div> : null}
                 </div>
                 {/* Educational Box */}
                 <div className="p-4 bg-primary-container/5 border border-primary/10 rounded-lg text-xs text-text-secondary leading-relaxed">
-                  <strong>Technical Analysis Note:</strong> RSI below 30 is commonly interpreted as oversold, while RSI above 70 is commonly interpreted as overbought. MACD is a lagging indicator used to confirm trend direction.
+                  <strong>Teknik analiz notu:</strong> RSI 30’un altında genellikle aşırı satım, 70’in üstünde aşırı alım olarak yorumlanır. MACD, trend yönünü doğrulamak için kullanılan gecikmeli bir göstergedir.
                 </div>
               </div>
             </div>
@@ -486,20 +524,20 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
               <div className="bg-bg-card border border-outline-variant/30 rounded-xl p-6 space-y-5">
                 <h4 className="text-[11px] font-label-caps text-text-muted tracking-wider uppercase border-b border-outline-variant/30 pb-2 flex items-center gap-1.5">
                   <BarChart2 className="w-4 h-4 text-primary" />
-                  <span>Consensus Analyst Recommendation</span>
+                  <span>Analist konsensüsü</span>
                 </h4>
 
                                 {analystLoading && (
                   <div className="rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3 text-xs text-text-secondary">
-                    Loading analyst data...
+                    Analist verisi yükleniyor…
                   </div>
                 )}
 
                 {analystError && (
                   <div className="rounded-lg border border-bear-red/30 bg-bear-red/10 p-3 text-xs text-bear-red flex items-center justify-between gap-3">
-                    <span>Analyst data could not be loaded. The provider response is empty or temporarily unavailable.</span>
+                    <span>Analist verisi yüklenemedi. Sağlayıcı yanıtı boş ya da geçici olarak kullanılamıyor.</span>
                     <button type="button" onClick={() => void refetchAnalystData()} className="font-bold underline">
-                      Try again
+                      Yeniden dene
                     </button>
                   </div>
                 )}
@@ -507,33 +545,33 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                   <div className="space-y-4">
                     <div className="flex justify-between items-baseline">
-                      <span className="text-xs text-text-secondary">Consensus 12-Month Target Price:</span>
-                      <span className="font-data-mono text-2xl font-bold text-primary">{targetPriceForUpside == null ? '-' : `$${targetPriceForUpside.toFixed(2)}`}</span>
+                      <span className="text-xs text-text-secondary">12 aylık konsensüs hedef fiyat:</span>
+                      <span className="font-data-mono text-2xl font-bold text-primary">{targetPriceForUpside == null ? '—' : `$${targetPriceForUpside.toFixed(2)}`}</span>
                     </div>
                     <p className="text-xs text-text-secondary leading-relaxed">
-                      The provider target price shows <strong>%{analystUpside}</strong> upside/downside versus the current price. This section stays empty when analyst data is unavailable.
+                      Sağlayıcı hedef fiyatı, güncel fiyata göre <strong>{analystUpsideText}</strong> potansiyel gösteriyor. Analist verisi yoksa bu bölüm boş kalır.
                     </p>
                   </div>
 
                   {/* Sentiment Bar */}
                   <div className="space-y-3 bg-bg-base/40 p-4 rounded-xl border border-outline-variant/20">
                     <div className="flex justify-between text-xs font-sans">
-                      <span className="text-bull-green font-bold">BUY / OVERWEIGHT:</span>
-                      <span className="font-data-mono text-bull-green font-bold">{analystRating?.buyPercent ?? '-'}%</span>
+                      <span className="text-bull-green font-bold">AL / AĞIRLIK ARTIR:</span>
+                      <span className="font-data-mono text-bull-green font-bold">{analystRating ? `${analystRating.buyPercent}%` : '—'}</span>
                     </div>
                     <div className="flex justify-between text-xs font-sans">
-                      <span className="text-warning-amber font-bold">HOLD:</span>
-                      <span className="font-data-mono text-warning-amber font-bold">{analystRating?.holdPercent ?? '-'}%</span>
+                      <span className="text-warning-amber font-bold">TUT:</span>
+                      <span className="font-data-mono text-warning-amber font-bold">{analystRating ? `${analystRating.holdPercent}%` : '—'}</span>
                     </div>
                     <div className="flex justify-between text-xs font-sans">
-                      <span className="text-bear-red font-bold">SELL:</span>
-                      <span className="font-data-mono text-bear-red font-bold">{analystRating?.sellPercent ?? '-'}%</span>
+                      <span className="text-bear-red font-bold">SAT:</span>
+                      <span className="font-data-mono text-bear-red font-bold">{analystRating ? `${analystRating.sellPercent}%` : '—'}</span>
                     </div>
 
                     <div className="w-full h-2.5 bg-bg-base rounded-full overflow-hidden flex mt-2">
-                      <div className="bg-bull-green h-full" style={{ width: `${analystRating?.buyPercent ?? '-'}%` }} />
-                      <div className="bg-warning-amber h-full" style={{ width: `${analystRating?.holdPercent ?? '-'}%` }} />
-                      <div className="bg-bear-red h-full" style={{ width: `${analystRating?.sellPercent ?? '-'}%` }} />
+                      <div className="bg-bull-green h-full" style={{ width: `${analystRating?.buyPercent ?? 0}%` }} />
+                      <div className="bg-warning-amber h-full" style={{ width: `${analystRating?.holdPercent ?? 0}%` }} />
+                      <div className="bg-bear-red h-full" style={{ width: `${analystRating?.sellPercent ?? 0}%` }} />
                     </div>
                   </div>
                 </div>
@@ -551,7 +589,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-primary animate-pulse" />
                     <h4 className="font-headline text-sm font-bold text-text-primary uppercase tracking-wide">
-                      Backend Smart Investment Report</h4>
+                      Akıllı yatırım raporu</h4>
                   </div>
 
                   {!aiReport && !isLoading && (
@@ -559,7 +597,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                       onClick={handleGenerateReport}
                       className="bg-primary hover:bg-primary-container text-bg-base font-sans font-bold text-[10px] px-3 py-1.5 rounded border border-primary/20 shadow-md transition-all uppercase"
                     >
-                      Generate Analysis</button>
+                      Analizi oluştur</button>
                   )}
                 </div>
 
@@ -568,19 +606,19 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                   <div className="py-12 flex flex-col items-center justify-center gap-3">
                     <RefreshCw className="w-8 h-8 text-primary animate-spin" />
                     <p className="font-sans text-xs text-text-secondary animate-pulse">
-                      Backend smart report is loading current provider data. Please wait...
+                      Akıllı rapor güncel sağlayıcı verisiyle yükleniyor. Lütfen bekleyin…
                     </p>
                   </div>
                 ) : errorMessage ? (
                   <div className="p-3 bg-bear-red/10 border border-bear-red/25 rounded-lg flex items-start gap-2.5">
                     <AlertTriangle className="w-4 h-4 text-bear-red shrink-0 mt-0.5" />
                     <div className="text-xs text-bear-red font-sans">
-                      <strong>Report Error:</strong> {errorMessage}
+                      <strong>Rapor oluşturulamadı:</strong> {errorMessage}
                       <button
                         onClick={handleGenerateReport}
                         className="underline block mt-1 font-bold text-[10px] uppercase"
                       >
-                        Try Again
+                        Yeniden dene
                       </button>
                     </div>
                   </div>
@@ -589,18 +627,18 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                     <CustomMarkdownParser text={aiReport} />
 
                     <div className="mt-4 pt-3 border-t border-outline-variant/20 flex justify-between items-center text-[9px] text-text-muted font-data-mono">
-                      <span>SOURCE: BACKEND SMART REPORT</span>
+                      <span>KAYNAK: BACKEND AKILLI RAPOR</span>
                       <button
                         onClick={handleGenerateReport}
                         className="text-primary hover:underline flex items-center gap-1 font-bold"
                       >
-                        <RefreshCw className="w-3 h-3" /> REGENERATE
+                        <RefreshCw className="w-3 h-3" /> YENİDEN OLUŞTUR
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-6 text-xs text-text-secondary font-sans leading-relaxed">
-                    The provider target price shows <strong>%{analystUpside}</strong> upside/downside versus the current price. This section stays empty when analyst data is unavailable.
+                    Puanları, analist bağlamını ve eksik alanları gösteren rapor için “Analizi oluştur” düğmesine basın.
                   </div>
                 )}
               </div>
@@ -614,7 +652,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
             onClick={onClose}
             className="px-4 py-2 border border-outline-variant hover:border-text-secondary rounded-lg font-sans text-xs font-bold text-text-secondary hover:text-text-primary transition-all"
           >
-            Close Window
+            Pencereyi kapat
           </button>
           <button
             onClick={() => {
@@ -624,7 +662,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
             className="px-5 py-2 bg-primary hover:bg-primary-container text-bg-base font-sans font-bold text-xs rounded-lg shadow-md shadow-primary/10 transition-all flex items-center gap-1.5"
           >
             <Briefcase className="w-4 h-4" />
-            <span>Open Trade Ticket</span>
+            <span>İşlem kaydı ekle</span>
           </button>
         </div>
 

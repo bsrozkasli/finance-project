@@ -80,11 +80,11 @@ describe('StockDetailModal', () => {
 
     render(<StockDetailModal stock={stock} onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
 
-    await userEvent.click(screen.getByRole('button', { name: /smart report/i }));
-    await userEvent.click(screen.getByRole('button', { name: /generate analysis/i }));
+    await userEvent.click(screen.getByRole('button', { name: /akıllı rapor/i }));
+    await userEvent.click(screen.getByRole('button', { name: /analizi oluştur/i }));
 
     expect(screen.getAllByText('72 / 100')).toHaveLength(2);
-    expect(screen.getAllByText((_, element) => element?.textContent === 'valuation: Unavailable')).toHaveLength(2);
+    expect(screen.getAllByText((_, element) => element?.textContent === 'Değerleme: Veri yok')).toHaveLength(2);
     expect(screen.queryByText('50 / 100')).not.toBeInTheDocument();
   });
 
@@ -94,6 +94,60 @@ describe('StockDetailModal', () => {
     render(<StockDetailModal stock={null} symbol="ZZZZ" onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
 
     expect(screen.queryByText(/^STOCK -/)).not.toBeInTheDocument();
-    expect(screen.getByText(/Type unavailable/)).toBeInTheDocument();
+    expect(screen.getByText(/Tür bilinmiyor/)).toBeInTheDocument();
+  });
+
+  it('is a named dialog with Turkish tabs that closes with Escape and the close button', async () => {
+    vi.mocked(useSmartReport).mockReturnValue({ report: null, loading: false, error: null } as never);
+    const onClose = vi.fn();
+
+    render(<StockDetailModal stock={stock} onClose={onClose} onOpenTradeModal={vi.fn()} />);
+
+    expect(screen.getByRole('dialog', { name: 'Apple Inc. (AAPL)' })).toBeInTheDocument();
+    for (const tab of ['Genel bakış', 'Teknik', 'Analist görüşü', 'Akıllı rapor']) {
+      expect(screen.getByRole('button', { name: tab })).toBeInTheDocument();
+    }
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+    await userEvent.click(screen.getByRole('button', { name: 'Kapat' }));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows the daily change in percent points without scaling it again', () => {
+    vi.mocked(useSmartReport).mockReturnValue({ report: null, loading: false, error: null } as never);
+
+    render(<StockDetailModal stock={stock} onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
+
+    expect(screen.getByText('+0.50%')).toBeInTheDocument();
+    expect(screen.queryByText('+50.00%')).not.toBeInTheDocument();
+  });
+
+  it('does not invent a zero target price when the provider sends recommendations without one', async () => {
+    vi.mocked(useSmartReport).mockReturnValue({ report: null, loading: false, error: null } as never);
+    vi.mocked(useAnalystRatings).mockReturnValue({
+      data: {
+        recommendations: [{ period: '2026-10-01', strongBuy: 5, buy: 3, hold: 2, sell: 0, strongSell: 0 }],
+        priceTarget: null,
+      } as never,
+      loading: false,
+      error: null,
+      refetch: vi.fn(),
+    });
+
+    render(<StockDetailModal stock={stock} onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Analist görüşü' }));
+
+    expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
+    expect(screen.queryByText(/-100/)).not.toBeInTheDocument();
+    expect(screen.getByText('80%')).toBeInTheDocument();
+  });
+
+  it('does not place the 52-week marker when the range is unknown', () => {
+    vi.mocked(useSmartReport).mockReturnValue({ report: null, loading: false, error: null } as never);
+
+    render(<StockDetailModal stock={null} symbol="ZZZZ" onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
+
+    expect(screen.getByText(/Yıllık aralıktaki konum: —/)).toBeInTheDocument();
+    expect(screen.queryByText(/0% of yearly range/)).not.toBeInTheDocument();
   });
 });

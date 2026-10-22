@@ -42,7 +42,7 @@ export function useWatchlistResearchSnapshot(
       setSnapshot(data);
     } catch (err) {
       if (!isCurrent()) return;
-      setError(err instanceof Error ? err.message : 'Failed to load watchlist research snapshot');
+      setError(err instanceof Error ? err.message : 'İzleme listesi araştırma özeti yüklenemedi');
     } finally {
       if (isCurrent()) setLoading(false);
     }
