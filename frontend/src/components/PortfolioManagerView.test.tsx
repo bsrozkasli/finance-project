@@ -165,9 +165,9 @@ describe('PortfolioManagerView', () => {
     expect(screen.queryByText('Thematic Asset Allocation')).not.toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText('$210.00')).toBeInTheDocument());
-    expect(screen.getByText('Added Date')).toBeInTheDocument();
-    expect(screen.getByText('Weekly')).toBeInTheDocument();
-    expect(screen.getAllByText('Total').length).toBeGreaterThan(0);
+    expect(screen.getByRole('columnheader', { name: 'Eklenme tarihi' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Haftalık' })).toBeInTheDocument();
+    expect(screen.getAllByText('Toplam').length).toBeGreaterThan(0);
     expect(screen.getByText('+110.00%')).toBeInTheDocument();
   });
 
@@ -183,8 +183,8 @@ describe('PortfolioManagerView', () => {
     expect(screen.getByText('Aylık getiri')).toBeInTheDocument();
     expect(screen.getByText('Toplam getiri (seçilen dönem)')).toBeInTheDocument();
 
-    const startMonth = screen.getByLabelText('Start Month') as HTMLSelectElement;
-    const endMonth = screen.getByLabelText('End Month') as HTMLSelectElement;
+    const startMonth = screen.getByLabelText('Başlangıç ayı') as HTMLSelectElement;
+    const endMonth = screen.getByLabelText('Bitiş ayı') as HTMLSelectElement;
     expect(startMonth.tagName).toBe('SELECT');
     expect(endMonth.tagName).toBe('SELECT');
     await user.selectOptions(startMonth, '2026-03');
@@ -192,9 +192,9 @@ describe('PortfolioManagerView', () => {
 
     await user.click(screen.getByRole('button', { name: 'İşlem geçmişi' }));
     await waitFor(() => expect(screen.getByText('Initial buy')).toBeInTheDocument());
-    expect(screen.getByText('Purchase Amount')).toBeInTheDocument();
-    expect(screen.getByText('Average Cost')).toBeInTheDocument();
-    expect(screen.getByText('Price at Transaction')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'İşlem tutarı' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Ortalama maliyet' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'İşlem fiyatı' })).toBeInTheDocument();
     expect(screen.getByText('Trimmed position')).toBeInTheDocument();
   });
 
@@ -218,7 +218,7 @@ describe('PortfolioManagerView', () => {
     });
 
     await user.click(screen.getByRole('button', { name: 'Portföy oluştur' }));
-    await user.type(screen.getByPlaceholderText('Growth, Income, Hedge...'), 'Income');
+    await user.type(screen.getByPlaceholderText('Büyüme, Gelir, Koruma…'), 'Income');
     const createButtons = screen.getAllByRole('button', { name: 'Portföy oluştur' });
     await user.click(createButtons[createButtons.length - 1]);
     await waitFor(() => expect(onCreatePortfolio).toHaveBeenCalledWith('Income'));
@@ -241,7 +241,7 @@ describe('PortfolioManagerView', () => {
     });
 
     await user.click(screen.getByRole('button', { name: 'Portföyü sil' }));
-    expect(screen.getByText('Sell or transfer all holdings before deleting this portfolio.')).toBeInTheDocument();
+    expect(screen.getByText('Silmeden önce portföydeki tüm pozisyonları satın veya aktarın.')).toBeInTheDocument();
     const deleteButtons = screen.getAllByRole('button', { name: 'Portföyü sil' });
     expect(deleteButtons[deleteButtons.length - 1]).toBeDisabled();
   });
@@ -271,7 +271,7 @@ describe('PortfolioManagerView', () => {
     renderPortfolio(portfolio, []);
 
     await waitFor(() => {
-      expect(screen.getByText('Allocation is unavailable until every holding has a real market price.')).toBeInTheDocument();
+      expect(screen.getByText('Kısmi veri: her pozisyonun gerçek piyasa fiyatı olmadan dağılım hesaplanamaz.')).toBeInTheDocument();
     });
     expect(screen.getAllByText('AAPL').length).toBeGreaterThan(0);
     expect(screen.queryByText('$0.00')).not.toBeInTheDocument();
@@ -286,7 +286,7 @@ describe('PortfolioManagerView', () => {
     renderPortfolio({ id: '1', name: 'Empty', holdings: [] }, [makeStock('AAPL', 210)]);
 
     expect(screen.getByText('Dağılım için pozisyon bulunamadı.')).toBeInTheDocument();
-    expect(screen.getByText('No current holdings are available.')).toBeInTheDocument();
+    expect(screen.getByText('Veri yok: güncel pozisyon yok.')).toBeInTheDocument();
     expect(screen.queryByText('AAPL')).not.toBeInTheDocument();
   });
 

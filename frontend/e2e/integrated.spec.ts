@@ -108,7 +108,7 @@ test.describe('integrated system smoke', () => {
     await page.goto('/portfolio', { waitUntil: 'domcontentloaded' });
 
     await page.getByRole('button', { name: 'Portföy oluştur' }).first().click();
-    await page.getByPlaceholder('Growth, Income, Hedge...').fill('Growth E2E');
+    await page.getByPlaceholder('Büyüme, Gelir, Koruma…').fill('Growth E2E');
     await page.getByRole('button', { name: 'Portföy oluştur' }).last().click();
 
     await expect(page).toHaveURL(/\/portfolio\/\d+$/);

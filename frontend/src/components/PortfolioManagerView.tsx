@@ -381,11 +381,11 @@ export default function PortfolioManagerView({
 
   const activeHasHoldings = (activePortfolio?.holdings.length ?? 0) > 0;
   const deleteBlockReason = !activePortfolio
-    ? 'Select a portfolio before deleting.'
+    ? 'Silmeden önce bir portföy seçin.'
     : portfolios.length <= 1
-      ? 'At least one portfolio must remain.'
+      ? 'En az bir portföy kalmalı.'
       : activeHasHoldings
-        ? 'Sell or transfer all holdings before deleting this portfolio.'
+        ? 'Silmeden önce portföydeki tüm pozisyonları satın veya aktarın.'
         : '';
 
   const handleCreatePortfolio = async (event: FormEvent<HTMLFormElement>) => {
@@ -394,11 +394,11 @@ export default function PortfolioManagerView({
     setPortfolioActionError('');
 
     if (name.length < 2 || name.length > 40) {
-      setPortfolioActionError('Portfolio name must be 2-40 characters.');
+      setPortfolioActionError('Portföy adı 2-40 karakter olmalı.');
       return;
     }
     if (portfolios.some((portfolio) => portfolio.name.trim().toLowerCase() === name.toLowerCase())) {
-      setPortfolioActionError('A portfolio with this name already exists.');
+      setPortfolioActionError('Bu adla bir portföy zaten var.');
       return;
     }
 
@@ -417,7 +417,7 @@ export default function PortfolioManagerView({
       setNewPortfolioName('');
       setIsCreatePortfolioOpen(false);
     } catch (error) {
-      setPortfolioActionError(error instanceof Error ? error.message : 'Portfolio could not be created.');
+      setPortfolioActionError(error instanceof Error ? error.message : 'Portföy oluşturulamadı.');
     } finally {
       setIsCreatingPortfolio(false);
     }
@@ -445,7 +445,7 @@ export default function PortfolioManagerView({
       }
       setIsDeletePortfolioOpen(false);
     } catch (error) {
-      setPortfolioActionError(error instanceof Error ? error.message : 'Portfolio could not be deleted.');
+      setPortfolioActionError(error instanceof Error ? error.message : 'Portföy silinemedi.');
     } finally {
       setIsDeletingPortfolio(false);
     }
@@ -556,7 +556,7 @@ export default function PortfolioManagerView({
                 <div className="mb-4 text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">Son aylar</div>
                 <div className="space-y-3">
                   {latestMonthlyReturns.length === 0 ? (
-                    <div className="text-xs text-text-muted">Monthly history is unavailable.</div>
+                    <div className="text-xs text-text-muted">Yüklenemedi: aylık geçmiş alınamadı.</div>
                   ) : latestMonthlyReturns.map((month) => (
                     <div key={month.sort} className="flex items-center justify-between gap-4 text-sm font-bold">
                       <span className="text-text-secondary">{month.label}</span>
@@ -600,7 +600,7 @@ export default function PortfolioManagerView({
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="font-headline text-xl font-bold text-text-primary">Performans analizi (USD)</h2>
-            <p className="mt-1 text-sm text-text-secondary">USD-based cumulative performance</p>
+            <p className="mt-1 text-sm text-text-secondary">USD bazlı kümülatif performans</p>
           </div>
           <div className="flex rounded-md border border-outline-variant/35 bg-bg-base p-1">
             {performanceRanges.map((range) => (
@@ -628,14 +628,14 @@ export default function PortfolioManagerView({
           )}
           {performanceChart.points.length < 2 ? (
             <div className="flex h-full items-center justify-center rounded-md border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
-              Performance history is unavailable for this portfolio.
+              Veri yok: bu portföy için performans geçmişi yok.
             </div>
           ) : (
             <svg
               className="h-full w-full cursor-crosshair"
               viewBox="0 0 600 220"
               preserveAspectRatio="none"
-              aria-label="Portfolio performance analysis chart"
+              aria-label="Portföy performans analizi grafiği"
               onMouseMove={handlePerformanceMouseMove}
               onMouseLeave={() => setHoveredPoint(null)}
             >
@@ -694,7 +694,7 @@ export default function PortfolioManagerView({
             </div>
           ) : allocationPositions.length === 0 ? (
             <div className="flex min-h-72 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
-              Allocation is unavailable until every holding has a real market price.
+              Kısmi veri: her pozisyonun gerçek piyasa fiyatı olmadan dağılım hesaplanamaz.
             </div>
           ) : (
             <div className="grid min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-4">
@@ -776,20 +776,20 @@ export default function PortfolioManagerView({
                   setPortfolioActionError('');
                 }}
                 className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
-                aria-label="Close create portfolio"
+                aria-label="Portföy oluşturmayı kapat"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <form onSubmit={handleCreatePortfolio} className="space-y-4 p-5">
               <label className="block text-xs font-bold text-text-secondary">
-                Portfolio Name
+                Portföy adı
                 <input
                   autoFocus
                   value={newPortfolioName}
                   onChange={(event) => setNewPortfolioName(event.target.value)}
                   maxLength={40}
-                  placeholder="Growth, Income, Hedge..."
+                  placeholder="Büyüme, Gelir, Koruma…"
                   className="mt-1 w-full rounded-md border border-outline-variant bg-bg-base px-3 py-2 text-sm font-bold text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary"
                 />
               </label>
@@ -832,14 +832,14 @@ export default function PortfolioManagerView({
                   setPortfolioActionError('');
                 }}
                 className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary"
-                aria-label="Close delete portfolio"
+                aria-label="Portföy silmeyi kapat"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="space-y-4 p-5">
               <div className="rounded-md border border-outline-variant/35 bg-bg-card p-4">
-                <div className="text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">Selected Portfolio</div>
+                <div className="text-xs font-label-caps font-bold uppercase tracking-widest text-text-muted">Seçili portföy</div>
                 <div className="mt-2 font-data-mono text-lg font-black text-text-primary">{activePortfolio?.name || '-'}</div>
               </div>
               {deleteBlockReason ? (
@@ -848,7 +848,7 @@ export default function PortfolioManagerView({
                 </div>
               ) : (
                 <div className="rounded-md border border-bear-red/35 bg-bear-red/10 px-3 py-2 text-xs font-semibold text-bear-red">
-                  This action deletes the empty portfolio. Transaction history for this portfolio will no longer be shown.
+                  Bu işlem boş portföyü siler. Bu portföyün işlem geçmişi artık gösterilmez.
                 </div>
               )}
               {portfolioActionError && (
@@ -901,7 +901,7 @@ export default function PortfolioManagerView({
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <label className="text-xs font-bold text-text-secondary">
-                    Start Month
+                    Başlangıç ayı
                     <select
                       value={startMonth}
                       onChange={(event) => setStartMonth(event.target.value)}
@@ -916,7 +916,7 @@ export default function PortfolioManagerView({
                     </select>
                   </label>
                   <label className="text-xs font-bold text-text-secondary">
-                    End Month
+                    Bitiş ayı
                     <select
                       value={endMonth}
                       onChange={(event) => setEndMonth(event.target.value)}
@@ -940,7 +940,7 @@ export default function PortfolioManagerView({
                 </div>
                 <div className="flex h-64 items-end gap-3 border-b border-outline-variant/25 px-2 pb-8 pt-4">
                   {filteredMonthlyReturns.length === 0 ? (
-                    <div className="flex h-full w-full items-center justify-center text-xs text-text-muted">No monthly data in this range.</div>
+                    <div className="flex h-full w-full items-center justify-center text-xs text-text-muted">Veri yok: bu aralıkta aylık veri yok.</div>
                   ) : filteredMonthlyReturns.map((month) => {
                     const height = Math.min(100, Math.max(8, Math.abs(month.returnPct) * 4));
                     return (
@@ -993,7 +993,7 @@ function HoldingsTable({
   returnColor: (value: number | null | undefined) => string;
 }) {
   if (positions.length === 0) {
-    return <div className="p-8 text-center text-xs text-text-muted">No current holdings are available.</div>;
+    return <div className="p-8 text-center text-xs text-text-muted">Veri yok: güncel pozisyon yok.</div>;
   }
 
   return (
@@ -1001,18 +1001,18 @@ function HoldingsTable({
       <table className="w-full min-w-[1100px] text-left text-xs">
         <thead className="bg-bg-base/40 text-xs uppercase tracking-wider text-text-muted">
           <tr>
-            <th className="px-4 py-3">Added Date</th>
-            <th className="px-4 py-3">Stock</th>
-            <th className="px-4 py-3 text-right">Cost</th>
-            <th className="px-4 py-3 text-right">Price</th>
-            <th className="px-4 py-3 text-right">Weight</th>
-            <th className="px-4 py-3 text-right">Daily</th>
-            <th className="px-4 py-3 text-right">Weekly</th>
+            <th className="px-4 py-3">Eklenme tarihi</th>
+            <th className="px-4 py-3">Varlık</th>
+            <th className="px-4 py-3 text-right">Ort. maliyet</th>
+            <th className="px-4 py-3 text-right">Fiyat</th>
+            <th className="px-4 py-3 text-right">Ağırlık</th>
+            <th className="px-4 py-3 text-right">Günlük</th>
+            <th className="px-4 py-3 text-right">Haftalık</th>
             <th className="px-4 py-3 text-right">1M</th>
             <th className="px-4 py-3 text-right">3M</th>
             <th className="px-4 py-3 text-right">6M</th>
             <th className="px-4 py-3 text-right">1Y</th>
-            <th className="px-4 py-3 text-right">Total</th>
+            <th className="px-4 py-3 text-right">Toplam</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-outline-variant/20">
@@ -1060,10 +1060,10 @@ function TransactionTable({
   formatDate: (value: string | null | undefined) => string;
 }) {
   if (transactionsError) {
-    return <div className="p-8 text-center text-xs text-warning-amber">Transaction history is unavailable.</div>;
+    return <div className="p-8 text-center text-xs text-warning-amber">Yüklenemedi: işlem geçmişi alınamadı.</div>;
   }
   if (rows.length === 0) {
-    return <div className="p-8 text-center text-xs text-text-muted">No transaction history is available for this portfolio.</div>;
+    return <div className="p-8 text-center text-xs text-text-muted">Veri yok: bu portföy için işlem geçmişi yok.</div>;
   }
 
   return (
@@ -1071,13 +1071,13 @@ function TransactionTable({
       <table className="w-full min-w-[900px] text-left text-xs">
         <thead className="bg-bg-base/40 text-xs uppercase tracking-wider text-text-muted">
           <tr>
-            <th className="px-4 py-3">Date</th>
-            <th className="px-4 py-3">Action</th>
-            <th className="px-4 py-3">Stock</th>
-            <th className="px-4 py-3 text-right">Purchase Amount</th>
-            <th className="px-4 py-3 text-right">Average Cost</th>
-            <th className="px-4 py-3 text-right">Price at Transaction</th>
-            <th className="px-4 py-3">Notes</th>
+            <th className="px-4 py-3">Tarih</th>
+            <th className="px-4 py-3">İşlem</th>
+            <th className="px-4 py-3">Varlık</th>
+            <th className="px-4 py-3 text-right">İşlem tutarı</th>
+            <th className="px-4 py-3 text-right">Ortalama maliyet</th>
+            <th className="px-4 py-3 text-right">İşlem fiyatı</th>
+            <th className="px-4 py-3">Notlar</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-outline-variant/20">
