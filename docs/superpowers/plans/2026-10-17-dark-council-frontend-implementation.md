@@ -1,5 +1,7 @@
 # Dark Council Frontend Implementation Plan
 
+**Durum:** Tamamlandı (2026-10-22). Bölüm 1–2 PR #44 (`ea41714`), bölüm 3 PR #51 ile `main`e girdi; kalan Türkçe metin ve tarih işleri PR #52 ve #53 ile kapandı.
+
 > **For agentic workers:** Execute inline in the current task branch; the user has approved the dark prototype and explicitly requested implementation. Preserve the pre-existing working tree. Scope commits separately only when requested.
 
 **Goal:** Apply the approved dark research desk to the actual React frontend while preserving live API contracts and persistent user workflows.
@@ -30,17 +32,17 @@
 
 ### 1. Shell and tokens
 
-- [ ] Add a failing search keyboard/label test; run it before implementation.
-- [ ] Update `TopBar.tsx`, `LeftNav.tsx`, `App.tsx`, `index.css` for the approved shell, keyboard search, skip link and five mobile tasks.
-- [ ] Run shell tests and routing tests; visually check desktop/mobile.
+- [x] Add a failing search keyboard/label test; run it before implementation.
+- [x] Update `TopBar.tsx`, `LeftNav.tsx`, `App.tsx`, `index.css` for the approved shell, keyboard search, skip link and five mobile tasks.
+- [x] Run shell tests and routing tests; visually check desktop/mobile.
 
 ### 2. Research workspace
 
-- [ ] Add failing MSW boundary tests for six tabs, unknown financials, source, switching symbol and independent provider failure.
-- [ ] Add `hooks/useResearchEvidence.ts`, `components/research/ResearchWorkspace.tsx`, `ResearchFinancials.tsx`, `ResearchSources.tsx`, `ResearchAgentReport.tsx`; use existing `ChartWorkspace` for Graphic, existing backend report API for AI.
-- [ ] Build annual table from reported series; no static Microsoft data. Preserve watchlist writes through App callbacks. Keep missing risk metrics explicit.
-- [ ] Update routing to the composed workspace, keeping existing chart controls and deep links.
-- [ ] Run focused tests, including stale-response regression.
+- [x] Add failing MSW boundary tests for six tabs, unknown financials, source, switching symbol and independent provider failure.
+- [x] Add `hooks/useResearchEvidence.ts`, `components/research/ResearchWorkspace.tsx`, `ResearchFinancials.tsx`, `ResearchSources.tsx`, `ResearchAgentReport.tsx`; use existing `ChartWorkspace` for Graphic, existing backend report API for AI.
+- [x] Build annual table from reported series; no static Microsoft data. Preserve watchlist writes through App callbacks. Keep missing risk metrics explicit.
+- [x] Update routing to the composed workspace, keeping existing chart controls and deep links.
+- [x] Run focused tests, including stale-response regression.
 
 ### 3. Remaining pages and delivery
 
@@ -55,3 +57,4 @@
 - Current design task branch reused because it contains the approved uncommitted designs and frontend work. Pre-implementation `frontend/src` and `e2e` snapshot stored under `.cache/dark-implementation/baseline`; unrelated edits remain untouched.
 - Sections 1–2 and the six-tab/source/search E2E shipped with `ea41714` (PR #44).
 - 2026-10-22, branch `feat/frontend-desk-completion`: section 3 completed — single Bugün heading with the portfolio-first summary, truthful news sources, in-drawer portfolio feedback, journal unknown-PnL fix, Turkish copy across watchlists/portfolio/journal/news. Evidence: lint, api-boundaries, coverage 25 files / 158 tests, build, bundle 686.5 KiB, `npm run e2e` 15 passed / 12 integrated skipped, zero horizontal overflow at 320 and 1440px on the five tasks. Limitations are recorded in `2026-10-15-frontend-stitch-ux-roadmap.md` (2026-10-22 record).
+- 2026-10-22 closure audit on `main` `0e53746`: sections 1–2 verified present — `hooks/useResearchEvidence.ts`, `components/research/ResearchWorkspace.tsx`, `ResearchFinancials.tsx`, `ResearchSources.tsx`, `ResearchAgentReport.tsx`; `/workspace/:symbol` route; "İçeriğe geç" skip link in `App.tsx`; Ctrl+K saved-asset search test in `shell-controls.test.tsx`; `ResearchWorkspace.test.tsx` covers six sections, unpriced saved symbol, truthful annual table, independent provider failure, late response from a previous symbol and persistent watchlist callback. Boxes ticked from this evidence; no code changed.
