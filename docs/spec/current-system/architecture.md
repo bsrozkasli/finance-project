@@ -249,10 +249,15 @@ matching results, and returns existing real rows when refresh fails.
 
 1. Normalize the canonical symbol.
 2. Read the best usable Yahoo symbol mapping when one exists.
-3. Ask `PriceChartClientPort` for provider metadata.
-4. Persist `VERIFIED` metadata when the provider succeeds.
-5. Persist mapped `PARTIAL` metadata when only a mapping is usable.
-6. Otherwise persist a minimal `STOCK` asset with `UNAVAILABLE` metadata status.
+3. Ask `PriceChartClientPort` for provider metadata and accept it only when both
+   its symbol and provider symbol match the requested provider symbol, ignoring
+   case (including Yahoo aliases such as `BRK.B` → `BRK-B`).
+4. Persist `VERIFIED` metadata when the provider identity matches.
+5. For mismatched or missing provider metadata, persist mapped `PARTIAL`
+   metadata only when the mapping's canonical symbol matches the request, its
+   provider is Yahoo, and its status is usable.
+6. Otherwise persist a minimal `UNRESOLVED` asset with `UNAVAILABLE` metadata
+   status. Mismatched provider metadata is never copied into the resolved asset.
 
 Unavailable metadata is explicit evidence, not permission to invent exchange,
 currency, name, or provider values.

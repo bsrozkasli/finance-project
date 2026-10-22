@@ -93,6 +93,107 @@ class AssetResolutionServiceTest {
         assertThat(resolved.metadataStatus()).isEqualTo(AssetMetadataStatus.UNAVAILABLE);
     }
 
+    @Test
+    void mismatchedProviderIdentityUsesValidMappingAsPartialWithoutProviderMetadata() {
+        SymbolMapping mapping = new SymbolMapping(
+                "MSFT", "YAHOO", "MSFT", "Microsoft Corporation", AssetType.STOCK,
+                "NASDAQ", "USD", 1, SymbolMappingStatus.ACTIVE, null,
+                Instant.parse("2026-07-09T00:00:00Z"));
+        Asset mismatched = new Asset("OTHER", "Other Instrument", AssetType.CRYPTO,
+                "XCRY", "BTC", "YAHOO", "OTHER", AssetMetadataStatus.VERIFIED);
+        // Mock rationale: symbol mapping and provider calls are I/O boundaries.
+        when(symbolMappingPort.findBestMapping("MSFT", "YAHOO")).thenReturn(Optional.of(mapping));
+        when(priceChartClientPort.fetchAssetInfo("MSFT")).thenReturn(Optional.of(mismatched));
+
+        Asset resolved = service.resolve("msft");
+
+        assertThat(resolved).isEqualTo(new Asset("MSFT", "Microsoft Corporation", AssetType.STOCK,
+                "NASDAQ", "USD", "YAHOO", "MSFT", AssetMetadataStatus.PARTIAL));
+    }
+
+    @Test
+    void mismatchedProviderIdentityWithoutMappingReturnsUnavailableUnresolvedAsset() {
+        Asset mismatched = new Asset("OTHER", "Other Instrument", AssetType.CRYPTO,
+                "XCRY", "BTC", "YAHOO", "OTHER", AssetMetadataStatus.VERIFIED);
+        // Mock rationale: mapping and provider calls are I/O boundaries.
+        when(symbolMappingPort.findBestMapping("MSFT", "YAHOO")).thenReturn(Optional.empty());
+        when(priceChartClientPort.fetchAssetInfo("MSFT")).thenReturn(Optional.of(mismatched));
+
+        Asset resolved = service.resolve("msft");
+
+        assertThat(resolved).isEqualTo(new Asset("MSFT", "MSFT", AssetType.UNRESOLVED,
+                null, null, null, "MSFT", AssetMetadataStatus.UNAVAILABLE));
+    }
+
+    @Test
+    void providerSymbolMismatchIsRejectedEvenWhenAssetSymbolMatches() {
+        Asset mismatched = new Asset("MSFT", "Other Instrument", AssetType.CRYPTO,
+                "XCRY", "BTC", "YAHOO", "OTHER", AssetMetadataStatus.VERIFIED);
+        // Mock rationale: mapping and provider calls are I/O boundaries.
+        when(symbolMappingPort.findBestMapping("MSFT", "YAHOO")).thenReturn(Optional.empty());
+        when(priceChartClientPort.fetchAssetInfo("MSFT")).thenReturn(Optional.of(mismatched));
+
+        Asset resolved = service.resolve("msft");
+
+        assertThat(resolved).isEqualTo(new Asset("MSFT", "MSFT", AssetType.UNRESOLVED,
+                null, null, null, "MSFT", AssetMetadataStatus.UNAVAILABLE));
+    }
+
+    @Test
+    void mappingWithWrongCanonicalSymbolIsNotTrusted() {
+        SymbolMapping wrongMapping = new SymbolMapping(
+                "OTHER", "YAHOO", "OTHER", "Other Instrument", AssetType.CRYPTO,
+                "XCRY", "BTC", 1, SymbolMappingStatus.ACTIVE, null,
+                Instant.parse("2026-07-09T00:00:00Z"));
+        Asset mismatched = new Asset("OTHER", "Other Instrument", AssetType.CRYPTO,
+                "XCRY", "BTC", "YAHOO", "OTHER", AssetMetadataStatus.VERIFIED);
+        // Mock rationale: symbol mapping and provider calls are I/O boundaries.
+        when(symbolMappingPort.findBestMapping("MSFT", "YAHOO")).thenReturn(Optional.of(wrongMapping));
+        when(priceChartClientPort.fetchAssetInfo("MSFT")).thenReturn(Optional.of(mismatched));
+
+        Asset resolved = service.resolve("msft");
+
+        assertThat(resolved).isEqualTo(new Asset("MSFT", "MSFT", AssetType.UNRESOLVED,
+                null, null, null, "MSFT", AssetMetadataStatus.UNAVAILABLE));
+    }
+
+    @Test
+    void mappingFromWrongProviderIsNotTrusted() {
+        SymbolMapping wrongMapping = new SymbolMapping(
+                "MSFT", "TIINGO", "MSFT", "Microsoft Corporation", AssetType.STOCK,
+                "NASDAQ", "USD", 1, SymbolMappingStatus.ACTIVE, null,
+                Instant.parse("2026-07-09T00:00:00Z"));
+        Asset mismatched = new Asset("OTHER", "Other Instrument", AssetType.CRYPTO,
+                "XCRY", "BTC", "YAHOO", "OTHER", AssetMetadataStatus.VERIFIED);
+        // Mock rationale: symbol mapping and provider calls are I/O boundaries.
+        when(symbolMappingPort.findBestMapping("MSFT", "YAHOO")).thenReturn(Optional.of(wrongMapping));
+        when(priceChartClientPort.fetchAssetInfo("MSFT")).thenReturn(Optional.of(mismatched));
+
+        Asset resolved = service.resolve("msft");
+
+        assertThat(resolved).isEqualTo(new Asset("MSFT", "MSFT", AssetType.UNRESOLVED,
+                null, null, null, "MSFT", AssetMetadataStatus.UNAVAILABLE));
+    }
+
+    @Test
+    void yahooAliasMappingAcceptsMatchingProviderIdentityCaseInsensitively() {
+        SymbolMapping mapping = new SymbolMapping(
+                "BRK.B", "YAHOO", "BRK-B", "Berkshire Hathaway", AssetType.STOCK,
+                "NYSE", "USD", 1, SymbolMappingStatus.ACTIVE, null,
+                Instant.parse("2026-07-09T00:00:00Z"));
+        Asset providerAsset = new Asset("brk-b", "Berkshire Hathaway Inc.", AssetType.STOCK,
+                "NYQ", "USD", "yahoo", "brk-b", AssetMetadataStatus.PARTIAL);
+        // Mock rationale: symbol mapping and provider calls are I/O boundaries.
+        when(symbolMappingPort.findBestMapping("BRK.B", "YAHOO")).thenReturn(Optional.of(mapping));
+        when(priceChartClientPort.fetchAssetInfo("BRK-B")).thenReturn(Optional.of(providerAsset));
+
+        Asset resolved = service.resolve("brk.b");
+
+        assertThat(resolved.symbol()).isEqualTo("BRK.B");
+        assertThat(resolved.providerSymbol()).isEqualTo("BRK-B");
+        assertThat(resolved.metadataStatus()).isEqualTo(AssetMetadataStatus.VERIFIED);
+    }
+
     private static final class NoopPriceClient implements PriceChartClientPort {
         @Override
         public List<PriceHistory> fetchPriceHistory(String symbol, String interval, String range) {
