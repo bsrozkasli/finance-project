@@ -92,7 +92,7 @@ async def test_all_components_failing_are_unavailable_and_values_unchanged(compo
     assert (result.overall_score, result.grade.value, result.recommendation, result.confidence) == (50, "C", "Reduce", 0.0)
 
 
-async def test_production_shaped_inputs_report_not_mapped_and_keep_values(components):
+async def test_production_shaped_inputs_map_nested_scores(components):
     components(
         fundamental=SimpleNamespace(),
         valuation=ValuationResponse(symbol="AAPL", metrics=ValuationMetrics(valuation_grade=ValuationGrade.CHEAP), calculated_at=NOW),
@@ -113,6 +113,22 @@ async def test_production_shaped_inputs_report_not_mapped_and_keep_values(compon
     result = await CompositeScoreService.analyze("AAPL")
 
     assert result.unavailable_components == []
+    assert {field: a.status for field, a in result.breakdown_availability.items()} == dict.fromkeys(FIELDS, "available")
+    assert result.breakdown.model_dump() == {
+        "fundamental_score": 85, "valuation_score": 75, "quality_score": 90, "growth_score": 80,
+        "momentum_score": 70, "risk_score": 60, "earnings_score": 85, "sentiment_score": 70,
+    }
+    assert (result.overall_score, result.grade.value, result.recommendation) == (78, "B+", "Accumulate")
+
+
+async def test_unexpected_shapes_still_report_not_mapped(components):
+    # Guards against a future schema change silently becoming a neutral 50 "available" value.
+    components(fundamental=SimpleNamespace(), risk=SimpleNamespace(), valuation=SimpleNamespace(valuation_grade="Cheap"),
+               factor=SimpleNamespace(quality_score=80), earnings=SimpleNamespace(earnings_score=90),
+               sentiment=_enhanced(70, []))
+
+    result = await CompositeScoreService.analyze("AAPL")
+
     assert _reasons(result) == {
         "fundamental_score": "derived_from_defaulted_fields",
         "valuation_score": "valuation_grade_not_mapped",
@@ -123,20 +139,21 @@ async def test_production_shaped_inputs_report_not_mapped_and_keep_values(compon
         "earnings_score": "earnings_score_not_mapped",
         "sentiment_score": None,
     }
-    breakdown = result.breakdown.model_dump()
-    assert breakdown.pop("sentiment_score") == 70
-    assert set(breakdown.values()) == {50}
-    assert (result.overall_score, result.grade.value, result.recommendation) == (51, "C", "Reduce")
+
+
+def _nested(*, valuation_grade="Cheap", earnings_score=90, **factor_scores):
+    # Production nesting: factor scores under .scores, valuation and earnings under .metrics (PF-1).
+    return {
+        "valuation": SimpleNamespace(metrics=SimpleNamespace(valuation_grade=valuation_grade)),
+        "factor": SimpleNamespace(scores=SimpleNamespace(**factor_scores)),
+        "earnings": SimpleNamespace(metrics=SimpleNamespace(earnings_score=earnings_score)),
+    }
 
 
 async def test_mapped_shape_reports_available_and_partial_sentiment(components):
-    # Shape the composite code expects; production responses nest these values (PF-1).
     components(
-        fundamental=SimpleNamespace(), risk=SimpleNamespace(),
-        valuation=SimpleNamespace(valuation_grade="Cheap"),
-        factor=SimpleNamespace(quality_score=80, growth_score=60, momentum_score=40, low_volatility_score=70),
-        earnings=SimpleNamespace(earnings_score=90),
-        sentiment=_enhanced(70, ["insider"]),
+        fundamental=SimpleNamespace(), risk=SimpleNamespace(), sentiment=_enhanced(70, ["insider"]),
+        **_nested(quality_score=80, growth_score=60, momentum_score=40, low_volatility_score=70),
     )
 
     result = await CompositeScoreService.analyze("AAPL")
@@ -152,21 +169,20 @@ async def test_mapped_shape_reports_available_and_partial_sentiment(components):
 
 
 @pytest.mark.parametrize(
-    ("valuation", "factor", "field", "reason"),
+    ("shape", "field", "reason"),
     [
-        (SimpleNamespace(valuation_grade="Unknown"), SimpleNamespace(), "valuation_score", "valuation_grade_unrecognized"),
-        (SimpleNamespace(valuation_grade=None), SimpleNamespace(), "valuation_score", "valuation_grade_missing"),
+        (_nested(valuation_grade="Unknown", earnings_score=None), "valuation_score", "valuation_grade_unrecognized"),
+        (_nested(valuation_grade=None, earnings_score=None), "valuation_score", "valuation_grade_missing"),
         (
-            SimpleNamespace(valuation_grade="Fair"),
-            SimpleNamespace(quality_score=None, growth_score=60, momentum_score=40, low_volatility_score=70),
+            _nested(valuation_grade="Fair", earnings_score=None,
+                    quality_score=None, growth_score=60, momentum_score=40, low_volatility_score=70),
             "quality_score",
             "factor_score_missing",
         ),
     ],
 )
-async def test_present_but_empty_values_are_insufficient(components, valuation, factor, field, reason):
-    components(fundamental=SimpleNamespace(), risk=SimpleNamespace(), valuation=valuation, factor=factor,
-               earnings=SimpleNamespace(earnings_score=None), sentiment=_enhanced(50, []))
+async def test_present_but_empty_values_are_insufficient(components, shape, field, reason):
+    components(fundamental=SimpleNamespace(), risk=SimpleNamespace(), sentiment=_enhanced(50, []), **shape)
 
     result = await CompositeScoreService.analyze("AAPL")
 

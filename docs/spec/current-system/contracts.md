@@ -256,11 +256,14 @@ object is immutable; use factory methods `.available()`, `.unavailable(reason)`,
 | `CompositeInvestmentScore` (`GET /api/v1/research/composite/{symbol}`) | `breakdown_availability: dict[str, SectionAvailability]`; `unavailable_components: list[str]` | keyed by breakdown field name; not-mapped inputs report `factor_score_not_mapped` |
 | `AgentAnalysisResponse` (`POST /api/v1/agent-analysis`) | `decision_availability: SectionAvailability` | reflects portfolio-manager JSON parse quality |
 
-**Planning Finding 1 (PF-1):** `FactorAnalysisResponse` nests scores under
-`.scores` but `composite_score_service` reads them at the top level. This
-mismatch is now visible as `factor_score_not_mapped` / `earnings_score_not_mapped`
-/ `valuation_grade_not_mapped` reason codes in `breakdown_availability`. The
-underlying data-path defect is tracked for a follow-up fix (C0b or later).
+**Planning Finding 1 (PF-1), fixed 2026-10-23:** `composite_score_service` now
+reads factor scores from `FactorAnalysisResponse.scores`, the valuation grade from
+`ValuationResponse.metrics` and the earnings score from
+`EarningsAnalysisResponse.metrics`, so provider-backed components are `available`.
+The `*_not_mapped` reason codes remain only for an unexpected response shape.
+Breakdown values of components that are not `available` are still the legacy
+neutral `50` and still enter `overall_score`; consumers must read
+`breakdown_availability` before treating a breakdown value as evidence.
 
 ### Shared contract fixtures
 
