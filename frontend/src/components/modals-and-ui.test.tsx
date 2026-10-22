@@ -1,3 +1,4 @@
+import type React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -176,51 +177,62 @@ describe('TradeActionModal', () => {
 });
 
 describe('ManageAssetsDrawer', () => {
-  it('validates position input before sending a portfolio trade', async () => {
-    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
-    const onExecuteTrade = vi.fn();
-
+  const renderDrawer = (props: Partial<React.ComponentProps<typeof ManageAssetsDrawer>> = {}) => {
+    const onExecuteTrade = props.onExecuteTrade ?? vi.fn();
+    const onClose = props.onClose ?? vi.fn();
     render(
       <ManageAssetsDrawer
         isOpen
-        onClose={vi.fn()}
+        onClose={onClose}
         stocks={stocks}
         holdings={holdings}
         portfolioId="10"
+        {...props}
         onExecuteTrade={onExecuteTrade}
       />,
     );
+    return { onExecuteTrade, onClose };
+  };
 
-    const [quantity] = screen.getAllByRole('spinbutton');
+  it('is a named dialog that closes with Escape', async () => {
+    const { onClose } = renderDrawer();
+
+    expect(screen.getByRole('dialog', { name: 'Portföy pozisyonları' })).toBeInTheDocument();
+    await user().keyboard('{Escape}');
+
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows invalid position input inside the drawer without a browser alert', async () => {
+    const alertSpy = vi.spyOn(window, 'alert');
+    const { onExecuteTrade } = renderDrawer();
+
+    const quantity = screen.getByLabelText('Miktar');
     await user().clear(quantity);
     await user().type(quantity, '0');
-    await user().click(screen.getByRole('button', { name: /save to portfolio/i }));
+    await user().click(screen.getByRole('button', { name: 'Portföye kaydet' }));
 
-    expect(alertSpy).toHaveBeenCalledWith('Enter a valid quantity and cost basis.');
+    expect(screen.getByRole('alert')).toHaveTextContent('Geçerli bir miktar ve maliyet girin.');
+    expect(alertSpy).not.toHaveBeenCalled();
     expect(onExecuteTrade).not.toHaveBeenCalled();
   });
 
-  it('records an added position as a backend portfolio buy trade', async () => {
-    vi.spyOn(window, 'alert').mockImplementation(() => undefined);
-    const onExecuteTrade = vi.fn();
+  it('does not prefill a cost price that no stock provided', () => {
+    renderDrawer({ stocks: [] });
 
-    render(
-      <ManageAssetsDrawer
-        isOpen
-        onClose={vi.fn()}
-        stocks={stocks}
-        holdings={holdings}
-        portfolioId="10"
-        onExecuteTrade={onExecuteTrade}
-      />,
-    );
+    expect(screen.getByLabelText('Ortalama maliyet (USD)')).toHaveValue(null);
+  });
 
-    const [quantity, averageCost] = screen.getAllByRole('spinbutton');
+  it('records an added position as a backend portfolio buy trade and confirms it', async () => {
+    const { onExecuteTrade } = renderDrawer();
+
+    const quantity = screen.getByLabelText('Miktar');
+    const averageCost = screen.getByLabelText('Ortalama maliyet (USD)');
     await user().clear(quantity);
     await user().type(quantity, '3');
     await user().clear(averageCost);
     await user().type(averageCost, '120');
-    await user().click(screen.getByRole('button', { name: /save to portfolio/i }));
+    await user().click(screen.getByRole('button', { name: 'Portföye kaydet' }));
 
     expect(onExecuteTrade).toHaveBeenCalledWith({
       symbol: 'AAPL',
@@ -230,29 +242,35 @@ describe('ManageAssetsDrawer', () => {
       notes: 'AAPL position added from portfolio drawer.',
       portfolioId: '10',
     });
+    expect(await screen.findByRole('status')).toHaveTextContent('AAPL portföy defterine kaydedildi.');
   });
 
-  it('records a closing sell trade only after user confirmation', async () => {
-    const onExecuteTrade = vi.fn();
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValueOnce(true);
-    vi.spyOn(window, 'prompt').mockReturnValueOnce('150.25');
+  it('keeps a failed save visible in the drawer', async () => {
+    renderDrawer({ onExecuteTrade: vi.fn().mockRejectedValue(new Error('backend unavailable')) });
 
-    render(
-      <ManageAssetsDrawer
-        isOpen
-        onClose={vi.fn()}
-        stocks={stocks}
-        holdings={holdings}
-        portfolioId="10"
-        onExecuteTrade={onExecuteTrade}
-      />,
-    );
+    await user().click(screen.getByRole('button', { name: 'Portföye kaydet' }));
 
-    const closeButtons = screen.getAllByTitle('Close Position');
-    await user().click(closeButtons[0]);
+    expect(await screen.findByRole('alert')).toHaveTextContent('Pozisyon kaydedilemedi. Tekrar deneyin.');
+  });
+
+  it('records a closing sell trade only after confirming a valid price in the drawer', async () => {
+    const confirmSpy = vi.spyOn(window, 'confirm');
+    const promptSpy = vi.spyOn(window, 'prompt');
+    const { onExecuteTrade } = renderDrawer();
+
+    await user().click(screen.getByRole('button', { name: 'AAPL pozisyonunu kapat' }));
+    await user().click(screen.getByRole('button', { name: 'Vazgeç' }));
     expect(onExecuteTrade).not.toHaveBeenCalled();
 
-    await user().click(closeButtons[0]);
+    await user().click(screen.getByRole('button', { name: 'AAPL pozisyonunu kapat' }));
+    const price = screen.getByLabelText('AAPL satış birim fiyatı (USD)');
+    await user().clear(price);
+    await user().click(screen.getByRole('button', { name: 'Satışı kaydet' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Geçerli bir satış fiyatı girin.');
+    expect(onExecuteTrade).not.toHaveBeenCalled();
+
+    await user().type(price, '150.25');
+    await user().click(screen.getByRole('button', { name: 'Satışı kaydet' }));
     expect(onExecuteTrade).toHaveBeenCalledWith({
       symbol: 'AAPL',
       type: 'SELL',
@@ -261,6 +279,8 @@ describe('ManageAssetsDrawer', () => {
       notes: 'AAPL position closed from portfolio drawer.',
       portfolioId: '10',
     });
+    expect(confirmSpy).not.toHaveBeenCalled();
+    expect(promptSpy).not.toHaveBeenCalled();
   });
 });
 describe('ToastProvider', () => {
