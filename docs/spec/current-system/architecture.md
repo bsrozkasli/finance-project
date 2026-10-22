@@ -106,8 +106,8 @@ change together when API routing changes.
   as `0`. Dialogs (`ManageAssetsDrawer`, `TradingJournalModal`,
   `SettingsModal`, `StockDetailModal`) are named `role="dialog"` elements that
   close with Escape; validation and save results appear inside the dialog
-  rather than through browser `alert`/`confirm`/`prompt`. Known gap: dates use
-  en-US month names.
+  rather than through browser `alert`/`confirm`/`prompt`. Dates use the `tr-TR`
+  locale (for example `9 Tem 2026`); money keeps the `$1,234.56` USD format.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted
