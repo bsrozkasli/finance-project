@@ -105,8 +105,8 @@ Every path below is relative to `/api/v1`.
 | Dashboard | `GET /portfolio/positions/enriched` | Positions enriched with real current price/PnL; positions stay present with nullable price-derived fields when pricing is unavailable |
 | Analytics | `POST /portfolio/optimize` | Portfolio optimization proxy |
 | Analytics | `POST /portfolio/rebalance-check` | Rebalance analysis proxy |
-| Journal | `GET /journal/trades?page=&size=&sort=` | Paged persistent journal trades |
-| Journal | `GET /journal/trades/stats` | Journal statistics |
+| Journal | `GET /journal/trades?page=&size=&sort=` | Paged persistent journal trades; `currentPrice`, `marketValue`, `pnl`, and `returnPct` remain `null` when current market evidence is unavailable |
+| Journal | `GET /journal/trades/stats` | Journal statistics; return aggregates are `null` when no priced trade supports them |
 | Journal | `POST /journal/trades` | Create a journal trade |
 | Journal | `PUT /journal/trades/{id}` | Update a journal trade |
 | Journal | `DELETE /journal/trades/{id}` | Delete a journal trade |
