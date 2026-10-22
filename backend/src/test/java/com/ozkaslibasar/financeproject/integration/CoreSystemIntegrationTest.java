@@ -226,6 +226,13 @@ class CoreSystemIntegrationTest {
                 """, String.class);
         assertThat(statementColumns).contains("gross_profit", "operating_income");
 
+        List<String> nullableJournalMarketColumns = jdbcTemplate.queryForList("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'journal_trades' AND is_nullable = 'YES'
+                """, String.class);
+        assertThat(nullableJournalMarketColumns).contains("current_price", "market_value", "pnl", "return_pct");
+
         String currentVersion = jdbcTemplate.queryForObject("""
                 SELECT version
                 FROM flyway_schema_history
@@ -233,7 +240,7 @@ class CoreSystemIntegrationTest {
                 ORDER BY installed_rank DESC
                 LIMIT 1
                 """, String.class);
-        assertThat(currentVersion).isEqualTo("5");
+        assertThat(currentVersion).isEqualTo("6");
     }
 
     private long countRows(String table) {

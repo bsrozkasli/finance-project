@@ -60,6 +60,13 @@ ports with in-memory state.
 
 - Journal trades persist through `JournalTradePort`; controllers do not keep
   authoritative journal state in memory.
+- A journal trade's `purchasePrice` is historical transaction evidence. An
+  unavailable current market price remains `null`; the domain never substitutes
+  purchase price for `currentPrice`, `marketValue`, `pnl`, or `returnPct`.
+- Open trades may be enriched at read time with one fresh provider price per
+  symbol. If refresh fails or returns no evidence, the trade remains present with
+  nullable price-derived values. Journal statistics exclude unpriced trades from
+  return aggregates and expose `null` when no priced trade supports the result.
 - Watchlists persist through `WatchlistPort`; ordered normalized symbols survive
   restart through `watchlist_symbols`.
 - Research snapshot requests default to `limit=25`, cap at `limit=50`, require
@@ -100,6 +107,7 @@ Applied migrations are immutable.
 | `V3__portfolio_transaction_ledger.sql` | `portfolios`, `portfolio_transactions`, ledger indexes, and journal link columns |
 | `V4__symbol_mapping_and_asset_metadata.sql` | Asset metadata columns, `symbol_mapping`, indexes, and the DRAM manual override |
 | `V5__complete_persistence_schema.sql` | `fundamental_snapshots`, `portfolio_positions`, `journal_trades`, `journal_trade_tags`, `watchlists`, `watchlist_symbols`, `opportunity_notifications`, and later `financial_statements` columns |
+| `V6__allow_unknown_journal_market_values.sql` | Allows journal current/derived market values to remain `NULL` when current price evidence is unavailable |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.

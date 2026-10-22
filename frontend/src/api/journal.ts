@@ -10,8 +10,8 @@ export interface JournalTrade {
   type: JournalTradeType;
   quantity: number;
   purchasePrice: number;
-  currentPrice?: number;
-  marketValue?: number;
+  currentPrice?: number | null;
+  marketValue?: number | null;
   commission?: number;
   strategy?: string;
   notes?: string;
@@ -19,8 +19,8 @@ export interface JournalTrade {
   openedAt: string;
   closedAt?: string;
   status: JournalTradeStatus;
-  pnl?: number;
-  returnPct?: number;
+  pnl?: number | null;
+  returnPct?: number | null;
   holdingDays?: number;
   portfolioId?: number;
   transactionId?: number;
@@ -34,7 +34,7 @@ export interface AddJournalTradeRequest {
   openedAt: string;
   closedAt?: string;
   status?: JournalTradeStatus;
-  currentPrice?: number;
+  currentPrice?: number | null;
   commission?: number;
   strategy?: string;
   notes?: string;
@@ -47,8 +47,8 @@ export interface JournalStats {
   totalTrades: number;
   openTrades: number;
   closedTrades: number;
-  winRate: number;
-  avgReturn: number;
+  winRate: number | null;
+  avgReturn: number | null;
   bestTrade?: string;
   worstTrade?: string;
 }

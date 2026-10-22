@@ -160,6 +160,7 @@ describe('TradingJournalView', () => {
       type: 'BUY',
       quantity: 10,
       purchasePrice: 50,
+      currentPrice: undefined,
       status: 'OPEN',
       portfolioId: undefined,
     })));

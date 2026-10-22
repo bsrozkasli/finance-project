@@ -170,7 +170,7 @@ export default function TradingJournalView({
           type,
           quantity,
           purchasePrice,
-          currentPrice: matchedStock?.price ?? purchasePrice,
+          currentPrice: matchedStock?.price,
           commission: Math.max(commission, 0),
           openedAt: tradeDate,
           status: type === 'SELL' ? 'CLOSED' : 'OPEN',

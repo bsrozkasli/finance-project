@@ -63,10 +63,10 @@ public class JournalTradeEntity {
     @Column(name = "purchase_price", nullable = false, precision = 18, scale = 6)
     private BigDecimal purchasePrice;
 
-    @Column(name = "current_price", nullable = false, precision = 18, scale = 6)
+    @Column(name = "current_price", precision = 18, scale = 6)
     private BigDecimal currentPrice;
 
-    @Column(name = "market_value", nullable = false, precision = 18, scale = 6)
+    @Column(name = "market_value", precision = 18, scale = 6)
     private BigDecimal marketValue;
 
     @Column(name = "commission", nullable = false, precision = 18, scale = 6)
@@ -94,10 +94,10 @@ public class JournalTradeEntity {
     @Column(name = "status", nullable = false, length = 16)
     private JournalTradeStatus status;
 
-    @Column(name = "pnl", nullable = false, precision = 18, scale = 6)
+    @Column(name = "pnl", precision = 18, scale = 6)
     private BigDecimal pnl;
 
-    @Column(name = "return_pct", nullable = false, precision = 18, scale = 6)
+    @Column(name = "return_pct", precision = 18, scale = 6)
     private BigDecimal returnPct;
 
     @Column(name = "holding_days", nullable = false)
