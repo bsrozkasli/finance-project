@@ -12,7 +12,8 @@ This directory stores Architecture Decision Records (ADRs) for durable project-l
 | [ADR-0004](0004-sequential-agent-order.md) | Sequential Agent Execution Order | Accepted |
 | [ADR-0005](0005-db-first-lazy-price-loading.md) | DB-First Lazy Price History Loading | Accepted |
 | [ADR-0006](0006-data-service-price-history-through-resolver.md) | Data-Service Price History Through the Provider Resolver | Accepted |
-| [ADR-0007](0007-local-model-lifecycle.md) | Local Model Lifecycle | Proposed |
+| [ADR-0007](0007-local-model-lifecycle.md) | Local Model Lifecycle | Accepted |
+| [ADR-0008](0008-offline-ml-baseline.md) | Offline, Leakage-Safe Direction Model Baseline | Superseded by ADR-0007 (location); method still applies |
 
 ## Adding a New ADR
 

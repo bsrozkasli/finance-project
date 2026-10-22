@@ -6,13 +6,21 @@ This matrix documents how every consumer of the four data-service endpoints
 that received C0a availability fields behaves when those fields are present
 in the response.
 
+## Audit Metadata
+
+- Audit Commit: `8b32875` (C0a shipped on `feat/local-model-phase-1`, merged to `main` with PR #47)
+- Reviewer: Claude
+- Review Date: 2026-10-15; sections added 2026-10-22 without changing the findings
+- Environment: data-service FastAPI with pytest boundary stubs; Spring backend consumers inspected from source.
+- Scope: The four data-service endpoints that gained C0a availability fields and every consumer of them.
+
 ## Rule
 
 C0a fields are **additive only**. No existing field changes type, name, or
 value. Consumers that do not know about `SectionAvailability` must continue
 to work without modification.
 
-## Consumer Matrix
+## Evidence Records — Consumer Matrix
 
 ### `POST /api/v1/agent-analysis` — new field: `decision_availability`
 
@@ -62,3 +70,8 @@ Before C0b ships:
    may surface `breakdown_availability` in the UI — wire it in C0b.
 4. Spring `AgentAnalysisResponseDto` may expose `decision_availability` if the
    backend wants to relay it to the frontend.
+
+## Limitations
+
+- PF-1 is still open on `main` as of 2026-10-22. `composite_score_service.py` reports `factor_score_not_mapped`, `valuation_grade_not_mapped` and `earnings_score_not_mapped` for production-shaped responses, so those components fall back to the neutral placeholder and their availability says so.
+- Consumers were checked from source and stub-based tests, not against live providers.

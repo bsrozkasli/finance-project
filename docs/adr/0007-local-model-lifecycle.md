@@ -1,8 +1,8 @@
 # ADR-0007: Local Model Lifecycle
 
 Date: 2026-10-15
-Status: Proposed
-Deciders: Owner (pending)
+Status: Accepted
+Deciders: Owner (delegated to the implementing agent on 2026-10-22: "sıradaki kararları sen ver")
 
 ## Context
 
@@ -86,10 +86,15 @@ inference but not for training.
 - Inference code is duplicated when a model is served.
 - A second virtual environment must be maintained.
 - `ml/` is not yet part of CI.
+- `data-service/finance_ml` (ADR-0008, July 2026) predates this decision. It is an
+  offline package that the data-service application does not import, so D2 holds,
+  but its location conflicts with D1. It is a recorded exception until it moves
+  to `ml/`, and no new work starts in it before that move. Its Kaggle training data
+  needs a recorded, verified licence under D8 before it trains again.
 
 ## References
 
 - `docs/superpowers/specs/2026-10-15-local-model-decision-support-design.md`
 - `AGENTS.md`
-- ADR-0002, ADR-0003, ADR-0006
+- ADR-0002, ADR-0003, ADR-0006, ADR-0008
 - PRD-FR-027, PRD-NFR-010
