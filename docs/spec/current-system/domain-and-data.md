@@ -53,6 +53,12 @@ ports with in-memory state.
 - A fully sold holding is removed from the derived positive-holdings view and
   its cost basis becomes zero; historical transactions remain the ledger.
 - DIVIDEND and FEE actions affect realized PnL without fabricating a holding.
+- A MANUAL transaction gets an `origin_locator` of `manual:<UUID>` once, at
+  creation; persistence never rewrites it (`updatable=false`). V8 gives existing
+  manual rows `manual:legacy:<row-id>`, which names only their known persisted
+  origin. A database check requires a `manual:` locator for MANUAL rows, and
+  `(source, origin_locator)` is unique. CSV lineage is still unspecified, so CSV rows
+  may have a `NULL` locator.
 - Journal records may link to a portfolio/transaction, but journal decision
   history is not implicitly deleted when a position is sold.
 
@@ -109,6 +115,7 @@ Applied migrations are immutable.
 | `V5__complete_persistence_schema.sql` | `fundamental_snapshots`, `portfolio_positions`, `journal_trades`, `journal_trade_tags`, `watchlists`, `watchlist_symbols`, `opportunity_notifications`, and later `financial_statements` columns |
 | `V6__allow_unknown_journal_market_values.sql` | Allows journal current/derived market values to remain `NULL` when current price evidence is unavailable |
 | `V7__relabel_unresolved_asset_types.sql` | Relabels `assets` rows stored as `STOCK` with `UNAVAILABLE` metadata as `UNRESOLVED` (OQ-5) |
+| `V8__manual_transaction_origin_locator.sql` | Adds `portfolio_transactions.origin_locator`, backfills `manual:legacy:<id>`, adds the manual-locator check and `(source, origin_locator)` uniqueness |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.
