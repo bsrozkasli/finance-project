@@ -102,6 +102,42 @@ describe('DashboardHome portfolio return comparison', () => {
     expect(screen.getByText('Maliyet').parentElement).toHaveTextContent('$200.00');
   });
 
+  it('opens with one Bugün heading and the portfolio summary first', () => {
+    renderDashboard();
+
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1, name: 'Bugün' })).toBeInTheDocument();
+    expect(screen.queryByText('Bugün neye odaklanalım?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Portföy görünümü:')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Önceki portföy' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sonraki portföy' })).toBeInTheDocument();
+
+    const summary = screen.getByRole('group', { name: 'Portföy özeti' }).textContent ?? '';
+    const order = ['Güncel değer', 'Maliyet', 'Fiyat kapsamı'].map((label) => summary.indexOf(label));
+    expect(order.every((index) => index >= 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it('labels the priced subtotal separately when the current total is unknown', () => {
+    render(
+      <DashboardHome
+        stocks={[stock('AAPL', 120)]}
+        portfolios={[{ id: '1', name: 'ALFA', holdings: [{ symbol: 'AAPL', quantity: 2, costPrice: 100 }, { symbol: 'MSFT', quantity: 1, costPrice: 50 }] }]}
+        activePortfolioId="1"
+        onSelectPortfolioId={vi.fn()}
+        onSelectStock={vi.fn()}
+        onOpenTradingJournal={vi.fn()}
+        onNavigateToNews={vi.fn()}
+        news={[]}
+        calendarEvents={[]}
+      />,
+    );
+
+    expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('—');
+    expect(screen.getByText('Fiyatı bulunan pozisyonların ara toplamı').parentElement).toHaveTextContent('$240.00');
+    expect(screen.getByText('Fiyat kapsamı').parentElement).toHaveTextContent('1/2');
+  });
+
   it('loads comparison series, shows hover-synchronized values, and renders revised overview panels', async () => {
     const requests: Array<{ portfolioIds: string | null; benchmarks: string | null; period: string | null }> = [];
 
@@ -156,14 +192,14 @@ describe('DashboardHome portfolio return comparison', () => {
     renderDashboard();
 
     await waitFor(() => expect(screen.getByText('ALFA: +20.00%')).toBeInTheDocument());
-    const chart = screen.getByLabelText('Portfolio cumulative return comparison chart');
+    const chart = screen.getByLabelText('Portföy kümülatif getiri karşılaştırma grafiği');
     expect(chart).toBeInTheDocument();
     expect(screen.queryByText('Time-Series Values')).not.toBeInTheDocument();
-    expect(screen.getByText('Asset Allocation')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Daily' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Allocation' })).toBeInTheDocument();
+    expect(screen.getByText('Varlık dağılımı')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Günlük getiri' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ağırlık' })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText('02 Jan 2026')).toBeInTheDocument());
-    expect(screen.getByText('Weekly')).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Haftalık' })).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
 
     vi.spyOn(chart, 'getBoundingClientRect').mockReturnValue({
@@ -188,6 +224,18 @@ describe('DashboardHome portfolio return comparison', () => {
       expect(requests.some((request) => request.portfolioIds === '1,2' && request.period === '6M')).toBe(true);
     });
     expect(screen.getAllByText('BETA').length).toBeGreaterThan(0);
+  });
+
+  it('keeps an empty comparison neutral and explains it in Turkish', async () => {
+    server.use(
+      http.get(`${API_BASE}/macro/snapshot`, () => HttpResponse.json({})),
+      http.get(`${API_BASE}/portfolio/performance/comparison`, () => HttpResponse.json({ period: '6M', series: [] })),
+    );
+    installPositionPerformanceHandler();
+    renderDashboard();
+
+    expect(await screen.findByText('Karşılaştırmak için bir portföy veya endeks seçin.')).toBeInTheDocument();
+    expect(screen.getByText('Kümülatif getiri')).not.toHaveClass('text-bear-red');
   });
 
   it('updates benchmark query when a benchmark chip is toggled', async () => {

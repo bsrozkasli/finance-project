@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, ExternalLink, Globe, Landmark, Cpu, BarChart3, Star, AlertCircle } from 'lucide-react';
+import { Search, ExternalLink, Globe, Landmark, Cpu, BarChart3, Star } from 'lucide-react';
 import type { News, Portfolio } from '../types';
 
 interface NewsFeedViewProps {
@@ -44,6 +44,13 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
     return [...portfolioNews, ...otherNews];
   }, [activeTab, searchQuery, activeSymbols, news]);
 
+  // Only sources that actually delivered headlines are listed; no publisher is implied as a feed source.
+  const feedSources = useMemo(() => {
+    const counts = new Map<string, number>();
+    news.forEach((newsItem) => counts.set(newsItem.source, (counts.get(newsItem.source) ?? 0) + 1));
+    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [news]);
+
   const getCategoryIcon = (category?: string) => {
     switch (category) {
       case 'macro':
@@ -60,13 +67,13 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
   const formatCategory = (category?: string) => {
     switch (category) {
       case 'macro':
-        return 'Macro Economy';
+        return 'Makroekonomi';
       case 'stock':
-        return 'Stock Specific';
+        return 'Varlık haberi';
       case 'tech':
-        return 'Technology / Sector';
+        return 'Teknoloji / sektör';
       default:
-        return 'General Market';
+        return 'Genel piyasa';
     }
   };
 
@@ -113,7 +120,8 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
           <input
             type="text"
-            placeholder="Search headline, symbol, or source..."
+            placeholder="Başlık, sembol veya kaynakta ara…"
+            aria-label="Haberlerde ara"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-bg-base border border-outline-variant rounded-lg pl-9 pr-4 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-primary transition-all font-sans"
@@ -125,7 +133,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
         <div className="lg:col-span-2 space-y-4">
           {sortedAndFilteredNews.length === 0 ? (
             <div className="bg-bg-card border border-outline-variant rounded-md p-10 text-center text-xs text-text-muted">
-              No matching market news found.
+              Veri yok: aramayla eşleşen haber bulunamadı.
             </div>
           ) : (
             sortedAndFilteredNews.map((newsItem) => {
@@ -143,7 +151,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
                   {isPortfolioRelated && (
                     <div className="absolute top-0 right-0 bg-primary/10 text-primary px-3 py-1 text-xs font-bold font-sans flex items-center gap-1.5 rounded-bl-xl border-l border-b border-primary/20">
                       <Star className="w-3 h-3 fill-primary stroke-none" />
-                      <span>PORTFOLIO RELATED</span>
+                      <span>Portföyle ilgili</span>
                     </div>
                   )}
 
@@ -180,7 +188,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
                       )}
 
                       <div className="flex items-center gap-1 text-xs text-primary group-hover:underline font-bold pt-1 font-sans">
-                        Open Source
+                        Kaynağı aç
                         <ExternalLink className="w-3 h-3" />
                       </div>
                     </div>
@@ -191,41 +199,27 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
           )}
         </div>
 
-        <div className="space-y-6">
-          <div className="bg-bg-card border border-outline-variant rounded-md p-5 shadow-lg space-y-4">
-            <h3 className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide border-b border-outline-variant/30 pb-2 flex items-center gap-2">
-              <Globe className="w-4 h-4 text-primary" />
-              Market Sources
-            </h3>
-            <p className="text-xs text-text-secondary leading-relaxed font-sans">
-              Başlıklar özgün yayıncı sayfasına açılır. Kaynağı ve yayın zamanını haberin yanında inceleyin.
-            </p>
-            <div className="space-y-2 text-xs font-sans">
-              <a href="https://www.bloomberght.com" target="_blank" rel="noreferrer" className="flex items-center justify-between p-2.5 bg-bg-base/50 hover:bg-bg-base border border-outline-variant/20 rounded-lg group">
-                <span className="font-bold text-text-primary group-hover:text-primary transition-colors">Bloomberg HT</span>
-                <ExternalLink className="w-3.5 h-3.5 text-text-muted group-hover:text-primary" />
-              </a>
-              <a href="https://www.reuters.com" target="_blank" rel="noreferrer" className="flex items-center justify-between p-2.5 bg-bg-base/50 hover:bg-bg-base border border-outline-variant/20 rounded-lg group">
-                <span className="font-bold text-text-primary group-hover:text-primary transition-colors">Reuters News</span>
-                <ExternalLink className="w-3.5 h-3.5 text-text-muted group-hover:text-primary" />
-              </a>
-              <a href="https://tr.investing.com" target="_blank" rel="noreferrer" className="flex items-center justify-between p-2.5 bg-bg-base/50 hover:bg-bg-base border border-outline-variant/20 rounded-lg group">
-                <span className="font-bold text-text-primary group-hover:text-primary transition-colors">Investing TR</span>
-                <ExternalLink className="w-3.5 h-3.5 text-text-muted group-hover:text-primary" />
-              </a>
-            </div>
-          </div>
-
-          <div className="bg-bg-card border border-outline-variant/40 rounded-md p-4 flex gap-3 text-xs font-sans">
-            <AlertCircle className="w-5 h-5 text-warning-amber shrink-0 mt-0.5" />
-            <div>
-              <span className="font-bold text-text-primary block">Information Note</span>
-              <p className="text-text-secondary mt-1 text-xs leading-relaxed">
-                AI analysis and portfolio risk reports use real provider data when it is available.
-              </p>
-            </div>
-          </div>
-        </div>
+        <section aria-labelledby="news-feed-sources" className="bg-bg-card border border-outline-variant rounded-md p-5 space-y-4 self-start">
+          <h3 id="news-feed-sources" className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide border-b border-outline-variant/30 pb-2 flex items-center gap-2">
+            <Globe className="w-4 h-4 text-primary" aria-hidden="true" />
+            Akıştaki kaynaklar
+          </h3>
+          <p className="text-xs text-text-secondary leading-relaxed font-sans">
+            Başlıklar backend haber sağlayıcısından gelir ve özgün yayıncı sayfasına açılır. Yalnız bu akışta başlığı bulunan kaynaklar listelenir.
+          </p>
+          {feedSources.length === 0 ? (
+            <p className="text-xs text-text-muted">Veri yok: haber akışı boş.</p>
+          ) : (
+            <ul className="space-y-2 text-xs font-sans">
+              {feedSources.map(([source, count]) => (
+                <li key={source} className="flex items-center justify-between p-2.5 bg-bg-base/50 border border-outline-variant/20 rounded-lg">
+                  <span className="font-bold text-text-primary">{source}</span>
+                  <span className="text-text-muted font-data-mono">{count} başlık</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </div>
   );

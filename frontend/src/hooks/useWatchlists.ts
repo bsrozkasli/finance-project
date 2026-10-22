@@ -20,7 +20,7 @@ export function useWatchlists() {
       const data = await fetchWatchlists();
       setWatchlists(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load watchlists');
+      setError(e instanceof Error ? e.message : 'İzleme listeleri yüklenemedi');
     } finally {
       setLoading(false);
     }

@@ -16,7 +16,7 @@ export function useCompanyReport(symbol: string | null) {
       setReport(data);
       setLastFetched(new Date());
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load company report');
+      setError(e instanceof Error ? e.message : 'Şirket raporu yüklenemedi');
       setReport(null);
     } finally {
       setLoading(false);

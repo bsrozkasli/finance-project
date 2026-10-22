@@ -28,7 +28,7 @@ export function useAgentAnalysis(symbol: string | null) {
       const response = await apiClient.get<AgentAnalysis>(`/agent-analysis/${encodeURIComponent(ticker)}`);
       setData(response.data);
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Agent analysis failed';
+      const message = e instanceof Error ? e.message : 'Ajan analizi yüklenemedi';
       setError(message);
       setData(null);
     } finally {
@@ -44,7 +44,7 @@ export function useAgentAnalysis(symbol: string | null) {
       await apiClient.delete(`/agent-analysis/${encodeURIComponent(symbol)}/cache`);
       await fetchAnalysis(symbol);
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Invalidation failed';
+      const message = e instanceof Error ? e.message : 'Önbellek temizlenemedi';
       setError(message);
       setData(null);
     } finally {

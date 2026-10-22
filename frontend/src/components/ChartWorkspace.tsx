@@ -391,9 +391,9 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
             </div>
           </div>
           <div className="p-4 border-t border-outline-variant/30 bg-bg-card/30">
-            <div className="text-xs text-text-muted font-label-caps uppercase mb-1">Feed</div>
+            <div className="text-xs text-text-muted font-label-caps uppercase mb-1">Veri kaynağı</div>
             <p className="text-xs text-text-secondary font-sans leading-relaxed">
-              Candles, volume and overlays are rendered from API OHLCV data. Heikin Ashi is derived locally from those bars.
+              Mumlar, hacim ve katmanlar API'den gelen OHLCV verisiyle çizilir. Heikin Ashi bu çubuklardan yerelde türetilir.
             </p>
           </div>
         </div>

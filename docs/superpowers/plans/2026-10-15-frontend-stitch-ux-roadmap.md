@@ -85,3 +85,16 @@ Her dilim ayrı incelenebilir frontend PR'ı olur. İlişkisiz çalışma ağac�
 - P3: Route ve büyük modal bileşenleri parçalı yükleniyor. İlk JS paketi uygulama öncesi 657.96 kB iken son ölçümde 252.65 kB. Frontend lint, test, derleme ve tarayıcı smoke sonuçları teslim raporunda taze kanıtla kaydedilir. Gerçek backend ve canlı sağlayıcılarla entegre smoke bu dilimde çalıştırılmadı.
 
 Bu çalışma henüz tam ürün yayını veya P0–P3 kapsamının bütünü olarak yorumlanmaz. Yeni endpoint ya da DTO alanı eklenmedi. Bir sonraki dilim, kalan İngilizce ayrıntıları ve ortak durum bileşenlerini kapatıp entegre smoke koşullarını sağlar. Her PR değişen dosyaları, çalıştırılan kontrolleri ve açık kalan riski bildirir.
+
+## Uygulama kaydı — 2026-10-22
+
+Dal `feat/frontend-desk-completion`. P2'nin kalan kısmı ve Dark Council planının 3. bölümü:
+
+- Bugün: tek `h1`, özet sırası Güncel değer / Maliyet / Fiyat kapsamı / Toplam kâr-zarar; güncel toplam bilinmiyorsa "Fiyatı bulunan pozisyonların ara toplamı" ayrı etiketle gösterilir. Boş karşılaştırma kayıp renginde gösterilmez.
+- Haberler: akışta olmayan yayıncıları kaynak gibi gösteren sabit liste kaldırıldı; yalnız akıştaki kaynaklar ve başlık sayıları listelenir.
+- Portföy çekmecesi: tarayıcı `alert`/`confirm`/`prompt` yerine çekmece içi hata, durum ve satış onayı; fiyat bilinmeden sabit `132.85` maliyet önerilmez; adlandırılmış dialog ve Escape.
+- İşlem günlüğü: bilinmeyen kâr/zarar ve ortalama getiri `0` yerine `—`; portföyü bilinmeyen işlem için "Technology Portfolio" yerine "Portföy bilinmiyor".
+- Türkçeleştirme: Bugün, Haberler, Portföy, İzleme Listem, Günlük, işlem günlüğü dialogu, grafik notu, kullanıcıya ulaşan hook hata mesajları. Durum dili: Yüklenemedi / Veri yok / Kısmi veri / Yetersiz geçmiş.
+- Doğrulama: `npm run lint`, `check:api-boundaries`, `test:coverage` (25 dosya / 158 test), `build`, `check:bundle` (686.5 KiB ham JS), `npm run e2e` (15 geçti, 12 entegre test atlandı) ve 320/1440px'te Bugün, Portföy, İzleme Listem, Haberler, Günlük için yatay taşma 0. Entegre E2E (gerçek backend) CI'da çalışır; yerelde çalıştırılmadı.
+
+Açık kalanlar: `StockDetailModal` ile `useSmartReport`, `useAssetResearchDetail`, `useMarketOverviewData`, `useWatchlistResearchSnapshot` İngilizce metinleri açık PR'lar (#45, #46, #49) birleşince çevrilecek; tarihler hâlâ İngilizce ay adlarıyla biçimleniyor; günlük formu, piyasa fiyatı yokken API'ye `currentPrice` olarak alış fiyatını gönderiyor (sözleşme kararı gerektirir).

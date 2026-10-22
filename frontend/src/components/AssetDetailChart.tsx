@@ -62,7 +62,7 @@ export default function AssetDetailChart({ bars, symbol }: AssetDetailChartProps
         </div>
       </div>
       <div className="relative h-72 border border-outline-variant/20 bg-bg-base/30">
-        {visibleBars.length ? <div ref={hostRef} className="absolute inset-0" /> : <div className="flex h-full items-center justify-center text-xs text-text-muted">No provider-backed chart data.</div>}
+        {visibleBars.length ? <div ref={hostRef} className="absolute inset-0" /> : <div className="flex h-full items-center justify-center text-xs text-text-muted">Veri yok: sağlayıcıdan grafik verisi gelmedi.</div>}
       </div>
     </section>
   );

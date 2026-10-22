@@ -15,7 +15,7 @@ export const useAssets = () => {
         setAssets(data);
         setError(null);
       } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch assets');
+        setError(err instanceof Error ? err.message : 'Varlıklar yüklenemedi');
       } finally {
         setLoading(false);
       }
@@ -36,7 +36,7 @@ export const useAssets = () => {
       });
       setError(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to add assets');
+      setError(err instanceof Error ? err.message : 'Varlıklar eklenemedi');
       throw err;
     } finally {
       setLoading(false);
@@ -50,7 +50,7 @@ export const useAssets = () => {
       setAssets((prev) => prev.filter(a => a.symbol !== symbol));
       setError(null);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete asset');
+      setError(err instanceof Error ? err.message : 'Varlık silinemedi');
       throw err;
     } finally {
       setLoading(false);

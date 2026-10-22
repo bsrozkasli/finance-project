@@ -42,7 +42,7 @@ export function useJournalTrades() {
         setStats(statsData.value as JournalStats);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load journal trades');
+      setError(e instanceof Error ? e.message : 'Günlük kayıtları yüklenemedi');
     } finally {
       setLoading(false);
     }

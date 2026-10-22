@@ -87,7 +87,7 @@ export function useAssetMarketData(assets: Asset[]) {
       } catch (loadError) {
         if (!cancelled) {
           setStocks([]);
-          setError(getApiErrorMessage(loadError, 'Failed to load asset prices'));
+          setError(getApiErrorMessage(loadError, 'Varlık fiyatları yüklenemedi'));
         }
       } finally {
         if (!cancelled) setLoading(false);

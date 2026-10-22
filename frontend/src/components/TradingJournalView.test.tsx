@@ -101,14 +101,14 @@ describe('TradingJournalView', () => {
     const user = userEvent.setup();
     renderJournal();
 
-    await user.clear(screen.getByLabelText('Trade Amount'));
-    await user.type(screen.getByLabelText('Trade Amount'), '1000');
-    await user.clear(screen.getByLabelText('Purchase Price'));
-    await user.type(screen.getByLabelText('Purchase Price'), '200');
-    await user.clear(screen.getByLabelText('Commission'));
-    await user.type(screen.getByLabelText('Commission'), '2');
-    await user.type(screen.getByLabelText('Description'), 'Breakout setup');
-    await user.click(screen.getByRole('button', { name: 'Save to Portfolio Ledger' }));
+    await user.clear(screen.getByLabelText('İşlem tutarı'));
+    await user.type(screen.getByLabelText('İşlem tutarı'), '1000');
+    await user.clear(screen.getByLabelText('Alış fiyatı'));
+    await user.type(screen.getByLabelText('Alış fiyatı'), '200');
+    await user.clear(screen.getByLabelText('Komisyon'));
+    await user.type(screen.getByLabelText('Komisyon'), '2');
+    await user.type(screen.getByLabelText('Açıklama'), 'Breakout setup');
+    await user.click(screen.getByRole('button', { name: 'Portföy defterine kaydet' }));
 
     await waitFor(() => expect(mockedCreatePortfolioTransaction).toHaveBeenCalledWith(7, expect.objectContaining({
       symbol: 'AAPL',
@@ -122,6 +122,23 @@ describe('TradingJournalView', () => {
     })));
   });
 
+  it('shows unknown profit and loss as unavailable instead of zero', () => {
+    mockedUseJournalTrades.mockReturnValue({
+      ...defaultHookState,
+      trades: [{ id: 3, symbol: 'AAPL', type: 'BUY', quantity: 1, purchasePrice: 100, openedAt: '2026-07-01T10:00:00Z', status: 'OPEN' }],
+      stats: { totalTrades: 1, openTrades: 1, closedTrades: 0, winRate: 0, avgReturn: null as unknown as number },
+    });
+    renderJournal();
+
+    const row = screen.getByRole('row', { name: /AAPL/ });
+    expect(row).not.toHaveTextContent('$0.00');
+    expect(row).not.toHaveTextContent('0.00%');
+    expect(row).toHaveTextContent('—');
+    expect(screen.getByText('Ort. getiri').parentElement).toHaveTextContent('—');
+    expect(screen.getByRole('columnheader', { name: 'Kâr / zarar' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'AAPL işlemini sil' })).toBeInTheDocument();
+  });
+
   it('accepts a free typed symbol in journal-only mode', async () => {
     const addTrade = vi.fn().mockResolvedValue({ id: 1 });
     const reload = vi.fn();
@@ -129,13 +146,13 @@ describe('TradingJournalView', () => {
     const user = userEvent.setup();
     renderJournal({ portfolios: [] });
 
-    await user.clear(screen.getByLabelText('Symbol'));
-    await user.type(screen.getByLabelText('Symbol'), 'xyz');
-    await user.clear(screen.getByLabelText('Trade Amount'));
-    await user.type(screen.getByLabelText('Trade Amount'), '500');
-    await user.clear(screen.getByLabelText('Purchase Price'));
-    await user.type(screen.getByLabelText('Purchase Price'), '50');
-    await user.click(screen.getByRole('button', { name: 'Save Journal Trade' }));
+    await user.clear(screen.getByLabelText('Sembol'));
+    await user.type(screen.getByLabelText('Sembol'), 'xyz');
+    await user.clear(screen.getByLabelText('İşlem tutarı'));
+    await user.type(screen.getByLabelText('İşlem tutarı'), '500');
+    await user.clear(screen.getByLabelText('Alış fiyatı'));
+    await user.type(screen.getByLabelText('Alış fiyatı'), '50');
+    await user.click(screen.getByRole('button', { name: 'Günlüğe kaydet' }));
 
     await waitFor(() => expect(addTrade).toHaveBeenCalledWith(expect.objectContaining({
       symbol: 'XYZ',

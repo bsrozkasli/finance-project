@@ -19,7 +19,7 @@ export function usePortfolioPositions() {
       setPositions(data);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load positions');
+      setError(e instanceof Error ? e.message : 'Pozisyonlar yüklenemedi');
     } finally {
       setLoading(false);
     }

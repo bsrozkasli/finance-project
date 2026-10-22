@@ -44,12 +44,14 @@
 
 ### 3. Remaining pages and delivery
 
-- [ ] Apply shared surface/type/controls to watchlists, portfolio and persistent journal; remove duplicate oversized dashboard hero and prioritize portfolio.
-- [ ] Update E2E assertions for intentional labels/default research tab; add actual six-tab/source/search flow with boundary stubs.
-- [ ] Run `npm run lint`, `npm run test:coverage`, `npm run build`, `npm run e2e`; inspect rendered app on desktop/mobile.
-- [ ] Record exact evidence/limitations and update current-system frontend layout documentation.
+- [x] Apply shared surface/type/controls to watchlists, portfolio and persistent journal; remove duplicate oversized dashboard hero and prioritize portfolio.
+- [x] Update E2E assertions for intentional labels/default research tab; add actual six-tab/source/search flow with boundary stubs.
+- [x] Run `npm run lint`, `npm run test:coverage`, `npm run build`, `npm run e2e`; inspect rendered app on desktop/mobile.
+- [x] Record exact evidence/limitations and update current-system frontend layout documentation.
 
 ## Execution record
 
 - `uv` installed in `.cache/agent-tools/uv-env` (0.13.1). BMad project renderer and setup skill are absent; user authorized continuing with installation/venv alternatives. No raw BMad workflow was executed.
 - Current design task branch reused because it contains the approved uncommitted designs and frontend work. Pre-implementation `frontend/src` and `e2e` snapshot stored under `.cache/dark-implementation/baseline`; unrelated edits remain untouched.
+- Sections 1–2 and the six-tab/source/search E2E shipped with `ea41714` (PR #44).
+- 2026-10-22, branch `feat/frontend-desk-completion`: section 3 completed — single Bugün heading with the portfolio-first summary, truthful news sources, in-drawer portfolio feedback, journal unknown-PnL fix, Turkish copy across watchlists/portfolio/journal/news. Evidence: lint, api-boundaries, coverage 25 files / 158 tests, build, bundle 686.5 KiB, `npm run e2e` 15 passed / 12 integrated skipped, zero horizontal overflow at 320 and 1440px on the five tasks. Limitations are recorded in `2026-10-15-frontend-stitch-ux-roadmap.md` (2026-10-22 record).

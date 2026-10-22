@@ -159,8 +159,11 @@ describe('WatchlistsView', () => {
     renderView();
 
     expect(screen.getByRole('heading', { name: 'İzleme listem' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Core Growth Coverage' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Core Growth kapsamı' })).toBeInTheDocument();
     expect(screen.getByText('Sağlıklı')).toBeInTheDocument();
+    expect(screen.getByText('Araştırma özeti')).toBeInTheDocument();
+    expect(screen.getByText('Semboller')).toBeInTheDocument();
+    expect(screen.getByText(/^Son gözlem /)).toBeInTheDocument();
 
     const table = screen.getByRole('table');
     expect(within(table).getByText('AAPL')).toBeInTheDocument();
@@ -172,7 +175,7 @@ describe('WatchlistsView', () => {
   it('exposes the active watchlist selector by its visible label', () => {
     renderView();
 
-    expect(screen.getByRole('combobox', { name: 'Active List' })).toHaveDisplayValue('Core Growth');
+    expect(screen.getByRole('combobox', { name: 'Aktif liste' })).toHaveDisplayValue('Core Growth');
   });
 
   it('filters snapshot rows and normalizes added symbols', async () => {
@@ -186,7 +189,7 @@ describe('WatchlistsView', () => {
     expect(within(table).getByText('MSFT')).toBeInTheDocument();
 
     await user.type(screen.getByPlaceholderText('AAPL, MSFT...'), 'nvda');
-    await user.click(screen.getByRole('button', { name: 'Add symbol' }));
+    await user.click(screen.getByRole('button', { name: 'Sembol ekle' }));
 
     expect(onAddStockToWatchlist).toHaveBeenCalledWith('1', 'NVDA');
   });
@@ -203,7 +206,7 @@ describe('WatchlistsView', () => {
     });
 
     renderView({ onRemoveStockFromWatchlist });
-    await user.click(screen.getByRole('button', { name: 'Remove AAPL from watchlist' }));
+    await user.click(screen.getByRole('button', { name: 'AAPL sembolünü listeden kaldır' }));
 
     expect(onRemoveStockFromWatchlist).toHaveBeenCalledWith('1', 'AAPL');
     expect(reload).toHaveBeenCalledOnce();
@@ -214,9 +217,9 @@ describe('WatchlistsView', () => {
     const onRemoveStockFromWatchlist = vi.fn().mockRejectedValue(new Error('delete failed'));
     renderView({ onRemoveStockFromWatchlist });
 
-    await user.click(screen.getByRole('button', { name: 'Remove AAPL from watchlist' }));
+    await user.click(screen.getByRole('button', { name: 'AAPL sembolünü listeden kaldır' }));
 
-    expect(screen.getByText('Could not remove AAPL.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Remove AAPL from watchlist' })).toBeInTheDocument();
+    expect(screen.getByText('AAPL kaldırılamadı.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'AAPL sembolünü listeden kaldır' })).toBeInTheDocument();
   });
 });

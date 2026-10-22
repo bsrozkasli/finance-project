@@ -236,9 +236,9 @@ export default function DashboardHome({
   }, [allocationMode, displayedPositionPerformance, fallbackPositionPerformance]);
 
   const allocationModes = [
-    { id: 'daily' as const, label: 'Daily' },
-    { id: 'total' as const, label: 'Total' },
-    { id: 'allocation' as const, label: 'Allocation' },
+    { id: 'daily' as const, label: 'Günlük getiri' },
+    { id: 'total' as const, label: 'Toplam getiri' },
+    { id: 'allocation' as const, label: 'Ağırlık' },
   ];
 
   const formatDateLabel = (dateStr: string | null | undefined) => {
@@ -275,7 +275,6 @@ export default function DashboardHome({
     return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Date formatter helper for visual chart labels in English
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -291,7 +290,7 @@ export default function DashboardHome({
   const comparisonBenchmarks = [
     { id: 'SP500', label: 'S&P 500' },
     { id: 'NASDAQ', label: 'NASDAQ' },
-    { id: 'GOLD', label: 'GOLD' },
+    { id: 'GOLD', label: 'Altın' },
     { id: 'BIST100', label: 'BIST 100' },
   ];
 
@@ -301,7 +300,7 @@ export default function DashboardHome({
     { id: '6M', label: '6M' },
     { id: 'YTD', label: 'YTD' },
     { id: '1Y', label: '1Y' },
-    { id: 'ALL', label: 'MAX' },
+    { id: 'ALL', label: 'Tümü' },
   ];
 
   useEffect(() => {
@@ -497,11 +496,11 @@ export default function DashboardHome({
   const formatMacroValue = (value: number | null | undefined, suffix = '%') => value == null ? '-' : value.toFixed(2) + suffix;
 
   const macroItems = [
-    { label: 'Fed Funds', value: formatMacroValue(macroSnapshot?.fedFundsRate) },
-    { label: '10Y Treasury', value: formatMacroValue(macroSnapshot?.treasury10y) },
-    { label: 'CPI YoY', value: formatMacroValue(macroSnapshot?.cpiYoy) },
-    { label: 'Unemployment', value: formatMacroValue(macroSnapshot?.unemploymentRate) },
-    { label: 'Yield Spread', value: formatMacroValue(macroSnapshot?.yieldCurveSpread) },
+    { label: 'Fed faizi', value: formatMacroValue(macroSnapshot?.fedFundsRate) },
+    { label: 'ABD 10 yıllık tahvil', value: formatMacroValue(macroSnapshot?.treasury10y) },
+    { label: 'TÜFE (yıllık)', value: formatMacroValue(macroSnapshot?.cpiYoy) },
+    { label: 'İşsizlik', value: formatMacroValue(macroSnapshot?.unemploymentRate) },
+    { label: 'Getiri eğrisi farkı', value: formatMacroValue(macroSnapshot?.yieldCurveSpread) },
   ];
 
   const hasMacroValues = macroItems.some((item) => item.value !== '-');
@@ -510,118 +509,93 @@ export default function DashboardHome({
   return (
     <div className="flex-1 overflow-y-auto bg-bg-primary p-4 md:p-7 pb-24 md:pb-7 space-y-6">
 
-      <div className="max-w-[1440px] mx-auto space-y-5">
+      <header className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/20 pb-4">
         <div>
-          <p className="font-label-caps text-xs tracking-widest text-text-muted uppercase">Çalışma alanı / Bugün</p>
-          <h1 className="font-headline text-[26px] font-bold tracking-tight text-text-primary mt-2">Bugün neye odaklanalım?</h1>
-          <p className="text-sm text-text-secondary mt-1">Bir sonraki araştırma adımını seçin; kanıtın kapsamını her zaman görün.</p>
-        </div>
-        <button type="button" onClick={onNavigateToResearch} className="desk-button">Varlık araştır →</button>
-      </div>
-
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-outline-variant/20 pb-4">
-        <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h2 className="font-headline text-2xl font-bold text-text-primary tracking-tight flex items-center gap-2">
-              <span>Portföy görünümü:</span>
-              <span className="text-primary font-sans font-extrabold">{activePortfolio ? activePortfolio.name : ''}</span>
-            </h2>
-
-            {/* Portfolio Up/Down switch buttons */}
-            <div className="flex items-center gap-1 bg-surface-container-low border border-outline-variant/30 rounded-lg p-1  shrink-0">
+          <h1 className="font-headline text-[26px] font-bold tracking-tight text-text-primary">Bugün</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+            <span>Aktif portföy:</span>
+            <span className="text-primary font-sans font-extrabold">{activePortfolio ? activePortfolio.name : 'Seçili portföy yok'}</span>
+            <div className="flex items-center gap-1 bg-surface-container-low border border-outline-variant/30 rounded-lg p-1 shrink-0">
               <button
+                type="button"
                 onClick={handlePrevPortfolio}
-                title="Previous Portfolio"
+                aria-label="Önceki portföy"
+                title="Önceki portföy"
                 className="p-1 hover:bg-primary/10 rounded text-text-secondary hover:text-primary transition-colors cursor-pointer"
               >
-                <ChevronUp className="w-4 h-4" />
+                <ChevronUp className="w-4 h-4" aria-hidden="true" />
               </button>
               <button
+                type="button"
                 onClick={handleNextPortfolio}
-                title="Next Portfolio"
+                aria-label="Sonraki portföy"
+                title="Sonraki portföy"
                 className="p-1 hover:bg-primary/10 rounded text-text-secondary hover:text-primary transition-colors cursor-pointer"
               >
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-4 h-4" aria-hidden="true" />
               </button>
             </div>
           </div>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Pozisyonlar, piyasa bağlamı ve ayrıntılı analiz panelleri.
-          </p>
         </div>
-      </div>
+        <button type="button" onClick={onNavigateToResearch} className="desk-button">Varlık araştır →</button>
+      </header>
 
-      {/* Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Metric 1 */}
-        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
-          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
-            Güncel değer
+      {/* Portfolio summary: current value, cost and price coverage come first (design council D11). */}
+      <div role="group" aria-label="Portföy özeti" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">Güncel değer</span>
+          <span className="mt-2 font-data-mono text-2xl font-bold text-text-primary">
+            {portfolioMetrics.totalValue == null ? '—' : formatCurrency(portfolioMetrics.totalValue)}
           </span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-data-mono text-2xl font-bold text-text-primary">
-              {portfolioMetrics.totalValue == null ? '—' : formatCurrency(portfolioMetrics.totalValue)}
+          {portfolioMetrics.totalValue == null && portfolioMetrics.pricedCount > 0 ? (
+            <div className="mt-2 text-xs text-text-secondary">
+              <span>Fiyatı bulunan pozisyonların ara toplamı</span>{' '}
+              <strong className="font-data-mono text-text-primary">{formatCurrency(portfolioMetrics.pricedSubtotal)}</strong>
+            </div>
+          ) : (
+            <span className="mt-2 text-xs text-text-muted">
+              {portfolioMetrics.holdingsCount === 0 ? 'Veri yok: portföyde pozisyon yok' : portfolioMetrics.totalValue == null ? 'Kısmi veri: güncel fiyat eksik' : 'Tüm pozisyonlar fiyatlı'}
             </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-text-muted">
-            <span>{portfolioMetrics.pricedCount}/{portfolioMetrics.holdingsCount} pozisyonun güncel fiyatı var</span>
-          </div>
+          )}
         </div>
 
-        {/* Metric 2 */}
-        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
-          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
-            TOPLAM KÂR / ZARAR
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">Maliyet</span>
+          <span className="mt-2 font-data-mono text-2xl font-bold text-text-primary">
+            {formatCurrency(activePortfolio ? portfolioMetrics.positions.reduce((sum, position) => sum + position.quantity * position.costPrice, 0) : null)}
           </span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalProfitLoss == null ? 'text-text-muted' : portfolioMetrics.totalProfitLoss >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalProfitLoss == null ? '—' : `${portfolioMetrics.totalProfitLoss >= 0 ? '+' : ''}${formatCurrency(portfolioMetrics.totalProfitLoss)}`}
-            </span>
-          </div>
+          <span className="mt-2 text-xs text-text-muted">Alış maliyeti; güncel fiyatın yerine geçmez</span>
+        </div>
+
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">Fiyat kapsamı</span>
+          <span className="mt-2 font-data-mono text-2xl font-bold text-text-primary">
+            {portfolioMetrics.pricedCount}/{portfolioMetrics.holdingsCount}
+          </span>
+          <span className="mt-2 text-xs text-text-muted">{portfolioMetrics.pricedCount}/{portfolioMetrics.holdingsCount} pozisyonun güncel fiyatı var</span>
+        </div>
+
+        <div className="bg-bg-card border border-outline-variant rounded-md p-5 flex flex-col justify-between">
+          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">Toplam kâr / zarar</span>
+          <span className={`mt-2 font-data-mono text-2xl font-bold ${portfolioMetrics.totalProfitLoss == null ? 'text-text-muted' : portfolioMetrics.totalProfitLoss >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+            {portfolioMetrics.totalProfitLoss == null ? '—' : `${portfolioMetrics.totalProfitLoss >= 0 ? '+' : ''}${formatCurrency(portfolioMetrics.totalProfitLoss)}`}
+          </span>
           <div className="mt-2 flex items-center gap-1 text-xs">
-            {portfolioMetrics.totalProfitLoss == null ? <span className="text-text-muted">Eksik fiyat verisi</span> : portfolioMetrics.totalProfitLoss >= 0 ? (
+            {portfolioMetrics.totalProfitLoss == null || portfolioMetrics.totalReturnPercent == null ? (
+              <span className="text-text-muted">Kısmi veri: getiri hesaplanamaz</span>
+            ) : portfolioMetrics.totalProfitLoss >= 0 ? (
               <span className="text-bull-green flex items-center font-semibold">
-                <ArrowUpRight className="w-3.5 h-3.5" /> Net kazanç</span>
+                <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" /> Net kazanç {`+${portfolioMetrics.totalReturnPercent.toFixed(2)}%`}
+              </span>
             ) : (
               <span className="text-bear-red flex items-center font-semibold">
-                <ArrowDownRight className="w-3.5 h-3.5" /> Net kayıp</span>
+                <ArrowDownRight className="w-3.5 h-3.5" aria-hidden="true" /> Net kayıp {`${portfolioMetrics.totalReturnPercent.toFixed(2)}%`}
+              </span>
             )}
           </div>
         </div>
-
-        {/* Metric 3 */}
-        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
-          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
-            TOPLAM GETİRİ ORANI
-          </span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className={`font-data-mono text-2xl font-bold ${portfolioMetrics.totalReturnPercent == null ? 'text-text-muted' : portfolioMetrics.totalReturnPercent >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-              {portfolioMetrics.totalReturnPercent == null ? '—' : `${portfolioMetrics.totalReturnPercent >= 0 ? '+' : ''}${portfolioMetrics.totalReturnPercent.toFixed(2)}%`}
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-text-secondary">
-            <span>Fiyat kapsamına göre hesaplanır</span>
-          </div>
-        </div>
-
-        {/* Metric 4 */}
-        <div className="bg-bg-card border border-outline-variant rounded-md p-5 hover:border-primary/20 transition-all  flex flex-col justify-between">
-          <span className="font-label-caps text-xs text-text-muted uppercase tracking-wider font-semibold">
-            Pozisyon sayısı
-          </span>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="font-data-mono text-2xl font-bold text-text-primary">
-              {portfolioMetrics.holdingsCount}
-            </span>
-          </div>
-          <div className="mt-2 flex items-center gap-1.5 text-xs text-text-secondary">
-            <span>Aktif portföydeki varlıklar</span>
-          </div>
-        </div>
       </div>
 
-      <div className="desk-dashboard-evidence"><div><span>Maliyet</span><strong>{formatCurrency(activePortfolio ? portfolioMetrics.positions.reduce((sum,position)=>sum+position.quantity*position.costPrice,0) : null)}</strong></div><div><span>Fiyat kapsamı</span><strong>{portfolioMetrics.pricedCount}/{portfolioMetrics.holdingsCount} pozisyon</strong></div></div>
       {/* Macro Snapshot */}
       <div className="bg-bg-card border border-outline-variant rounded-md p-5  space-y-4">
         <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -648,7 +622,7 @@ export default function DashboardHome({
           </div>
         ) : (
           <div className="rounded-lg border border-outline-variant/30 bg-bg-base/40 p-3 text-xs text-text-secondary">
-            {macroSnapshotError ? 'Macro provider unavailable; no fabricated macro values are shown.' : 'Macro values are not available yet.'}
+            {macroSnapshotError ? 'Yüklenemedi: makro sağlayıcısına ulaşılamadı; değer uydurulmaz.' : 'Veri yok: makro değerler henüz alınmadı.'}
           </div>
         )}
       </div>
@@ -661,18 +635,18 @@ export default function DashboardHome({
             <div>
               <h3 className="font-headline text-sm font-bold text-text-primary flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-primary" />
-                <span>Portfolio Return Comparison</span>
+                <span>Portföy getirisi karşılaştırması</span>
               </h3>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className={`text-xs font-data-mono font-semibold ${comparisonSummary && comparisonSummary.returnPct >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                  {comparisonSummary ? `${comparisonSummary.label}: ${comparisonSummary.returnPct >= 0 ? '+' : ''}${comparisonSummary.returnPct.toFixed(2)}%` : 'Cumulative return'}
+                <span className={`text-xs font-data-mono font-semibold ${comparisonSummary == null ? 'text-text-muted' : comparisonSummary.returnPct >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                  {comparisonSummary ? `${comparisonSummary.label}: ${comparisonSummary.returnPct >= 0 ? '+' : ''}${comparisonSummary.returnPct.toFixed(2)}%` : 'Kümülatif getiri'}
                 </span>
               </div>
             </div>
 
             <div className="flex flex-col gap-2 xl:items-end">
               <div className="flex flex-wrap items-center gap-2 text-xs font-label-caps font-bold tracking-wider text-text-muted">
-                <span>Benchmark:</span>
+                <span>Karşılaştırma:</span>
                 {comparisonBenchmarks.map((benchmark) => {
                   const active = selectedBenchmarks.includes(benchmark.id);
                   return (
@@ -744,21 +718,21 @@ export default function DashboardHome({
             )}
 
             {comparisonLoading ? (
-              <div className="flex h-full items-center justify-center text-xs text-text-muted">Loading return series...</div>
+              <div className="flex h-full items-center justify-center text-xs text-text-muted">Getiri serileri yükleniyor…</div>
             ) : comparisonError ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-secondary">
-                Performance data is unavailable; no fabricated values are shown.
+                Yüklenemedi: performans verisi alınamadı; değer uydurulmaz.
               </div>
             ) : comparisonChart.series.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-secondary">
-                Select a portfolio or benchmark to compare.
+                Karşılaştırmak için bir portföy veya endeks seçin.
               </div>
             ) : (
               <svg
                 className="h-full w-full"
                 viewBox="0 0 600 240"
                 preserveAspectRatio="none"
-                aria-label="Portfolio cumulative return comparison chart"
+                aria-label="Portföy kümülatif getiri karşılaştırma grafiği"
                 onMouseMove={(event) => updateHoveredComparisonDate(event.clientX, event.currentTarget.getBoundingClientRect())}
                 onMouseLeave={() => setHoveredComparisonDate(null)}
               >
@@ -844,9 +818,9 @@ export default function DashboardHome({
           <div className="mb-4 flex items-start justify-between gap-3 border-b border-outline-variant/30 pb-3">
             <div>
               <h3 className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide">
-                Asset Allocation
+                Varlık dağılımı
               </h3>
-              <p className="mt-1 text-xs text-text-muted">Weight and performance</p>
+              <p className="mt-1 text-xs text-text-muted">Ağırlık ve performans</p>
             </div>
             <div className="flex rounded-lg border border-outline-variant/35 bg-bg-base p-1">
               {allocationModes.map((mode) => (
@@ -864,7 +838,7 @@ export default function DashboardHome({
           <div className="min-h-72 flex-1">
             {allocationData.length === 0 ? (
               <div className="flex h-full min-h-56 items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-muted">
-                {activePortfolio?.holdings.length ? 'Allocation is unavailable until every holding has a real market price.' : 'No assets have been added.'}
+                {activePortfolio?.holdings.length ? 'Kısmi veri: her pozisyonun gerçek piyasa fiyatı olmadan dağılım hesaplanamaz.' : 'Veri yok: portföye varlık eklenmedi.'}
               </div>
             ) : (
               <div className="grid h-full min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-3">
@@ -920,7 +894,7 @@ export default function DashboardHome({
                     : 'border-transparent text-text-secondary hover:text-text-primary'
                   }`}
               >
-                Economic Calendar
+                Ekonomik takvim
               </button>
             </div>
 
@@ -965,7 +939,7 @@ export default function DashboardHome({
                   className="w-full py-2 border border-outline-variant/50 hover:border-primary/40 rounded-lg text-center text-xs font-bold text-primary hover:text-text-primary transition-all flex items-center justify-center gap-1.5"
                 >
                   <Globe className="w-3.5 h-3.5" />
-                  <span>Filter and Read All News</span>
+                  <span>Tüm haberleri filtrele ve oku</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -1007,11 +981,11 @@ export default function DashboardHome({
             <div>
               <h3 className="font-headline text-xs font-bold text-text-primary uppercase tracking-wide flex items-center gap-1.5">
                 <Briefcase className="w-4 h-4 text-primary" />
-                <span>Current Asset Positions</span>
+                <span>Pozisyonlar</span>
               </h3>
               <span className="text-xs text-text-muted font-sans font-medium">
                 Showing {displayedPositionPerformance.length} assets in the active portfolio
-                {positionPerformanceError ? ' - live position metrics unavailable' : ''}
+                {positionPerformanceError ? ' — pozisyon metrikleri yüklenemedi' : ''}
               </span>
             </div>
 
@@ -1019,7 +993,7 @@ export default function DashboardHome({
               <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-text-muted" />
               <input
                 type="text"
-                placeholder="Filter positions..."
+                placeholder="Pozisyonlarda ara…"
                 value={tableSearch}
                 onChange={(e) => setTableSearch(e.target.value)}
                 className="bg-bg-base border border-outline-variant rounded px-2.5 py-1 pl-8 text-xs text-text-primary placeholder:text-text-muted w-44 focus:outline-none focus:border-primary transition-all"
@@ -1031,31 +1005,31 @@ export default function DashboardHome({
             <table className="w-full min-w-[980px] text-left border-collapse text-xs">
               <thead>
                 <tr className="border-b border-outline-variant/35 text-xs font-label-caps text-text-muted tracking-wider uppercase bg-bg-base/20">
-                  <th className="py-2.5 px-3">Added</th>
-                  <th className="py-2.5 px-3">Asset</th>
-                  <th className="py-2.5 px-3 text-right">Cost</th>
-                  <th className="py-2.5 px-3 text-right">Price</th>
-                  <th className="py-2.5 px-3 text-right">Weight</th>
-                  <th className="py-2.5 px-3 text-right">Daily</th>
-                  <th className="py-2.5 px-3 text-right">Weekly</th>
+                  <th className="py-2.5 px-3">Eklenme</th>
+                  <th className="py-2.5 px-3">Varlık</th>
+                  <th className="py-2.5 px-3 text-right">Ort. maliyet</th>
+                  <th className="py-2.5 px-3 text-right">Fiyat</th>
+                  <th className="py-2.5 px-3 text-right">Ağırlık</th>
+                  <th className="py-2.5 px-3 text-right">Günlük</th>
+                  <th className="py-2.5 px-3 text-right">Haftalık</th>
                   <th className="py-2.5 px-3 text-right">1M</th>
                   <th className="py-2.5 px-3 text-right">3M</th>
                   <th className="py-2.5 px-3 text-right">6M</th>
                   <th className="py-2.5 px-3 text-right">1Y</th>
-                  <th className="py-2.5 px-3 text-right">Total</th>
+                  <th className="py-2.5 px-3 text-right">Toplam</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-outline-variant/15">
                 {positionPerformanceLoading ? (
                   <tr>
                     <td colSpan={12} className="py-8 text-center text-xs text-text-muted font-sans">
-                      Loading position metrics...
+                      Pozisyon metrikleri yükleniyor…
                     </td>
                   </tr>
                 ) : filteredPositions.length === 0 ? (
                   <tr>
                     <td colSpan={12} className="py-8 text-center text-xs text-text-muted font-sans">
-                      No matching position found. Use the top bar or stock detail actions to add a new trade order.
+                      Eşleşen pozisyon yok. Yeni pozisyon için Portföy ekranından işlem kaydı ekleyin.
                     </td>
                   </tr>
                 ) : (
@@ -1103,7 +1077,7 @@ export default function DashboardHome({
 
           <div className="mt-4 pt-3 border-t border-outline-variant/20 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs">
             <span className="text-xs text-text-muted font-sans">
-              Select a row to open AI analysis and technical chart details for that stock.
+              Bir satır seçerek o varlığın AI analizini ve teknik grafik ayrıntılarını açın.
             </span>
             <button
               onClick={onOpenTradingJournal}
