@@ -1,8 +1,13 @@
-# ADR-0006: Offline, Leakage-Safe Direction Model Baseline
+# ADR-0008: Offline, Leakage-Safe Direction Model Baseline
 
 Date: 2026-07-24
-Status: Accepted
+Status: Superseded
 Deciders: Development team
+Superseded by: [ADR-0007](0007-local-model-lifecycle.md) for location, isolation, and lifecycle (2026-10-22)
+
+> **Numbering note (2026-10-22).** This record was written as a second "ADR-0006" and was never added to the ADR index. It was renumbered to ADR-0008 so that ADR-0006 refers only to the data-service price-history decision. The content below is unchanged.
+>
+> **What still applies.** The leakage-safe evaluation method still applies to any direction model: close-of-day features, date-based expanding validation, a five-session embargo, a separate calibration window, and an untouched holdout. Superseded by ADR-0007: the `data-service/finance_ml` location, and training on data without a recorded licence (ADR-0007 D8). `data-service/finance_ml` stays offline and is not imported by the data-service application. It moves to `ml/` before any further work on it.
 
 ## Context
 
