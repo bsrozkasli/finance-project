@@ -150,7 +150,7 @@ test('loads the dashboard and navigates primary frontend routes', async ({ page 
   testInfo.setTimeout(60_000);
   await page.goto('/dashboard', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: 'Bugün neye odaklanalım?' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Bugün', exact: true })).toBeVisible();
   await expect(page.getByText('AAPL').first()).toBeVisible();
 
   for (const path of [
