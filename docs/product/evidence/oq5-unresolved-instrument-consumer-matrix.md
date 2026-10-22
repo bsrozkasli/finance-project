@@ -1,10 +1,20 @@
 # OQ-5 Consumer Matrix — Unresolved Instrument Type
 
-**Status:** Evidence artifact and proposal, drafted 2026-10-17. Nothing here is a decision; the disposition in the last section needs owner approval.
+**Status:** Closed for the unresolved instrument type on 2026-10-22. See [the OQ-5 decision record](../decisions/2026-10-22-oq5-unresolved-instrument-migration.md). Drafted 2026-10-17 as a proposal; the disposition below is now decided and Phases 1–3 are implemented.
 
 **Purpose:** The [2026-10-15 decision](../decisions/2026-10-15-instrument-identity-source-and-unresolved-type.md) approves removing the implicit `STOCK` classification of unresolved symbols but requires, before any public or persisted change, a route/DTO/consumer compatibility matrix and a coordinated migration. This file is that matrix for EPIC-001 Task 1 (`PRD-FR-001`–`003`).
 
-## Where an unresolved type is manufactured today
+## Audit Metadata
+
+- Audit Commit: `378b05c` (Phases 1–2 on `main`); Phase 3 on branch `feat/oq5-relabel-unresolved-assets`
+- Reviewer: Claude (Backend/Architecture decision delegated by the product owner on 2026-10-22)
+- Review Date: 2026-10-22
+- Environment: Windows; Spring Boot backend with Flyway on PostgreSQL 16 (Testcontainers in CI); React frontend with Vitest.
+- Scope: Every route, DTO, persisted column, and frontend consumer of the asset `type` value for unresolved instruments.
+
+## Evidence Records
+
+### Where an unresolved type is manufactured today
 
 | # | Location | Behavior | Evidence |
 |---|---|---|---|
@@ -17,7 +27,7 @@
 
 P2 and P3 conflict with the decision ("do not infer a type from its ticker spelling"): they infer from exchange text, not the ticker, but the unmatched branch still asserts `STOCK` with no evidence.
 
-## Consumer matrix
+### Consumer matrix
 
 | Consumer | Runtime | Reads | Current handling of `STOCK`+`UNAVAILABLE` | Impact of a new `UNRESOLVED` value | Needed change |
 |---|---|---|---|---|---|
@@ -35,11 +45,11 @@ P2 and P3 conflict with the decision ("do not infer a type from its ticker spell
 | data-service | FastAPI | n/a | Does not own `AssetType` | None | None |
 | `docs/openapi.yaml`, `docs/spec/current-system/contracts.md` | Docs | n/a | No enumerated type values | Add the value | Update in the same change |
 
-## Persisted-data risk
+### Persisted-data risk
 
 Existing rows with `type='STOCK'` and `metadata_status='UNAVAILABLE'` were created by P1 and carry no classification evidence. Rows with `STOCK` and `VERIFIED` or `PARTIAL` are provider- or mapping-backed and stay as they are. A new migration (never an edit of V4) can relabel only the first group. Before running it, count the affected rows on the target database; the count is not known from the repository.
 
-## Proposed disposition (needs owner approval)
+### Disposition (proposed 2026-10-17, decided 2026-10-22)
 
 1. Add `AssetType.UNRESOLVED` (additive wire value, no schema change). Reject making `type` nullable: it breaks every consumer that assumes a string.
 2. Phase 1, additive and behavior-preserving for verified rows: introduce the enum value, the eligibility service, and P1/P4 returning `UNRESOLVED`. Update `contracts.md` and `openapi.yaml`, and add the frontend label.
@@ -47,7 +57,7 @@ Existing rows with `type='STOCK'` and `metadata_status='UNAVAILABLE'` were creat
 4. Phase 3: Flyway migration relabelling `STOCK`+`UNAVAILABLE` rows, after the row count is reviewed.
 5. Acceptance: a test per consumer above shows `UNRESOLVED` is carried unchanged and never counted as an eligible stock or ETF.
 
-## Rulings (2026-10-17, delegated by the owner)
+### Rulings (2026-10-17, delegated by the owner)
 
 - Wire value is `UNRESOLVED`; `type` stays non-null and a string.
 - Phase 1 implemented: `AssetType.UNRESOLVED`, `AssetResolutionService` and the `WatchlistResearchService` fallback return it; round-trip persistence proven by `AssetRepositoryAdapterTest`.
@@ -59,8 +69,17 @@ Existing rows with `type='STOCK'` and `metadata_status='UNAVAILABLE'` were creat
 - Not started: Phase 3 row relabelling and the eligibility service (waits on OQ-2/OQ-3).
 - No external client of `/api/v1/assets` is visible in the repository; this cannot be proven from code.
 
-## Open items the owner must answer
+## Decisions (2026-10-22)
 
-- Is the wire value `UNRESOLVED` acceptable, or is another name required?
-- May Phase 3 relabel stored rows, or must they stay as recorded?
-- Do external clients outside this repository read `/api/v1/assets` `type`? The repository shows none; this cannot be verified from code.
+The three open items from the 2026-10-17 draft are answered:
+
+- **Wire value:** `UNRESOLVED` stays. `type` remains a non-null string.
+- **Phase 3:** implemented as `V7__relabel_unresolved_asset_types.sql`. Only `type='STOCK' AND metadata_status='UNAVAILABLE'` rows change. V4 gave every pre-V4 row `UNAVAILABLE`, so those rows have no recorded classification evidence either and are relabelled too. The change is reversible, because `metadata_status` stays `UNAVAILABLE`; the migration comment carries the inverse statement. Re-adding a symbol through `POST /api/v1/assets/batch` re-resolves it from the provider. Verified by `UnresolvedAssetTypeMigrationTest`, a real PostgreSQL upgrade from V6.
+- **External clients:** none are visible in the repository, and the value is additive on a string field. This is recorded as an assumption, not a proof. If an external consumer appears, its owner gets the same `UNRESOLVED` semantics and the inverse statement above.
+- **Frontend:** asset types are shown in Turkish. `UNRESOLVED` and a missing type both read "Tür bilinmiyor"; the raw value is never shown (`assetTypeLabel`).
+
+## Limitations
+
+- This closes OQ-5 only for the unresolved instrument type (`PRD-FR-003`). The other OQ-5 contract migrations stay open until their stories are authored: CSV lineage (`PRD-FR-012`), PEG (`PRD-FR-061`), and agent replay and decision vocabulary (`PRD-FR-027`, `PRD-FR-028`).
+- Eligibility still fails closed. `InstrumentEligibilityService` has no `SecurityMasterPort` adapter, because OQ-2 (licensed point-in-time master and use rights) is a data-governance and legal decision and remains open.
+- The number of rows V7 changes on a deployed database is not known from the repository. It is logged by Flyway as the affected-row count of the update.

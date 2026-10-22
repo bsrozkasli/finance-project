@@ -108,6 +108,7 @@ Applied migrations are immutable.
 | `V4__symbol_mapping_and_asset_metadata.sql` | Asset metadata columns, `symbol_mapping`, indexes, and the DRAM manual override |
 | `V5__complete_persistence_schema.sql` | `fundamental_snapshots`, `portfolio_positions`, `journal_trades`, `journal_trade_tags`, `watchlists`, `watchlist_symbols`, `opportunity_notifications`, and later `financial_statements` columns |
 | `V6__allow_unknown_journal_market_values.sql` | Allows journal current/derived market values to remain `NULL` when current price evidence is unavailable |
+| `V7__relabel_unresolved_asset_types.sql` | Relabels `assets` rows stored as `STOCK` with `UNAVAILABLE` metadata as `UNRESOLVED` (OQ-5) |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.
