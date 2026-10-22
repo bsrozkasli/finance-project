@@ -159,6 +159,9 @@ describe('PortfolioManagerView', () => {
     expect(screen.getByRole('heading', { name: 'Growth' })).toBeInTheDocument();
     expect(screen.getByText('Performans analizi (USD)')).toBeInTheDocument();
     expect(screen.getByText('Varlık dağılımı')).toBeInTheDocument();
+    for (const mode of ['Günlük getiri', 'Toplam getiri', 'Ağırlık']) {
+      expect(screen.getByRole('button', { name: mode })).toBeInTheDocument();
+    }
     expect(screen.getByRole('button', { name: 'Pozisyonlar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'İşlem geçmişi' })).toBeInTheDocument();
     expect(screen.queryByText('Trading & Portfolio Control Center')).not.toBeInTheDocument();
@@ -196,6 +199,7 @@ describe('PortfolioManagerView', () => {
     expect(screen.getByRole('columnheader', { name: 'Ortalama maliyet' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'İşlem fiyatı' })).toBeInTheDocument();
     expect(screen.getByText('Trimmed position')).toBeInTheDocument();
+    expect(screen.getAllByText('02 Oca 2026').length).toBeGreaterThan(0);
   });
 
   it('enforces portfolio create and delete rules in the UI', async () => {

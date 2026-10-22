@@ -7,7 +7,7 @@ const mapNews = (item: CategorizedNewsItem): News => ({
   id: String(item.id),
   title: item.headline,
   source: item.source,
-  time: new Date(item.datetime > 10_000_000_000 ? item.datetime : item.datetime * 1000).toLocaleString('en-US'),
+  time: new Date(item.datetime > 10_000_000_000 ? item.datetime : item.datetime * 1000).toLocaleString('tr-TR'),
   summary: item.summary || undefined,
   category: item.category === 'TECHNOLOGY' || item.category === 'AI' ? 'tech' : item.category ? 'macro' : 'market',
   symbol: item.relatedSymbols?.[0] || item.related?.split(',')[0]?.trim() || undefined,

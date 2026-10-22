@@ -50,6 +50,7 @@ describe('TradingJournalModal', () => {
 
     expect(screen.queryByText('Technology Portfolio')).not.toBeInTheDocument();
     expect(screen.getByText('Portföy bilinmiyor')).toBeInTheDocument();
+    expect(screen.getByText(/1 Tem/)).toBeInTheDocument();
   });
 
   it('explains when the filters match no records', async () => {
