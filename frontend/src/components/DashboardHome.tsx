@@ -638,7 +638,7 @@ export default function DashboardHome({
                 <span>Portföy getirisi karşılaştırması</span>
               </h3>
               <div className="flex items-center gap-1.5 mt-1">
-                <span className={`text-xs font-data-mono font-semibold ${comparisonSummary && comparisonSummary.returnPct >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                <span className={`text-xs font-data-mono font-semibold ${comparisonSummary == null ? 'text-text-muted' : comparisonSummary.returnPct >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
                   {comparisonSummary ? `${comparisonSummary.label}: ${comparisonSummary.returnPct >= 0 ? '+' : ''}${comparisonSummary.returnPct.toFixed(2)}%` : 'Kümülatif getiri'}
                 </span>
               </div>
@@ -725,7 +725,7 @@ export default function DashboardHome({
               </div>
             ) : comparisonChart.series.length === 0 ? (
               <div className="flex h-full items-center justify-center rounded-lg border border-outline-variant/30 bg-bg-base/30 text-xs text-text-secondary">
-                Select a portfolio or benchmark to compare.
+                Karşılaştırmak için bir portföy veya endeks seçin.
               </div>
             ) : (
               <svg

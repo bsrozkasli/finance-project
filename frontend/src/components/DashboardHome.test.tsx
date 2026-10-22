@@ -226,6 +226,18 @@ describe('DashboardHome portfolio return comparison', () => {
     expect(screen.getAllByText('BETA').length).toBeGreaterThan(0);
   });
 
+  it('keeps an empty comparison neutral and explains it in Turkish', async () => {
+    server.use(
+      http.get(`${API_BASE}/macro/snapshot`, () => HttpResponse.json({})),
+      http.get(`${API_BASE}/portfolio/performance/comparison`, () => HttpResponse.json({ period: '6M', series: [] })),
+    );
+    installPositionPerformanceHandler();
+    renderDashboard();
+
+    expect(await screen.findByText('Karşılaştırmak için bir portföy veya endeks seçin.')).toBeInTheDocument();
+    expect(screen.getByText('Kümülatif getiri')).not.toHaveClass('text-bear-red');
+  });
+
   it('updates benchmark query when a benchmark chip is toggled', async () => {
     const benchmarkQueries: Array<string | null> = [];
 
