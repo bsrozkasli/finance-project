@@ -1,5 +1,7 @@
 # Data-Service Boundary Hardening Plan 5 — Price-History Call-Site Migration Implementation Plan
 
+**Status:** Complete (2026-10-13) — commits `363c4df`, `401cad4`, `44747f0`, `b4ba631`, `3bccd6f`. Step checkboxes were not ticked during execution; the plan-set table is the record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Serve every price-history read in the technical/pattern router and in the risk, factor, and portfolio services through `MarketDataResolver`, keeping response shapes and status codes, and make the current-system docs tell the truth about the remaining ADR-0006 exceptions.

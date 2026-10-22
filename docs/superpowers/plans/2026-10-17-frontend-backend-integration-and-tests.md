@@ -1,5 +1,7 @@
 # Frontend ↔ Backend Bağlantısı ve Entegrasyon Testleri Uygulama Planı
 
+**Durum:** Tamamlandı — PR #44 ile `main`e girdi (2026-10-18). Task 1 taban çizgisi commit üretmez; Task 2 `d9e40e2`; Task 3 `ecef684`; Task 4 `bb206e8`; Task 5 `55639b8`, `82152d8`, `c9e07ff`, `7f5b25d`; Task 6 `8d70974`, `8293137`, `9917625`, `1c74a31`, `8c1326d`. Kanıt: `main` `c38a53f` üzerinde GitHub Actions `ci` run 39128666296, `frontend-integrated-e2e` dahil tüm job'lar başarılı. Adım kutucukları yürütme sırasında işaretlenmedi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** React frontend ile Spring backend arasındaki bağlantıyı yapılandırılabilir ve hata-şeffaf hâle getirmek; iki taraf arasındaki HTTP sözleşmesini ortak fixture'larla her iki test paketinde sabitlemek; redesign sonrası kırılan entegre E2E testlerini onarıp CI'da çalıştırmak.

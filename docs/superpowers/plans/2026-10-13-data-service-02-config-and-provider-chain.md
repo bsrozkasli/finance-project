@@ -1,5 +1,7 @@
 # Data-Service Boundary Hardening Plan 2 — Configuration Hygiene and PROVIDER_CHAIN Implementation Plan
 
+**Status:** Complete (2026-10-13) — commits `bb4da5f`. Step checkboxes were not ticked during execution; the plan-set table is the record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remove the MongoDB settings the data-service never reads, and make `PROVIDER_CHAIN` the real source of provider registration order.

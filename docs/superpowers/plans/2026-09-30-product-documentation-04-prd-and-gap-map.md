@@ -1,5 +1,7 @@
 # Product Documentation Plan 4 — PRD and Capability Gap Map Implementation Plan
 
+**Status:** Complete — see Plan 4 in [the plan-set table](2026-09-29-product-documentation-reconstruction.md#child-plans). Step checkboxes were not ticked during execution.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` (recommended) or `superpowers:executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Finalize the canonical target-product requirements and map every requirement to verified current evidence, one gap class, and one owning epic.
