@@ -25,9 +25,10 @@ def _missing(result) -> bool:
 def _factor_score(factor_res, attribute: str) -> tuple[int, SectionAvailability]:
     if _missing(factor_res):
         return _LEGACY_NEUTRAL, SectionAvailability.unavailable("factor_component_unavailable")
-    if not hasattr(factor_res, attribute):
+    scores = getattr(factor_res, "scores", None)  # FactorAnalysisResponse.scores
+    if scores is None or not hasattr(scores, attribute):
         return _LEGACY_NEUTRAL, SectionAvailability.unavailable("factor_score_not_mapped")
-    value = getattr(factor_res, attribute)
+    value = getattr(scores, attribute)
     if value is None:
         return _LEGACY_NEUTRAL, SectionAvailability.insufficient("factor_score_missing")
     return int(value), SectionAvailability.available()
@@ -36,11 +37,12 @@ def _factor_score(factor_res, attribute: str) -> tuple[int, SectionAvailability]
 def _valuation_score(val_res) -> tuple[int, SectionAvailability]:
     if _missing(val_res):
         return _LEGACY_NEUTRAL, SectionAvailability.unavailable("valuation_component_unavailable")
-    if not hasattr(val_res, "valuation_grade"):
+    metrics = getattr(val_res, "metrics", None)  # ValuationResponse.metrics
+    if metrics is None or not hasattr(metrics, "valuation_grade"):
         return _LEGACY_NEUTRAL, SectionAvailability.unavailable("valuation_grade_not_mapped")
-    if val_res.valuation_grade is None:
+    if metrics.valuation_grade is None:
         return _LEGACY_NEUTRAL, SectionAvailability.insufficient("valuation_grade_missing")
-    grade_str = getattr(val_res.valuation_grade, "value", str(val_res.valuation_grade)).upper()
+    grade_str = getattr(metrics.valuation_grade, "value", str(metrics.valuation_grade)).upper()
     for keyword, score in _VALUATION_GRADE_SCORES:
         if keyword in grade_str:
             return score, SectionAvailability.available()
@@ -50,11 +52,12 @@ def _valuation_score(val_res) -> tuple[int, SectionAvailability]:
 def _earnings_score(earn_res) -> tuple[int, SectionAvailability]:
     if _missing(earn_res):
         return _LEGACY_NEUTRAL, SectionAvailability.unavailable("earnings_component_unavailable")
-    if not hasattr(earn_res, "earnings_score"):
+    metrics = getattr(earn_res, "metrics", None)  # EarningsAnalysisResponse.metrics
+    if metrics is None or not hasattr(metrics, "earnings_score"):
         return _LEGACY_NEUTRAL, SectionAvailability.unavailable("earnings_score_not_mapped")
-    if earn_res.earnings_score is None:
+    if metrics.earnings_score is None:
         return _LEGACY_NEUTRAL, SectionAvailability.insufficient("earnings_score_missing")
-    return int(earn_res.earnings_score), SectionAvailability.available()
+    return int(metrics.earnings_score), SectionAvailability.available()
 
 
 def _sentiment_score(sent_res) -> tuple[int, SectionAvailability]:
