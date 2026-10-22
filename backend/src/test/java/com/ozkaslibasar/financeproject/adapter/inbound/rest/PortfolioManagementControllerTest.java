@@ -71,7 +71,9 @@ class PortfolioManagementControllerTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(10))
-                .andExpect(jsonPath("$.symbol").value("NVDA"));
+                .andExpect(jsonPath("$.symbol").value("NVDA"))
+                .andExpect(jsonPath("$.source").value("MANUAL"))
+                .andExpect(jsonPath("$.originLocator").isNotEmpty());
 
         verify(journalTradePort).save(any());
     }
