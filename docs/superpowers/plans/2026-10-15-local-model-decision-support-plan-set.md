@@ -16,7 +16,7 @@
 |---|---|
 | Plan set | Local Model Decision-Support Phase 1 |
 | Total plans | 5 |
-| Overall status | Plans 1, 2, 5 complete (2026-10-17); Plan 3 Tasks 1–6 complete, Task 7 awaits owner; Plan 4 Task 1 complete, Task 2 awaits license decisions |
+| Overall status | Plans 1, 2, 5 complete (2026-10-17); ADR-0007 accepted 2026-10-22 (owner delegation); Plan 3 Tasks 1–6 complete, Task 7 awaits owner; Plan 4 Task 1 complete, Task 2 awaits license decisions |
 | Current executable plan | Plan 3 Task 7 (owner gate: read-only role on the real database and verdict review) and Plan 4 (Task 2 license decisions; Tasks 3–5 wait for owner labels) |
 | Runtime scope | `data-service/` (Plan 1), `backend/src/test/` only (Plan 1), new `ml/` (Plans 2–5), `docs/adr/`, `docs/spec/current-system/contracts.md`, `docs/product/evidence/`, `.gitignore` |
 | Product discussion language | Turkish |
