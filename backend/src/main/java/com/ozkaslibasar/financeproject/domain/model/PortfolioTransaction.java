@@ -3,6 +3,7 @@ package com.ozkaslibasar.financeproject.domain.model;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record PortfolioTransaction(
         Long id,
@@ -20,8 +21,20 @@ public record PortfolioTransaction(
         PortfolioTransactionSource source,
         String notes,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        String originLocator
 ) {
+    // Retain existing callers; the locator is generated once when a manual entry is created.
+    public PortfolioTransaction(
+            Long id, Long portfolioId, String userId, String symbol,
+            PortfolioAssetType assetType, PortfolioTransactionAction action,
+            BigDecimal quantity, BigDecimal price, String currency, BigDecimal fee,
+            BigDecimal fxRateToBase, LocalDate tradeDate, PortfolioTransactionSource source,
+            String notes, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        this(id, portfolioId, userId, symbol, assetType, action, quantity, price,
+                currency, fee, fxRateToBase, tradeDate, source, notes, createdAt, updatedAt, null);
+    }
+
     public PortfolioTransaction {
         if (portfolioId == null) {
             throw new IllegalArgumentException("portfolioId must not be null");
@@ -79,6 +92,9 @@ public record PortfolioTransaction(
         }
         if (source == null) {
             source = PortfolioTransactionSource.MANUAL;
+        }
+        if (source == PortfolioTransactionSource.MANUAL && originLocator == null) {
+            originLocator = "manual:" + UUID.randomUUID();
         }
     }
 

@@ -71,6 +71,9 @@ public class PortfolioTransactionEntity {
     @Column(name = "source", nullable = false, length = 16)
     private PortfolioTransactionSource source;
 
+    @Column(name = "origin_locator", length = 128, updatable = false)
+    private String originLocator;
+
     @Column(name = "notes", length = 1000)
     private String notes;
 

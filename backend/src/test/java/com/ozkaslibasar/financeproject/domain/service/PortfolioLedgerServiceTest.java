@@ -42,6 +42,23 @@ class PortfolioLedgerServiceTest {
     private PortfolioLedgerService ledgerService;
 
     @Test
+    void shouldGiveIndependentManualEntriesDistinctStableOriginLocators() {
+        PortfolioTransaction first = tx("AAPL", PortfolioTransactionAction.BUY, "1", "100", "0", "1", date(2026, 6, 1));
+        PortfolioTransaction second = tx("AAPL", PortfolioTransactionAction.BUY, "1", "100", "0", "1", date(2026, 6, 1));
+        when(transactionPort.findByPortfolioIdAndUserId(PORTFOLIO_ID, USER_ID)).thenReturn(List.of());
+        when(transactionPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        String firstOrigin = first.originLocator();
+        PortfolioTransaction acceptedFirst = ledgerService.addTransaction(first);
+        PortfolioTransaction acceptedSecond = ledgerService.addTransaction(second);
+
+        assertThat(firstOrigin).isNotBlank().startsWith("manual:");
+        assertThat(acceptedFirst.source()).isEqualTo(PortfolioTransactionSource.MANUAL);
+        assertThat(acceptedFirst.originLocator()).isEqualTo(firstOrigin);
+        assertThat(acceptedSecond.originLocator()).isNotBlank().isNotEqualTo(firstOrigin);
+    }
+
+    @Test
     void shouldThrowNullPointerExceptionWhenConstructedWithNullPort() {
         assertThatThrownBy(() -> new PortfolioLedgerService(null))
                 .isInstanceOf(NullPointerException.class)
