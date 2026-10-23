@@ -85,7 +85,20 @@ Real-data replay is byte-identical.
 
 ## Input to D-3 and D-4
 
-Owner judgment, 2026-10-23: **no decision yet.** There are too few findings to judge precision.
-D-3 (C1 output semantics) and D-4 (shadow duration) stay open until a larger snapshot has been
-scanned and reviewed. No fault class is cleared to feed deterministic freshness or conflict
-rules.
+**D-3 owner judgment (2026-10-23):** Review candidates only. The finding may prompt human review, but no C1 fault class directly changes deterministic freshness or conflict states. With one `unsure` finding and no decided true/false findings, real-snapshot precision remains undefined for every class.
+
+| Fault class | Real-snapshot precision evidence | Owner policy |
+|---|---|---|
+| `non_positive_price` | No finding | Review candidate only |
+| `ohlc_inconsistency` | No finding | Review candidate only |
+| `duplicate_session` | No finding | Review candidate only |
+| `stale_bars` | No finding | Review candidate only |
+| `missing_sessions` | No finding | Review candidate only |
+| `unadjusted_split` | No finding | Review candidate only |
+| `unadjusted_reverse_split` | No finding | Review candidate only |
+| `return_outlier` | No finding | Review candidate only |
+| `volume_anomaly` | One `unsure`; precision n/a | Review candidate only |
+
+**D-4 owner judgment (2026-10-23):** Four weeks of internal shadow observation when C1 diagnostics are integrated. This record does not claim that integration or observation has started.
+
+These decisions authorize review-only internal use; they do not establish direct-rule precision or change the product request path.
