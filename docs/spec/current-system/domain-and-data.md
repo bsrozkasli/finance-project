@@ -23,6 +23,11 @@ ports with in-memory state.
 - `providerSymbol` defaults to the canonical symbol and is normalized.
 - Metadata state is explicit: `VERIFIED`, `PARTIAL`, or `UNAVAILABLE` according
   to provider/mapping evidence. Missing evidence is not fabricated.
+- The internal instrument-eligibility domain rule returns current provider
+  observations with their source and retrieval time for research, but a
+  `CURRENT_OBSERVATION` never proves point-in-time stock/ETF eligibility.
+  Only a point-in-time master classification can pass that gate; no master
+  adapter or public eligibility consumer is wired yet.
 
 ### Price history
 
