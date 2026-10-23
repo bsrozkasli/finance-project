@@ -120,7 +120,7 @@ Every path below is relative to `/api/v1`.
 | Portfolios | `POST /portfolios` | Create a portfolio |
 | Portfolios | `PUT /portfolios/{portfolioId}` | Update portfolio metadata |
 | Portfolios | `DELETE /portfolios/{portfolioId}` | Delete an empty portfolio; active holdings conflict |
-| Ledger | `GET /portfolios/{portfolioId}/transactions` | List portfolio transactions; each includes the additive `originLocator` (`manual:<UUID>` or `manual:legacy:<id>` for MANUAL, possibly `null` for CSV) |
+| Ledger | `GET /portfolios/{portfolioId}/transactions` | List portfolio transactions; each includes the additive `originLocator` (`manual:<UUID>` or `manual:legacy:<id>` for MANUAL, possibly `null` for CSV). The frontend transaction history shows the source and the returned locator, or states when the locator is absent. |
 | Ledger | `POST /portfolios/{portfolioId}/transactions` | Add a manual/CSV ledger transaction |
 | Ledger | `DELETE /portfolios/{portfolioId}/transactions/{transactionId}` | Delete a ledger entry and linked transaction journal record |
 | Ledger | `GET /portfolios/{portfolioId}/holdings` | Derive current holdings from transactions |
