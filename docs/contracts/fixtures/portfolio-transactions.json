@@ -1,0 +1,40 @@
+[
+  {
+    "id": 10,
+    "portfolioId": 1,
+    "userId": "default",
+    "symbol": "NVDA",
+    "assetType": "US_STOCK",
+    "action": "BUY",
+    "quantity": 5,
+    "price": 120,
+    "currency": "USD",
+    "fee": 0,
+    "fxRateToBase": 1,
+    "tradeDate": "2026-06-30",
+    "source": "MANUAL",
+    "notes": null,
+    "createdAt": null,
+    "updatedAt": null,
+    "originLocator": "manual:00000000-0000-4000-8000-000000000010"
+  },
+  {
+    "id": 11,
+    "portfolioId": 1,
+    "userId": "default",
+    "symbol": "NVDA",
+    "assetType": "US_STOCK",
+    "action": "SELL",
+    "quantity": 1,
+    "price": 130,
+    "currency": "USD",
+    "fee": 0,
+    "fxRateToBase": 1,
+    "tradeDate": "2026-07-01",
+    "source": "CSV",
+    "notes": null,
+    "createdAt": null,
+    "updatedAt": null,
+    "originLocator": null
+  }
+]

@@ -52,7 +52,7 @@ const portfolio: Portfolio = {
   ],
 };
 
-const installPortfolioHandlers = () => {
+const installPortfolioHandlers = (secondSource = 'MANUAL') => {
   server.use(
     http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([
       {
@@ -119,7 +119,7 @@ const installPortfolioHandlers = () => {
         fee: 0,
         fxRateToBase: 1,
         tradeDate: '2026-02-05T10:00:00Z',
-        source: 'MANUAL',
+        source: secondSource,
         notes: 'Trimmed position',
       },
     ])),
@@ -209,6 +209,20 @@ describe('PortfolioManagerView', () => {
     expect(within(missingLocatorRow!).getByText('Köken kaydı yok')).toBeInTheDocument();
     expect(screen.getByText('Trimmed position')).toBeInTheDocument();
     expect(screen.getAllByText('02 Oca 2026').length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['CSV', 'CSV'],
+    ['BROKER', 'Kaynak bilinmiyor'],
+  ])('shows %s transaction source as %s', async (source, label) => {
+    installPortfolioHandlers(source);
+    const user = userEvent.setup();
+    renderPortfolio();
+
+    await user.click(screen.getByRole('button', { name: 'İşlem geçmişi' }));
+    const row = (await screen.findByText('Trimmed position')).closest('tr');
+    expect(row).not.toBeNull();
+    expect(within(row!).getByText(label)).toBeInTheDocument();
   });
 
   it('enforces portfolio create and delete rules in the UI', async () => {

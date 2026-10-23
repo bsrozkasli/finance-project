@@ -261,7 +261,7 @@ export interface PortfolioTransaction {
   id: number;
   portfolioId: number;
   userId: string;
-  symbol?: string;
+  symbol?: string | null;
   assetType: PortfolioAssetType;
   action: PortfolioTransactionAction;
   quantity: number;
@@ -271,10 +271,10 @@ export interface PortfolioTransaction {
   fxRateToBase: number;
   tradeDate: string;
   source: PortfolioTransactionSource;
-  originLocator?: string | null;
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  originLocator: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface CreatePortfolioTransactionRequest {

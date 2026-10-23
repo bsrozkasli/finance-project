@@ -1096,7 +1096,7 @@ function TransactionTable({
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(row.averageCost)}</td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(row.price)}</td>
               <td className="px-4 py-3 text-text-secondary">
-                <div>{row.source === 'MANUAL' ? 'Elle' : 'CSV'}</div>
+                <div>{row.source === 'MANUAL' ? 'Elle' : row.source === 'CSV' ? 'CSV' : 'Kaynak bilinmiyor'}</div>
                 <div className="max-w-56 break-all font-data-mono text-[11px] text-text-muted">
                   {row.originLocator?.trim() ? row.originLocator : 'Köken kaydı yok'}
                 </div>
