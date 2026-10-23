@@ -18,21 +18,23 @@ class InvestmentGrade(str, Enum):
 
 
 class CompositeScoreBreakdown(BaseModel):
-    fundamental_score: int = Field(ge=0, le=100)
-    valuation_score: int = Field(ge=0, le=100)
-    quality_score: int = Field(ge=0, le=100)
-    growth_score: int = Field(ge=0, le=100)
-    momentum_score: int = Field(ge=0, le=100)
-    risk_score: int = Field(ge=0, le=100)
-    earnings_score: int = Field(ge=0, le=100)
-    sentiment_score: int = Field(ge=0, le=100)
+    # A component without evidence is None; it is never replaced by a neutral value.
+    fundamental_score: Optional[int] = Field(default=None, ge=0, le=100)
+    valuation_score: Optional[int] = Field(default=None, ge=0, le=100)
+    quality_score: Optional[int] = Field(default=None, ge=0, le=100)
+    growth_score: Optional[int] = Field(default=None, ge=0, le=100)
+    momentum_score: Optional[int] = Field(default=None, ge=0, le=100)
+    risk_score: Optional[int] = Field(default=None, ge=0, le=100)
+    earnings_score: Optional[int] = Field(default=None, ge=0, le=100)
+    sentiment_score: Optional[int] = Field(default=None, ge=0, le=100)
 
 
 class CompositeInvestmentScore(BaseModel):
     symbol: str
-    overall_score: int = Field(ge=0, le=100)
-    grade: InvestmentGrade
-    recommendation: str
+    # None when the available evidence carries less than half of the score weight.
+    overall_score: Optional[int] = Field(default=None, ge=0, le=100)
+    grade: Optional[InvestmentGrade] = None
+    recommendation: Optional[str] = None
     breakdown: CompositeScoreBreakdown
     confidence: float = Field(ge=0.0, le=1.0)
     calculated_at: datetime
