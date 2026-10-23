@@ -104,6 +104,7 @@ Records guardrails 4-10 as architecture: offline training in a top-level `ml/` p
 - **Output:** a recommendation only — fine-tune needed, not needed, or approach not viable. Spike code is throwaway and is not imported by the product.
 - **Owner cost:** about 1-2 hours of labeling.
 - **Prerequisite:** verify and record the licenses of the candidate models before use.
+- **Revision 2026-10-23 (D-5 declined).** The owner will not label headlines. S1 instead measures event type and tone on two MIT-licensed public labelled finance-news tweet sets (`PREREGISTRATION.md` Amendment 1). Materiality is not measured. The result is a proxy for our news, not a measurement of it.
 
 #### P1.5 C6 — Learning sandbox, lesson 1
 
@@ -150,7 +151,7 @@ Records guardrails 4-10 as architecture: offline training in a top-level `ml/` p
 | D-2 | C0b disposition per field (nullable, rename, retire) | Owner / OQ-5 | C0b implementation |
 | D-3 | C1 output semantics: findings only as candidates for deterministic rules, or versioned thresholds feeding conflict/freshness states directly (panel split) | Owner, after the real-snapshot review | C1 integration |
 | D-4 | Shadow duration for internal-only diagnostics (panel split: 4 weeks vs none) | Owner | C1 integration |
-| D-5 | Owner time for S1 labeling (about 1-2 hours) | Owner | S1 |
+| D-5 | Owner time for S1 labeling (about 1-2 hours) — **declined 2026-10-23**; S1 uses public labelled sets instead (P1.4 revision) | Owner | Resolved |
 
 ## 8. Phase 1 Success Criteria
 
