@@ -1068,7 +1068,7 @@ function TransactionTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] text-left text-xs">
+      <table className="w-full min-w-[1050px] text-left text-xs">
         <thead className="bg-bg-base/40 text-xs uppercase tracking-wider text-text-muted">
           <tr>
             <th className="px-4 py-3">Tarih</th>
@@ -1077,6 +1077,7 @@ function TransactionTable({
             <th className="px-4 py-3 text-right">İşlem tutarı</th>
             <th className="px-4 py-3 text-right">Ortalama maliyet</th>
             <th className="px-4 py-3 text-right">İşlem fiyatı</th>
+            <th className="px-4 py-3">Kaynak</th>
             <th className="px-4 py-3">Notlar</th>
           </tr>
         </thead>
@@ -1094,6 +1095,12 @@ function TransactionTable({
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(row.purchaseAmount)}</td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(row.averageCost)}</td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(row.price)}</td>
+              <td className="px-4 py-3 text-text-secondary">
+                <div>{row.source === 'MANUAL' ? 'Elle' : 'CSV'}</div>
+                <div className="max-w-56 break-all font-data-mono text-[11px] text-text-muted">
+                  {row.originLocator?.trim() ? row.originLocator : 'Köken kaydı yok'}
+                </div>
+              </td>
               <td className="px-4 py-3 text-text-secondary">{row.notes || '-'}</td>
             </tr>
           ))}

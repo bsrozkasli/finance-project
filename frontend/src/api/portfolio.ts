@@ -271,6 +271,7 @@ export interface PortfolioTransaction {
   fxRateToBase: number;
   tradeDate: string;
   source: PortfolioTransactionSource;
+  originLocator?: string | null;
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
