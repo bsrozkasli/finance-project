@@ -6,6 +6,7 @@ import {
   fetchEnrichedPositions,
   fetchPortfolioPerformance,
   fetchPortfolioSummary,
+  fetchPortfolioTransactions,
 } from './client';
 import { API_BASE_URL } from './config';
 import { ApiError } from './errors';
@@ -51,6 +52,26 @@ const EnrichedPositionsSchema = z.array(z.strictObject({
   unrealizedPnL: z.number().nullable(),
 }));
 
+const PortfolioTransactionsSchema = z.array(z.strictObject({
+  id: z.number().int(),
+  portfolioId: z.number().int(),
+  userId: z.string(),
+  symbol: z.string().nullable(),
+  assetType: z.enum(['US_STOCK', 'US_ETF', 'BIST_STOCK', 'FUND', 'GOLD', 'CASH', 'OTHER']),
+  action: z.enum(['BUY', 'SELL', 'DIVIDEND', 'CASH_DEPOSIT', 'CASH_WITHDRAWAL', 'FEE', 'TRANSFER_IN', 'TRANSFER_OUT', 'MANUAL_VALUATION']),
+  quantity: z.number(),
+  price: z.number(),
+  currency: z.string(),
+  fee: z.number(),
+  fxRateToBase: z.number(),
+  tradeDate: z.string(),
+  source: z.enum(['MANUAL', 'CSV']),
+  notes: z.string().nullable(),
+  createdAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+  originLocator: z.string().nullable(),
+}));
+
 const BackendErrorSchema = z.strictObject({
   timestamp: z.string(),
   status: z.number().int(),
@@ -81,6 +102,13 @@ describe('shared HTTP contract fixtures', () => {
     server.use(http.get(url('/portfolio/positions/enriched'), () => HttpResponse.json(fixture)));
 
     await expect(fetchEnrichedPositions()).resolves.toEqual(fixture);
+  });
+
+  it('portfolio transaction fixture retains the backend source locator', async () => {
+    const fixture = PortfolioTransactionsSchema.parse(loadContractFixture('portfolio-transactions.json'));
+    server.use(http.get(url('/portfolios/1/transactions'), () => HttpResponse.json(fixture)));
+
+    await expect(fetchPortfolioTransactions(1)).resolves.toEqual(fixture);
   });
 
   it('backend error fixture becomes an ApiError carrying the backend message', async () => {
