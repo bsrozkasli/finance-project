@@ -45,16 +45,20 @@ The owner marked the only sampled finding `unsure` and stated: “Bağımsız ka
 
 ## Input to D-3 and D-4
 
+**D-3 owner judgment (2026-10-23):** “Yalnız inceleme adayı (önerilen).” This applies to every fault class below. No class has measured real-snapshot precision sufficient to justify direct use in deterministic freshness or conflict states. “Candidate only” means a finding may prompt human review but does not directly change those states.
+
 | Fault class | Evidence available for a precision decision | Owner policy judgment |
 |---|---|---|
-| `non_positive_price` | No real finding in this snapshot | Not recorded |
-| `ohlc_inconsistency` | No real finding in this snapshot | Not recorded |
-| `duplicate_session` | No real finding in this snapshot | Not recorded |
-| `stale_bars` | No real finding in this snapshot | Not recorded |
-| `missing_sessions` | No real finding in this snapshot | Not recorded |
-| `unadjusted_split` | No real finding in this snapshot | Not recorded |
-| `unadjusted_reverse_split` | No real finding in this snapshot | Not recorded |
-| `return_outlier` | No real finding in this snapshot | Not recorded |
-| `volume_anomaly` | One owner-reviewed `unsure`; precision n/a | “Bağımsız kaynak bulamadım; unsure.” No promotion judgment recorded. |
+| `non_positive_price` | No real finding in this snapshot | Candidate only |
+| `ohlc_inconsistency` | No real finding in this snapshot | Candidate only |
+| `duplicate_session` | No real finding in this snapshot | Candidate only |
+| `stale_bars` | No real finding in this snapshot | Candidate only |
+| `missing_sessions` | No real finding in this snapshot | Candidate only |
+| `unadjusted_split` | No real finding in this snapshot | Candidate only |
+| `unadjusted_reverse_split` | No real finding in this snapshot | Candidate only |
+| `return_outlier` | No real finding in this snapshot | Candidate only |
+| `volume_anomaly` | One owner-reviewed `unsure`; precision n/a | Candidate only |
 
-**Inference from this evidence:** No fault class has measured real-snapshot precision here, so this record alone cannot authorize a deterministic freshness/conflict rule or a D-4 shadow duration. The named D-3/D-4 owners must make and record those policy decisions separately.
+**D-4 owner judgment (2026-10-23):** “4 hafta (önerilen).” When C1 internal diagnostics are integrated, run them in shadow mode for four weeks. This record does not claim that integration or shadow observation has started.
+
+**Inference from this evidence:** No fault class has measured real-snapshot precision here. The owner decisions allow review-only use and a future four-week shadow period; they do not establish direct rule precision or authorize a product-path change.
