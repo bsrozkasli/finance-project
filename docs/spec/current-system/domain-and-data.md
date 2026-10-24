@@ -121,6 +121,7 @@ Applied migrations are immutable.
 | `V6__allow_unknown_journal_market_values.sql` | Allows journal current/derived market values to remain `NULL` when current price evidence is unavailable |
 | `V7__relabel_unresolved_asset_types.sql` | Relabels `assets` rows stored as `STOCK` with `UNAVAILABLE` metadata as `UNRESOLVED` (OQ-5) |
 | `V8__manual_transaction_origin_locator.sql` | Adds `portfolio_transactions.origin_locator`, backfills `manual:legacy:<id>`, adds the manual-locator check and `(source, origin_locator)` uniqueness |
+| `V9__research_evidence_snapshots.sql` | `research_evidence_snapshots` and `research_evidence_fields`: append-only evidence versions with linear revision uniqueness and a value-iff-not-missing check; no route reads them yet |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.

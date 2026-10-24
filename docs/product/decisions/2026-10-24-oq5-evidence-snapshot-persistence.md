@@ -1,17 +1,17 @@
-# OQ-5 proposal: evidence snapshot persistence
+# OQ-5 decision: evidence snapshot persistence
 
 **Recorded:** 2026-10-24
 
-**Decision input:** Proposed by the implementing agent for product-owner approval. The 2026-10-22 [OQ-5 decision](2026-10-22-oq5-unresolved-instrument-migration.md) records that the Backend Lead and Architecture Lead decisions were delegated to the implementing agent; OQ-5 is owned by those leads (PRD §OQ-5). OQ-2 (data governance and legal) and OQ-3 (Quant Research and Risk Lead) are outside that delegation.
+**Decision input:** Proposed by the implementing agent; approved by the product owner on 2026-10-24 ("onaylıyorum"). The 2026-10-22 [OQ-5 decision](2026-10-22-oq5-unresolved-instrument-migration.md) records that the Backend Lead and Architecture Lead decisions were delegated to the implementing agent; OQ-5 is owned by those leads (PRD §OQ-5). OQ-2 (data governance and legal) and OQ-3 (Quant Research and Risk Lead) are outside that delegation.
 
 **Scope:** EPIC-001 Task 2 persistence only (`ResearchEvidencePort` adapter and its Flyway migration).
-**State:** Proposed. Nothing below is implemented until it is approved.
+**State:** Accepted 2026-10-24 and implemented on `feat/evidence-snapshot-domain` (V9, `ResearchEvidenceRepositoryAdapter`, `DomainConfig` bean).
 
 ## Why OQ-5 applies only lightly
 
 OQ-5 requires a preserve, version, coordinated-migration or retire disposition for each *legacy* route, DTO or persisted contract that changes. This slice changes none: it adds a table and an outbound adapter, and exposes no route, DTO field or response shape. Consumers of `/api/v1/*` and of existing tables are unaffected.
 
-## Proposed disposition
+## Disposition
 
 1. **Contract.** No public route or DTO is added or changed. Snapshot ids are not yet visible on the wire. A versioned read contract needs its own OQ-5 disposition when a story authors it (EPIC-003 consumes snapshot ids).
 2. **Migration.** `V9__research_evidence_snapshots.sql` (V8 is the latest on `main` and on every remote branch). Additive only; no existing table is altered. Two tables:
@@ -32,6 +32,13 @@ OQ-5 requires a preserve, version, coordinated-migration or retire disposition f
 ## Cost if wrong
 
 If the shape of the retained evidence changes after OQ-3 fixes the field policy, a follow-up migration (V10+) adds columns; applied migrations are never edited. Field values are stored as text with their provenance, so no numeric precision or unit is asserted by the table.
+
+## Implementation notes
+
+- `research_evidence_fields.position` preserves field order so a re-read equals the saved snapshot. It is an addition to the proposal.
+- `save` rejects an existing id in the adapter (`IllegalStateException`); the database enforces the rest.
+- Timestamps are `TIMESTAMP WITH TIME ZONE` (microsecond precision); callers should not rely on nanosecond `Instant` round-trips.
+- The re-read test runs in the same Spring context against committed rows (each read is its own transaction). A true process-restart test is not claimed.
 
 ## Limits
 
