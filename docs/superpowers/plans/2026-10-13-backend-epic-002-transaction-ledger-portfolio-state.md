@@ -11,6 +11,7 @@
 
 **Plan Set:** 2 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
 **Execution status (2026-10-15):** Blocked for full delivery. The PRD-FR-011/014 verification slices may proceed against the available product contract; EPIC-001 stable identity and the OQ-5/OQ-8 CSV, state, and recovery decisions are absent.
+**Verification re-run (2026-10-24):** `.\mvnw.cmd -Dtest="PortfolioTransactionLineageTest,PortfolioLedgerReplayTest" test` from `backend/` with Docker active: 2 run, 0 failures, 0 skipped (BUILD SUCCESS). Local Docker 29 needed `api.version=1.44` in `~/.docker-java.properties` for Testcontainers 1.20.6; no repository change. Scope unchanged: exposure replay and origin locator remain uncovered, Task 3 stays Blocked.
 **Verification progress (2026-10-17):** PRD-FR-011 fixture `PortfolioTransactionLineageTest` (stable id, MANUAL source, holdings after commit and readback) and PRD-FR-014 holdings/basis/realized replay fixture `PortfolioLedgerReplayTest` pass with Testcontainers active; no production change was needed. Exposure replay and the origin-locator field are not covered (no exposure model exists; Task 3 remains Blocked).
 **Depends On:** EPIC-001 identity; approved CSV/state contract and OQ-5/8 decisions where applicable.
 **Produces:** Source-linked ledger events, staged idempotent CSV import, versioned Portfolio State and recovery evidence.
