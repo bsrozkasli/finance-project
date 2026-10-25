@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @Tag(name = "Portfolios", description = "Portfolio accounts, transaction ledger, and derived holdings")
 @RestController
@@ -129,10 +130,14 @@ public class PortfolioManagementController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTransaction(@PathVariable Long portfolioId, @PathVariable Long transactionId) {
         getPortfolio(portfolioId);
-        transactionPort.findByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not found: " + transactionId));
-        journalTradePort.deleteByPortfolioIdAndTransactionIdAndUserId(portfolioId, transactionId, DEFAULT_USER);
-        transactionPort.voidByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER, Instant.now());
+        try {
+            // The journal delete runs inside the ledger lock's transaction so it and the void commit together.
+            ledgerService.voidTransaction(portfolioId, DEFAULT_USER, transactionId, Instant.now(),
+                    () -> journalTradePort.deleteByPortfolioIdAndTransactionIdAndUserId(
+                            portfolioId, transactionId, DEFAULT_USER));
+        } catch (NoSuchElementException ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage(), ex);
+        }
     }
 
     @GetMapping("/{portfolioId}/holdings")

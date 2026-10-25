@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.ErrorResponse;
+import com.ozkaslibasar.financeproject.domain.service.LedgerInconsistencyException;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioStateMismatchException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -104,6 +105,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleStateMismatch(
             PortfolioStateMismatchException ex, HttpServletRequest request) {
         log.warn("Portfolio state replay mismatch at {}: {}", request.getRequestURI(), ex.getMessage());
+        return error(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(LedgerInconsistencyException.class)
+    public ResponseEntity<ErrorResponse> handleLedgerInconsistency(
+            LedgerInconsistencyException ex, HttpServletRequest request) {
+        log.warn("Ledger change refused at {}: {}", request.getRequestURI(), ex.getMessage());
         return error(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 

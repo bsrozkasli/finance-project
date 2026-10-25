@@ -9,12 +9,14 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransaction
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 
 public class PortfolioLedgerService {
@@ -43,6 +45,37 @@ public class PortfolioLedgerService {
                     transaction.portfolioId(), transaction.userId());
             validateTransaction(existing, transaction);
             return transactionPort.save(transaction);
+        });
+    }
+
+    /**
+     * Voids one active event under the same per-portfolio lock as additions (R-17). The remaining active events are
+     * replayed first; if that is invalid nothing changes and {@link LedgerInconsistencyException} is thrown. Otherwise
+     * {@code sameTransactionWork} (for example the linked journal delete) runs and then the event is voided, all in
+     * the lock's transaction, so they commit or roll back together.
+     *
+     * @throws NoSuchElementException when the id is not an active event of the portfolio
+     */
+    public void voidTransaction(Long portfolioId, String userId, Long transactionId, Instant voidedAt,
+                                Runnable sameTransactionWork) {
+        Objects.requireNonNull(sameTransactionWork, "sameTransactionWork must not be null");
+        lockPort.withPortfolioLock(portfolioId, () -> {
+            List<PortfolioTransaction> active = transactionPort.findByPortfolioIdAndUserId(portfolioId, userId);
+            PortfolioTransaction target = active.stream()
+                    .filter(t -> Objects.equals(t.id(), transactionId))
+                    .findFirst()
+                    .orElseThrow(() -> new NoSuchElementException("Transaction not found: " + transactionId));
+            List<PortfolioTransaction> remaining = active.stream().filter(t -> t != target).toList();
+            try {
+                calculatePositions(remaining);
+            } catch (IllegalArgumentException ex) {
+                throw new LedgerInconsistencyException(target.symbol(),
+                        "Cannot delete transaction " + transactionId + " (" + target.symbol() + "): "
+                                + ex.getMessage(), ex);
+            }
+            sameTransactionWork.run();
+            transactionPort.voidByIdAndPortfolioIdAndUserId(transactionId, portfolioId, userId, voidedAt);
+            return null;
         });
     }
 

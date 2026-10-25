@@ -10,8 +10,10 @@ import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
+import com.ozkaslibasar.financeproject.domain.service.LedgerInconsistencyException;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -22,11 +24,13 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -132,28 +136,54 @@ class PortfolioManagementControllerTest {
     }
 
     @Test
-    void shouldVoidTransactionAndDeleteLinkedJournalEntryWhenTransactionIsDeleted() throws Exception {
-        PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
+    void shouldDeleteLinkedJournalEntryWhenTransactionIsDeleted() throws Exception {
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
-        when(transactionPort.findByIdAndPortfolioIdAndUserId(10L, 1L, "default")).thenReturn(Optional.of(saved));
 
         mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
                 .andExpect(status().isNoContent());
 
+        ArgumentCaptor<Runnable> sameTransactionWork = ArgumentCaptor.forClass(Runnable.class);
+        verify(ledgerService).voidTransaction(eq(1L), eq("default"), eq(10L), any(Instant.class),
+                sameTransactionWork.capture());
+        // The journal delete is handed to the service so it runs inside the ledger lock's transaction.
+        verify(journalTradePort, never()).deleteByPortfolioIdAndTransactionIdAndUserId(any(), any(), any());
+        sameTransactionWork.getValue().run();
         verify(journalTradePort).deleteByPortfolioIdAndTransactionIdAndUserId(1L, 10L, "default");
-        verify(transactionPort).voidByIdAndPortfolioIdAndUserId(eq(10L), eq(1L), eq("default"), any(Instant.class));
     }
 
     @Test
     void shouldReturn404WhenTransactionIsUnknownOrAlreadyVoided() throws Exception {
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
-        when(transactionPort.findByIdAndPortfolioIdAndUserId(10L, 1L, "default")).thenReturn(Optional.empty());
+        doThrow(new NoSuchElementException("Transaction not found: 10"))
+                .when(ledgerService).voidTransaction(eq(1L), eq("default"), eq(10L), any(Instant.class), any());
 
         mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
                 .andExpect(status().isNotFound());
 
-        verify(transactionPort, never()).voidByIdAndPortfolioIdAndUserId(any(), any(), any(), any());
         verify(journalTradePort, never()).deleteByPortfolioIdAndTransactionIdAndUserId(any(), any(), any());
+    }
+
+    @Test
+    void shouldReturn404WhenThePortfolioIsUnknownOnDelete() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.empty());
+
+        mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
+                .andExpect(status().isNotFound());
+
+        verify(ledgerService, never()).voidTransaction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldReturn409NamingTheSymbolWhenTheVoidWouldBreakTheLedger() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        doThrow(new LedgerInconsistencyException("AAPL",
+                "sell quantity exceeds current holding for AAPL"))
+                .when(ledgerService).voidTransaction(eq(1L), eq("default"), eq(10L), any(Instant.class), any());
+
+        mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("AAPL")));
     }
 
     @Test
