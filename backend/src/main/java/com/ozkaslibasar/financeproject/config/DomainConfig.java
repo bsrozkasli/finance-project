@@ -96,7 +96,7 @@ public class DomainConfig {
 
     @Bean
     public ResearchEvidenceService researchEvidenceService(ResearchEvidencePort researchEvidencePort) {
-        return new ResearchEvidenceService(researchEvidencePort, () -> java.util.UUID.randomUUID().toString());
+        return new ResearchEvidenceService(researchEvidencePort, java.util.UUID::randomUUID);
     }
 
     @Bean

@@ -11,6 +11,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "research_evidence_fields")
@@ -23,8 +24,8 @@ public class ResearchEvidenceFieldEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "snapshot_id", nullable = false, length = 64)
-    private String snapshotId;
+    @Column(name = "snapshot_id", nullable = false)
+    private UUID snapshotId;
 
     @Column(name = "position", nullable = false)
     private int position;
@@ -32,11 +33,11 @@ public class ResearchEvidenceFieldEntity {
     @Column(name = "name", nullable = false, length = 80)
     private String name;
 
-    @Column(name = "value", columnDefinition = "TEXT")
-    private String value;
+    @Column(name = "raw_value", columnDefinition = "TEXT")
+    private String rawValue;
 
-    @Column(name = "missingness", nullable = false, length = 20)
-    private String missingness;
+    @Column(name = "missing_reason", length = 20)
+    private String missingReason;
 
     @Column(name = "source", nullable = false, length = 80)
     private String source;
@@ -59,6 +60,6 @@ public class ResearchEvidenceFieldEntity {
     @Column(name = "freshness", nullable = false, length = 20)
     private String freshness;
 
-    @Column(name = "conflicted", nullable = false)
-    private boolean conflicted;
+    @Column(name = "conflict_note", columnDefinition = "TEXT")
+    private String conflictNote;
 }
