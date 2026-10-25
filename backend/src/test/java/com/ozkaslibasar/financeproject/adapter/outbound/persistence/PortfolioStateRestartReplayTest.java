@@ -39,14 +39,13 @@ class PortfolioStateRestartReplayTest {
     private static ConfigurableApplicationContext start() {
         return new SpringApplicationBuilder(FinanceProjectApplication.class)
                 .profiles("test")
-                .properties(
-                        "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
-                        "spring.datasource.username=" + POSTGRES.getUsername(),
-                        "spring.datasource.password=" + POSTGRES.getPassword(),
-                        "spring.datasource.driver-class-name=org.postgresql.Driver",
-                        "spring.jpa.show-sql=false",
-                        "server.port=0")
-                .run();
+                .run(
+                        "--spring.datasource.url=" + POSTGRES.getJdbcUrl(),
+                        "--spring.datasource.username=" + POSTGRES.getUsername(),
+                        "--spring.datasource.password=" + POSTGRES.getPassword(),
+                        "--spring.datasource.driver-class-name=org.postgresql.Driver",
+                        "--spring.jpa.show-sql=false",
+                        "--server.port=0");
     }
 
     private static PortfolioTransaction tx(Long portfolioId, PortfolioTransactionAction action, String qty,
@@ -61,6 +60,8 @@ class PortfolioStateRestartReplayTest {
         Long portfolioId;
         PortfolioState before;
         try (ConfigurableApplicationContext first = start()) {
+            assertThat(first.getEnvironment().getProperty("spring.datasource.url"))
+                    .isEqualTo(POSTGRES.getJdbcUrl());
             portfolioId = first.getBean(PortfolioPort.class)
                     .save(new Portfolio(null, USER, "State restart", "USD", null, false, null, null)).id();
             PortfolioLedgerService ledger = first.getBean(PortfolioLedgerService.class);
@@ -70,6 +71,8 @@ class PortfolioStateRestartReplayTest {
         }
 
         try (ConfigurableApplicationContext second = start()) {
+            assertThat(second.getEnvironment().getProperty("spring.datasource.url"))
+                    .isEqualTo(POSTGRES.getJdbcUrl());
             PortfolioState after = second.getBean(PortfolioStateService.class).stateAt(portfolioId, USER, AS_OF);
 
             assertThat(after).isEqualTo(before);
