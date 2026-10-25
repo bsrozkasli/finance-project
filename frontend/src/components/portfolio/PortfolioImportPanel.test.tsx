@@ -51,12 +51,15 @@ describe('PortfolioImportPanel', () => {
     render(<PortfolioImportPanel portfolioId={1} />);
 
     expect(screen.getByRole('button', { name: 'Yükle' })).toBeDisabled();
+    expect(screen.getByText(/Kabul et.*düğmesine basana kadar defteriniz ve portföyünüz\s+değişmez/)).toBeInTheDocument();
     await uploadFile();
 
     const counts = await screen.findByRole('group', { name: 'Satır sayıları' });
     expect(within(counts).getByText('Geçerli').nextSibling).toHaveTextContent('1');
     expect(within(counts).getByText('Geçersiz').nextSibling).toHaveTextContent('1');
     expect(within(counts).getByText('Mükerrer').nextSibling).toHaveTextContent('1');
+    expect(within(counts).getByText('Kabul edilen').nextSibling).toHaveTextContent('0');
+    expect(within(counts).getByText('Reddedilen').nextSibling).toHaveTextContent('0');
     expect(contentType).toContain('text/csv');
     expect(uploadedBody).toBe('trade_date,action\n2026-01-02,BUY\n');
 

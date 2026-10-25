@@ -82,6 +82,9 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
   return (
     <section aria-labelledby="portfolio-state-title" className="rounded-md border border-outline-variant bg-bg-card p-5 md:p-6">
       <h2 id="portfolio-state-title" className="text-base font-bold text-text-primary">Portföy durumu</h2>
+      <p className="mt-1 text-xs text-text-muted">
+        Seçilen tarihteki aktif işlemlerden ve kayıtlı fiyatlardan değişmez bir durum üretir. Eksik fiyat uydurulmaz.
+      </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
@@ -117,6 +120,8 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
           <p className="text-sm text-text-primary">
             Sürüm: <span className="font-data-mono font-bold" title={state.version}>{shortVersion(state.version)}</span>
             {' · '}Maruz kalma durumu: <strong>{EXPOSURE_LABELS[state.exposureStatus]}</strong>
+            {' · '}Tarih: <span className="font-data-mono">{state.asOf}</span>
+            {' · '}Kaynak işlem sayısı: <span className="font-data-mono">{state.sourceEventIds.length}</span>
           </p>
           <p className="text-xs text-text-muted">Sürüm yalnızca bu durumun kimliğidir; yatırım sinyali değildir.</p>
 
