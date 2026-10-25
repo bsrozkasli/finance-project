@@ -105,7 +105,9 @@ not replay; journal delete in the same transaction, R-17), exposures and persist
 staging and acceptance with row identity, and the per-portfolio ledger lock pinned to `READ COMMITTED` (R-13, R-18).
 New code upper-cases with `Locale.ROOT` (R-19).
 
-Still open: OQ-8 recovery targets and the timed backup/restore exercise; frontend handoff for the void `409` and the import/state routes.
+Restore exercise (R-23): `PortfolioBackupRestoreTest` dumps a seeded PostgreSQL (`pg_dump -Fc`), restores it into a fresh container, starts the application on it and replays every stored state to the same version; counts, per-table digests, voided events, CSV outcomes and `flyway_schema_history` match (about 52 s, default suite). It proves logical recoverability only; see `operations.md` for timings and what it does not prove.
+
+Still open: OQ-8 recovery targets (RPO/RTO, encryption, retention; Task 3 acceptance stays blocked on them); frontend handoff for the void `409` and the import/state routes.
 
 Closed: R-21 (accept performance: 5,000 valid rows took 191 s with per-row replay and 23.5 s with chunked incremental
 validation, against the 30 s target); R-11 (the manual route posting `source=CSV` without import lineage) by R-20; that value now returns `422`.
