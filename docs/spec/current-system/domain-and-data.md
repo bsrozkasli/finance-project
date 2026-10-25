@@ -23,6 +23,17 @@ ports with in-memory state.
 - `providerSymbol` defaults to the canonical symbol and is normalized.
 - Metadata state is explicit: `VERIFIED`, `PARTIAL`, or `UNAVAILABLE` according
   to provider/mapping evidence. Missing evidence is not fabricated.
+- The internal instrument-eligibility domain rule returns current provider
+  observations with their source and retrieval time for research, but a
+  `CURRENT_OBSERVATION` never proves point-in-time stock/ETF eligibility.
+  Only a point-in-time master classification can pass that gate; no master
+  adapter or public eligibility consumer is wired yet.
+- The internal `ResearchEvidenceService` creates in-memory immutable evidence
+  revisions from caller-supplied fields. A field has a raw value or an explicit
+  missing reason, plus source and retrieval time; present values also require
+  observation time. Revisions receive a new ID and retain the previous ID.
+  No provider fetch, database persistence, public endpoint, quality grade, or
+  external-use permission is attached to this research model.
 
 ### Price history
 

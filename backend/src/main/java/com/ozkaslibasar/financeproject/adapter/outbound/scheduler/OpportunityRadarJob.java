@@ -35,9 +35,13 @@ public class OpportunityRadarJob {
             try {
                 SmartReport report = smartReportUseCase.getSmartReport(asset.symbol());
                 
-                // If overall score is >= 80, it's a strong opportunity
-                if (report != null && report.getOverallScore() >= 80) {
-                    createNotification(asset.symbol(), report.getOverallScore());
+                // A null overall score means there was not enough evidence for a verdict.
+                Integer overallScore = report == null ? null : report.getOverallScore();
+                if (overallScore == null) {
+                    log.debug("No overall score for {}; skipping opportunity check", asset.symbol());
+                } else if (overallScore >= 80) {
+                    // If overall score is >= 80, it's a strong opportunity
+                    createNotification(asset.symbol(), overallScore);
                 }
             } catch (Exception e) {
                 log.error("Error analyzing asset {} during Opportunity Radar Job", asset.symbol(), e);

@@ -14,7 +14,11 @@ from app.services.risk_analytics_service import RiskAnalyticsService
 from app.services.earnings_analysis_service import EarningsAnalysisService
 from app.services.enhanced_sentiment_service import EnhancedSentimentService
 
-_LEGACY_NEUTRAL = 50  # legacy default kept by C0a; availability says it is not evidence
+_WEIGHTS = {
+    "fundamental_score": 0.25, "valuation_score": 0.20, "quality_score": 0.15, "growth_score": 0.10,
+    "momentum_score": 0.10, "risk_score": 0.10, "earnings_score": 0.05, "sentiment_score": 0.05,
+}
+_MIN_EVIDENCE_WEIGHT = 0.5  # below this share of the weight there is no overall verdict
 _VALUATION_GRADE_SCORES = (("VERY CHEAP", 95), ("CHEAP", 75), ("FAIR", 50), ("VERY EXPENSIVE", 5), ("EXPENSIVE", 25))
 
 
@@ -22,51 +26,51 @@ def _missing(result) -> bool:
     return result is None or isinstance(result, Exception)
 
 
-def _factor_score(factor_res, attribute: str) -> tuple[int, SectionAvailability]:
+def _factor_score(factor_res, attribute: str) -> tuple[int | None, SectionAvailability]:
     if _missing(factor_res):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("factor_component_unavailable")
+        return None, SectionAvailability.unavailable("factor_component_unavailable")
     scores = getattr(factor_res, "scores", None)  # FactorAnalysisResponse.scores
     if scores is None or not hasattr(scores, attribute):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("factor_score_not_mapped")
+        return None, SectionAvailability.unavailable("factor_score_not_mapped")
     value = getattr(scores, attribute)
     if value is None:
-        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("factor_score_missing")
+        return None, SectionAvailability.insufficient("factor_score_missing")
     return int(value), SectionAvailability.available()
 
 
-def _valuation_score(val_res) -> tuple[int, SectionAvailability]:
+def _valuation_score(val_res) -> tuple[int | None, SectionAvailability]:
     if _missing(val_res):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("valuation_component_unavailable")
+        return None, SectionAvailability.unavailable("valuation_component_unavailable")
     metrics = getattr(val_res, "metrics", None)  # ValuationResponse.metrics
     if metrics is None or not hasattr(metrics, "valuation_grade"):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("valuation_grade_not_mapped")
+        return None, SectionAvailability.unavailable("valuation_grade_not_mapped")
     if metrics.valuation_grade is None:
-        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("valuation_grade_missing")
+        return None, SectionAvailability.insufficient("valuation_grade_missing")
     grade_str = getattr(metrics.valuation_grade, "value", str(metrics.valuation_grade)).upper()
     for keyword, score in _VALUATION_GRADE_SCORES:
         if keyword in grade_str:
             return score, SectionAvailability.available()
-    return _LEGACY_NEUTRAL, SectionAvailability.insufficient("valuation_grade_unrecognized")
+    return None, SectionAvailability.insufficient("valuation_grade_unrecognized")
 
 
-def _earnings_score(earn_res) -> tuple[int, SectionAvailability]:
+def _earnings_score(earn_res) -> tuple[int | None, SectionAvailability]:
     if _missing(earn_res):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("earnings_component_unavailable")
+        return None, SectionAvailability.unavailable("earnings_component_unavailable")
     metrics = getattr(earn_res, "metrics", None)  # EarningsAnalysisResponse.metrics
     if metrics is None or not hasattr(metrics, "earnings_score"):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("earnings_score_not_mapped")
+        return None, SectionAvailability.unavailable("earnings_score_not_mapped")
     if metrics.earnings_score is None:
-        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("earnings_score_missing")
+        return None, SectionAvailability.insufficient("earnings_score_missing")
     return int(metrics.earnings_score), SectionAvailability.available()
 
 
-def _sentiment_score(sent_res) -> tuple[int, SectionAvailability]:
+def _sentiment_score(sent_res) -> tuple[int | None, SectionAvailability]:
     if _missing(sent_res):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("sentiment_component_unavailable")
+        return None, SectionAvailability.unavailable("sentiment_component_unavailable")
     if not hasattr(sent_res, "sentiment_score"):
-        return _LEGACY_NEUTRAL, SectionAvailability.unavailable("sentiment_score_not_mapped")
+        return None, SectionAvailability.unavailable("sentiment_score_not_mapped")
     if sent_res.sentiment_score is None:
-        return _LEGACY_NEUTRAL, SectionAvailability.insufficient("sentiment_score_missing")
+        return None, SectionAvailability.insufficient("sentiment_score_missing")
     score = int(sent_res.sentiment_score)
     if getattr(sent_res, "unavailable_components", []):
         return score, SectionAvailability.insufficient("sentiment_sections_unavailable")
@@ -139,33 +143,42 @@ class CompositeScoreService:
         momentum_score, momentum_availability = _factor_score(factor_res, "momentum_score")
         risk_score, risk_availability = _factor_score(factor_res, "low_volatility_score")
 
-        fundamental_score = (quality_score + growth_score) // 2
-        if quality_availability.status == "available" and growth_availability.status == "available":
+        if quality_score is not None and growth_score is not None:
+            fundamental_score = (quality_score + growth_score) // 2
             fundamental_availability = SectionAvailability.available()
         else:
+            fundamental_score = None
             fundamental_availability = SectionAvailability.unavailable("derived_from_defaulted_fields")
 
         valuation_score, valuation_availability = _valuation_score(val_res)
         earnings_score, earnings_availability = _earnings_score(earn_res)
         sentiment_score, sentiment_availability = _sentiment_score(sent_res)
 
-        overall_float = (
-            fundamental_score * 0.25 +
-            valuation_score * 0.20 +
-            quality_score * 0.15 +
-            growth_score * 0.10 +
-            momentum_score * 0.10 +
-            risk_score * 0.10 +
-            earnings_score * 0.05 +
-            sentiment_score * 0.05
+        breakdown = CompositeScoreBreakdown(
+            fundamental_score=fundamental_score,
+            valuation_score=valuation_score,
+            quality_score=quality_score,
+            growth_score=growth_score,
+            momentum_score=momentum_score,
+            risk_score=risk_score,
+            earnings_score=earnings_score,
+            sentiment_score=sentiment_score,
         )
-        overall_score = min(max(int(round(overall_float)), 0), 100)
+        # Only components backed by evidence enter the score; their weights are renormalised.
+        evidence = {field: value for field, value in breakdown.model_dump().items() if value is not None}
+        evidence_weight = sum(_WEIGHTS[field] for field in evidence)
+        overall_score = None
+        if evidence_weight >= _MIN_EVIDENCE_WEIGHT:
+            overall_float = sum(value * _WEIGHTS[field] for field, value in evidence.items()) / evidence_weight
+            overall_score = min(max(int(round(overall_float)), 0), 100)
+            # Cap the score if confidence is low
+            if confidence < 0.5:
+                overall_score = min(overall_score, 69)
 
-        # Cap the score if confidence is low
-        if confidence < 0.5:
-            overall_score = min(overall_score, 69)
-
-        if overall_score >= 90:
+        if overall_score is None:
+            grade = None
+            recommendation = None
+        elif overall_score >= 90:
             grade = InvestmentGrade.A_PLUS
             recommendation = "Strong Buy"
         elif overall_score >= 80:
@@ -186,17 +199,6 @@ class CompositeScoreService:
         else:
             grade = InvestmentGrade.F
             recommendation = "Strong Sell"
-
-        breakdown = CompositeScoreBreakdown(
-            fundamental_score=fundamental_score,
-            valuation_score=valuation_score,
-            quality_score=quality_score,
-            growth_score=growth_score,
-            momentum_score=momentum_score,
-            risk_score=risk_score,
-            earnings_score=earnings_score,
-            sentiment_score=sentiment_score,
-        )
 
         return CompositeInvestmentScore(
             symbol=symbol,

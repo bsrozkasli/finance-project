@@ -129,17 +129,24 @@ class InstrumentEligibilityServiceTest {
         assertThat(service.evaluate("RECLS", T1).reason()).isEqualTo(EligibilityReason.UNSUPPORTED_TYPE);
     }
 
-    @Test
-    void currentObservationDoesNotProveClassificationBeforeItWasObserved() {
+    @ParameterizedTest
+    @EnumSource(value = AssetType.class, names = {"STOCK", "ETF"})
+    void currentObservationIsResearchOnlyEvenAtOrAfterRetrieval(AssetType type) {
         var service = serviceReturning((s, i) -> Optional.of(
-                identity(s, AssetType.STOCK, ListingStatus.ACTIVE, ClassificationBasis.CURRENT_OBSERVATION, T1)));
+                identity(s, type, ListingStatus.ACTIVE, ClassificationBasis.CURRENT_OBSERVATION, T1)));
 
         EligibilityDecision historical = service.evaluate("AAPL", T0);
         EligibilityDecision atObservation = service.evaluate("AAPL", T1);
+        EligibilityDecision later = service.evaluate("AAPL", T1.plusSeconds(1));
 
         assertThat(historical.eligible()).isFalse();
-        assertThat(historical.reason()).isEqualTo(EligibilityReason.HISTORICAL_CLASSIFICATION_UNPROVEN);
-        assertThat(atObservation.eligible()).isTrue();
+        assertThat(atObservation.eligible()).isFalse();
+        assertThat(later.eligible()).isFalse();
+        assertThat(historical.reason()).isEqualTo(EligibilityReason.POINT_IN_TIME_CLASSIFICATION_UNPROVEN);
+        assertThat(atObservation.reason()).isEqualTo(EligibilityReason.POINT_IN_TIME_CLASSIFICATION_UNPROVEN);
+        assertThat(later.reason()).isEqualTo(EligibilityReason.POINT_IN_TIME_CLASSIFICATION_UNPROVEN);
+        assertThat(atObservation.identity().orElseThrow().source()).isEqualTo("test-master");
+        assertThat(atObservation.identity().orElseThrow().retrievedAt()).isEqualTo(T1);
     }
 
     @Test

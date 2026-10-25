@@ -45,9 +45,8 @@ public class InstrumentEligibilityService {
         if (identity.assetType() != AssetType.STOCK && identity.assetType() != AssetType.ETF) {
             return EligibilityDecision.rejected(EligibilityReason.UNSUPPORTED_TYPE, found);
         }
-        if (identity.basis() == ClassificationBasis.CURRENT_OBSERVATION
-                && evaluationInstant.isBefore(identity.retrievedAt())) {
-            return EligibilityDecision.rejected(EligibilityReason.HISTORICAL_CLASSIFICATION_UNPROVEN, found);
+        if (identity.basis() == ClassificationBasis.CURRENT_OBSERVATION) {
+            return EligibilityDecision.rejected(EligibilityReason.POINT_IN_TIME_CLASSIFICATION_UNPROVEN, found);
         }
         if (identity.listingStatus() != ListingStatus.ACTIVE) {
             return EligibilityDecision.rejected(EligibilityReason.NOT_ACTIVELY_LISTED, found);
