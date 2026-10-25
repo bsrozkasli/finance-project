@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
 import {
   ArrowDownRight,
@@ -10,8 +10,6 @@ import {
   X,
 } from 'lucide-react';
 import type { Stock, Portfolio, Trade } from '../types';
-import PortfolioImportPanel from './portfolio/PortfolioImportPanel';
-import PortfolioStatePanel from './portfolio/PortfolioStatePanel';
 import type { PortfolioPositionPerformance, PortfolioTransaction } from '../api/client';
 import { fetchPortfolioPositionsPerformance, fetchPortfolioTransactions } from '../api/client';
 
@@ -61,6 +59,9 @@ const numericPortfolioId = (id: string | undefined): number | undefined => {
   const parsed = Number(id);
   return Number.isFinite(parsed) ? parsed : undefined;
 };
+
+const PortfolioImportPanel = lazy(() => import('./portfolio/PortfolioImportPanel'));
+const PortfolioStatePanel = lazy(() => import('./portfolio/PortfolioStatePanel'));
 
 const monthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
@@ -745,14 +746,16 @@ export default function PortfolioManagerView({
       </section>
 
       {activeInvestmentPortfolioId !== undefined && (
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-          <PortfolioImportPanel
-            key={`import-${activeInvestmentPortfolioId}`}
-            portfolioId={activeInvestmentPortfolioId}
-            onAccepted={() => setDetailsReload((value) => value + 1)}
-          />
-          <PortfolioStatePanel key={`state-${activeInvestmentPortfolioId}`} portfolioId={activeInvestmentPortfolioId} />
-        </div>
+        <Suspense fallback={<p role="status">Paneller yükleniyor…</p>}>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <PortfolioImportPanel
+              key={`import-${activeInvestmentPortfolioId}`}
+              portfolioId={activeInvestmentPortfolioId}
+              onAccepted={() => setDetailsReload((value) => value + 1)}
+            />
+            <PortfolioStatePanel key={`state-${activeInvestmentPortfolioId}`} portfolioId={activeInvestmentPortfolioId} />
+          </div>
+        </Suspense>
       )}
 
       {healthMetrics.unpriced > 0 && (

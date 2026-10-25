@@ -18,7 +18,6 @@ const ROW_STATUS_LABELS: Record<PortfolioImportRowStatus, string> = {
 };
 
 const BAD = 'border-bear-red/35 bg-bear-red/10 text-bear-red';
-
 const ROW_STATUS_CLASSES: Record<PortfolioImportRowStatus, string> = {
   VALID: 'border-primary/35 bg-primary/10 text-primary',
   INVALID: BAD,
@@ -27,15 +26,6 @@ const ROW_STATUS_CLASSES: Record<PortfolioImportRowStatus, string> = {
   REJECTED: BAD,
 };
 
-const COUNT_LABELS: Array<[keyof PortfolioImportBatch['counts'], string]> = [
-  ['valid', 'Geçerli'],
-  ['invalid', 'Geçersiz'],
-  ['duplicate', 'Mükerrer'],
-  ['accepted', 'Kabul edilen'],
-  ['rejected', 'Reddedilen'],
-];
-
-const shortLocator = (locator: string) => (locator.length > 20 ? `${locator.slice(0, 20)}…` : locator);
 
 export default function PortfolioImportPanel({ portfolioId, onAccepted }: PortfolioImportPanelProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -82,9 +72,6 @@ export default function PortfolioImportPanel({ portfolioId, onAccepted }: Portfo
   return (
     <section aria-labelledby="portfolio-import-title" className="rounded-md border border-outline-variant bg-bg-card p-5 md:p-6">
       <h2 id="portfolio-import-title" className="text-base font-bold text-text-primary">CSV ile işlem içe aktar</h2>
-      <p className="mt-1 text-xs text-text-muted">
-        Dosya önce aşamalanır; defter yalnızca &quot;Kabul et&quot; ile değişir.
-      </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
@@ -116,9 +103,9 @@ export default function PortfolioImportPanel({ portfolioId, onAccepted }: Portfo
       {batch && (
         <div className="mt-5 space-y-4">
           <div role="group" aria-label="Satır sayıları" className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            {COUNT_LABELS.map(([key, label]) => (
+            {(Object.keys(batch.counts) as Array<keyof PortfolioImportBatch['counts']>).map((key) => (
               <dl key={key} className="rounded-md border border-outline-variant/40 bg-bg-base/40 px-3 py-2">
-                <dt className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{label}</dt>
+                <dt className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{ROW_STATUS_LABELS[key.toUpperCase() as PortfolioImportRowStatus]}</dt>
                 <dd className="font-data-mono text-lg font-black text-text-primary">{batch.counts[key]}</dd>
               </dl>
             ))}
@@ -146,7 +133,7 @@ export default function PortfolioImportPanel({ portfolioId, onAccepted }: Portfo
                     <td className="px-3 py-2 text-text-secondary">{row.message ?? '-'}</td>
                     <td className="px-3 py-2 font-data-mono text-text-muted">
                       {row.originLocator
-                        ? <span title={row.originLocator}>{shortLocator(row.originLocator)}</span>
+                        ? <span title={row.originLocator} className="block max-w-40 truncate">{row.originLocator}</span>
                         : '-'}
                     </td>
                   </tr>
@@ -165,9 +152,7 @@ export default function PortfolioImportPanel({ portfolioId, onAccepted }: Portfo
               {isAccepting ? 'Kabul ediliyor…' : 'Kabul et'}
             </button>
             {isAccepted && (
-              <span role="status" className="text-xs text-bull-green">
-                Toplu aktarım kabul edildi. Kabul edilen satırlar deftere işlendi.
-              </span>
+              <span role="status" className="text-xs text-bull-green">Toplu aktarım kabul edildi.</span>
             )}
           </div>
         </div>

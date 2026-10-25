@@ -126,8 +126,8 @@ change together when API routing changes.
     version (short form, full value in the tooltip), the exposure status, the
     positions with Turkish valuation labels, and the asset-type weights only
     when `exposureStatus` is `COMPLETE`. A `null` price, price date, market
-    value or weight renders as "bilinmiyor", never `0` (this panel's wording for
-    the unknown-value rule above). `PARTIAL` adds a note that weights are
+    value or weight renders as `—` with the accessible name and tooltip
+    "bilinmiyor", never `0`. `PARTIAL` adds a note that weights are
     withheld because some positions have no usable price or matching currency.
     The version is an identifier, not an investment signal, and no Fit or
     decision flow uses it.

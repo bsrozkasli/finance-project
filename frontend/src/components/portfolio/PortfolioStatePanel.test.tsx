@@ -62,13 +62,13 @@ describe('PortfolioStatePanel', () => {
     const table = screen.getByRole('table', { name: 'Durum pozisyonları' });
     const row = within(table).getByText('AAPL').closest('tr') as HTMLElement;
     expect(within(row).getByText('Fiyatlandı')).toBeInTheDocument();
-    expect(within(row).queryByText('bilinmiyor')).not.toBeInTheDocument();
+    expect(within(row).queryByLabelText('bilinmiyor')).not.toBeInTheDocument();
     const weights = screen.getByRole('table', { name: 'Varlık türü ağırlıkları' });
     expect(within(weights).getByText('US_STOCK')).toBeInTheDocument();
     expect(within(weights).getByText('%100,00')).toBeInTheDocument();
   });
 
-  it('renders a PARTIAL state with bilinmiyor for null values and withholds weights with a note', async () => {
+  it('renders a PARTIAL state with an em dash labelled bilinmiyor for null values and withholds weights with a note', async () => {
     server.use(http.post(url('/portfolios/1/states'), () => HttpResponse.json(partial, { status: 201 })));
     render(<PortfolioStatePanel portfolioId={1} />);
 
@@ -76,12 +76,58 @@ describe('PortfolioStatePanel', () => {
 
     const table = await screen.findByRole('table', { name: 'Durum pozisyonları' });
     const row = within(table).getByText('AAPL').closest('tr') as HTMLElement;
-    expect(within(row).getAllByText('bilinmiyor')).toHaveLength(4);
+    const unknownCells = within(row).getAllByLabelText('bilinmiyor');
+    expect(unknownCells).toHaveLength(4);
+    unknownCells.forEach((cell) => {
+      expect(cell).toHaveTextContent('—');
+      expect(cell).toHaveAttribute('title', 'bilinmiyor');
+    });
+    expect(within(row).queryByText('bilinmiyor')).not.toBeInTheDocument();
     expect(within(row).getByText('Fiyat yok')).toBeInTheDocument();
     expect(within(row).queryByText(/^0([.,]0+)?$/)).not.toBeInTheDocument();
     expect(screen.getByText('Kısmi')).toBeInTheDocument();
     expect(screen.getByText(/ağırlıklar gösterilmiyor/)).toHaveTextContent(/kullanılabilir fiyatı veya eşleşen para birimi yok/);
     expect(screen.queryByRole('table', { name: 'Varlık türü ağırlıkları' })).not.toBeInTheDocument();
+  });
+
+  it('never shows weights for a non-COMPLETE state even if the response carries them', async () => {
+    const inconsistent: PortfolioState = {
+      ...partial,
+      positions: [{ ...partial.positions[0], weight: 0.5 }],
+      assetTypeWeights: { US_STOCK: 0.5 },
+    };
+    server.use(http.post(url('/portfolios/1/states'), () => HttpResponse.json(inconsistent, { status: 201 })));
+    render(<PortfolioStatePanel portfolioId={1} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Durum oluştur' }));
+
+    const table = await screen.findByRole('table', { name: 'Durum pozisyonları' });
+    expect(screen.queryByRole('table', { name: 'Varlık türü ağırlıkları' })).not.toBeInTheDocument();
+    expect(within(table).queryByText(/%/)).not.toBeInTheDocument();
+    expect(within(table).getAllByLabelText('bilinmiyor')).toHaveLength(4);
+  });
+
+  it('shows a dash, not zero, for a null weight inside a COMPLETE state', async () => {
+    const closed = {
+      ...complete.positions[0],
+      symbol: 'MSFT',
+      quantity: 0,
+      valuationStatus: 'CLOSED' as const,
+      price: null,
+      priceDate: null,
+      marketValue: null,
+      weight: null,
+    };
+    const withClosed: PortfolioState = { ...complete, positions: [...complete.positions, closed] };
+    server.use(http.post(url('/portfolios/1/states'), () => HttpResponse.json(withClosed, { status: 201 })));
+    render(<PortfolioStatePanel portfolioId={1} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Durum oluştur' }));
+
+    const row = (await screen.findByText('MSFT')).closest('tr') as HTMLElement;
+    expect(within(row).getAllByLabelText('bilinmiyor')).toHaveLength(4);
+    expect(within(row).queryByText(/%/)).not.toBeInTheDocument();
+    expect(within(row).getByText('Kapalı')).toBeInTheDocument();
   });
 
   it('explains an EMPTY state without weights', async () => {

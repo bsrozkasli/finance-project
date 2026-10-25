@@ -11,6 +11,10 @@ interface PortfolioStatePanelProps {
 }
 
 const UNKNOWN = 'bilinmiyor';
+const NUM = 'px-3 py-2 text-right font-data-mono text-text-primary';
+
+// Unknown values show an em dash (SPEC); the words stay in the accessible name and tooltip.
+const unknown = <span role="img" aria-label={UNKNOWN} title={UNKNOWN}>—</span>;
 const ERROR_CLASS = 'mt-4 rounded-md border border-bear-red/40 bg-bear-red/10 px-3 py-2 text-xs text-bear-red';
 
 const POSITION_HEADERS: Array<[string, string]> = [
@@ -37,18 +41,15 @@ const VALUATION_LABELS: Record<PortfolioStateValuationStatus, string> = {
 // The backend compares as-of with the UTC date, so the picker limit uses it too.
 const todayUtc = () => new Date().toISOString().slice(0, 10);
 
-const shortVersion = (version: string) => {
-  const [prefix, hash] = version.split(':');
-  return hash && hash.length > 12 ? `${prefix}:${hash.slice(0, 12)}…` : version;
-};
+const shortVersion = (version: string) => (version.length > 22 ? `${version.slice(0, 22)}…` : version);
 
 const formatNumber = (value: number | null) => (
-  value == null ? UNKNOWN : value.toLocaleString('tr-TR', { maximumFractionDigits: 8 })
+  value == null ? unknown : value.toLocaleString('tr-TR', { maximumFractionDigits: 8 })
 );
 
 const formatPercent = (value: number | null) => (
   value == null
-    ? UNKNOWN
+    ? unknown
     : `%${(value * 100).toFixed(2).replace('.', ',')}`
 );
 
@@ -60,7 +61,7 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
 
   const maxDate = todayUtc();
   const isFuture = asOf > maxDate;
-  const canCreate = Boolean(asOf) && !isFuture && !isCreating;
+  const canCreate = asOf !== '' && !isFuture && !isCreating;
 
   const handleCreate = async () => {
     if (!canCreate) return;
@@ -70,7 +71,7 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
       setState(await createPortfolioState(portfolioId, asOf));
     } catch (createError) {
       setState(null);
-      setError(getApiErrorMessage(createError, 'Portföy durumu oluşturulamadı.'));
+      setError(getApiErrorMessage(createError, 'Durum oluşturulamadı.'));
     } finally {
       setIsCreating(false);
     }
@@ -81,9 +82,6 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
   return (
     <section aria-labelledby="portfolio-state-title" className="rounded-md border border-outline-variant bg-bg-card p-5 md:p-6">
       <h2 id="portfolio-state-title" className="text-base font-bold text-text-primary">Portföy durumu</h2>
-      <p className="mt-1 text-xs text-text-muted">
-        Seçilen tarihteki aktif işlemlerden ve kayıtlı fiyatlardan değişmez durum üretir.
-      </p>
 
       <div className="mt-4 flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1">
@@ -94,7 +92,6 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
             value={asOf}
             max={maxDate}
             onChange={(event) => setAsOf(event.target.value)}
-            aria-invalid={isFuture}
             className="rounded-md border border-outline-variant px-3 py-2 text-sm text-text-primary"
           />
         </div>
@@ -117,31 +114,20 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
 
       {state && (
         <div className="mt-5 space-y-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-            {[
-              ['Sürüm', <span title={state.version}>{shortVersion(state.version)}</span>],
-              ['Maruz kalma durumu', EXPOSURE_LABELS[state.exposureStatus]],
-              ['Tarih', state.asOf],
-              ['Kaynak işlem sayısı', state.sourceEventIds.length],
-            ].map(([label, value]) => (
-              <dl key={String(label)} className="rounded-md border border-outline-variant/40 bg-bg-base/40 px-3 py-2">
-                <dt className="text-[11px] font-bold uppercase tracking-wider text-text-muted">{label}</dt>
-                <dd className="font-data-mono text-sm font-bold text-text-primary">{value}</dd>
-              </dl>
-            ))}
-          </div>
-          <p className="text-xs text-text-muted">
-            Sürüm yalnızca bu durumun kimliğidir; yatırım sinyali değildir.
+          <p className="text-sm text-text-primary">
+            Sürüm: <span className="font-data-mono font-bold" title={state.version}>{shortVersion(state.version)}</span>
+            {' · '}Maruz kalma durumu: <strong>{EXPOSURE_LABELS[state.exposureStatus]}</strong>
           </p>
+          <p className="text-xs text-text-muted">Sürüm yalnızca bu durumun kimliğidir; yatırım sinyali değildir.</p>
 
           {state.exposureStatus === 'PARTIAL' && (
-            <p role="note" className="rounded-md border border-warning-amber/35 bg-warning-amber/10 px-3 py-2 text-xs text-warning-amber">
+            <p className="rounded-md border border-warning-amber/35 bg-warning-amber/10 px-3 py-2 text-xs text-warning-amber">
               Bazı pozisyonların kullanılabilir fiyatı veya eşleşen para birimi yok; bu nedenle ağırlıklar
               gösterilmiyor.
             </p>
           )}
 
-          {state.exposureStatus === 'EMPTY' || state.positions.length === 0 ? (
+          {state.positions.length === 0 ? (
             <p className="text-xs text-text-muted">Bu tarihte açık pozisyon yok.</p>
           ) : (
             <div className="overflow-x-auto rounded-md border border-outline-variant/40">
@@ -158,15 +144,15 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
                     <tr key={position.symbol}>
                       <td className="px-3 py-2 font-data-mono font-black text-text-primary">{position.symbol}</td>
                       <td className="px-3 py-2 text-text-secondary">{position.assetType}</td>
-                      <td className="px-3 py-2 text-right font-data-mono text-text-primary">{formatNumber(position.quantity)}</td>
-                      <td className="px-3 py-2 text-right font-data-mono text-text-secondary">{formatNumber(position.averageCost)}</td>
-                      <td className="px-3 py-2 text-right font-data-mono text-text-primary">{formatNumber(position.price)}</td>
-                      <td className="px-3 py-2 font-data-mono text-text-secondary">{position.priceDate ?? UNKNOWN}</td>
-                      <td className="px-3 py-2 text-right font-data-mono text-text-primary">{formatNumber(position.marketValue)}</td>
-                      <td className="px-3 py-2 text-right font-data-mono text-text-primary">
-                        {state.exposureStatus === 'COMPLETE' ? formatPercent(position.weight) : UNKNOWN}
+                      <td className={NUM}>{formatNumber(position.quantity)}</td>
+                      <td className={NUM}>{formatNumber(position.averageCost)}</td>
+                      <td className={NUM}>{formatNumber(position.price)}</td>
+                      <td className="px-3 py-2 font-data-mono text-text-secondary">{position.priceDate ?? unknown}</td>
+                      <td className={NUM}>{formatNumber(position.marketValue)}</td>
+                      <td className={NUM}>
+                        {state.exposureStatus === 'COMPLETE' ? formatPercent(position.weight) : unknown}
                       </td>
-                      <td className="px-3 py-2 text-text-secondary">{position.currency ?? UNKNOWN}</td>
+                      <td className="px-3 py-2 text-text-secondary">{position.currency ?? unknown}</td>
                       <td className="px-3 py-2 text-text-secondary">{VALUATION_LABELS[position.valuationStatus]}</td>
                     </tr>
                   ))}
@@ -188,7 +174,7 @@ export default function PortfolioStatePanel({ portfolioId }: PortfolioStatePanel
                   {weightEntries.map(([assetType, weight]) => (
                     <tr key={assetType}>
                       <td className="px-3 py-2 font-data-mono text-text-primary">{assetType}</td>
-                      <td className="px-3 py-2 text-right font-data-mono text-text-primary">{formatPercent(weight)}</td>
+                      <td className={NUM}>{formatPercent(weight)}</td>
                     </tr>
                   ))}
                 </tbody>

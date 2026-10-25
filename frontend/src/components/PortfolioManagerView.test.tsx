@@ -383,8 +383,8 @@ describe('PortfolioManagerView', () => {
 
     renderPortfolio();
 
-    expect(screen.getByRole('heading', { name: 'CSV ile işlem içe aktar' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Portföy durumu' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'CSV ile işlem içe aktar' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Portföy durumu' })).toBeInTheDocument();
     await waitFor(() => expect(transactionLoads).toBe(1));
     await user.upload(screen.getByLabelText('CSV dosyası'), new File(['a,b'], 'x.csv', { type: 'text/csv' }));
     await user.click(screen.getByRole('button', { name: 'Yükle' }));
