@@ -86,14 +86,32 @@ ports with in-memory state.
 - The internal `PortfolioStateService` derives a `PortfolioState` from accepted
   ledger events (each has an id and belongs to the requested portfolio and
   user) traded on or before an as-of date. It lists every traded symbol,
-  including positions closed back to zero, with quantity, cost basis and
-  realized PnL, plus the source event ids. Its version is `pstate-v1:` and a
-  SHA-256 over the portfolio, user, as-of date and each event's economic and
-  lineage fields in id order (numbers without trailing zeros); notes and
-  timestamps are excluded. The state is not persisted, has no route, and has no
-  exposures. Because the transaction port can delete events, a state version
-  can stop being reproducible; replay then yields a different version rather
-  than the old state.
+  including positions closed back to zero (`CLOSED`, never valued), with
+  quantity, cost basis and realized PnL, plus the source event ids, the
+  portfolio base currency, an `exposureStatus` and the `valuationInputs` used.
+  Exposures (decision D-2) use only retained prices: the latest stored close on
+  or before the as-of date, with the stored `Asset.currency` as price currency;
+  nothing is fetched from providers. An open position is valued only when the
+  price, position and base currencies are equal (no FX conversion). Its status,
+  checked in this order, is `CURRENCY_UNKNOWN` (no asset or blank currency),
+  `CURRENCY_MISMATCH`, `NO_PRICE`, `STALE_PRICE` (close older than 7 calendar
+  days; exactly 7 is current) or `PRICED`. Market value is quantity x close for
+  `PRICED` and `STALE_PRICE` only. Weights exist only when every open position
+  is `PRICED` (`COMPLETE`): market value over the total, and per
+  `PortfolioAssetType` sums, divided at 10 decimals `HALF_UP`. Any other open
+  status (or a zero total) gives `PARTIAL` with every weight null and an empty
+  `assetTypeWeights`; no open positions gives `EMPTY`. The version is
+  `pstate-v2:` and a SHA-256 over the portfolio, user, as-of date, base
+  currency, each event's economic and lineage fields in id order and, per
+  position in symbol order, its valuation status, close, price date and price
+  currency (numbers without trailing zeros); notes, timestamps and `voidedAt`
+  are excluded. `project` with explicit `ValuationInput`s and a base currency
+  reproduces a state without reading prices; the price-port path builds those
+  inputs and delegates to it. `stateAt` reads the base currency through
+  `PortfolioPort`. The state is not persisted and has no route yet. Because
+  transactions are voided and never deleted, and `findByIdsIncludingVoided`
+  returns voided events, a version stays reproducible from its stored event ids
+  and valuation inputs after a later void.
 - Journal records may link to a portfolio/transaction, but journal decision
   history is not implicitly deleted when a position is sold.
 
