@@ -31,6 +31,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -186,7 +187,7 @@ public class PortfolioStateService {
         if (baseCurrency == null || baseCurrency.isBlank()) {
             throw new IllegalArgumentException("baseCurrency must not be blank");
         }
-        String base = baseCurrency.trim().toUpperCase();
+        String base = baseCurrency.trim().toUpperCase(Locale.ROOT);
         Map<String, ValuationInput> supplied = new HashMap<>();
         for (ValuationInput input : suppliedInputs) {
             if (supplied.put(input.symbol(), input) != null) {

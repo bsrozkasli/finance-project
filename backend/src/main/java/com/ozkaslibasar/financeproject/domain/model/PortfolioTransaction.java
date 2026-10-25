@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Locale;
 import java.util.UUID;
 
 public record PortfolioTransaction(
@@ -62,9 +63,9 @@ public record PortfolioTransaction(
             if (symbol == null || symbol.isBlank()) {
                 throw new IllegalArgumentException("symbol must not be blank");
             }
-            symbol = symbol.trim().toUpperCase();
+            symbol = symbol.trim().toUpperCase(Locale.ROOT);
         } else if (symbol != null && !symbol.isBlank()) {
-            symbol = symbol.trim().toUpperCase();
+            symbol = symbol.trim().toUpperCase(Locale.ROOT);
         }
         if (assetType == null) {
             assetType = PortfolioAssetType.OTHER;
@@ -84,7 +85,7 @@ public record PortfolioTransaction(
         if (currency == null || currency.isBlank()) {
             currency = "USD";
         }
-        currency = currency.trim().toUpperCase();
+        currency = currency.trim().toUpperCase(Locale.ROOT);
         if (currency.length() != 3) {
             throw new IllegalArgumentException("currency must be an ISO currency code");
         }
