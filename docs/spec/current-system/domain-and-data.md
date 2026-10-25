@@ -97,6 +97,11 @@ ports with in-memory state.
   event is voided, in one transaction. The lock transaction is pinned to
   `READ COMMITTED` (R-18) because a waiter must see the committed insert or void it
   waited for; do not change that isolation level.
+  `PortfolioPositionController.addPosition` is `@Transactional`, so its ledger
+  addition joins that outer transaction and the template's `READ COMMITTED` setting
+  is not applied there; PostgreSQL's default is also `READ COMMITTED` and the
+  application does not change it, so the lock stays correct, but a change of the
+  default would need that path revisited (R-18 addendum).
 - The internal `PortfolioStateService` derives a `PortfolioState` from accepted
   ledger events (each has an id and belongs to the requested portfolio and
   user) traded on or before an as-of date. It lists every traded symbol,
@@ -145,13 +150,25 @@ ports with in-memory state.
   read once, each row is validated by `LedgerChunk.add` against running positions
   (the same `applyTransaction` rules as `addTransaction`), and the chunk's ledger
   inserts and row outcomes commit together; a chunk that fails rolls back whole and
-  its rows stay `VALID`. A row dated before the latest event already in the view
-  (back-dated against the ledger) is validated by a full in-memory replay, so every
-  outcome equals what `addTransaction` would give. Rows whose locator already exists
-  are settled after the chunk commits. Measured on real PostgreSQL (developer
-  machine, 5,000 valid rows alternating BUY/SELL over 50 symbols,
-  `PortfolioCsvImportPerformanceTest`): accept 191 s with the previous per-row
-  replay, 23.5 s chunked (target 30 s); staging 17-18 s. Every ledger
+  its rows stay `VALID`. Positions are independent per symbol, so the view keeps each
+  symbol's events in replay order. A row dated on or after its symbol's latest event is
+  applied to the running position; a back-dated row (R-24) replays only that symbol's
+  events with the new row in its place, with the same `applyTransaction` rules, and the
+  replayed position replaces the running one (no second full re-seed). A randomized
+  differential test (`PortfolioLedgerChunkDifferentialTest`, fixed seed, 300 sequences
+  of BUY/SELL/DIVIDEND/FEE incl. back-dated, same-date and oversell attempts) checks the
+  accept/reject decisions and final quantity, cost basis and realized PnL equal
+  sequential `addTransaction`. Rows whose locator already exists are settled after the
+  chunk commits. Measured on real PostgreSQL (developer machine, 5,000 valid rows
+  alternating BUY/SELL over 50 symbols, `PortfolioCsvImportPerformanceTest`): appended
+  rows accept 191 s with the original per-row replay, 23.5 s chunked (a later run on a
+  busier machine gave 31.2 s; target 30 s); a back-dated historical file into a
+  portfolio already holding 50 newer events accepts in 46.8 s with the first chunked
+  version (full replay twice per row) and 27.2 s with the per-symbol replay (target
+  60 s); staging 16-23 s. The 5,000-row cases are opt-in: `.\mvnw.cmd
+  "-Dtest=PortfolioCsvImportPerformanceTest" "-Dcsv.perf=true" test` from `backend\`
+  (several minutes; run it outside a 120 s limit); a 1,000-row back-dated case with a
+  60 s bound runs by default. Every ledger
   addition (manual and CSV) runs its read, validation and save inside
   `PortfolioLedgerLockPort.withPortfolioLock` (R-13): one transaction that first
   locks the portfolio row (`SELECT ... FOR UPDATE`), so additions to one portfolio

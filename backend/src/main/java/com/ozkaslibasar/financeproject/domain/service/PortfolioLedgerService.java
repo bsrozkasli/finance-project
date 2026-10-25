@@ -66,21 +66,26 @@ public class PortfolioLedgerService {
     }
 
     /**
-     * A running view of one portfolio's active ledger, valid only inside {@link #inLedgerChunk}. An event dated on
-     * or after every event already in the view sorts last in {@link #chronological}, so it is applied to the running
-     * positions directly; an earlier-dated (back-dated) event could change how later events replay, so it is
-     * validated by a full in-memory replay, exactly as {@link #addTransaction} does.
+     * A running view of one portfolio's active ledger, valid only inside {@link #inLedgerChunk}. Positions are
+     * independent per symbol, so the view keeps each symbol's events in replay order with its running position. An
+     * event dated on or after the symbol's latest event sorts last in {@link #chronological} and is applied to the
+     * running position directly (R-21). A back-dated event is validated by replaying only that symbol's events with
+     * the new one in its place, using the same {@link #applyTransaction} rules as {@link #addTransaction}, and the
+     * replayed position then replaces the running one (R-24); no other symbol is touched.
      */
     public final class LedgerChunk {
-        private final List<PortfolioTransaction> events;
-        private Map<String, Accumulator> positions = new LinkedHashMap<>();
-        private LocalDate latestTradeDate;
+        private final Map<String, List<PortfolioTransaction>> eventsBySymbol = new LinkedHashMap<>();
+        private final Map<String, Accumulator> positions = new LinkedHashMap<>();
         private IllegalArgumentException unusableLedger;
 
         private LedgerChunk(List<PortfolioTransaction> events) {
-            this.events = events;
+            for (PortfolioTransaction event : chronological(events)) {
+                eventsBySymbol.computeIfAbsent(symbolKey(event), key -> new ArrayList<>()).add(event);
+            }
             try {
-                reseed();
+                for (PortfolioTransaction event : chronological(events)) {
+                    applyTransaction(positions, event);
+                }
             } catch (IllegalArgumentException e) {
                 // The stored ledger no longer replays: every addition is refused with that reason, as before.
                 unusableLedger = e;
@@ -98,29 +103,54 @@ public class PortfolioLedgerService {
             if (unusableLedger != null) {
                 throw new IllegalArgumentException(unusableLedger.getMessage(), unusableLedger);
             }
-            boolean appendsLast = latestTradeDate == null || !transaction.tradeDate().isBefore(latestTradeDate);
+            String key = symbolKey(transaction);
+            List<PortfolioTransaction> symbolEvents = eventsBySymbol.computeIfAbsent(key, k -> new ArrayList<>());
+            boolean appendsLast = symbolEvents.isEmpty()
+                    || !transaction.tradeDate().isBefore(symbolEvents.get(symbolEvents.size() - 1).tradeDate());
+            Map<String, Accumulator> replayed = null;
             if (appendsLast) {
-                applyTransaction(positions, transaction);
+                boolean known = positions.containsKey(key);
+                try {
+                    applyTransaction(positions, transaction);
+                } catch (IllegalArgumentException e) {
+                    if (!known) {
+                        positions.remove(key); // a refused first event must not leave an empty position behind
+                    }
+                    throw e;
+                }
             } else {
-                validateTransaction(events, transaction);
+                replayed = new LinkedHashMap<>();
+                boolean placed = false;
+                for (PortfolioTransaction event : symbolEvents) {
+                    if (!placed && event.tradeDate().isAfter(transaction.tradeDate())) {
+                        applyTransaction(replayed, transaction);
+                        placed = true;
+                    }
+                    applyTransaction(replayed, event);
+                }
             }
             PortfolioTransaction saved = transactionPort.save(transaction);
-            events.add(saved);
             if (appendsLast) {
-                latestTradeDate = saved.tradeDate();
+                symbolEvents.add(saved);
             } else {
-                reseed();
+                int at = symbolEvents.size();
+                while (at > 0 && symbolEvents.get(at - 1).tradeDate().isAfter(saved.tradeDate())) {
+                    at--;
+                }
+                symbolEvents.add(at, saved);
+                positions.remove(key);
+                positions.putAll(replayed);
             }
             return saved;
         }
 
-        private void reseed() {
-            positions = new LinkedHashMap<>();
-            latestTradeDate = null;
-            for (PortfolioTransaction event : chronological(events)) {
-                applyTransaction(positions, event);
-                latestTradeDate = event.tradeDate();
-            }
+        /** The running positions of every traded symbol, including closed ones (same shape as calculatePositions). */
+        public List<PortfolioHolding> positions() {
+            return positions.values().stream().map(Accumulator::toHolding).toList();
+        }
+
+        private String symbolKey(PortfolioTransaction event) {
+            return event.symbol() == null || event.symbol().isBlank() ? "" : event.symbol();
         }
     }
 
