@@ -141,3 +141,13 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   its events is voided (D-1, D-3). Cost if wrong: none known; voiding stays visible through the active reads.
 - **R-5. CSV duplicate detection uses `PortfolioTransactionPort.existsBySourceAndOriginLocator`, counting voided
   rows.** Why: D-1 item 4 keeps a voided event's locator reserved. Cost if wrong: a rename.
+- **R-6. Restart replay tests must pass datasource settings with the highest precedence.**
+  `SpringApplicationBuilder.properties(...)` sets default properties, so `application-test.yml`'s `jdbc:tc:` URL
+  overrode them and both restart tests (Portfolio State in PR #70, research evidence already on `main` from #68) ran on
+  a Testcontainers-JDBC database that disappears when the first context closes. They passed only when another Spring
+  test kept that database open; run alone, the Portfolio State test failed. Decision: fix both in PR #70 by passing the
+  settings as command-line arguments and asserting the context's datasource URL is the test container's. Cost if wrong:
+  PR #70 touches one evidence test outside its topic.
+- **R-7. `voidedAt` stays out of existing JSON through a Jackson mix-in in the adapter layer** (Task 1). Why: the domain
+  record is serialized directly as the transaction response, D-1 forbids new fields there, and the domain must stay
+  framework-free. Cost if wrong: an `ObjectMapper` created outside Spring Boot would expose `voidedAt`.
