@@ -304,3 +304,11 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   tests were written without a recorded red run. Decision: for each rule that matters (null is not rendered as 0,
   weights hidden unless `COMPLETE`, future date blocked, upload sends the file body, fixture shape drift is detected),
   temporarily break the rule and confirm a test fails, then restore it. Cost if wrong: none.
+- **R-29. The bundle budget rises from 700 KiB to 710 KiB, and the import hint is restored** (corrects R-27.2). Why: R-27.2
+  assumed that lazy loading would take the new panels out of the budget, but `check:bundle` sums every chunk, so
+  lazy loading only moved bytes (it added about 1.4 KiB). To stay under 700 KiB the implementer removed panel copy,
+  including the hint that a staged import does not change the ledger until "Kabul et" is pressed. That hint prevents a
+  user from believing an upload already changed their portfolio, so it is more important than the 10 KiB headroom.
+  Decision: keep the lazy loading (the main page still loads less on first paint), restore the removed hint and the
+  count tiles that carry meaning, and raise the budget by 10 KiB in the same change, recorded here. Cost if wrong: a
+  slightly larger download; the budget remains a guard, and the next frontend change must again justify its size.
