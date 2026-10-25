@@ -263,3 +263,19 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   container holding ledger, voided events, states and import batches, restore into a fresh container, replay every stored
   state and compare versions) and document that it proves logical recoverability only. It sets no RPO/RTO, encryption or
   retention requirement; Task 3 acceptance stays open until OQ-8 records those. Cost if wrong: none.
+- **R-24. Back-dated CSV rows must not fall back to a double replay per row.** Why: the chunked acceptance (R-21) is fast
+  only for rows dated on or after the ledger's latest event; a historical file imported into a portfolio that already has
+  newer events took the slow path for every row (two full replays per row), which can be slower than the original
+  algorithm. Decision: for a back-dated row, validate by seeding positions as of the row's date, applying the row, then
+  replaying only the later events, and update the chunk's running state without a second full re-seed. The target for a
+  5,000-row back-dated file into a portfolio holding newer events is the same as R-21's append case, relaxed to 60
+  seconds; the measured value is recorded. A randomized differential test compares the chunked outcome (statuses, cost
+  basis, realized PnL) with the sequential `addTransaction` result. Cost if wrong: more code in the ledger service.
+- **R-25. The 5,000-row timing test is opt-in.** Why: it is timing-based and adds about a minute to the CI suite. Decision:
+  it runs only with `-Dcsv.perf=true` (JUnit `@EnabledIfSystemProperty`); correctness coverage stays in the default
+  unit and Testcontainers tests, and a 1,000-row case with a generous bound stays in the default run. The measured numbers
+  stay in the specification. Cost if wrong: a performance regression is caught only when the opt-in run is used.
+- **R-18 addendum.** `PortfolioPositionController.addPosition` is `@Transactional`, so its ledger addition joins that outer
+  transaction and the lock template's `READ COMMITTED` setting is not applied there. PostgreSQL's default isolation is
+  also `READ COMMITTED` and the application does not change it, so the lock stays correct; a change of the default would
+  need this path revisited.
