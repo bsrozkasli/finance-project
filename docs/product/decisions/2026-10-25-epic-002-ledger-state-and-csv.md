@@ -133,3 +133,11 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   is not merged; Flyway `out-of-order` is enabled in both the application and test profiles, so either PR can merge
   first. Cost if wrong: if `out-of-order` were disabled in an environment, the later-merged V9 would fail validation
   there; the fix is enabling it or renumbering before that environment migrates.
+- **R-2. `PortfolioStateService` also takes `PortfolioPort`.** Why: `stateAt` needs the portfolio base currency (D-2
+  item 2). Cost if wrong: one constructor argument.
+- **R-3. "After today" for `asOf` uses the UTC date.** Why: it does not depend on the server time zone and matches the
+  UTC timestamps stored for prices. Cost if wrong: near midnight, a user far from UTC gets `400` one day early or late.
+- **R-4. The state hash excludes `voidedAt`, notes and timestamps.** Why: a stored state must still replay after one of
+  its events is voided (D-1, D-3). Cost if wrong: none known; voiding stays visible through the active reads.
+- **R-5. CSV duplicate detection uses `PortfolioTransactionPort.existsBySourceAndOriginLocator`, counting voided
+  rows.** Why: D-1 item 4 keeps a voided event's locator reserved. Cost if wrong: a rename.
