@@ -151,3 +151,16 @@ Rulings made during implementation are appended here as `R-n` with the decision,
 - **R-7. `voidedAt` stays out of existing JSON through a Jackson mix-in in the adapter layer** (Task 1). Why: the domain
   record is serialized directly as the transaction response, D-1 forbids new fields there, and the domain must stay
   framework-free. Cost if wrong: an `ObjectMapper` created outside Spring Boot would expose `voidedAt`.
+- **R-8. Exposure details not fixed by D-2** (Task 2, accepted by the controller). Why: each keeps the derivation
+  deterministic and fail-closed. Cost if wrong: a new derivation version.
+  1. The base currency is part of the `pstate-v2` hash header, so the same events under two base currencies never share
+     a version.
+  2. State positions are sorted by symbol (they were in ledger order), matching the hash order.
+  3. Valuation inputs hold one entry per open position. A found price and date stay in the input even when the status is
+     `CURRENCY_UNKNOWN` or `CURRENCY_MISMATCH`, so a replay shows what was found; the position's price, date and market
+     value are null for every status except `PRICED` and `STALE_PRICE`.
+  4. Currencies are trimmed and upper-cased before comparison; a blank price currency is treated as unknown.
+  5. Replay from explicit inputs treats an open position without an input as all-null (`CURRENCY_UNKNOWN`), ignores
+     inputs for symbols that are not open, and rejects duplicate inputs or an input dated after `asOf`.
+  6. A position whose transaction currency is missing is `CURRENCY_MISMATCH`.
+  7. The `pstate-v1` four-argument `project` is removed; it had no production caller.
