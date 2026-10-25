@@ -64,12 +64,25 @@ ports with in-memory state.
 - A fully sold holding is removed from the derived positive-holdings view and
   its cost basis becomes zero; historical transactions remain the ledger.
 - DIVIDEND and FEE actions affect realized PnL without fabricating a holding.
+  A FEE without a symbol (allowed, since FEE does not require one) reaches no
+  position and therefore no realized PnL; portfolio-level cash is not modelled.
 - A MANUAL transaction gets an `origin_locator` of `manual:<UUID>` once, at
   creation; persistence never rewrites it (`updatable=false`). V8 gives existing
   manual rows `manual:legacy:<row-id>`, which names only their known persisted
   origin. A database check requires a `manual:` locator for MANUAL rows, and
   `(source, origin_locator)` is unique. CSV lineage is still unspecified, so CSV rows
   may have a `NULL` locator.
+- The internal `PortfolioStateService` derives a `PortfolioState` from accepted
+  ledger events (each has an id and belongs to the requested portfolio and
+  user) traded on or before an as-of date. It lists every traded symbol,
+  including positions closed back to zero, with quantity, cost basis and
+  realized PnL, plus the source event ids. Its version is `pstate-v1:` and a
+  SHA-256 over the portfolio, user, as-of date and each event's economic and
+  lineage fields in id order (numbers without trailing zeros); notes and
+  timestamps are excluded. The state is not persisted, has no route, and has no
+  exposures. Because the transaction port can delete events, a state version
+  can stop being reproducible; replay then yields a different version rather
+  than the old state.
 - Journal records may link to a portfolio/transaction, but journal decision
   history is not implicitly deleted when a position is sold.
 
