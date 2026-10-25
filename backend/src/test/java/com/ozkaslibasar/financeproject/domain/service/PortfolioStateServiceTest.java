@@ -7,6 +7,8 @@ import com.ozkaslibasar.financeproject.domain.model.ExposureStatus;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioStatePosition;
 import com.ozkaslibasar.financeproject.domain.model.PositionValuationStatus;
+import com.ozkaslibasar.financeproject.domain.model.StoredPortfolioState;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioStatePort;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.model.ValuationInput;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
@@ -50,8 +52,9 @@ class PortfolioStateServiceTest {
     private final InMemoryPrices prices = new InMemoryPrices();
     private final InMemoryAssets assets = new InMemoryAssets();
     private final InMemoryPortfolios portfolios = new InMemoryPortfolios();
+    private final InMemoryStatePort states = new InMemoryStatePort();
     private final PortfolioStateService service =
-            new PortfolioStateService(port, new PortfolioLedgerService(port), prices, assets, portfolios);
+            new PortfolioStateService(port, new PortfolioLedgerService(port), prices, assets, portfolios, states);
 
     @BeforeEach
     void portfolioExists() {
@@ -563,6 +566,152 @@ class PortfolioStateServiceTest {
         assertThatThrownBy(() -> service.stateAt(99L, USER, AS_OF)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> service.stateAt(PORTFOLIO, "someone-else", AS_OF))
                 .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    private void seedPricedLedger() {
+        asset("AAPL", "USD");
+        prices.put("AAPL", "100", LocalDate.of(2026, 10, 20));
+        buyThenPartialSell().forEach(port::save);
+    }
+
+    private void replaceStored(StoredPortfolioState stored, List<Long> eventIds, List<ValuationInput> inputs) {
+        states.rows.set(0, new StoredPortfolioState(stored.version(), stored.portfolioId(), stored.userId(),
+                stored.asOf(), stored.baseCurrency(), stored.exposureStatus(), eventIds, inputs, stored.createdAt()));
+    }
+
+    @Test
+    void createDerivesPersistsAndReportsNewThenExisting() {
+        seedPricedLedger();
+
+        PortfolioStateService.CreatedState first = service.create(PORTFOLIO, USER, AS_OF);
+        PortfolioStateService.CreatedState second = service.create(PORTFOLIO, USER, AS_OF);
+
+        assertThat(first.created()).isTrue();
+        assertThat(second.created()).isFalse();
+        assertThat(second.state()).isEqualTo(first.state());
+        assertThat(states.rows).hasSize(1);
+        StoredPortfolioState stored = states.rows.get(0);
+        assertThat(stored.version()).isEqualTo(first.state().version());
+        assertThat(stored.eventIds()).containsExactly(1L, 2L);
+        assertThat(stored.valuationInputs()).isEqualTo(first.state().valuationInputs());
+        assertThat(stored.baseCurrency()).isEqualTo("USD");
+        assertThat(stored.exposureStatus()).isEqualTo(ExposureStatus.COMPLETE);
+    }
+
+    @Test
+    void changedPricesGiveANewStoredVersionAndLeaveTheOldRowReplayable() {
+        seedPricedLedger();
+        PortfolioState before = service.create(PORTFOLIO, USER, AS_OF).state();
+        prices.clear();
+        prices.put("AAPL", "101", LocalDate.of(2026, 10, 20));
+
+        PortfolioStateService.CreatedState after = service.create(PORTFOLIO, USER, AS_OF);
+
+        assertThat(after.created()).isTrue();
+        assertThat(after.state().version()).isNotEqualTo(before.version());
+        assertThat(states.rows).hasSize(2);
+        assertThat(service.replay(PORTFOLIO, USER, before.version())).contains(before);
+    }
+
+    @Test
+    void createForAnUnknownPortfolioStoresNothing() {
+        assertThatThrownBy(() -> service.create(99L, USER, AS_OF)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(states.rows).isEmpty();
+    }
+
+    @Test
+    void replayReturnsTheStoredStateWithoutReadingPricesAgain() {
+        seedPricedLedger();
+        PortfolioState created = service.create(PORTFOLIO, USER, AS_OF).state();
+        prices.clear();
+        assets.clear();
+
+        assertThat(service.replay(PORTFOLIO, USER, created.version())).contains(created);
+    }
+
+    @Test
+    void replayStillWorksAfterASourceEventIsVoided() {
+        seedPricedLedger();
+        PortfolioState created = service.create(PORTFOLIO, USER, AS_OF).state();
+        port.voidByIdAndPortfolioIdAndUserId(2L, PORTFOLIO, USER, Instant.parse("2026-10-21T10:00:00Z"));
+
+        assertThat(port.findByPortfolioIdAndUserId(PORTFOLIO, USER)).hasSize(1);
+        assertThat(service.replay(PORTFOLIO, USER, created.version())).contains(created);
+    }
+
+    @Test
+    void replayComparesVersionsNotRecordEqualityOfScaledNumbers() {
+        seedPricedLedger();
+        PortfolioState created = service.create(PORTFOLIO, USER, AS_OF).state();
+        StoredPortfolioState stored = states.rows.get(0);
+        ValuationInput input = stored.valuationInputs().get(0);
+        replaceStored(stored, stored.eventIds(), List.of(new ValuationInput(input.symbol(),
+                input.close().setScale(8), input.priceDate(), input.priceCurrency())));
+
+        PortfolioState replayed = service.replay(PORTFOLIO, USER, created.version()).orElseThrow();
+
+        assertThat(replayed.version()).isEqualTo(created.version());
+    }
+
+    @Test
+    void replayOfAnUnknownVersionOrAnotherUsersStateIsEmpty() {
+        seedPricedLedger();
+        PortfolioState created = service.create(PORTFOLIO, USER, AS_OF).state();
+
+        assertThat(service.replay(PORTFOLIO, USER, "pstate-v2:unknown")).isEmpty();
+        assertThat(service.replay(PORTFOLIO, "someone-else", created.version())).isEmpty();
+        assertThat(service.replay(99L, USER, created.version())).isEmpty();
+    }
+
+    @Test
+    void replayThrowsMismatchWhenTheStoredInputsNoLongerHashToTheVersion() {
+        seedPricedLedger();
+        PortfolioState created = service.create(PORTFOLIO, USER, AS_OF).state();
+        StoredPortfolioState stored = states.rows.get(0);
+        ValuationInput input = stored.valuationInputs().get(0);
+        replaceStored(stored, stored.eventIds(), List.of(new ValuationInput(input.symbol(), new BigDecimal("999"),
+                input.priceDate(), input.priceCurrency())));
+
+        assertThatThrownBy(() -> service.replay(PORTFOLIO, USER, created.version()))
+                .isInstanceOf(PortfolioStateMismatchException.class)
+                .hasMessageContaining(created.version());
+    }
+
+    @Test
+    void replayThrowsMismatchWhenASourceEventIsMissing() {
+        seedPricedLedger();
+        PortfolioState created = service.create(PORTFOLIO, USER, AS_OF).state();
+        StoredPortfolioState stored = states.rows.get(0);
+        replaceStored(stored, List.of(1L, 2L, 404L), stored.valuationInputs());
+
+        assertThatThrownBy(() -> service.replay(PORTFOLIO, USER, created.version()))
+                .isInstanceOf(PortfolioStateMismatchException.class);
+    }
+
+    private static final class InMemoryStatePort implements PortfolioStatePort {
+        private final List<StoredPortfolioState> rows = new ArrayList<>();
+
+        @Override
+        public Optional<StoredPortfolioState> findByVersion(Long portfolioId, String userId, String version) {
+            return rows.stream()
+                    .filter(r -> r.portfolioId().equals(portfolioId) && r.userId().equals(userId)
+                            && r.version().equals(version))
+                    .findFirst();
+        }
+
+        @Override
+        public SaveResult saveIfAbsent(StoredPortfolioState state) {
+            Optional<StoredPortfolioState> existing =
+                    findByVersion(state.portfolioId(), state.userId(), state.version());
+            if (existing.isPresent()) {
+                return new SaveResult(existing.get(), false);
+            }
+            StoredPortfolioState stored = new StoredPortfolioState(state.version(), state.portfolioId(),
+                    state.userId(), state.asOf(), state.baseCurrency(), state.exposureStatus(), state.eventIds(),
+                    state.valuationInputs(), Instant.parse("2026-10-25T00:00:00Z"));
+            rows.add(stored);
+            return new SaveResult(stored, true);
+        }
     }
 
     private static final class InMemoryPrices implements PriceRepositoryPort {

@@ -8,6 +8,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioStatePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
@@ -177,6 +178,8 @@ class DomainConfigWiringTest {
         assertThat(ReflectionTestUtils.getField(service, "priceRepository")).isSameAs(priceRepositoryPort);
         assertThat(ReflectionTestUtils.getField(service, "assetRepository")).isSameAs(assetRepositoryPort);
         assertThat(ReflectionTestUtils.getField(service, "portfolioPort")).isSameAs(portfolioPort);
+        assertThat(ReflectionTestUtils.getField(service, "statePort"))
+                .isSameAs(applicationContext.getBean(PortfolioStatePort.class));
     }
 
     @Test
@@ -281,6 +284,12 @@ class DomainConfigWiringTest {
         PortfolioTransactionPort portfolioTransactionPort() {
             // Mock rationale: persistence boundary is mocked to keep context test deterministic.
             return mock(PortfolioTransactionPort.class);
+        }
+
+        @Bean
+        PortfolioStatePort portfolioStatePort() {
+            // Mock rationale: persistence boundary is mocked to keep context test deterministic.
+            return mock(PortfolioStatePort.class);
         }
 
         @Bean

@@ -8,7 +8,9 @@ import com.ozkaslibasar.financeproject.domain.model.PortfolioStatePosition;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PositionValuationStatus;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.StoredPortfolioState;
 import com.ozkaslibasar.financeproject.domain.model.ValuationInput;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioStatePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
@@ -56,10 +58,16 @@ public class PortfolioStateService {
     private final PriceRepositoryPort priceRepository;
     private final AssetRepositoryPort assetRepository;
     private final PortfolioPort portfolioPort;
+    private final PortfolioStatePort statePort;
+
+    /** A derived state and whether persisting it created a new stored version. */
+    public record CreatedState(PortfolioState state, boolean created) {
+    }
 
     public PortfolioStateService(PortfolioTransactionPort transactionPort, PortfolioLedgerService ledger,
                                  PriceRepositoryPort priceRepository, AssetRepositoryPort assetRepository,
-                                 PortfolioPort portfolioPort) {
+                                 PortfolioPort portfolioPort, PortfolioStatePort statePort) {
+        this.statePort = Objects.requireNonNull(statePort, "statePort must not be null");
         this.transactionPort = Objects.requireNonNull(transactionPort, "transactionPort must not be null");
         this.ledger = Objects.requireNonNull(ledger, "ledger must not be null");
         this.priceRepository = Objects.requireNonNull(priceRepository, "priceRepository must not be null");
@@ -73,6 +81,47 @@ public class PortfolioStateService {
                 .baseCurrency();
         return project(portfolioId, userId, asOf, baseCurrency,
                 transactionPort.findByPortfolioIdAndUserId(portfolioId, userId));
+    }
+
+    /** Derives the state from active events and stored prices and persists it idempotently (decision D-3). */
+    public CreatedState create(Long portfolioId, String userId, LocalDate asOf) {
+        PortfolioState state = stateAt(portfolioId, userId, asOf);
+        PortfolioStatePort.SaveResult result = statePort.saveIfAbsent(new StoredPortfolioState(state.version(),
+                state.portfolioId(), state.userId(), state.asOf(), state.baseCurrency(), state.exposureStatus(),
+                state.sourceEventIds(), state.valuationInputs(), null));
+        return new CreatedState(state, result.created());
+    }
+
+    /**
+     * Replays a stored state from its stored event ids (voided events included) and stored valuation inputs. Empty
+     * when no such version is stored; throws when the replayed version differs from the stored one. Versions are
+     * compared, not records, because a database round-trip changes numeric scale.
+     */
+    public Optional<PortfolioState> replay(Long portfolioId, String userId, String version) {
+        Optional<StoredPortfolioState> found = statePort.findByVersion(portfolioId, userId, version);
+        if (found.isEmpty()) {
+            return Optional.empty();
+        }
+        StoredPortfolioState stored = found.get();
+        List<PortfolioTransaction> events =
+                transactionPort.findByIdsIncludingVoided(portfolioId, userId, stored.eventIds());
+        if (events.size() != stored.eventIds().size()) {
+            throw new PortfolioStateMismatchException("Portfolio state " + version
+                    + " cannot be replayed: a source ledger event is missing");
+        }
+        PortfolioState replayed;
+        try {
+            replayed = project(portfolioId, userId, stored.asOf(), stored.baseCurrency(), events,
+                    stored.valuationInputs());
+        } catch (IllegalArgumentException e) {
+            throw new PortfolioStateMismatchException("Portfolio state " + version
+                    + " cannot be replayed: " + e.getMessage(), e);
+        }
+        if (!replayed.version().equals(stored.version())) {
+            throw new PortfolioStateMismatchException("Portfolio state " + version
+                    + " replayed to a different version " + replayed.version());
+        }
+        return Optional.of(replayed);
     }
 
     /** Values open positions from the latest stored close on or before {@code asOf}, then delegates. */
