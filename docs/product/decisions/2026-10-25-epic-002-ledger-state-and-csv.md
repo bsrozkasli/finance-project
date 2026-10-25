@@ -279,3 +279,15 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   transaction and the lock template's `READ COMMITTED` setting is not applied there. PostgreSQL's default isolation is
   also `READ COMMITTED` and the application does not change it, so the lock stays correct; a change of the default would
   need this path revisited.
+- **R-26. Frontend handoff scope for the new EPIC-002 routes.** Decision: the frontend gets (1) a CSV import panel in the
+  portfolio screen: choose a `.csv` file, show the staged batch (counts and a row table with status, message and
+  identity), and an explicit accept button; (2) a Portfolio State panel: pick an as-of date (not in the future), create
+  a state, and show its version, exposure status, positions with their valuation status, and the asset-type weights;
+  (3) the transaction delete flow shows the backend's `409` message instead of a generic error. Rules: all calls go
+  through the Spring API modules in `frontend/src/api` (never the data-service); the UI is Turkish like the rest of the
+  screen; a weight, price or market value that is `null` is shown as "bilinmiyor", never as 0, and weights are shown
+  only when the exposure status is `COMPLETE`; the state version is shown but is not an investment signal; response
+  shapes are pinned by shared contract fixtures in `docs/contracts/fixtures/` with the backend `ContractFixtures` test
+  and the frontend `contract.test.ts` schema in the same change. Out of scope: the integrated E2E against a live
+  backend (not run locally, CI runs it), downloads/exports, and any use of a state version inside Fit or decisions.
+  Cost if wrong: UI copy and layout adjustments only; no backend contract changes.
