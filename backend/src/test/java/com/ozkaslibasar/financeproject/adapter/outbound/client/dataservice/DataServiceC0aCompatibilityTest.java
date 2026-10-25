@@ -112,6 +112,48 @@ class DataServiceC0aCompatibilityTest {
     }
 
     @Test
+    void compositeWithoutEnoughEvidenceKeepsUnknownValuesNull() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        DataServiceResearchAdapter adapter = new DataServiceResearchAdapter(restTemplate);
+        ReflectionTestUtils.setField(adapter, "baseUrl", "http://data-service.test");
+
+        server.expect(requestTo("http://data-service.test/api/v1/research/composite/AAPL"))
+                .andRespond(withSuccess("""
+                        {
+                          "symbol": "AAPL",
+                          "overall_score": null,
+                          "grade": null,
+                          "recommendation": null,
+                          "breakdown": {
+                            "fundamental_score": null,
+                            "valuation_score": null,
+                            "quality_score": null,
+                            "growth_score": null,
+                            "momentum_score": null,
+                            "risk_score": null,
+                            "earnings_score": null,
+                            "sentiment_score": 70
+                          },
+                          "confidence": 0.17,
+                          "calculated_at": "2026-10-23T10:00:00Z",
+                          "breakdown_availability": {},
+                          "unavailable_components": ["fundamental", "valuation", "factor", "risk", "earnings"]
+                        }
+                        """, APPLICATION_JSON));
+
+        var result = adapter.fetchCompositeScore("AAPL");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().overallScore()).isNull();
+        assertThat(result.get().grade()).isNull();
+        assertThat(result.get().recommendation()).isNull();
+        assertThat(result.get().breakdown().valuationScore()).isNull();
+        assertThat(result.get().breakdown().sentimentScore()).isEqualTo(70);
+        server.verify();
+    }
+
+    @Test
     void sentimentIgnoresAvailability() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();

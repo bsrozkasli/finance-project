@@ -69,7 +69,7 @@ def _reasons(result) -> dict[str, str | None]:
     return {field: availability.unavailable_reason for field, availability in result.breakdown_availability.items()}
 
 
-async def test_all_components_failing_are_unavailable_and_values_unchanged(components):
+async def test_all_components_failing_are_unavailable_and_values_unknown(components):
     boom = RuntimeError("provider down")
     components(fundamental=boom, valuation=boom, factor=boom, risk=boom, earnings=boom, sentiment=boom)
 
@@ -88,8 +88,8 @@ async def test_all_components_failing_are_unavailable_and_values_unchanged(compo
         "earnings_score": "earnings_component_unavailable",
         "sentiment_score": "sentiment_component_unavailable",
     }
-    assert set(result.breakdown.model_dump().values()) == {50}
-    assert (result.overall_score, result.grade.value, result.recommendation, result.confidence) == (50, "C", "Reduce", 0.0)
+    assert set(result.breakdown.model_dump().values()) == {None}
+    assert (result.overall_score, result.grade, result.recommendation, result.confidence) == (None, None, None, 0.0)
 
 
 async def test_production_shaped_inputs_map_nested_scores(components):
@@ -139,6 +139,9 @@ async def test_unexpected_shapes_still_report_not_mapped(components):
         "earnings_score": "earnings_score_not_mapped",
         "sentiment_score": None,
     }
+    assert result.breakdown.model_dump() == dict.fromkeys(FIELDS - {"sentiment_score"}) | {"sentiment_score": 70}
+    # Sentiment alone carries 5% of the weight: too little evidence for an overall verdict.
+    assert (result.overall_score, result.grade, result.recommendation) == (None, None, None)
 
 
 def _nested(*, valuation_grade="Cheap", earnings_score=90, **factor_scores):
@@ -188,4 +191,29 @@ async def test_present_but_empty_values_are_insufficient(components, shape, fiel
 
     assert result.breakdown_availability[field].model_dump() == {"status": "insufficient", "unavailable_reason": reason}
     assert result.breakdown_availability["earnings_score"].unavailable_reason == "earnings_score_missing"
-    assert getattr(result.breakdown, field) == 50
+    assert getattr(result.breakdown, field) is None
+
+
+async def test_overall_score_uses_only_evidence_with_renormalised_weights(components):
+    components(
+        fundamental=SimpleNamespace(), risk=SimpleNamespace(), sentiment=RuntimeError("provider down"),
+        **_nested(earnings_score=None, quality_score=80, growth_score=60, momentum_score=40, low_volatility_score=70),
+    )
+
+    result = await CompositeScoreService.analyze("AAPL")
+
+    assert (result.breakdown.earnings_score, result.breakdown.sentiment_score) == (None, None)
+    # (70*.25 + 75*.20 + 80*.15 + 60*.10 + 40*.10 + 70*.10) / 0.90 = 68.3: no neutral 50 enters the average.
+    assert (result.overall_score, result.grade.value, result.recommendation) == (68, "B", "Hold")
+
+
+async def test_fundamental_score_is_unknown_when_one_factor_input_is_missing(components):
+    components(
+        fundamental=SimpleNamespace(), risk=SimpleNamespace(), sentiment=_enhanced(70, []),
+        **_nested(quality_score=None, growth_score=60, momentum_score=40, low_volatility_score=70),
+    )
+
+    result = await CompositeScoreService.analyze("AAPL")
+
+    assert result.breakdown.fundamental_score is None
+    assert result.breakdown_availability["fundamental_score"].status == "unavailable"

@@ -2,7 +2,7 @@
 
 Each JSON file is a representative Spring `/api/v1` response body shared by the
 backend and frontend test suites. Values are test data derived by hand from the
-stub scenario in `PortfolioDashboardContractTest`; they are not market data and
+stub scenarios in the backend contract tests; they are not market data and
 must never be served to users.
 
 - Backend: `ContractFixtures.assertSameShape` compares the serialized field-path
@@ -23,4 +23,5 @@ non-null, add a backend shape test for the endpoint, and add a frontend schema t
 | `portfolio-summary.json` | `GET /portfolio/summary` |
 | `portfolio-performance.json` | `GET /portfolio/performance?period=&benchmark=` |
 | `portfolio-enriched-positions.json` | `GET /portfolio/positions/enriched` |
+| `portfolio-transactions.json` | `GET /portfolios/{portfolioId}/transactions` |
 | `error-response.json` | Any Spring 4xx/5xx handled by `GlobalExceptionHandler` |

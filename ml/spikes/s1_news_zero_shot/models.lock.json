@@ -12,8 +12,8 @@
     "declared_license": "mit",
     "model_card_url": "https://huggingface.co/MoritzLaurer/deberta-v3-base-zeroshot-v2.0/blob/8e7e5af5983a0ddb1a5b45a38b129ab69e2258e8/README.md",
     "checked_on": "2026-10-17",
-    "decision": "pending",
-    "decision_note": "Draft (agent): Hub metadata declares MIT. Model card and license file not yet read by a human; owner to confirm before 'use'."
+    "decision": "use",
+    "decision_note": "Owner decision 2026-10-23: use for owner-local evaluation only. Weights: MIT (card front matter and text, read at the pinned revision). The card states that models without '-c' in the name were also trained on data with non-commercial licenses (ANLI, WANLI, LingNLI) and that legal opinions diverge on whether this affects the model license. Any use beyond local evaluation must switch to a '-c' variant."
   },
   {
     "key": "finbert",
@@ -26,7 +26,7 @@
     "declared_license": "cc-by-nc-sa-4.0",
     "model_card_url": "https://huggingface.co/ProsusAI/finbert/blob/0bc2ac10dda6929bcb1f77ccc43c7ec5c424f031/README.md",
     "checked_on": "2026-10-17",
-    "decision": "pending",
-    "decision_note": "Draft (agent): Hub metadata declares CC-BY-NC-SA-4.0 (non-commercial, share-alike). Fine for owner-local evaluation only if the use stays non-commercial; conflicts with any later SaaS/commercial serving (PRD). Owner to decide 'use' or 'reject'."
+    "decision": "use",
+    "decision_note": "Owner decision 2026-10-23: use for non-commercial owner-local evaluation only. Weights: CC BY-NC-SA 4.0 (non-commercial, share-alike for adaptations). Training data: Financial PhraseBank under CC BY-NC-SA 3.0; further pre-training on a Reuters TRC2 subset under NIST access terms. Prosus grants no rights in third-party training data. Must not be served in the product, in SaaS, or in any commercial use."
   }
 ]
