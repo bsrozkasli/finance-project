@@ -108,10 +108,23 @@ ports with in-memory state.
   are excluded. `project` with explicit `ValuationInput`s and a base currency
   reproduces a state without reading prices; the price-port path builds those
   inputs and delegates to it. `stateAt` reads the base currency through
-  `PortfolioPort`. The state is not persisted and has no route yet. Because
-  transactions are voided and never deleted, and `findByIdsIncludingVoided`
-  returns voided events, a version stays reproducible from its stored event ids
-  and valuation inputs after a later void.
+  `PortfolioPort`. Because transactions are voided and never deleted, and
+  `findByIdsIncludingVoided` returns voided events, a version stays
+  reproducible from its stored event ids and valuation inputs after a later void.
+- Portfolio States are persisted append-only through `PortfolioStatePort`
+  (V11): `portfolio_states` (version, portfolio, user, as-of date, base
+  currency, exposure status, created time; unique `(portfolio_id, version)`,
+  cascade with the portfolio), `portfolio_state_events` (state id, transaction
+  id; no foreign key to transactions so voided events stay referenced) and
+  `portfolio_state_valuations` (symbol, nullable close, price date and price
+  currency). `saveIfAbsent` inserts with `ON CONFLICT DO NOTHING` and returns the
+  stored row and whether it was created; nothing is updated or deleted.
+  `PortfolioStateService.create` derives a state with `stateAt` and stores it;
+  `replay` loads the stored row, reads its events with `findByIdsIncludingVoided`,
+  re-projects with the stored inputs and base currency, and compares the
+  replayed version string with the stored one (never record equality, because a
+  database round-trip changes numeric scale). A missing event or a different
+  version throws `PortfolioStateMismatchException` (`409`).
 - Journal records may link to a portfolio/transaction, but journal decision
   history is not implicitly deleted when a position is sold.
 
@@ -171,6 +184,7 @@ Applied migrations are immutable.
 | `V8__manual_transaction_origin_locator.sql` | Adds `portfolio_transactions.origin_locator`, backfills `manual:legacy:<id>`, adds the manual-locator check and `(source, origin_locator)` uniqueness |
 | `V9__research_evidence_snapshots.sql` | `research_evidence_snapshots` (with the captured instrument identity) and `research_evidence_fields`: append-only evidence versions with linear revision uniqueness, a value-xor-missing-reason check, and observation-time checks; no route reads them yet |
 | `V10__void_portfolio_transactions.sql` | Adds nullable `portfolio_transactions.voided_at`; inverse is dropping the column |
+| `V11__portfolio_states.sql` | `portfolio_states`, `portfolio_state_events`, `portfolio_state_valuations`: append-only Portfolio States with unique `(portfolio_id, version)`; the event table has no foreign key to transactions; inverse is dropping the three tables |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.

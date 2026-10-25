@@ -124,6 +124,8 @@ Every path below is relative to `/api/v1`.
 | Ledger | `POST /portfolios/{portfolioId}/transactions` | Add a manual/CSV ledger transaction |
 | Ledger | `DELETE /portfolios/{portfolioId}/transactions/{transactionId}` | Void a ledger entry (the row is retained with `voided_at` set and excluded from every read; `404` once voided or unknown) and delete the linked transaction journal record |
 | Ledger | `GET /portfolios/{portfolioId}/holdings` | Derive current holdings from transactions |
+| Portfolio State | `POST /portfolios/{portfolioId}/states` | Body `{"asOf":"YYYY-MM-DD"}`. Derives the state from active events and stored prices, persists it and returns it: `201` when the version is new, `200` when it already existed. `400` for a missing or invalid `asOf` or one after today (UTC date); `404` for an unknown portfolio. |
+| Portfolio State | `GET /portfolios/{portfolioId}/states/{version}` | Replays a stored state from its stored event ids (voided events included) and valuation inputs, checks the replayed version equals the stored one, and returns it. `404` for an unknown portfolio or version; `409` with the standard error body when the replay differs. Response fields (both routes): `version`, `portfolioId`, `asOf`, `exposureStatus`, `sourceEventIds`, `positions[]` (`symbol`, `assetType`, `quantity`, `averageCost`, `costBasis`, `realizedPnl`, `currency`, `valuationStatus`, `price`, `priceDate`, `marketValue`, `weight`) and `assetTypeWeights` (object, keys sorted, empty unless `exposureStatus` is `COMPLETE`). Absent values are JSON `null`, never zero. |
 
 Spring controller annotations are the route authority. `docs/openapi.yaml` is a
 generated/supporting artifact and must be regenerated or validated when public
