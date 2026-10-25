@@ -209,3 +209,17 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   portfolio wait for each other; additions to different portfolios do not.
 - **R-14. An upload is rejected once it exceeds 1,048,576 bytes while being read**, not after the whole body is in
   memory. Why: D-4's size limit must also bound memory. Cost if wrong: none.
+- **R-15. Currencies are compared exactly, never case-folded** (corrects R-8.4). Why: Yahoo reports London stocks in
+  `GBp` (pence). Upper-casing turned `GBp` into `GBP`, so a pence close would match a pound portfolio and be valued 100
+  times too high; states are append-only, so a wrong state would be kept and keep passing replay. Decision: currency
+  codes are only trimmed; `GBp`, `ZAc` and lower-case codes do not equal `GBP`, `ZAR`, and the position is
+  `CURRENCY_MISMATCH`. The base and transaction currencies are already upper-cased by their models. No state existed
+  outside development, so the derivation stays `pstate-v2`. Cost if wrong: a provider that returns a lower-case code
+  for a major currency is reported as a mismatch (fail-closed) instead of valued.
+- **R-16. Known limit: voiding is not validated against later events.** Voiding a BUY that a later SELL depends on makes
+  `calculateHoldings` throw, so holdings and states return 400, manual additions 422 and every CSV row in that portfolio
+  is `REJECTED`; the void also is not under the portfolio lock. Why not fixed now: validating the void changes the
+  route's behavior and needs its own OQ-5 disposition (a new refusal status). Cost if wrong: a user can make a portfolio
+  temporarily unusable by deleting an early BUY. Follow-up: validate after the void under the lock and make the
+  journal delete and the void atomic. The sentence in `domain-and-data.md` that additions "cannot jointly oversell" is
+  limited to additions.
