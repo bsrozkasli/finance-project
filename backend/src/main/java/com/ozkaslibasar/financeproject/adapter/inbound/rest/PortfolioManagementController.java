@@ -101,6 +101,11 @@ public class PortfolioManagementController {
             @PathVariable Long portfolioId,
             @RequestBody PortfolioTransactionRequest request) {
         Portfolio portfolio = getPortfolio(portfolioId);
+        // R-20: CSV events need a csv: identity, which only the import route can produce.
+        if (request.source() == PortfolioTransactionSource.CSV) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "CSV transactions are created only through imports");
+        }
         try {
             PortfolioTransaction saved = ledgerService.addTransaction(new PortfolioTransaction(
                     null,

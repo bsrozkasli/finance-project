@@ -115,6 +115,39 @@ class PortfolioManagementControllerTest {
     }
 
     @Test
+    void refusesCsvSourceOnManualCreateWith422AndStandardBody() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+
+        mockMvc.perform(post("/api/v1/portfolios/1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"symbol":"NVDA","assetType":"US_STOCK","action":"BUY","quantity":5,"price":120,
+                                 "currency":"USD","source":"CSV"}
+                                """))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.message").value("CSV transactions are created only through imports"));
+
+        verify(ledgerService, never()).addTransaction(any(PortfolioTransaction.class));
+        verify(journalTradePort, never()).save(any());
+    }
+
+    @Test
+    void manualAndOmittedSourceStillCreateTransactions() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(ledgerService.addTransaction(any(PortfolioTransaction.class)))
+                .thenReturn(transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120"));
+
+        for (String sourceField : List.of("\"source\":\"MANUAL\",", "")) {
+            mockMvc.perform(post("/api/v1/portfolios/1/transactions")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{" + sourceField + "\"symbol\":\"NVDA\",\"assetType\":\"US_STOCK\","
+                                    + "\"action\":\"BUY\",\"quantity\":5,\"price\":120,\"currency\":\"USD\"}"))
+                    .andExpect(status().isCreated());
+        }
+    }
+
+    @Test
     void shouldReturn422WhenSellQuantityExceedsHolding() throws Exception {
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
         when(ledgerService.addTransaction(any(PortfolioTransaction.class)))

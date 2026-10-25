@@ -106,8 +106,9 @@ staging and acceptance with row identity, and the per-portfolio ledger lock pinn
 New code upper-cases with `Locale.ROOT` (R-19).
 
 Still open: OQ-8 recovery targets and the timed backup/restore exercise; accept performance is unmeasured (each row
-commits on its own); frontend handoff for the void `409` and the import/state routes; the manual route can still post
-`source=CSV` without import lineage (R-11).
+commits on its own); frontend handoff for the void `409` and the import/state routes.
+
+Closed: R-11 (the manual route posting `source=CSV` without import lineage) by R-20; that value now returns `422`.
 
 ## Plan Exit Criteria
 
