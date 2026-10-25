@@ -74,8 +74,12 @@ ports with in-memory state.
   creation; persistence never rewrites it (`updatable=false`). V8 gives existing
   manual rows `manual:legacy:<row-id>`, which names only their known persisted
   origin. A database check requires a `manual:` locator for MANUAL rows, and
-  `(source, origin_locator)` is unique. CSV lineage is still unspecified, so CSV rows
-  may have a `NULL` locator.
+  `(source, origin_locator)` is unique. Every CSV event created by the CSV import
+  (V12) carries a `csv:<sha256 hex>` locator, with `#<n>` appended for the n-th
+  identical row of a file (n >= 2); the hash covers the nine economic columns, so it
+  is independent of row order and of the notes. A `source=CSV` event posted through
+  the manual transaction route has no import lineage and may still have a `NULL`
+  locator.
 - A ledger event is never physically deleted. `DELETE .../transactions/{id}` sets
   the nullable `voided_at` once; the row, its id and its `(source, origin_locator)`
   stay (the locator remains reserved). `findByPortfolioIdAndUserId`,
@@ -111,6 +115,24 @@ ports with in-memory state.
   `PortfolioPort`. Because transactions are voided and never deleted, and
   `findByIdsIncludingVoided` returns voided events, a version stays
   reproducible from its stored event ids and valuation inputs after a later void.
+- CSV imports are staged in two tables (V12) behind `PortfolioCsvImportPort`:
+  `portfolio_csv_imports` (portfolio, user, file SHA-256, status `STAGED` or
+  `ACCEPTED`, created and accepted times; cascade with the portfolio) and
+  `portfolio_csv_import_rows` (batch, row number, raw line, nullable locator, status
+  `VALID`, `INVALID`, `DUPLICATE`, `ACCEPTED` or `REJECTED`, message, the parsed
+  values as columns, nullable accepted transaction id; unique `(batch_id,
+  row_number)`). Staging marks a row `DUPLICATE` when
+  `PortfolioTransactionPort.existsBySourceAndOriginLocator` finds its locator in the
+  ledger, voided events included. Acceptance runs `PortfolioCsvImportService.accept`
+  without an outer transaction: each `VALID` row goes through
+  `PortfolioLedgerService.addTransaction` in trade-date then row-number order, and
+  each ledger insert and each row outcome commits on its own. A ledger
+  `IllegalArgumentException` marks the row `REJECTED`; a `(source, origin_locator)`
+  unique violation (translated by the transaction adapter to
+  `DuplicateOriginLocatorException` for CSV events) marks it `DUPLICATE`; a row
+  outcome is written only while the row is still `VALID`. Accepting an `ACCEPTED`
+  batch returns it unchanged, and an interrupted acceptance leaves a `STAGED` batch
+  that resumes. `INVALID` rows never reach the ledger.
 - Portfolio States are persisted append-only through `PortfolioStatePort`
   (V11): `portfolio_states` (version, portfolio, user, as-of date, base
   currency, exposure status, created time; unique `(portfolio_id, version)`,
@@ -185,6 +207,7 @@ Applied migrations are immutable.
 | `V9__research_evidence_snapshots.sql` | `research_evidence_snapshots` (with the captured instrument identity) and `research_evidence_fields`: append-only evidence versions with linear revision uniqueness, a value-xor-missing-reason check, and observation-time checks; no route reads them yet |
 | `V10__void_portfolio_transactions.sql` | Adds nullable `portfolio_transactions.voided_at`; inverse is dropping the column |
 | `V11__portfolio_states.sql` | `portfolio_states`, `portfolio_state_events`, `portfolio_state_valuations`: append-only Portfolio States with unique `(portfolio_id, version)`; the event table has no foreign key to transactions; inverse is dropping the three tables |
+| `V12__portfolio_csv_imports.sql` | `portfolio_csv_imports` and `portfolio_csv_import_rows`: CSV import staging with parsed values as columns; both cascade with the portfolio; inverse is dropping the two tables |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.

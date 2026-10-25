@@ -126,6 +126,30 @@ Every path below is relative to `/api/v1`.
 | Ledger | `GET /portfolios/{portfolioId}/holdings` | Derive current holdings from transactions |
 | Portfolio State | `POST /portfolios/{portfolioId}/states` | Body `{"asOf":"YYYY-MM-DD"}`. Derives the state from active events and stored prices, persists it and returns it: `201` when the version is new, `200` when it already existed. `400` for a missing or invalid `asOf` or one after today (UTC date); `404` for an unknown portfolio. |
 | Portfolio State | `GET /portfolios/{portfolioId}/states/{version}` | Replays a stored state from its stored event ids (voided events included) and valuation inputs, checks the replayed version equals the stored one, and returns it. `404` for an unknown portfolio or version; `409` with the standard error body when the replay differs. Response fields (both routes): `version`, `portfolioId`, `asOf`, `exposureStatus`, `sourceEventIds`, `positions[]` (`symbol`, `assetType`, `quantity`, `averageCost`, `costBasis`, `realizedPnl`, `currency`, `valuationStatus`, `price`, `priceDate`, `marketValue`, `weight`) and `assetTypeWeights` (object, keys sorted, empty unless `exposureStatus` is `COMPLETE`). Absent values are JSON `null`, never zero. |
+| CSV Import | `POST /portfolios/{portfolioId}/imports` | Body is the CSV file, `Content-Type: text/csv`. Stages it and returns the batch (`201`); nothing enters the ledger. `400` rejects the whole file (empty or no data rows, over 1,048,576 bytes or 5,000 data rows, missing/unknown/duplicate header, invalid UTF-8, unterminated quote); `404` for an unknown portfolio; `415` for another content type. |
+| CSV Import | `GET /portfolios/{portfolioId}/imports/{batchId}` | Returns the staged or accepted batch; `404` for an unknown portfolio or batch. |
+| CSV Import | `POST /portfolios/{portfolioId}/imports/{batchId}/accept` | Inserts the `VALID` rows as `source=CSV` events in trade-date then row-number order and returns the batch with final row statuses (`200`); accepting an accepted batch returns it unchanged. `404` for an unknown portfolio or batch. Response fields (all three routes): `batchId`, `portfolioId`, `status` (`STAGED`, `ACCEPTED`), `fileSha256`, `createdAt`, `acceptedAt` (`null` until accepted), `counts` (`valid`, `invalid`, `duplicate`, `accepted`, `rejected`) and `rows[]` (`rowNumber`, `status`, `message`, `originLocator`, `transactionId`). Row `status` is `VALID`, `INVALID`, `DUPLICATE` (locator already in the ledger, voided events included), `ACCEPTED` or `REJECTED` (refused by the ledger, for example a sell above the holding). Absent values are JSON `null`. |
+
+### CSV import schema v1
+
+UTF-8 (an initial byte-order mark is ignored), comma separated, first row is the
+header, RFC 4180 quoting (quoted fields, doubled quotes, commas inside quotes),
+lines end in `\n` or `\r\n`, blank lines are skipped, decimal point `.`, dates
+`yyyy-MM-dd`. Header names are case-insensitive and in any order: required
+`trade_date`, `action`, `symbol`, `asset_type`, `quantity`, `price`, `currency`,
+`fee`, `fx_rate_to_base`; optional `notes`. `action` and `asset_type` use the
+`PortfolioTransactionAction` and `PortfolioAssetType` names, case-insensitively.
+`trade_date`, `action`, `asset_type` and `currency` are required; an empty `fee` is
+`0` and an empty `fx_rate_to_base` is `1`; every other value follows the
+`PortfolioTransaction` rules, and a row that fails (including a wrong column count
+or a number that does not fit the column) is staged `INVALID` with a message. A row's
+`originLocator` is `csv:` plus the lower-case hex SHA-256 of the nine economic
+values (date, action, symbol, asset type, quantity, price, currency, fee, fx rate)
+joined by `U+001F`, numbers as `stripTrailingZeros().toPlainString()`, codes
+upper-case, an absent symbol empty; the n-th identical row of a file gets `#n`
+(n >= 2). `rowNumber` counts non-blank data rows from 1. The locator is global to
+`(source, origin_locator)`, so the same row imported into another portfolio is
+`DUPLICATE`.
 
 Spring controller annotations are the route authority. `docs/openapi.yaml` is a
 generated/supporting artifact and must be regenerated or validated when public
