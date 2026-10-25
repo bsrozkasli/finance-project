@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { X, Trash2, BookOpen } from 'lucide-react';
 import type { Trade, Stock, Portfolio } from '../types';
+import { ApiError } from '../api/errors';
 
 interface TradingJournalModalProps {
   isOpen: boolean;
@@ -261,8 +262,11 @@ export default function TradingJournalModal({
                               setRemoveError('');
                               try {
                                 await onRemoveTrade(trade.id);
-                              } catch {
-                                setRemoveError('İşlem silinemedi. Daha sonra yeniden deneyin.');
+                              } catch (error) {
+                                // A 409 carries the backend's reason (for example a later sell that depends on this buy).
+                                setRemoveError(error instanceof ApiError && error.status === 409
+                                  ? error.message
+                                  : 'İşlem silinemedi. Daha sonra yeniden deneyin.');
                               }
                             }}
                             className="p-1.5 text-text-muted hover:text-bear-red hover:bg-bear-red/10 rounded-lg transition-colors"

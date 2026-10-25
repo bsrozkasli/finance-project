@@ -10,6 +10,8 @@ import {
   X,
 } from 'lucide-react';
 import type { Stock, Portfolio, Trade } from '../types';
+import PortfolioImportPanel from './portfolio/PortfolioImportPanel';
+import PortfolioStatePanel from './portfolio/PortfolioStatePanel';
 import type { PortfolioPositionPerformance, PortfolioTransaction } from '../api/client';
 import { fetchPortfolioPositionsPerformance, fetchPortfolioTransactions } from '../api/client';
 
@@ -94,6 +96,7 @@ export default function PortfolioManagerView({
   const [isDeletingPortfolio, setIsDeletingPortfolio] = useState(false);
   const [isCreatePortfolioOpen, setIsCreatePortfolioOpen] = useState(false);
   const [isDeletePortfolioOpen, setIsDeletePortfolioOpen] = useState(false);
+  const [detailsReload, setDetailsReload] = useState(0);
 
   const activePortfolio = useMemo(() => {
     return portfolios.find((portfolio) => portfolio.id === activePortfolioId) || (!activePortfolioId ? portfolios[0] : null);
@@ -147,7 +150,7 @@ export default function PortfolioManagerView({
     return () => {
       cancelled = true;
     };
-  }, [activeInvestmentPortfolioId]);
+  }, [activeInvestmentPortfolioId, detailsReload]);
 
   const fallbackPositions = useMemo<LocalPositionPerformance[]>(() => {
     if (!activePortfolio) return [];
@@ -740,6 +743,17 @@ export default function PortfolioManagerView({
           )}
         </div>
       </section>
+
+      {activeInvestmentPortfolioId !== undefined && (
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+          <PortfolioImportPanel
+            key={`import-${activeInvestmentPortfolioId}`}
+            portfolioId={activeInvestmentPortfolioId}
+            onAccepted={() => setDetailsReload((value) => value + 1)}
+          />
+          <PortfolioStatePanel key={`state-${activeInvestmentPortfolioId}`} portfolioId={activeInvestmentPortfolioId} />
+        </div>
+      )}
 
       {healthMetrics.unpriced > 0 && (
         <div className="rounded-md border border-outline-variant/35 bg-bg-card px-4 py-3 text-xs text-text-muted">
