@@ -223,3 +223,21 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   temporarily unusable by deleting an early BUY. Follow-up: validate after the void under the lock and make the
   journal delete and the void atomic. The sentence in `domain-and-data.md` that additions "cannot jointly oversell" is
   limited to additions.
+- **R-17. Voiding is validated and serialized (closes R-16).** Why: voiding a BUY that a later SELL depends on made
+  `calculateHoldings` throw, which left a portfolio unusable (holdings and states `400`, manual additions `422`, every CSV
+  row `REJECTED`), and the void could race an addition. Decision (OQ-5 disposition: additive status on an existing
+  route): `PortfolioLedgerService.voidTransaction` runs under the same per-portfolio lock as additions, replays the
+  remaining active events, and refuses the void when that replay is invalid.
+  1. `DELETE /portfolios/{portfolioId}/transactions/{transactionId}` keeps its path, `204` and `404`; it gains `409`
+     with the standard error body and a message naming the symbol, when removing the event would leave the ledger
+     invalid (for example a sell above the holding). No event is changed in that case.
+  2. The linked journal delete runs inside the same lock transaction as the void, so both happen or neither does.
+  3. Cost if wrong: a user cannot delete an early BUY until the later SELL is deleted first; that is the intended
+     protection. Reverse: drop the check.
+- **R-18. The ledger lock pins `READ COMMITTED`** and the code that locks is documented as depending on it. Why: the
+  lock is only correct if a waiter sees the committed insert it waited for; under `REPEATABLE READ` it would not. Cost if
+  wrong: none; this is the PostgreSQL default.
+- **R-19. New code upper-cases with `Locale.ROOT`.** Why: `toUpperCase()` without a locale turns `i` into `İ` on a Turkish
+  JVM, which would change symbols, currencies and CSV identities. Scope: the code added by this PR (CSV parser/service,
+  state service); the same pattern elsewhere in the codebase is out of scope and noted as a follow-up. Cost if wrong:
+  none.
