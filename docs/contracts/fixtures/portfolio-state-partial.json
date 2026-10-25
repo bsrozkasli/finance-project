@@ -1,0 +1,24 @@
+{
+  "version": "pstate-v2:def",
+  "portfolioId": 1,
+  "asOf": "2026-10-25",
+  "exposureStatus": "PARTIAL",
+  "sourceEventIds": [1, 2],
+  "positions": [
+    {
+      "symbol": "AAPL",
+      "assetType": "US_STOCK",
+      "quantity": 6,
+      "averageCost": 100,
+      "costBasis": 600,
+      "realizedPnl": 200,
+      "currency": "USD",
+      "valuationStatus": "NO_PRICE",
+      "price": null,
+      "priceDate": null,
+      "marketValue": null,
+      "weight": null
+    }
+  ],
+  "assetTypeWeights": {}
+}

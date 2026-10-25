@@ -15,6 +15,8 @@ This detects drift between a fixture and the backend response shape, and between
 fixture and the frontend zod schema. The zod schema is hand-mirrored and must be kept
 in sync with `src/api/client.ts` by hand; a TypeScript-only interface rename in
 `client.ts` is not detected (test files are excluded from `tsc`).
+Object-valued maps such as `assetTypeWeights` are compared by their keys, so the `COMPLETE` and `PARTIAL` state
+fixtures each pin their own key set.
 To add a fixture: write the JSON with every array non-empty and every object
 non-null, add a backend shape test for the endpoint, and add a frontend schema test.
 
@@ -24,4 +26,7 @@ non-null, add a backend shape test for the endpoint, and add a frontend schema t
 | `portfolio-performance.json` | `GET /portfolio/performance?period=&benchmark=` |
 | `portfolio-enriched-positions.json` | `GET /portfolio/positions/enriched` |
 | `portfolio-transactions.json` | `GET /portfolios/{portfolioId}/transactions` |
+| `portfolio-import-batch.json` | `POST/GET /portfolios/{portfolioId}/imports[...]`, `POST .../imports/{batchId}/accept` |
+| `portfolio-state-complete.json` | `POST /portfolios/{portfolioId}/states`, `GET .../states/{version}` (`COMPLETE`, weights present) |
+| `portfolio-state-partial.json` | Same routes, `PARTIAL`: null price, price date, market value and weight; `assetTypeWeights` is `{}` |
 | `error-response.json` | Any Spring 4xx/5xx handled by `GlobalExceptionHandler` |

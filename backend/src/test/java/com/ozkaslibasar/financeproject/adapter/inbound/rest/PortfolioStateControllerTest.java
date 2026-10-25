@@ -1,5 +1,6 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+import com.ozkaslibasar.financeproject.contract.ContractFixtures;
 import com.ozkaslibasar.financeproject.domain.model.ExposureStatus;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
@@ -151,6 +152,31 @@ class PortfolioStateControllerTest {
                 .andExpect(content().string(containsString("\"weight\":null")))
                 .andExpect(jsonPath("$.assetTypeWeights").isMap())
                 .andExpect(jsonPath("$.assetTypeWeights").isEmpty());
+    }
+
+    @Test
+    void completeStateMatchesSharedContractFixture() throws Exception {
+        when(stateService.create(1L, "default", TODAY))
+                .thenReturn(new PortfolioStateService.CreatedState(state(true), true));
+
+        String body = mockMvc.perform(post("/api/v1/portfolios/1/states").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"asOf\":\"2026-10-25\"}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+
+        ContractFixtures.assertSameShape("portfolio-state-complete.json", body);
+    }
+
+    @Test
+    void partialStateWithNullsMatchesSharedContractFixture() throws Exception {
+        when(stateService.replay(1L, "default", VERSION))
+                .thenReturn(Optional.of(state(false)));
+
+        String body = mockMvc.perform(get("/api/v1/portfolios/1/states/" + VERSION))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        ContractFixtures.assertSameShape("portfolio-state-partial.json", body);
     }
 
     private static PortfolioState withScales(String quantity, String price, String marketValue, String weight) {

@@ -291,3 +291,24 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   and the frontend `contract.test.ts` schema in the same change. Out of scope: the integrated E2E against a live
   backend (not run locally, CI runs it), downloads/exports, and any use of a state version inside Fit or decisions.
   Cost if wrong: UI copy and layout adjustments only; no backend contract changes.
+- **R-27. Unknown values render as `—` with an accessible label; the new panels are code-split** (corrects R-26).
+  1. `docs/spec/current-system/architecture.md` already requires unknown financial values to render as `—`, never as 0.
+     The specification outranks a decision record, so R-26's visible text "bilinmiyor" is replaced by `—`; the cell keeps
+     the words "bilinmiyor" in its accessible name and tooltip so the meaning is not lost for assistive technology. The
+     rule that a `null` is never shown as 0 and that weights appear only when the exposure status is `COMPLETE` is
+     unchanged. Cost if wrong: copy only.
+  2. The bundle budget (`check:bundle`, 700 KiB) had no headroom after the new panels. Decision: do not raise the budget;
+     load the CSV import and Portfolio State panels lazily so they leave the main bundle. Cost if wrong: one extra
+     request when a user opens those panels.
+- **R-28. Test sensitivity is shown by mutation, not assumed.** The frontend panel tests and the backend fixture-shape
+  tests were written without a recorded red run. Decision: for each rule that matters (null is not rendered as 0,
+  weights hidden unless `COMPLETE`, future date blocked, upload sends the file body, fixture shape drift is detected),
+  temporarily break the rule and confirm a test fails, then restore it. Cost if wrong: none.
+- **R-29. The bundle budget rises from 700 KiB to 710 KiB, and the import hint is restored** (corrects R-27.2). Why: R-27.2
+  assumed that lazy loading would take the new panels out of the budget, but `check:bundle` sums every chunk, so
+  lazy loading only moved bytes (it added about 1.4 KiB). To stay under 700 KiB the implementer removed panel copy,
+  including the hint that a staged import does not change the ledger until "Kabul et" is pressed. That hint prevents a
+  user from believing an upload already changed their portfolio, so it is more important than the 10 KiB headroom.
+  Decision: keep the lazy loading (the main page still loads less on first paint), restore the removed hint and the
+  count tiles that carry meaning, and raise the budget by 10 KiB in the same change, recorded here. Cost if wrong: a
+  slightly larger download; the budget remains a guard, and the next frontend change must again justify its size.

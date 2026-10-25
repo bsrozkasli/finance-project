@@ -107,7 +107,13 @@ New code upper-cases with `Locale.ROOT` (R-19).
 
 Restore exercise (R-23): `PortfolioBackupRestoreTest` dumps a seeded PostgreSQL (`pg_dump -Fc`), restores it into a fresh container, starts the application on it and replays every stored state to the same version; counts, per-table digests, voided events, CSV outcomes and `flyway_schema_history` match (about 52 s, default suite). It proves logical recoverability only; see `operations.md` for timings and what it does not prove.
 
-Still open: OQ-8 recovery targets (RPO/RTO, encryption, retention; Task 3 acceptance stays blocked on them); frontend handoff for the void `409` and the import/state routes.
+**Frontend handoff done (2026-10-25, R-26, branch `feat/epic-002-frontend`):** typed import/state API functions, the CSV
+import panel, the Portfolio State panel and the transaction-delete `409` message are implemented with Vitest + MSW tests,
+and the batch and state responses are pinned by shared fixtures checked by the backend `ContractFixtures` tests and the
+frontend zod schemas. The integrated E2E against a live stack (`npm run e2e:integrated`) has not been run locally; CI
+runs it.
+
+Still open: OQ-8 recovery targets (RPO/RTO, encryption, retention; Task 3 acceptance stays blocked on them); the integrated E2E has not been run locally (CI runs it); the 5,000-row staging step takes about 17 s (accept is within its target).
 
 Closed: R-21 (accept performance: 5,000 valid rows took 191 s with per-row replay and 23.5 s with chunked incremental
 validation, against the 30 s target); R-11 (the manual route posting `source=CSV` without import lineage) by R-20; that value now returns `422`.

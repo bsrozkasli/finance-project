@@ -1,5 +1,6 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+import com.ozkaslibasar.financeproject.contract.ContractFixtures;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportBatch;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportBatchStatus;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportRow;
@@ -159,6 +160,19 @@ class PortfolioImportControllerTest {
         mockMvc.perform(get(BASE + "/10"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404));
+    }
+
+    @Test
+    void acceptedBatchMatchesSharedContractFixture() throws Exception {
+        when(importService.accept(1L, "default", 9L)).thenReturn(Optional.of(batch(CsvImportBatchStatus.ACCEPTED,
+                CsvImportRowStatus.ACCEPTED, CsvImportRowStatus.INVALID, CsvImportRowStatus.DUPLICATE,
+                CsvImportRowStatus.REJECTED)));
+
+        String body = mockMvc.perform(post(BASE + "/9/accept"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        ContractFixtures.assertSameShape("portfolio-import-batch.json", body);
     }
 
     @Test

@@ -349,4 +349,47 @@ describe('PortfolioManagerView', () => {
     expect(await screen.findByText('Portfolio cannot be deleted while it has active holdings')).toBeInTheDocument();
     expect(onSelectPortfolioId).not.toHaveBeenCalled();
   });
+
+  it('offers the CSV import and Portfolio State panels for the active portfolio and reloads after accept', async () => {
+    installPortfolioHandlers();
+    let transactionLoads = 0;
+    server.use(
+      http.get(apiUrl('/portfolios/:portfolioId/transactions'), () => {
+        transactionLoads += 1;
+        return HttpResponse.json([]);
+      }),
+      http.post(apiUrl('/portfolios/1/imports'), () => HttpResponse.json({
+        batchId: 9,
+        portfolioId: 1,
+        status: 'STAGED',
+        fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z',
+        acceptedAt: null,
+        counts: { valid: 1, invalid: 0, duplicate: 0, accepted: 0, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'VALID', message: null, originLocator: 'csv:abc', transactionId: null }],
+      }, { status: 201 })),
+      http.post(apiUrl('/portfolios/1/imports/9/accept'), () => HttpResponse.json({
+        batchId: 9,
+        portfolioId: 1,
+        status: 'ACCEPTED',
+        fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z',
+        acceptedAt: '2026-10-25T10:05:00Z',
+        counts: { valid: 0, invalid: 0, duplicate: 0, accepted: 1, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'ACCEPTED', message: null, originLocator: 'csv:abc', transactionId: 5 }],
+      })),
+    );
+    const user = userEvent.setup();
+
+    renderPortfolio();
+
+    expect(await screen.findByRole('heading', { name: 'CSV ile işlem içe aktar' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Portföy durumu' })).toBeInTheDocument();
+    await waitFor(() => expect(transactionLoads).toBe(1));
+    await user.upload(screen.getByLabelText('CSV dosyası'), new File(['a,b'], 'x.csv', { type: 'text/csv' }));
+    await user.click(screen.getByRole('button', { name: 'Yükle' }));
+    await user.click(await screen.findByRole('button', { name: 'Kabul et' }));
+
+    await waitFor(() => expect(transactionLoads).toBe(2));
+  });
 });
