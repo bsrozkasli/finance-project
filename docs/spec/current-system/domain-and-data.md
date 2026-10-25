@@ -97,7 +97,12 @@ ports with in-memory state.
   Exposures (decision D-2) use only retained prices: the latest stored close on
   or before the as-of date, with the stored `Asset.currency` as price currency;
   nothing is fetched from providers. An open position is valued only when the
-  price, position and base currencies are equal (no FX conversion). Its status,
+  price, position and base currencies are equal (no FX conversion). Currencies
+  are compared exactly (R-15): the price currency is only trimmed, never
+  case-folded, so a provider's `GBp` or `ZAc` (pence, cents) or a lower-case code
+  is a `CURRENCY_MISMATCH` against `GBP`, `ZAR` or `USD`, and the stored valuation
+  input keeps the provider's exact case. State responses write decimals without
+  trailing zeros or exponent notation, so create and replay bodies match. Its status,
   checked in this order, is `CURRENCY_UNKNOWN` (no asset or blank currency),
   `CURRENCY_MISMATCH`, `NO_PRICE`, `STALE_PRICE` (close older than 7 calendar
   days; exactly 7 is current) or `PRICED`. Market value is quantity x close for

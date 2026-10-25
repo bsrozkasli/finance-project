@@ -228,7 +228,7 @@ public class PortfolioStateService {
 
     private static ValuationInput normalized(ValuationInput input) {
         String currency = input.priceCurrency() == null || input.priceCurrency().isBlank()
-                ? null : input.priceCurrency().trim().toUpperCase();
+                ? null : input.priceCurrency().trim(); // R-15: exact case; GBp (pence) is not GBP
         return new ValuationInput(input.symbol(), input.close(), input.priceDate(), currency);
     }
 
@@ -238,8 +238,9 @@ public class PortfolioStateService {
         if (input.priceCurrency() == null) {
             return PositionValuationStatus.CURRENCY_UNKNOWN;
         }
-        if (holding.currency() == null || !input.priceCurrency().equalsIgnoreCase(holding.currency().trim())
-                || !input.priceCurrency().equalsIgnoreCase(base)) {
+        // Exact comparison (R-15). The base and transaction currencies are upper-cased by their models.
+        if (holding.currency() == null || !input.priceCurrency().equals(holding.currency().trim())
+                || !input.priceCurrency().equals(base)) {
             return PositionValuationStatus.CURRENCY_MISMATCH;
         }
         if (input.close() == null || input.priceDate() == null) {

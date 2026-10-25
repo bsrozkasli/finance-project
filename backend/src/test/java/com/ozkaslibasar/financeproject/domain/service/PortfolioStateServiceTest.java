@@ -54,7 +54,7 @@ class PortfolioStateServiceTest {
     private final InMemoryPortfolios portfolios = new InMemoryPortfolios();
     private final InMemoryStatePort states = new InMemoryStatePort();
     private final PortfolioStateService service =
-            new PortfolioStateService(port, new PortfolioLedgerService(port), prices, assets, portfolios, states);
+            new PortfolioStateService(port, LedgerTestSupport.ledger(port), prices, assets, portfolios, states);
 
     @BeforeEach
     void portfolioExists() {
@@ -364,6 +364,45 @@ class PortfolioStateServiceTest {
         asset("AAPL", "USD");
         assertThat(position(service.project(PORTFOLIO, USER, AS_OF, "EUR", buyThenPartialSell()), "AAPL")
                 .valuationStatus()).isEqualTo(PositionValuationStatus.CURRENCY_MISMATCH);
+    }
+
+    private PortfolioState pricedAapl(String assetCurrency, String tradeCurrency, String base) {
+        asset("AAPL", assetCurrency);
+        prices.put("AAPL", "100", LocalDate.of(2026, 10, 20));
+        List<PortfolioTransaction> events = List.of(
+                inCurrency(tx(1, "AAPL", PortfolioTransactionAction.BUY, "10", "100", 1), tradeCurrency));
+        return service.project(PORTFOLIO, USER, AS_OF, base, events);
+    }
+
+    @Test
+    void penceAndCentCurrencyCodesAreNotPoundsOrRand() {
+        for (String[] pair : new String[][]{{"GBp", "GBP"}, {"ZAc", "ZAR"}}) {
+            PortfolioState state = pricedAapl(pair[0], pair[1], pair[1]);
+
+            assertThat(position(state, "AAPL").valuationStatus())
+                    .as(pair[0] + " vs " + pair[1]).isEqualTo(PositionValuationStatus.CURRENCY_MISMATCH);
+            assertThat(position(state, "AAPL").marketValue()).isNull();
+            assertThat(state.exposureStatus()).isEqualTo(ExposureStatus.PARTIAL);
+        }
+    }
+
+    @Test
+    void aLowerCaseAssetCurrencyIsAMismatchButExactUppercaseIsPriced() {
+        PortfolioState lower = pricedAapl("usd", "USD", "USD");
+        assertThat(position(lower, "AAPL").valuationStatus()).isEqualTo(PositionValuationStatus.CURRENCY_MISMATCH);
+        assertThat(position(lower, "AAPL").marketValue()).isNull();
+
+        PortfolioState exact = pricedAapl(" USD ", "USD", "USD");
+        assertThat(position(exact, "AAPL").valuationStatus()).isEqualTo(PositionValuationStatus.PRICED);
+        assertThat(position(exact, "AAPL").marketValue()).isEqualByComparingTo("1000");
+    }
+
+    @Test
+    void theStoredValuationInputKeepsTheProviderCurrencyCase() {
+        PortfolioState state = pricedAapl("GBp", "GBP", "GBP");
+
+        assertThat(state.valuationInputs()).singleElement()
+                .satisfies(input -> assertThat(input.priceCurrency()).isEqualTo("GBp"));
     }
 
     @Test

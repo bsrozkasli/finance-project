@@ -168,6 +168,26 @@ class PortfolioStateRepositoryAdapterTest {
     }
 
     @Test
+    void aMixedCasePriceCurrencyIsStoredExactlyAndReplaysToTheSameMismatchState() {
+        seedPricedLedger();
+        assets.save(new Asset(SYMBOL, "State adapter", AssetType.STOCK, "LSE", "GBp", "fixture", SYMBOL,
+                AssetMetadataStatus.VERIFIED));
+
+        PortfolioStateService.CreatedState created = stateService.create(portfolioId, USER, AS_OF);
+
+        assertThat(created.state().positions().get(0).valuationStatus())
+                .isEqualTo(com.ozkaslibasar.financeproject.domain.model.PositionValuationStatus.CURRENCY_MISMATCH);
+        assertThat(created.state().positions().get(0).marketValue()).isNull();
+        assertThat(created.state().exposureStatus()).isEqualTo(ExposureStatus.PARTIAL);
+        assertThat(jdbc.queryForObject("SELECT v.price_currency FROM portfolio_state_valuations v "
+                + "JOIN portfolio_states s ON s.id = v.state_id WHERE s.portfolio_id = ? AND s.version = ?",
+                String.class, portfolioId, created.state().version())).isEqualTo("GBp");
+        PortfolioState replayed = stateService.replay(portfolioId, USER, created.state().version()).orElseThrow();
+        assertThat(replayed.version()).isEqualTo(created.state().version());
+        assertThat(replayed.valuationInputs().get(0).priceCurrency()).isEqualTo("GBp");
+    }
+
+    @Test
     void aStateReplaysAfterItsEventsAreVoidedAndAfterThePricesAreGone() {
         seedPricedLedger();
         PortfolioStateService.CreatedState created = stateService.create(portfolioId, USER, AS_OF);
