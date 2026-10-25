@@ -8,8 +8,6 @@ public enum EvidenceGapReason {
     STALE,
     /** Sources disagree and the conflict is unresolved. */
     CONFLICTED,
-    /** No observation time, so its age cannot be established. */
-    UNDATED,
     /** Observed after the evaluation instant, so it was not knowable then. */
     FUTURE_DATED,
     /** The instrument type is not established, so no policy applies. */
