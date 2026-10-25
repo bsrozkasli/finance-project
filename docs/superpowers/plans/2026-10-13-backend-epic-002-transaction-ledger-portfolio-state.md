@@ -105,7 +105,13 @@ not replay; journal delete in the same transaction, R-17), exposures and persist
 staging and acceptance with row identity, and the per-portfolio ledger lock pinned to `READ COMMITTED` (R-13, R-18).
 New code upper-cases with `Locale.ROOT` (R-19).
 
-Still open: OQ-8 recovery targets and the timed backup/restore exercise; frontend handoff for the void `409` and the import/state routes.
+Still open: OQ-8 recovery targets and the timed backup/restore exercise.
+
+**Frontend handoff done (2026-10-25, R-26, branch `feat/epic-002-frontend`):** typed import/state API functions, the CSV
+import panel, the Portfolio State panel and the transaction-delete `409` message are implemented with Vitest + MSW tests,
+and the batch and state responses are pinned by shared fixtures checked by the backend `ContractFixtures` tests and the
+frontend zod schemas. The integrated E2E against a live stack (`npm run e2e:integrated`) has not been run locally; CI
+runs it.
 
 Closed: R-21 (accept performance: 5,000 valid rows took 191 s with per-row replay and 23.5 s with chunked incremental
 validation, against the 30 s target); R-11 (the manual route posting `source=CSV` without import lineage) by R-20; that value now returns `422`.

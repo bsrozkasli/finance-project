@@ -112,6 +112,29 @@ change together when API routing changes.
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted
   for a current price.
+- The Portföy screen hosts two EPIC-002 panels (`components/portfolio/`), both
+  scoped to the active portfolio and calling the Spring API only (R-26):
+  - `PortfolioImportPanel` ("CSV ile işlem içe aktar"): choose a `.csv` file,
+    upload it as `text/csv` (raw bytes), review the staged counts and the row
+    table (row number, status, message, identity), then press "Kabul et". The
+    ledger changes only on accept; the button is disabled while the request runs
+    and after the batch is `ACCEPTED`. Backend rejections show the `ApiError`
+    message; an accepted batch makes the screen reload positions and
+    transactions.
+  - `PortfolioStatePanel` ("Portföy durumu"): the as-of date input is capped at
+    today (UTC) and a later date disables "Durum oluştur". The result shows the
+    version (short form, full value in the tooltip), the exposure status, the
+    positions with Turkish valuation labels, and the asset-type weights only
+    when `exposureStatus` is `COMPLETE`. A `null` price, price date, market
+    value or weight renders as "bilinmiyor", never `0` (this panel's wording for
+    the unknown-value rule above). `PARTIAL` adds a note that weights are
+    withheld because some positions have no usable price or matching currency.
+    The version is an identifier, not an investment signal, and no Fit or
+    decision flow uses it.
+  - The transaction delete flow in `TradingJournalModal` shows the backend `409`
+    message (via `ApiError.message`) instead of the generic failure text.
+  - Response shapes are pinned by `docs/contracts/fixtures/portfolio-import-batch.json`,
+    `portfolio-state-complete.json` and `portfolio-state-partial.json`.
 
 Frontend API access goes through domain modules under `frontend/src/api`
 (`assets`, `journal`, `market`, `news`, `portfolio`, `research`, `watchlists`).
