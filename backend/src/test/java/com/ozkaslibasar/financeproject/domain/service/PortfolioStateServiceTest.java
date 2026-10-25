@@ -855,6 +855,13 @@ class PortfolioStateServiceTest {
         }
 
         @Override
+        public Optional<PortfolioTransaction> findActiveBySourceAndOriginLocator(
+                com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource source, String originLocator) {
+            return saved.stream().filter(t -> t.voidedAt() == null && t.source() == source
+                    && originLocator.equals(t.originLocator())).findFirst();
+        }
+
+        @Override
         public boolean existsBySourceAndOriginLocator(
                 com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource source, String originLocator) {
             return saved.stream().anyMatch(t -> t.source() == source && originLocator.equals(t.originLocator()));

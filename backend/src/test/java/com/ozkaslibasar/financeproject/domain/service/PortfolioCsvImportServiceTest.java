@@ -192,6 +192,38 @@ class PortfolioCsvImportServiceTest {
     }
 
     @Test
+    void resumedAcceptAfterCrashBetweenInsertAndRowUpdateRecordsAcceptedWithTheEventId() {
+        CsvImportBatch staged = stage(BUY + SELL_5);
+        imports.failNextRecord = true;
+
+        assertThatThrownBy(() -> service.accept(PORTFOLIO, USER, staged.id())).isInstanceOf(IllegalStateException.class);
+        assertThat(transactions.saved).hasSize(1);
+        assertThat(service.find(PORTFOLIO, USER, staged.id()).orElseThrow().status())
+                .isEqualTo(CsvImportBatchStatus.STAGED);
+
+        CsvImportBatch resumed = service.accept(PORTFOLIO, USER, staged.id()).orElseThrow();
+
+        assertThat(resumed.status()).isEqualTo(CsvImportBatchStatus.ACCEPTED);
+        assertThat(resumed.rows()).extracting(CsvImportRow::status)
+                .containsExactly(CsvImportRowStatus.ACCEPTED, CsvImportRowStatus.ACCEPTED);
+        assertThat(resumed.rows().get(0).transactionId()).isEqualTo(transactions.saved.get(0).id());
+        assertThat(resumed.rows().get(1).transactionId()).isEqualTo(transactions.saved.get(1).id());
+        assertThat(transactions.saved).hasSize(2);
+    }
+
+    @Test
+    void sameRowsImportedIntoAnotherPortfolioAreNotDuplicates() {
+        service.accept(PORTFOLIO, USER, stage(BUY).id());
+
+        CsvImportBatch other = service.stage(PORTFOLIO + 1, USER, (HEADER + BUY).getBytes(StandardCharsets.UTF_8));
+        assertThat(other.rows()).extracting(CsvImportRow::status).containsExactly(CsvImportRowStatus.VALID);
+
+        CsvImportBatch accepted = service.accept(PORTFOLIO + 1, USER, other.id()).orElseThrow();
+        assertThat(accepted.rows()).extracting(CsvImportRow::status).containsExactly(CsvImportRowStatus.ACCEPTED);
+        assertThat(transactions.saved).hasSize(2);
+    }
+
+    @Test
     void unknownOrForeignBatchIsEmpty() {
         CsvImportBatch staged = stage(BUY);
 
@@ -250,6 +282,13 @@ class PortfolioCsvImportServiceTest {
         }
 
         @Override
+        public Optional<PortfolioTransaction> findActiveBySourceAndOriginLocator(PortfolioTransactionSource source,
+                                                                                 String originLocator) {
+            return saved.stream()
+                    .filter(t -> t.source() == source && originLocator.equals(t.originLocator())).findFirst();
+        }
+
+        @Override
         public boolean existsBySourceAndOriginLocator(PortfolioTransactionSource source, String originLocator) {
             return java.util.stream.Stream.concat(saved.stream(), voided.stream())
                     .anyMatch(t -> t.source() == source && originLocator.equals(t.originLocator()));
@@ -258,6 +297,7 @@ class PortfolioCsvImportServiceTest {
 
     private static final class InMemoryImports implements PortfolioCsvImportPort {
         final List<CsvImportBatch> batches = new ArrayList<>();
+        boolean failNextRecord;
         private final AtomicLong batchIds = new AtomicLong();
         private final AtomicLong rowIds = new AtomicLong();
 
@@ -281,6 +321,15 @@ class PortfolioCsvImportServiceTest {
 
         @Override
         public boolean recordRowResult(Long rowId, CsvImportRowStatus status, String message, Long transactionId) {
+            if (failNextRecord) {
+                failNextRecord = false;
+                throw new IllegalStateException("simulated crash after the ledger insert");
+            }
+            // Mirrors the unique transaction_id: an event is recorded by at most one row.
+            if (transactionId != null && batches.stream().flatMap(b -> b.rows().stream())
+                    .anyMatch(r -> transactionId.equals(r.transactionId()))) {
+                return false;
+            }
             for (int i = 0; i < batches.size(); i++) {
                 CsvImportBatch b = batches.get(i);
                 List<CsvImportRow> rows = new ArrayList<>(b.rows());

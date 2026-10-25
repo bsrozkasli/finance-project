@@ -26,6 +26,9 @@ public interface PortfolioTransactionJpaRepository extends JpaRepository<Portfol
     /** Counts voided rows too: a voided event keeps its (source, origin_locator) reserved. */
     boolean existsBySourceAndOriginLocator(PortfolioTransactionSource source, String originLocator);
 
+    Optional<PortfolioTransactionEntity> findBySourceAndOriginLocatorAndVoidedAtIsNull(
+            PortfolioTransactionSource source, String originLocator);
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             UPDATE PortfolioTransactionEntity t SET t.voidedAt = :voidedAt

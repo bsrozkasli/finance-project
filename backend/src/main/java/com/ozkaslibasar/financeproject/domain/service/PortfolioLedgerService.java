@@ -3,6 +3,8 @@ package com.ozkaslibasar.financeproject.domain.service;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioLedgerLockPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 
 import java.math.BigDecimal;
@@ -14,20 +16,45 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 public class PortfolioLedgerService {
 
     private final PortfolioTransactionPort transactionPort;
+    private final PortfolioLedgerLockPort lockPort;
 
+    /** For read-only use (holdings); additions made through this instance are not serialized. */
     public PortfolioLedgerService(PortfolioTransactionPort transactionPort) {
-        this.transactionPort = Objects.requireNonNull(transactionPort, "transactionPort must not be null");
+        this(transactionPort, new PortfolioLedgerLockPort() {
+            @Override
+            public <T> T withPortfolioLock(Long portfolioId, Supplier<T> work) {
+                return work.get();
+            }
+        });
     }
 
+    public PortfolioLedgerService(PortfolioTransactionPort transactionPort, PortfolioLedgerLockPort lockPort) {
+        this.transactionPort = Objects.requireNonNull(transactionPort, "transactionPort must not be null");
+        this.lockPort = Objects.requireNonNull(lockPort, "lockPort must not be null");
+    }
+
+    /**
+     * Validates against the active events and saves, serialized per portfolio (R-13) so concurrent additions cannot
+     * jointly oversell a position. A CSV event whose locator already exists throws
+     * {@link DuplicateOriginLocatorException}; the check runs under the lock so the unique index is never hit.
+     */
     public PortfolioTransaction addTransaction(PortfolioTransaction transaction) {
-        List<PortfolioTransaction> existing = transactionPort.findByPortfolioIdAndUserId(
-                transaction.portfolioId(), transaction.userId());
-        validateTransaction(existing, transaction);
-        return transactionPort.save(transaction);
+        return lockPort.withPortfolioLock(transaction.portfolioId(), () -> {
+            if (transaction.source() == PortfolioTransactionSource.CSV && transaction.originLocator() != null
+                    && transactionPort.existsBySourceAndOriginLocator(transaction.source(),
+                    transaction.originLocator())) {
+                throw new DuplicateOriginLocatorException(transaction.originLocator());
+            }
+            List<PortfolioTransaction> existing = transactionPort.findByPortfolioIdAndUserId(
+                    transaction.portfolioId(), transaction.userId());
+            validateTransaction(existing, transaction);
+            return transactionPort.save(transaction);
+        });
     }
 
     public List<PortfolioHolding> calculateHoldings(Long portfolioId, String userId) {

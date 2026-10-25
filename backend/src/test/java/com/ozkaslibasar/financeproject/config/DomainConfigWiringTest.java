@@ -8,6 +8,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioCsvImportPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioLedgerLockPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioStatePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
@@ -172,6 +173,8 @@ class DomainConfigWiringTest {
     void should_wirePortfolioLedgerService_with_transactionPort() {
         assertThat(portfolioLedgerService).isNotNull();
         assertThat(ReflectionTestUtils.getField(portfolioLedgerService, "transactionPort")).isSameAs(portfolioTransactionPort);
+        assertThat(ReflectionTestUtils.getField(portfolioLedgerService, "lockPort"))
+                .isSameAs(applicationContext.getBean(PortfolioLedgerLockPort.class));
     }
 
     @Test
@@ -310,6 +313,12 @@ class DomainConfigWiringTest {
         PortfolioCsvImportPort portfolioCsvImportPort() {
             // Mock rationale: persistence boundary is mocked to keep context test deterministic.
             return mock(PortfolioCsvImportPort.class);
+        }
+
+        @Bean
+        PortfolioLedgerLockPort portfolioLedgerLockPort() {
+            // Mock rationale: persistence-transaction boundary is mocked to keep context test deterministic.
+            return mock(PortfolioLedgerLockPort.class);
         }
 
         @Bean

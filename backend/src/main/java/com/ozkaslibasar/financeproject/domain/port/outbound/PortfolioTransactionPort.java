@@ -25,4 +25,8 @@ public interface PortfolioTransactionPort {
 
     /** True when any event, active or voided, has this source and origin locator (R-5: voided locators stay reserved). */
     boolean existsBySourceAndOriginLocator(PortfolioTransactionSource source, String originLocator);
+
+    /** The active (not voided) event with this source and origin locator, if any. */
+    Optional<PortfolioTransaction> findActiveBySourceAndOriginLocator(PortfolioTransactionSource source,
+                                                                      String originLocator);
 }

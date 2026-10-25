@@ -12,6 +12,7 @@ import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioCsvImportPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -50,10 +51,15 @@ public class PortfolioCsvImportRepositoryAdapter implements PortfolioCsvImportPo
                 .map(entity -> toDomain(entity, rows.findByBatchIdOrderByRowNumberAsc(entity.getId())));
     }
 
+    /** Not @Transactional itself: the repository update is its own transaction, so a claim conflict rolls back cleanly. */
     @Override
-    @Transactional
     public boolean recordRowResult(Long rowId, CsvImportRowStatus status, String message, Long transactionId) {
-        return rows.recordResult(rowId, status, message, transactionId, CsvImportRowStatus.VALID) > 0;
+        try {
+            return rows.recordResult(rowId, status, message, transactionId, CsvImportRowStatus.VALID) > 0;
+        } catch (DataIntegrityViolationException e) {
+            // The event is already recorded by another row (unique transaction_id).
+            return false;
+        }
     }
 
     @Override

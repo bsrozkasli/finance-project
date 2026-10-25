@@ -5,6 +5,9 @@ import com.ozkaslibasar.financeproject.domain.model.CsvImportBatchStatus;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportRow;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportRowStatus;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioCsvImportPort;
@@ -50,6 +53,8 @@ class PortfolioCsvImportRepositoryAdapterTest {
 
     @Autowired
     private PortfolioCsvImportService service;
+    @Autowired
+    private PortfolioLedgerService ledger;
     @Autowired
     private PortfolioCsvImportPort importPort;
     @Autowired
@@ -216,6 +221,93 @@ class PortfolioCsvImportRepositoryAdapterTest {
             pool.shutdownNow();
         }
         assertThat(transactionPort.findByPortfolioIdAndUserId(portfolioId, USER)).hasSize(lines.length);
+    }
+
+    @Test
+    void concurrentAcceptOfTheSameBatchEndsWithEveryRowAcceptedAndOneEventPerLocator() throws Exception {
+        portfolioId = newPortfolio("CSV same batch");
+        String[] lines = new String[25];
+        for (int i = 0; i < lines.length; i++) {
+            lines[i] = "2026-10-01,BUY,AAPL,US_STOCK,1," + (100 + i) + ",USD,0,1,";
+        }
+        CsvImportBatch batch = service.stage(portfolioId, USER, csv(lines));
+
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Callable<CsvImportBatch> accept = () -> {
+                barrier.await(20, TimeUnit.SECONDS);
+                return service.accept(portfolioId, USER, batch.id()).orElseThrow();
+            };
+            List<Future<CsvImportBatch>> results = pool.invokeAll(List.of(accept, accept));
+            results.get(0).get(60, TimeUnit.SECONDS);
+            results.get(1).get(60, TimeUnit.SECONDS);
+        } finally {
+            pool.shutdownNow();
+        }
+
+        CsvImportBatch loaded = importPort.findByIdAndPortfolioIdAndUserId(batch.id(), portfolioId, USER).orElseThrow();
+        assertThat(loaded.status()).isEqualTo(CsvImportBatchStatus.ACCEPTED);
+        assertThat(loaded.rows()).extracting(CsvImportRow::status).containsOnly(CsvImportRowStatus.ACCEPTED);
+        assertThat(loaded.rows()).extracting(CsvImportRow::transactionId).doesNotContainNull().doesNotHaveDuplicates();
+        assertThat(transactionPort.findByPortfolioIdAndUserId(portfolioId, USER)).hasSize(lines.length)
+                .extracting(PortfolioTransaction::id)
+                .containsExactlyInAnyOrderElementsOf(loaded.rows().stream().map(CsvImportRow::transactionId).toList());
+    }
+
+    @Test
+    void sameRowsInAnotherPortfolioAreNotDuplicates() {
+        portfolioId = newPortfolio("CSV portfolio A");
+        secondPortfolioId = newPortfolio("CSV portfolio B");
+        byte[] file = csv("2026-10-01,BUY,AAPL,US_STOCK,10,100,USD,0,1,");
+        service.accept(portfolioId, USER, service.stage(portfolioId, USER, file).id());
+
+        CsvImportBatch other = service.stage(secondPortfolioId, USER, file);
+
+        assertThat(other.rows()).extracting(CsvImportRow::status).containsExactly(CsvImportRowStatus.VALID);
+        CsvImportBatch accepted = service.accept(secondPortfolioId, USER, other.id()).orElseThrow();
+        assertThat(accepted.rows()).extracting(CsvImportRow::status).containsExactly(CsvImportRowStatus.ACCEPTED);
+    }
+
+    @Test
+    void concurrentSellsOfTheSameHoldingCannotBothSucceed() throws Exception {
+        for (int round = 0; round < 3; round++) {
+            Long id = newPortfolio("Oversell " + round);
+            try {
+                ledger.addTransaction(trade(id, PortfolioTransactionAction.BUY, "10", "2026-10-01"));
+                CyclicBarrier barrier = new CyclicBarrier(2);
+                ExecutorService pool = Executors.newFixedThreadPool(2);
+                try {
+                    Callable<Boolean> sell = () -> {
+                        barrier.await(20, TimeUnit.SECONDS);
+                        try {
+                            ledger.addTransaction(trade(id, PortfolioTransactionAction.SELL, "6", "2026-10-02"));
+                            return true;
+                        } catch (IllegalArgumentException e) {
+                            return false;
+                        }
+                    };
+                    List<Future<Boolean>> results = pool.invokeAll(List.of(sell, sell));
+                    boolean first = results.get(0).get(60, TimeUnit.SECONDS);
+                    boolean second = results.get(1).get(60, TimeUnit.SECONDS);
+                    assertThat(first ^ second).as("exactly one sell succeeds").isTrue();
+                } finally {
+                    pool.shutdownNow();
+                }
+                assertThat(ledger.calculateHoldings(id, USER)).singleElement()
+                        .satisfies(h -> assertThat(h.quantity()).isEqualByComparingTo("4"));
+            } finally {
+                jdbc.update("DELETE FROM portfolios WHERE id = ?", id);
+            }
+        }
+    }
+
+    private static PortfolioTransaction trade(Long portfolio, PortfolioTransactionAction action, String quantity,
+                                              String date) {
+        return new PortfolioTransaction(null, portfolio, USER, "AAPL", PortfolioAssetType.US_STOCK, action,
+                new java.math.BigDecimal(quantity), new java.math.BigDecimal("100"), "USD", java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ONE, java.time.LocalDate.parse(date), PortfolioTransactionSource.MANUAL, null,
+                null, null);
     }
 
     @Test

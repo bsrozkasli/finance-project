@@ -275,7 +275,10 @@ public final class PortfolioCsvParser {
     }
 
     private static String baseLocator(PortfolioTransaction tx) {
+        // R-10: the identity also covers the portfolio and user, because (source, origin_locator) is unique globally.
         String normalized = String.join("\u001f",
+                String.valueOf(tx.portfolioId()),
+                tx.userId(),
                 tx.tradeDate().toString(),
                 tx.action().name(),
                 tx.symbol() == null ? "" : tx.symbol(),

@@ -7,6 +7,7 @@ import com.ozkaslibasar.financeproject.domain.model.CsvImportRowStatus;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioCsvImportService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioCsvParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -124,6 +125,18 @@ class PortfolioImportControllerTest {
                 .andExpect(status().isNotFound());
         mockMvc.perform(get("/api/v1/portfolios/2/imports/9")).andExpect(status().isNotFound());
         mockMvc.perform(post("/api/v1/portfolios/2/imports/9/accept")).andExpect(status().isNotFound());
+        verify(importService, never()).stage(any(), any(), any());
+    }
+
+    @Test
+    void overLimitBodyIs400AndNeverReachesTheService() throws Exception {
+        byte[] tooBig = new byte[PortfolioCsvParser.MAX_BYTES + 1];
+        java.util.Arrays.fill(tooBig, (byte) 'a');
+
+        mockMvc.perform(post(BASE).contentType("text/csv").content(tooBig))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("1048576")));
         verify(importService, never()).stage(any(), any(), any());
     }
 

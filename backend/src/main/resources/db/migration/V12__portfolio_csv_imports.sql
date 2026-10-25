@@ -39,5 +39,7 @@ CREATE TABLE portfolio_csv_import_rows (
     CONSTRAINT fk_portfolio_csv_import_rows_batch FOREIGN KEY (batch_id) REFERENCES portfolio_csv_imports(id) ON DELETE CASCADE,
     CONSTRAINT fk_portfolio_csv_import_rows_transaction FOREIGN KEY (transaction_id) REFERENCES portfolio_transactions(id) ON DELETE SET NULL,
     CONSTRAINT uk_portfolio_csv_import_rows_batch_row UNIQUE (batch_id, row_number),
+    -- A ledger event is recorded by at most one row, which makes claiming an existing event exclusive.
+    CONSTRAINT uk_portfolio_csv_import_rows_transaction UNIQUE (transaction_id),
     CONSTRAINT ck_portfolio_csv_import_rows_status CHECK (status IN ('VALID', 'INVALID', 'DUPLICATE', 'ACCEPTED', 'REJECTED'))
 );

@@ -40,14 +40,30 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
         try {
             return toDomain(jpaRepository.save(toEntity(transaction)));
         } catch (DataIntegrityViolationException e) {
-            // Deliberately not @Transactional: the failed insert has already rolled back its own transaction, so the
-            // caller (a CSV batch) can carry on with the next row. Only a CSV identity clash is reported as such.
+            // Deliberately not @Transactional: called on its own, the failed insert has already rolled back its own
+            // transaction. Only a CSV identity clash is reported as such. (Ledger additions check the locator under
+            // the portfolio lock first, so inside that transaction this branch is not expected; if the transaction
+            // is already aborted the follow-up read fails and the original violation is rethrown.)
             if (transaction.source() == PortfolioTransactionSource.CSV && transaction.originLocator() != null
-                    && existsBySourceAndOriginLocator(transaction.source(), transaction.originLocator())) {
+                    && csvLocatorExists(transaction)) {
                 throw new DuplicateOriginLocatorException(transaction.originLocator());
             }
             throw e;
         }
+    }
+
+    private boolean csvLocatorExists(PortfolioTransaction transaction) {
+        try {
+            return existsBySourceAndOriginLocator(transaction.source(), transaction.originLocator());
+        } catch (RuntimeException readFailure) {
+            return false;
+        }
+    }
+
+    @Override
+    public Optional<PortfolioTransaction> findActiveBySourceAndOriginLocator(PortfolioTransactionSource source,
+                                                                             String originLocator) {
+        return jpaRepository.findBySourceAndOriginLocatorAndVoidedAtIsNull(source, originLocator).map(this::toDomain);
     }
 
     @Override

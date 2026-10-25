@@ -194,7 +194,7 @@ class PortfolioCsvParserTest {
 
     @Test
     void locatorHashMatchesTheDocumentedNormalizedRow() throws Exception {
-        String normalized = String.join("\u001f", "2026-10-01", "BUY", "AAPL", "US_STOCK", "10", "100.5", "USD", "0", "1");
+        String normalized = String.join("\u001f", "7", "default", "2026-10-01", "BUY", "AAPL", "US_STOCK", "10", "100.5", "USD", "0", "1");
         byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
                 .digest(normalized.getBytes(StandardCharsets.UTF_8));
         StringBuilder hex = new StringBuilder("csv:");
@@ -205,6 +205,17 @@ class PortfolioCsvParserTest {
         String locator = parse(HEADER + "\n2026-10-01,BUY,AAPL,US_STOCK,10.00,100.50,USD,0.0,1.0,\n").get(0).locator();
 
         assertThat(locator).isEqualTo(hex.toString());
+    }
+
+    @Test
+    void locatorCoversPortfolioAndUser() {
+        byte[] file = (HEADER + "\n2026-10-01,BUY,AAPL,US_STOCK,10,100,USD,0,1,\n").getBytes(StandardCharsets.UTF_8);
+
+        String base = parser.parse(7L, "default", file).get(0).locator();
+
+        assertThat(parser.parse(7L, "default", file).get(0).locator()).isEqualTo(base);
+        assertThat(parser.parse(8L, "default", file).get(0).locator()).isNotEqualTo(base);
+        assertThat(parser.parse(7L, "someone-else", file).get(0).locator()).isNotEqualTo(base);
     }
 
     @Test
