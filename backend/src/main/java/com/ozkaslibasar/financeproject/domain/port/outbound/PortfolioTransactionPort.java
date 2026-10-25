@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.port.outbound;
 
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -21,4 +22,7 @@ public interface PortfolioTransactionPort {
 
     /** Returns the requested events whether active or voided, for replaying stored states. */
     List<PortfolioTransaction> findByIdsIncludingVoided(Long portfolioId, String userId, Collection<Long> ids);
+
+    /** True when any event, active or voided, has this source and origin locator (R-5: voided locators stay reserved). */
+    boolean existsBySourceAndOriginLocator(PortfolioTransactionSource source, String originLocator);
 }

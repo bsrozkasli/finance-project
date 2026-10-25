@@ -7,6 +7,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioCsvImportPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioStatePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
@@ -23,6 +24,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioCsvImportService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
@@ -39,6 +41,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.util.ReflectionTestUtils;
+
+import java.time.Clock;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
@@ -183,6 +187,16 @@ class DomainConfigWiringTest {
     }
 
     @Test
+    void should_wirePortfolioCsvImportService_with_ledgerPortsAndClock() {
+        PortfolioCsvImportService service = applicationContext.getBean(PortfolioCsvImportService.class);
+        assertThat(ReflectionTestUtils.getField(service, "importPort"))
+                .isSameAs(applicationContext.getBean(PortfolioCsvImportPort.class));
+        assertThat(ReflectionTestUtils.getField(service, "transactionPort")).isSameAs(portfolioTransactionPort);
+        assertThat(ReflectionTestUtils.getField(service, "ledger")).isSameAs(portfolioLedgerService);
+        assertThat(ReflectionTestUtils.getField(service, "clock")).isSameAs(applicationContext.getBean(Clock.class));
+    }
+
+    @Test
     void should_wireResearchEvidenceService_with_evidencePort() {
         ResearchEvidenceService service = applicationContext.getBean(ResearchEvidenceService.class);
         assertThat(ReflectionTestUtils.getField(service, "port"))
@@ -290,6 +304,17 @@ class DomainConfigWiringTest {
         PortfolioStatePort portfolioStatePort() {
             // Mock rationale: persistence boundary is mocked to keep context test deterministic.
             return mock(PortfolioStatePort.class);
+        }
+
+        @Bean
+        PortfolioCsvImportPort portfolioCsvImportPort() {
+            // Mock rationale: persistence boundary is mocked to keep context test deterministic.
+            return mock(PortfolioCsvImportPort.class);
+        }
+
+        @Bean
+        Clock clock() {
+            return Clock.systemUTC();
         }
 
         @Bean

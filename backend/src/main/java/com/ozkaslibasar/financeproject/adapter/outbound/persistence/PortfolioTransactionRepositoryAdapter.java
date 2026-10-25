@@ -3,8 +3,11 @@ package com.ozkaslibasar.financeproject.adapter.outbound.persistence;
 import com.ozkaslibasar.financeproject.adapter.outbound.persistence.entity.PortfolioTransactionEntity;
 import com.ozkaslibasar.financeproject.adapter.outbound.persistence.repository.PortfolioTransactionJpaRepository;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
+import com.ozkaslibasar.financeproject.domain.service.DuplicateOriginLocatorException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +37,22 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
 
     @Override
     public PortfolioTransaction save(PortfolioTransaction transaction) {
-        return toDomain(jpaRepository.save(toEntity(transaction)));
+        try {
+            return toDomain(jpaRepository.save(toEntity(transaction)));
+        } catch (DataIntegrityViolationException e) {
+            // Deliberately not @Transactional: the failed insert has already rolled back its own transaction, so the
+            // caller (a CSV batch) can carry on with the next row. Only a CSV identity clash is reported as such.
+            if (transaction.source() == PortfolioTransactionSource.CSV && transaction.originLocator() != null
+                    && existsBySourceAndOriginLocator(transaction.source(), transaction.originLocator())) {
+                throw new DuplicateOriginLocatorException(transaction.originLocator());
+            }
+            throw e;
+        }
+    }
+
+    @Override
+    public boolean existsBySourceAndOriginLocator(PortfolioTransactionSource source, String originLocator) {
+        return jpaRepository.existsBySourceAndOriginLocator(source, originLocator);
     }
 
     @Override

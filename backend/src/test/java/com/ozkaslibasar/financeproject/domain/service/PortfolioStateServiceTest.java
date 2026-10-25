@@ -853,5 +853,11 @@ class PortfolioStateServiceTest {
                     .filter(t -> t.portfolioId().equals(portfolioId) && t.userId().equals(userId) && ids.contains(t.id()))
                     .toList();
         }
+
+        @Override
+        public boolean existsBySourceAndOriginLocator(
+                com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource source, String originLocator) {
+            return saved.stream().anyMatch(t -> t.source() == source && originLocator.equals(t.originLocator()));
+        }
     }
 }

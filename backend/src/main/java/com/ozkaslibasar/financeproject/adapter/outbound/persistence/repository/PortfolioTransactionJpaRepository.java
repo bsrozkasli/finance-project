@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.persistence.repository;
 
 import com.ozkaslibasar.financeproject.adapter.outbound.persistence.entity.PortfolioTransactionEntity;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,6 +22,9 @@ public interface PortfolioTransactionJpaRepository extends JpaRepository<Portfol
 
     List<PortfolioTransactionEntity> findByPortfolioIdAndUserIdAndIdInOrderByTradeDateAscIdAsc(
             Long portfolioId, String userId, Collection<Long> ids);
+
+    /** Counts voided rows too: a voided event keeps its (source, origin_locator) reserved. */
+    boolean existsBySourceAndOriginLocator(PortfolioTransactionSource source, String originLocator);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
