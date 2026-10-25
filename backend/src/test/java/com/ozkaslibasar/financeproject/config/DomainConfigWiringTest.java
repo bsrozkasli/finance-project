@@ -21,6 +21,7 @@ import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
@@ -160,6 +161,13 @@ class DomainConfigWiringTest {
     void should_wirePortfolioLedgerService_with_transactionPort() {
         assertThat(portfolioLedgerService).isNotNull();
         assertThat(ReflectionTestUtils.getField(portfolioLedgerService, "transactionPort")).isSameAs(portfolioTransactionPort);
+    }
+
+    @Test
+    void should_wirePortfolioStateService_with_transactionPortAndLedger() {
+        PortfolioStateService service = applicationContext.getBean(PortfolioStateService.class);
+        assertThat(ReflectionTestUtils.getField(service, "transactionPort")).isSameAs(portfolioTransactionPort);
+        assertThat(ReflectionTestUtils.getField(service, "ledger")).isSameAs(portfolioLedgerService);
     }
 
     @Test

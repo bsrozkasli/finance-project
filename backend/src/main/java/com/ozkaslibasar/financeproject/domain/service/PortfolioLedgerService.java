@@ -42,6 +42,15 @@ public class PortfolioLedgerService {
         return holdingsFrom(bySymbol);
     }
 
+    /** Every traded symbol, including positions closed back to zero, so their realized activity is kept. */
+    public List<PortfolioHolding> calculatePositions(List<PortfolioTransaction> transactions) {
+        Map<String, Accumulator> bySymbol = new LinkedHashMap<>();
+        for (PortfolioTransaction transaction : chronological(transactions)) {
+            applyTransaction(bySymbol, transaction);
+        }
+        return bySymbol.values().stream().map(Accumulator::toHolding).toList();
+    }
+
     public Map<LocalDate, List<PortfolioHolding>> calculateHoldingsByDate(
             List<PortfolioTransaction> transactions,
             List<LocalDate> valuationDates) {

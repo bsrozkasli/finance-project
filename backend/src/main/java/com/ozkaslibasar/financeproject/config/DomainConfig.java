@@ -24,6 +24,7 @@ import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchSnapshotUseCase;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
@@ -95,6 +96,12 @@ public class DomainConfig {
     @Bean
     public PortfolioLedgerService portfolioLedgerService(PortfolioTransactionPort transactionPort) {
         return new PortfolioLedgerService(transactionPort);
+    }
+
+    @Bean
+    public PortfolioStateService portfolioStateService(PortfolioTransactionPort transactionPort,
+                                                       PortfolioLedgerService portfolioLedgerService) {
+        return new PortfolioStateService(transactionPort, portfolioLedgerService);
     }
 
     @Bean
