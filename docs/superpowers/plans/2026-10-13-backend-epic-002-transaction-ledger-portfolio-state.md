@@ -98,6 +98,17 @@ The PRD-FR-014 ledger replay fixture is Ready; new state IDs and the recovery ta
 - [ ] Run full backend suite and timed encrypted backup/restore exercise before external evaluation.
 - [ ] Commit scoped Task 3 files and recovery evidence with feat(backend) scope.
 
+## Progress Note (2026-10-25)
+
+Exists now on `feat/epic-002-ledger-state-csv`: validated and serialized ledger void (`409` when the remaining events do
+not replay; journal delete in the same transaction, R-17), exposures and persisted Portfolio States with replay, CSV
+staging and acceptance with row identity, and the per-portfolio ledger lock pinned to `READ COMMITTED` (R-13, R-18).
+New code upper-cases with `Locale.ROOT` (R-19).
+
+Still open: OQ-8 recovery targets and the timed backup/restore exercise; accept performance is unmeasured (each row
+commits on its own); frontend handoff for the void `409` and the import/state routes; the manual route can still post
+`source=CSV` without import lineage (R-11).
+
 ## Plan Exit Criteria
 
 - [ ] PRD-FR-011/014 Ready verification and FR-012/013/015 implementation have fresh evidence.

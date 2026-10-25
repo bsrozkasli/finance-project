@@ -88,6 +88,15 @@ ports with in-memory state.
   see only events with `voided_at IS NULL`; `findByIdsIncludingVoided` returns
   events active or voided for replaying stored states. `voidedAt` is not exposed
   in route responses and is not part of the state version.
+  `PortfolioLedgerService.voidTransaction` (R-17) runs under the same
+  `PortfolioLedgerLockPort.withPortfolioLock` as additions: it reads the active
+  events, replays the remaining ones (without the target), and throws
+  `LedgerInconsistencyException` (route `409`) when that replay is invalid, changing
+  nothing; an id that is not active throws `NoSuchElementException` (route `404`).
+  Otherwise the same-transaction work (the linked journal delete) runs and then the
+  event is voided, in one transaction. The lock transaction is pinned to
+  `READ COMMITTED` (R-18) because a waiter must see the committed insert or void it
+  waited for; do not change that isolation level.
 - The internal `PortfolioStateService` derives a `PortfolioState` from accepted
   ledger events (each has an id and belongs to the requested portfolio and
   user) traded on or before an as-of date. It lists every traded symbol,
@@ -136,7 +145,8 @@ ports with in-memory state.
   addition (manual and CSV) runs its read, validation and save inside
   `PortfolioLedgerLockPort.withPortfolioLock` (R-13): one transaction that first
   locks the portfolio row (`SELECT ... FOR UPDATE`), so additions to one portfolio
-  are serialized and cannot jointly oversell. Under that lock a CSV event whose
+  are serialized, and so are voids (below), so concurrent additions and voids cannot
+  jointly oversell or leave an unreplayable ledger. Under that lock a CSV event whose
   locator already exists throws `DuplicateOriginLocatorException`. A ledger
   `IllegalArgumentException` marks the row `REJECTED`. When the locator already
   exists, the service looks up the active event: if there is one in this portfolio
