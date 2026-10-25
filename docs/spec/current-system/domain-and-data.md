@@ -72,6 +72,13 @@ ports with in-memory state.
   origin. A database check requires a `manual:` locator for MANUAL rows, and
   `(source, origin_locator)` is unique. CSV lineage is still unspecified, so CSV rows
   may have a `NULL` locator.
+- A ledger event is never physically deleted. `DELETE .../transactions/{id}` sets
+  the nullable `voided_at` once; the row, its id and its `(source, origin_locator)`
+  stay (the locator remains reserved). `findByPortfolioIdAndUserId`,
+  `findByIdAndPortfolioIdAndUserId`, holdings and `PortfolioStateService.stateAt`
+  see only events with `voided_at IS NULL`; `findByIdsIncludingVoided` returns
+  events active or voided for replaying stored states. `voidedAt` is not exposed
+  in route responses and is not part of the state version.
 - The internal `PortfolioStateService` derives a `PortfolioState` from accepted
   ledger events (each has an id and belongs to the requested portfolio and
   user) traded on or before an as-of date. It lists every traded symbol,
@@ -140,6 +147,7 @@ Applied migrations are immutable.
 | `V6__allow_unknown_journal_market_values.sql` | Allows journal current/derived market values to remain `NULL` when current price evidence is unavailable |
 | `V7__relabel_unresolved_asset_types.sql` | Relabels `assets` rows stored as `STOCK` with `UNAVAILABLE` metadata as `UNRESOLVED` (OQ-5) |
 | `V8__manual_transaction_origin_locator.sql` | Adds `portfolio_transactions.origin_locator`, backfills `manual:legacy:<id>`, adds the manual-locator check and `(source, origin_locator)` uniqueness |
+| `V10__void_portfolio_transactions.sql` | Adds nullable `portfolio_transactions.voided_at`; inverse is dropping the column (V9 is reserved) |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.

@@ -122,7 +122,7 @@ Every path below is relative to `/api/v1`.
 | Portfolios | `DELETE /portfolios/{portfolioId}` | Delete an empty portfolio; active holdings conflict |
 | Ledger | `GET /portfolios/{portfolioId}/transactions` | List portfolio transactions; each includes the additive `originLocator` (`manual:<UUID>` or `manual:legacy:<id>` for MANUAL, possibly `null` for CSV). The frontend transaction history shows the source and the returned locator, or states when the locator is absent. |
 | Ledger | `POST /portfolios/{portfolioId}/transactions` | Add a manual/CSV ledger transaction |
-| Ledger | `DELETE /portfolios/{portfolioId}/transactions/{transactionId}` | Delete a ledger entry and linked transaction journal record |
+| Ledger | `DELETE /portfolios/{portfolioId}/transactions/{transactionId}` | Void a ledger entry (the row is retained with `voided_at` set and excluded from every read; `404` once voided or unknown) and delete the linked transaction journal record |
 | Ledger | `GET /portfolios/{portfolioId}/holdings` | Derive current holdings from transactions |
 
 Spring controller annotations are the route authority. `docs/openapi.yaml` is a
