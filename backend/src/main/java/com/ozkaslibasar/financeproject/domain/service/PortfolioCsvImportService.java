@@ -12,6 +12,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransaction
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -20,13 +21,17 @@ import java.util.Optional;
 /**
  * CSV import (decision D-4): a file is staged row by row, then accepted into the ledger.
  *
- * <p>This service is deliberately not transactional. Each ledger insert and each row outcome is its own short
- * transaction in the adapters, so a unique-constraint conflict on one row rolls back only that insert and cannot
- * poison the rest of the batch. An interrupted acceptance leaves the batch STAGED with its remaining rows VALID,
- * and accepting again resumes. The {@code (source, origin_locator)} unique index is what makes concurrent or
+ * <p>This service is deliberately not transactional. Staging and settling a row whose identity is already in the
+ * ledger are short transactions in the adapters. New events are accepted in bounded chunks (R-21): each chunk holds
+ * the portfolio lock, validates its rows against a running view of the ledger, and commits its inserts and row
+ * outcomes together. An interrupted acceptance leaves the batch STAGED with the rows of the unfinished chunk still
+ * VALID, and accepting again resumes. The {@code (source, origin_locator)} unique index is what makes concurrent or
  * repeated acceptance create one event per identity.</p>
  */
 public class PortfolioCsvImportService {
+
+    /** Rows validated and committed per portfolio-lock hold (R-21); tune here. */
+    static final int ACCEPT_CHUNK_SIZE = 200;
 
     private static final String ALREADY_IN_LEDGER = "Already in the ledger (active or voided)";
 
@@ -67,8 +72,8 @@ public class PortfolioCsvImportService {
                 .sorted(Comparator.comparing((CsvImportRow row) -> row.transaction().tradeDate())
                         .thenComparingInt(CsvImportRow::rowNumber))
                 .toList();
-        for (CsvImportRow row : pending) {
-            acceptRow(found.get(), row);
+        for (int from = 0; from < pending.size(); from += ACCEPT_CHUNK_SIZE) {
+            acceptChunk(found.get(), pending.subList(from, Math.min(from + ACCEPT_CHUNK_SIZE, pending.size())));
         }
         importPort.markAccepted(batchId, clock.instant());
         return find(portfolioId, userId, batchId);
@@ -87,24 +92,34 @@ public class PortfolioCsvImportService {
     }
 
     /**
-     * The locator embeds portfolio and user (R-10), so an active event with it is this portfolio's. If no other row
-     * has recorded that event yet (an earlier accept of this batch crashed between insert and recording, or a
-     * concurrent accept of this batch inserted it), this row claims it as ACCEPTED; the unique
-     * {@code transaction_id} on rows makes the claim exclusive, so a second batch with the same rows gets DUPLICATE.
+     * Accepts one bounded chunk (R-21) under the portfolio lock: the active ledger is read once, every row is
+     * validated against the running positions, and the inserts and row outcomes commit together. A chunk that fails
+     * midway rolls back whole, leaving its rows VALID so a later accept resumes. A row whose locator already exists
+     * is settled after the chunk commits, because recording it can hit the unique {@code transaction_id} and a
+     * constraint violation would abort the chunk's transaction.
+     *
+     * <p>The locator embeds portfolio and user (R-10), so an active event with it is this portfolio's. If no other
+     * row has recorded that event yet (an earlier accept of this batch crashed between insert and recording, or a
+     * concurrent accept of this batch inserted it), the row claims it as ACCEPTED; the unique {@code transaction_id}
+     * on rows makes the claim exclusive, so a second batch with the same rows gets DUPLICATE.</p>
      */
-    private void acceptRow(CsvImportBatch batch, CsvImportRow row) {
-        PortfolioTransaction candidate = row.transaction();
-        try {
-            if (transactionPort.existsBySourceAndOriginLocator(candidate.source(), candidate.originLocator())) {
-                settleExistingLocator(batch, row, candidate);
-                return;
+    private void acceptChunk(CsvImportBatch batch, List<CsvImportRow> chunk) {
+        List<CsvImportRow> existingLocator = ledger.inLedgerChunk(batch.portfolioId(), batch.userId(), session -> {
+            List<CsvImportRow> deferred = new ArrayList<>();
+            for (CsvImportRow row : chunk) {
+                try {
+                    PortfolioTransaction saved = session.add(row.transaction());
+                    settle(batch, row, CsvImportRowStatus.ACCEPTED, null, saved.id());
+                } catch (DuplicateOriginLocatorException e) {
+                    deferred.add(row);
+                } catch (IllegalArgumentException e) {
+                    settle(batch, row, CsvImportRowStatus.REJECTED, e.getMessage(), null);
+                }
             }
-            PortfolioTransaction saved = ledger.addTransaction(candidate);
-            settle(batch, row, CsvImportRowStatus.ACCEPTED, null, saved.id());
-        } catch (DuplicateOriginLocatorException e) {
-            settleExistingLocator(batch, row, candidate);
-        } catch (IllegalArgumentException e) {
-            settle(batch, row, CsvImportRowStatus.REJECTED, e.getMessage(), null);
+            return deferred;
+        });
+        for (CsvImportRow row : existingLocator) {
+            settleExistingLocator(batch, row, row.transaction());
         }
     }
 

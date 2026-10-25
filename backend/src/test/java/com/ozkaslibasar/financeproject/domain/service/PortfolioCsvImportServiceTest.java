@@ -4,7 +4,9 @@ import com.ozkaslibasar.financeproject.domain.model.CsvImportBatch;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportBatchStatus;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportRow;
 import com.ozkaslibasar.financeproject.domain.model.CsvImportRowStatus;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioCsvImportPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
@@ -133,6 +135,52 @@ class PortfolioCsvImportServiceTest {
 
         assertThat(accepted.rows()).extracting(CsvImportRow::status)
                 .containsExactly(CsvImportRowStatus.ACCEPTED, CsvImportRowStatus.ACCEPTED);
+    }
+
+    @Test
+    void acceptsMoreRowsThanOneChunkAndKeepsEveryOutcome() {
+        int rows = PortfolioCsvImportService.ACCEPT_CHUNK_SIZE * 2 + 50;
+        StringBuilder body = new StringBuilder();
+        for (int i = 0; i < rows; i++) {
+            boolean buy = i % 2 == 0;
+            body.append(java.time.LocalDate.parse("2020-01-01").plusDays(i / 2))
+                    .append(buy ? ",BUY" : ",SELL").append(",S").append((i / 2) % 7)
+                    .append(",US_STOCK,").append(buy ? 10 : 5).append(",100,USD,0,1,\n");
+        }
+        // One oversell in the middle of the second chunk must be the only rejection.
+        body.append("2030-01-01,SELL,S0,US_STOCK,9999,100,USD,0,1,\n");
+
+        CsvImportBatch accepted = service.accept(PORTFOLIO, USER, stage(body.toString()).id()).orElseThrow();
+
+        assertThat(accepted.status()).isEqualTo(CsvImportBatchStatus.ACCEPTED);
+        assertThat(accepted.rows().subList(0, rows)).extracting(CsvImportRow::status)
+                .containsOnly(CsvImportRowStatus.ACCEPTED);
+        assertThat(accepted.rows().get(rows).status()).isEqualTo(CsvImportRowStatus.REJECTED);
+        assertThat(transactions.saved).hasSize(rows);
+    }
+
+    @Test
+    void backDatedRowsAreValidatedAgainstLaterEventsAlreadyInTheLedger() {
+        PortfolioLedgerService manual = LedgerTestSupport.ledger(transactions);
+        manual.addTransaction(manualEvent(PortfolioTransactionAction.BUY, "10", "2026-10-10"));
+        manual.addTransaction(manualEvent(PortfolioTransactionAction.SELL, "10", "2026-10-20"));
+
+        // The first row is dated before the ledger's BUY and is harmless; the second would leave the 10-20 SELL
+        // without enough shares, so a full replay refuses it even though it fits the running total at 10-15.
+        CsvImportBatch accepted = service.accept(PORTFOLIO, USER, stage(
+                "2026-10-05,BUY,AAPL,US_STOCK,1,100,USD,0,1,\n"
+                        + "2026-10-15,SELL,AAPL,US_STOCK,5,100,USD,0,1,\n").id()).orElseThrow();
+
+        assertThat(accepted.rows()).extracting(CsvImportRow::status)
+                .containsExactly(CsvImportRowStatus.ACCEPTED, CsvImportRowStatus.REJECTED);
+        assertThat(accepted.rows().get(1).message()).contains("sell quantity exceeds");
+    }
+
+    private static PortfolioTransaction manualEvent(PortfolioTransactionAction action, String quantity, String date) {
+        return new PortfolioTransaction(null, PORTFOLIO, USER, "AAPL", PortfolioAssetType.US_STOCK, action,
+                new java.math.BigDecimal(quantity), new java.math.BigDecimal("100"), "USD", java.math.BigDecimal.ZERO,
+                java.math.BigDecimal.ONE, java.time.LocalDate.parse(date), PortfolioTransactionSource.MANUAL, null,
+                null, null);
     }
 
     @Test

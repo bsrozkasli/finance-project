@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Function;
 
 public class PortfolioLedgerService {
 
@@ -36,16 +37,91 @@ public class PortfolioLedgerService {
      */
     public PortfolioTransaction addTransaction(PortfolioTransaction transaction) {
         return lockPort.withPortfolioLock(transaction.portfolioId(), () -> {
-            if (transaction.source() == PortfolioTransactionSource.CSV && transaction.originLocator() != null
-                    && transactionPort.existsBySourceAndOriginLocator(transaction.source(),
-                    transaction.originLocator())) {
-                throw new DuplicateOriginLocatorException(transaction.originLocator());
-            }
+            refuseKnownCsvLocator(transaction);
             List<PortfolioTransaction> existing = transactionPort.findByPortfolioIdAndUserId(
                     transaction.portfolioId(), transaction.userId());
             validateTransaction(existing, transaction);
             return transactionPort.save(transaction);
         });
+    }
+
+    /**
+     * Runs {@code work} under the per-portfolio lock with a {@link LedgerChunk} seeded once from the active events
+     * (R-21). Each {@link LedgerChunk#add} applies the same ledger rules as {@link #addTransaction} but validates
+     * incrementally instead of re-reading and replaying the whole ledger per event. Everything the work writes
+     * commits or rolls back together, so callers keep chunks bounded.
+     */
+    public <T> T inLedgerChunk(Long portfolioId, String userId, Function<LedgerChunk, T> work) {
+        Objects.requireNonNull(work, "work must not be null");
+        return lockPort.withPortfolioLock(portfolioId, () -> work.apply(
+                new LedgerChunk(new ArrayList<>(transactionPort.findByPortfolioIdAndUserId(portfolioId, userId)))));
+    }
+
+    private void refuseKnownCsvLocator(PortfolioTransaction transaction) {
+        if (transaction.source() == PortfolioTransactionSource.CSV && transaction.originLocator() != null
+                && transactionPort.existsBySourceAndOriginLocator(transaction.source(),
+                transaction.originLocator())) {
+            throw new DuplicateOriginLocatorException(transaction.originLocator());
+        }
+    }
+
+    /**
+     * A running view of one portfolio's active ledger, valid only inside {@link #inLedgerChunk}. An event dated on
+     * or after every event already in the view sorts last in {@link #chronological}, so it is applied to the running
+     * positions directly; an earlier-dated (back-dated) event could change how later events replay, so it is
+     * validated by a full in-memory replay, exactly as {@link #addTransaction} does.
+     */
+    public final class LedgerChunk {
+        private final List<PortfolioTransaction> events;
+        private Map<String, Accumulator> positions = new LinkedHashMap<>();
+        private LocalDate latestTradeDate;
+        private IllegalArgumentException unusableLedger;
+
+        private LedgerChunk(List<PortfolioTransaction> events) {
+            this.events = events;
+            try {
+                reseed();
+            } catch (IllegalArgumentException e) {
+                // The stored ledger no longer replays: every addition is refused with that reason, as before.
+                unusableLedger = e;
+            }
+        }
+
+        /**
+         * Validates against the view, saves and extends the view.
+         *
+         * @throws DuplicateOriginLocatorException when a CSV event with the locator already exists
+         * @throws IllegalArgumentException when the event is invalid against the ledger (the view is unchanged)
+         */
+        public PortfolioTransaction add(PortfolioTransaction transaction) {
+            refuseKnownCsvLocator(transaction);
+            if (unusableLedger != null) {
+                throw new IllegalArgumentException(unusableLedger.getMessage(), unusableLedger);
+            }
+            boolean appendsLast = latestTradeDate == null || !transaction.tradeDate().isBefore(latestTradeDate);
+            if (appendsLast) {
+                applyTransaction(positions, transaction);
+            } else {
+                validateTransaction(events, transaction);
+            }
+            PortfolioTransaction saved = transactionPort.save(transaction);
+            events.add(saved);
+            if (appendsLast) {
+                latestTradeDate = saved.tradeDate();
+            } else {
+                reseed();
+            }
+            return saved;
+        }
+
+        private void reseed() {
+            positions = new LinkedHashMap<>();
+            latestTradeDate = null;
+            for (PortfolioTransaction event : chronological(events)) {
+                applyTransaction(positions, event);
+                latestTradeDate = event.tradeDate();
+            }
+        }
     }
 
     /**

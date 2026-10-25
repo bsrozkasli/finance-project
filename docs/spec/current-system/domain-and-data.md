@@ -139,9 +139,19 @@ ports with in-memory state.
   row_number)`). Staging marks a row `DUPLICATE` when
   `PortfolioTransactionPort.existsBySourceAndOriginLocator` finds its locator in the
   ledger, voided events included. Acceptance runs `PortfolioCsvImportService.accept`
-  without an outer transaction: each `VALID` row goes through
-  `PortfolioLedgerService.addTransaction` in trade-date then row-number order, and
-  each ledger addition and each row outcome commits on its own. Every ledger
+  without an outer transaction: the `VALID` rows, in trade-date then row-number
+  order, are accepted in chunks of 200 (R-21, `ACCEPT_CHUNK_SIZE`). A chunk runs
+  `PortfolioLedgerService.inLedgerChunk` under the portfolio lock: the active ledger is
+  read once, each row is validated by `LedgerChunk.add` against running positions
+  (the same `applyTransaction` rules as `addTransaction`), and the chunk's ledger
+  inserts and row outcomes commit together; a chunk that fails rolls back whole and
+  its rows stay `VALID`. A row dated before the latest event already in the view
+  (back-dated against the ledger) is validated by a full in-memory replay, so every
+  outcome equals what `addTransaction` would give. Rows whose locator already exists
+  are settled after the chunk commits. Measured on real PostgreSQL (developer
+  machine, 5,000 valid rows alternating BUY/SELL over 50 symbols,
+  `PortfolioCsvImportPerformanceTest`): accept 191 s with the previous per-row
+  replay, 23.5 s chunked (target 30 s); staging 17-18 s. Every ledger
   addition (manual and CSV) runs its read, validation and save inside
   `PortfolioLedgerLockPort.withPortfolioLock` (R-13): one transaction that first
   locks the portfolio row (`SELECT ... FOR UPDATE`), so additions to one portfolio
