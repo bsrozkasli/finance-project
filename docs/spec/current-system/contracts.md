@@ -143,13 +143,15 @@ lines end in `\n` or `\r\n`, blank lines are skipped, decimal point `.`, dates
 `0` and an empty `fx_rate_to_base` is `1`; every other value follows the
 `PortfolioTransaction` rules, and a row that fails (including a wrong column count
 or a number that does not fit the column) is staged `INVALID` with a message. A row's
-`originLocator` is `csv:` plus the lower-case hex SHA-256 of the nine economic
-values (date, action, symbol, asset type, quantity, price, currency, fee, fx rate)
-joined by `U+001F`, numbers as `stripTrailingZeros().toPlainString()`, codes
-upper-case, an absent symbol empty; the n-th identical row of a file gets `#n`
-(n >= 2). `rowNumber` counts non-blank data rows from 1. The locator is global to
-`(source, origin_locator)`, so the same row imported into another portfolio is
-`DUPLICATE`.
+`originLocator` is `csv:` plus the lower-case hex SHA-256 of the portfolio id, the
+user id and the nine economic values (date, action, symbol, asset type, quantity,
+price, currency, fee, fx rate) joined by `U+001F`, numbers as
+`stripTrailingZeros().toPlainString()`, codes upper-case, an absent symbol empty;
+the n-th identical row of a file gets `#n` (n >= 2). `rowNumber` counts non-blank
+data rows from 1. Because the portfolio and user are part of the identity, the same
+row imported into another portfolio is a new row (`VALID`), while reordering rows
+within a portfolio gives the same locators. A request body over 1,048,576 bytes is
+rejected with `400` while it is being read, not after it is fully buffered.
 
 Spring controller annotations are the route authority. `docs/openapi.yaml` is a
 generated/supporting artifact and must be regenerated or validated when public

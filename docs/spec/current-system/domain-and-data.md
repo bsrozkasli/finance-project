@@ -76,8 +76,9 @@ ports with in-memory state.
   origin. A database check requires a `manual:` locator for MANUAL rows, and
   `(source, origin_locator)` is unique. Every CSV event created by the CSV import
   (V12) carries a `csv:<sha256 hex>` locator, with `#<n>` appended for the n-th
-  identical row of a file (n >= 2); the hash covers the nine economic columns, so it
-  is independent of row order and of the notes. A `source=CSV` event posted through
+  identical row of a file (n >= 2); the hash covers the portfolio id, the user id and the nine economic columns
+  (R-10), so it is independent of row order and of the notes but differs per
+  portfolio. A `source=CSV` event posted through
   the manual transaction route has no import lineage and may still have a `NULL`
   locator.
 - A ledger event is never physically deleted. `DELETE .../transactions/{id}` sets
@@ -126,13 +127,22 @@ ports with in-memory state.
   ledger, voided events included. Acceptance runs `PortfolioCsvImportService.accept`
   without an outer transaction: each `VALID` row goes through
   `PortfolioLedgerService.addTransaction` in trade-date then row-number order, and
-  each ledger insert and each row outcome commits on its own. A ledger
-  `IllegalArgumentException` marks the row `REJECTED`; a `(source, origin_locator)`
-  unique violation (translated by the transaction adapter to
-  `DuplicateOriginLocatorException` for CSV events) marks it `DUPLICATE`; a row
-  outcome is written only while the row is still `VALID`. Accepting an `ACCEPTED`
-  batch returns it unchanged, and an interrupted acceptance leaves a `STAGED` batch
-  that resumes. `INVALID` rows never reach the ledger.
+  each ledger addition and each row outcome commits on its own. Every ledger
+  addition (manual and CSV) runs its read, validation and save inside
+  `PortfolioLedgerLockPort.withPortfolioLock` (R-13): one transaction that first
+  locks the portfolio row (`SELECT ... FOR UPDATE`), so additions to one portfolio
+  are serialized and cannot jointly oversell. Under that lock a CSV event whose
+  locator already exists throws `DuplicateOriginLocatorException`. A ledger
+  `IllegalArgumentException` marks the row `REJECTED`. When the locator already
+  exists, the service looks up the active event: if there is one in this portfolio
+  and no other row has recorded it, the row is recorded `ACCEPTED` with that event's
+  id (this repairs an interrupted accept and a concurrent accept of the same batch;
+  `portfolio_csv_import_rows.transaction_id` is unique, so a claim is exclusive);
+  if another row owns it, or only a voided event exists, the row is `DUPLICATE`. A
+  row outcome is written only while the row is still `VALID`, and a refused write is
+  re-read rather than assumed. Accepting an `ACCEPTED` batch returns it unchanged,
+  and an interrupted acceptance leaves a `STAGED` batch that resumes. `INVALID`
+  rows never reach the ledger.
 - Portfolio States are persisted append-only through `PortfolioStatePort`
   (V11): `portfolio_states` (version, portfolio, user, as-of date, base
   currency, exposure status, created time; unique `(portfolio_id, version)`,
