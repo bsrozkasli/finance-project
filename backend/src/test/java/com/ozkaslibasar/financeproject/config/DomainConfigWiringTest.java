@@ -11,6 +11,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchEvidencePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
@@ -25,6 +26,7 @@ import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
+import com.ozkaslibasar.financeproject.domain.service.ResearchEvidenceService;
 import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchSnapshotUseCase;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.junit.jupiter.api.Test;
@@ -171,6 +173,13 @@ class DomainConfigWiringTest {
     }
 
     @Test
+    void should_wireResearchEvidenceService_with_evidencePort() {
+        ResearchEvidenceService service = applicationContext.getBean(ResearchEvidenceService.class);
+        assertThat(ReflectionTestUtils.getField(service, "port"))
+                .isSameAs(applicationContext.getBean(ResearchEvidencePort.class));
+    }
+
+    @Test
     void should_wireJournalTradeService_with_tradePortAndPriceRefreshService() {
         assertThat(journalTradeService).isNotNull();
         assertThat(ReflectionTestUtils.getField(journalTradeService, "tradePort")).isSameAs(journalTradePort);
@@ -265,6 +274,12 @@ class DomainConfigWiringTest {
         PortfolioTransactionPort portfolioTransactionPort() {
             // Mock rationale: persistence boundary is mocked to keep context test deterministic.
             return mock(PortfolioTransactionPort.class);
+        }
+
+        @Bean
+        ResearchEvidencePort researchEvidencePort() {
+            // Mock rationale: persistence boundary is mocked to keep context test deterministic.
+            return mock(ResearchEvidencePort.class);
         }
 
         @Bean

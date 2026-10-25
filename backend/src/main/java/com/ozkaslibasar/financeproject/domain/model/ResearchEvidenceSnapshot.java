@@ -7,7 +7,11 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-/** An immutable, in-memory research revision. It is not a retained product evaluation. */
+/**
+ * Immutable version of the evidence captured for one instrument identity. A revision is a new snapshot that names
+ * the one it supersedes; the superseded snapshot is never changed. Retaining a snapshot is not a product
+ * evaluation and grants no external-use right.
+ */
 public record ResearchEvidenceSnapshot(
         UUID id,
         UUID previousId,
