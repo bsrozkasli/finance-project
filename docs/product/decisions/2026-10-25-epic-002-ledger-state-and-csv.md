@@ -201,3 +201,11 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   9. Acceptance checks the ledger for the identity before inserting, and still relies on the unique index for races.
   10. A staged row's link to its accepted event is cleared if that event's row disappears (only possible through
       portfolio deletion).
+- **R-13. Ledger additions are serialized per portfolio.** Why: `PortfolioLedgerService.addTransaction` reads active
+  events, validates (for example, no sell above the holding) and saves without a lock, so two concurrent additions to
+  the same portfolio (two CSV batches, or a batch and a manual entry) can both pass and oversell a position. CSV
+  acceptance makes that race likely. Decision: the check and the insert run under a per-portfolio lock provided through
+  a port (the domain stays framework-free), for the manual and the CSV paths alike. Cost if wrong: additions to one
+  portfolio wait for each other; additions to different portfolios do not.
+- **R-14. An upload is rejected once it exceeds 1,048,576 bytes while being read**, not after the whole body is in
+  memory. Why: D-4's size limit must also bound memory. Cost if wrong: none.
