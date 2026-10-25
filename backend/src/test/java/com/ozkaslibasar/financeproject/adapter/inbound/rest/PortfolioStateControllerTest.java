@@ -153,6 +153,52 @@ class PortfolioStateControllerTest {
                 .andExpect(jsonPath("$.assetTypeWeights").isEmpty());
     }
 
+    private static PortfolioState withScales(String quantity, String price, String marketValue, String weight) {
+        PortfolioStatePosition open = new PortfolioStatePosition("AAPL", PortfolioAssetType.US_STOCK,
+                new BigDecimal(quantity), new BigDecimal("100.00"), new BigDecimal("600.0000"),
+                new BigDecimal("0.000"), "USD", PositionValuationStatus.PRICED, new BigDecimal(price),
+                LocalDate.of(2026, 10, 20), new BigDecimal(marketValue), new BigDecimal(weight));
+        Map<String, BigDecimal> weights = new LinkedHashMap<>();
+        weights.put("US_STOCK", new BigDecimal(weight));
+        return new PortfolioState(VERSION, 1L, "default", TODAY, "USD", ExposureStatus.COMPLETE, List.of(1L),
+                List.of(open), weights, List.of(new ValuationInput("AAPL", new BigDecimal(price),
+                LocalDate.of(2026, 10, 20), "USD")));
+    }
+
+    @Test
+    void createAndReplayBodiesAreIdenticalDespiteDifferentNumericScales() throws Exception {
+        // POST carries freshly derived scales; GET carries the stored (wider) ones. Same state, same JSON.
+        when(stateService.create(1L, "default", TODAY)).thenReturn(new PortfolioStateService.CreatedState(
+                withScales("6", "110.0000", "660.000000000000", "1.0000000000"), true));
+        when(stateService.replay(1L, "default", VERSION)).thenReturn(Optional.of(
+                withScales("6.00000000", "110.00000000", "660.0000000000000000", "1")));
+
+        String created = mockMvc.perform(post("/api/v1/portfolios/1/states").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"asOf\":\"2026-10-25\"}"))
+                .andReturn().getResponse().getContentAsString();
+        String replayed = mockMvc.perform(get("/api/v1/portfolios/1/states/" + VERSION))
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(replayed).isEqualTo(created);
+        org.assertj.core.api.Assertions.assertThat(created)
+                .contains("\"price\":110,").contains("\"marketValue\":660,").contains("\"weight\":1}")
+                .contains("\"realizedPnl\":0,").contains("\"averageCost\":100,");
+    }
+
+    @Test
+    void decimalsNeverUseExponentNotation() throws Exception {
+        when(stateService.create(1L, "default", TODAY)).thenReturn(new PortfolioStateService.CreatedState(
+                withScales("1E+3", "0.00000001", "1E+8", "0.5"), true));
+
+        String body = mockMvc.perform(post("/api/v1/portfolios/1/states").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"asOf\":\"2026-10-25\"}"))
+                .andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(body)
+                .contains("\"quantity\":1000,").contains("\"price\":0.00000001,").contains("\"marketValue\":100000000,")
+                .doesNotContain("E+").doesNotContain("E-");
+    }
+
     @Test
     void assetTypeWeightsKeysAreEmittedInSortedOrder() throws Exception {
         Map<String, BigDecimal> weights = new LinkedHashMap<>();

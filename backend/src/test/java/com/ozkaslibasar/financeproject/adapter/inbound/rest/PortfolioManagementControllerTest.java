@@ -57,11 +57,11 @@ class PortfolioManagementControllerTest {
     @Test
     void listedTransactionsMatchSharedLineageContract() throws Exception {
         PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
-        PortfolioTransaction csv = new PortfolioTransaction(
+        PortfolioTransaction csv = withVoidedAt(new PortfolioTransaction(
                 11L, 1L, "default", "NVDA", PortfolioAssetType.US_STOCK,
                 PortfolioTransactionAction.SELL, BigDecimal.ONE, new BigDecimal("130"),
                 "USD", BigDecimal.ZERO, BigDecimal.ONE, LocalDate.parse("2026-07-01"),
-                PortfolioTransactionSource.CSV, null, null, null);
+                PortfolioTransactionSource.CSV, null, null, null));
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
         when(transactionPort.findByPortfolioIdAndUserId(1L, "default")).thenReturn(List.of(saved, csv));
 
@@ -71,6 +71,9 @@ class PortfolioManagementControllerTest {
                 .andExpect(jsonPath("$[0].originLocator").value(saved.originLocator()))
                 .andExpect(jsonPath("$[1].source").value("CSV"))
                 .andExpect(jsonPath("$[1].originLocator").value(nullValue()))
+                // voidedAt is internal: absent even when the domain object carries it (second event is voided).
+                .andExpect(jsonPath("$[0].voidedAt").doesNotExist())
+                .andExpect(jsonPath("$[1].voidedAt").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
 
         ContractFixtures.assertSameShape("portfolio-transactions.json", body);
@@ -79,7 +82,8 @@ class PortfolioManagementControllerTest {
     @Test
     void shouldCreateTransactionAndLinkedJournalEntryWhenJournalNotesExist() throws Exception {
         Portfolio portfolio = portfolio();
-        PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
+        PortfolioTransaction saved = withVoidedAt(
+                transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120"));
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio));
         when(ledgerService.addTransaction(any(PortfolioTransaction.class))).thenReturn(saved);
 
@@ -100,7 +104,8 @@ class PortfolioManagementControllerTest {
                 .andExpect(jsonPath("$.id").value(10))
                 .andExpect(jsonPath("$.symbol").value("NVDA"))
                 .andExpect(jsonPath("$.source").value("MANUAL"))
-                .andExpect(jsonPath("$.originLocator").isNotEmpty());
+                .andExpect(jsonPath("$.originLocator").isNotEmpty())
+                .andExpect(jsonPath("$.voidedAt").doesNotExist());
 
         verify(journalTradePort).save(any());
     }
@@ -189,6 +194,13 @@ class PortfolioManagementControllerTest {
                 qty.multiply(avg),
                 BigDecimal.ZERO,
                 "USD");
+    }
+
+    private static PortfolioTransaction withVoidedAt(PortfolioTransaction t) {
+        return new PortfolioTransaction(t.id(), t.portfolioId(), t.userId(), t.symbol(), t.assetType(), t.action(),
+                t.quantity(), t.price(), t.currency(), t.fee(), t.fxRateToBase(), t.tradeDate(), t.source(),
+                t.notes(), t.createdAt(), t.updatedAt(), t.originLocator(),
+                java.time.Instant.parse("2026-10-25T09:00:00Z"));
     }
 
     private PortfolioTransaction transaction(

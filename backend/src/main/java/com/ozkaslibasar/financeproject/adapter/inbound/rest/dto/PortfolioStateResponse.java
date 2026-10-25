@@ -1,5 +1,6 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest.dto;
 
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioState;
 
 import java.math.BigDecimal;
@@ -19,21 +20,21 @@ public record PortfolioStateResponse(
         String exposureStatus,
         List<Long> sourceEventIds,
         List<Position> positions,
-        Map<String, BigDecimal> assetTypeWeights
+        @JsonSerialize(contentUsing = PlainDecimalSerializer.class) Map<String, BigDecimal> assetTypeWeights
 ) {
     public record Position(
             String symbol,
             String assetType,
-            BigDecimal quantity,
-            BigDecimal averageCost,
-            BigDecimal costBasis,
-            BigDecimal realizedPnl,
+            @JsonSerialize(using = PlainDecimalSerializer.class) BigDecimal quantity,
+            @JsonSerialize(using = PlainDecimalSerializer.class) BigDecimal averageCost,
+            @JsonSerialize(using = PlainDecimalSerializer.class) BigDecimal costBasis,
+            @JsonSerialize(using = PlainDecimalSerializer.class) BigDecimal realizedPnl,
             String currency,
             String valuationStatus,
-            BigDecimal price,
+            @JsonSerialize(using = PlainDecimalSerializer.class) BigDecimal price,
             LocalDate priceDate,
-            BigDecimal marketValue,
-            BigDecimal weight
+            @JsonSerialize(using = PlainDecimalSerializer.class) BigDecimal marketValue,
+            @JsonSerialize(using = PlainDecimalSerializer.class) BigDecimal weight
     ) {
     }
 
