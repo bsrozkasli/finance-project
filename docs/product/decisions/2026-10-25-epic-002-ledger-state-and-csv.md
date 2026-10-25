@@ -164,3 +164,15 @@ Rulings made during implementation are appended here as `R-n` with the decision,
      inputs for symbols that are not open, and rejects duplicate inputs or an input dated after `asOf`.
   6. A position whose transaction currency is missing is `CURRENCY_MISMATCH`.
   7. The `pstate-v1` four-argument `project` is removed; it had no production caller.
+- **R-9. Portfolio State persistence details not fixed by D-3** (Task 3). Why: each keeps replay exact or follows an
+  existing pattern. Cost if wrong: small schema or API adjustments before any consumer exists.
+  1. `base_currency` is `VARCHAR(3)` and stored `price_currency` is `VARCHAR(10)` (not `CHAR(3)`): `CHAR` pads values,
+     which would change the replayed hash, and `assets.currency` is already `VARCHAR(10)`.
+  2. Saving returns the stored row and whether it was created; `POST` maps that to `201` or `200`.
+  3. A replay that cannot find one of its stored source events, or cannot re-project them, is a `409` mismatch.
+  4. The unknown-portfolio `404` is checked in the controller before the service is called.
+  5. A UTC `Clock` bean is added so the "after today" check (R-3) is testable with a fixed clock.
+  6. State rows cascade with their portfolio, matching the existing portfolio-deletion cascade (D-1 "Not changed").
+  7. `created_at` is set by the database.
+  8. The response has no `baseCurrency` field, because D-3 lists the fields exactly; the base currency is stored and used
+     for replay.
