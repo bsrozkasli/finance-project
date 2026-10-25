@@ -120,7 +120,7 @@ Every path below is relative to `/api/v1`.
 | Portfolios | `POST /portfolios` | Create a portfolio |
 | Portfolios | `PUT /portfolios/{portfolioId}` | Update portfolio metadata |
 | Portfolios | `DELETE /portfolios/{portfolioId}` | Delete an empty portfolio; active holdings conflict |
-| Ledger | `GET /portfolios/{portfolioId}/transactions` | List portfolio transactions; each includes the additive `originLocator` (`manual:<UUID>` or `manual:legacy:<id>` for MANUAL, possibly `null` for CSV) |
+| Ledger | `GET /portfolios/{portfolioId}/transactions` | List portfolio transactions; each includes the additive `originLocator` (`manual:<UUID>` or `manual:legacy:<id>` for MANUAL, possibly `null` for CSV). The frontend transaction history shows the source and the returned locator, or states when the locator is absent. |
 | Ledger | `POST /portfolios/{portfolioId}/transactions` | Add a manual/CSV ledger transaction |
 | Ledger | `DELETE /portfolios/{portfolioId}/transactions/{transactionId}` | Delete a ledger entry and linked transaction journal record |
 | Ledger | `GET /portfolios/{portfolioId}/holdings` | Derive current holdings from transactions |
@@ -261,9 +261,17 @@ reads factor scores from `FactorAnalysisResponse.scores`, the valuation grade fr
 `ValuationResponse.metrics` and the earnings score from
 `EarningsAnalysisResponse.metrics`, so provider-backed components are `available`.
 The `*_not_mapped` reason codes remain only for an unexpected response shape.
-Breakdown values of components that are not `available` are still the legacy
-neutral `50` and still enter `overall_score`; consumers must read
-`breakdown_availability` before treating a breakdown value as evidence.
+
+**No neutral defaults (2026-10-23).** A breakdown component without evidence is
+`null`, never the former neutral `50`. `overall_score` is the weighted average
+of the non-null components only, with the weights renormalised:
+fundamental .25, valuation .20, quality .15, growth .10, momentum .10, risk .10,
+earnings .05, sentiment .05. When those components carry less than half of the
+total weight, `overall_score`, `grade`, and `recommendation` are `null`. The
+existing confidence cap (≤69 when fewer than half of the six inputs answered)
+still applies. Spring maps these fields as nullable `Integer`/`String`, the
+opportunity radar skips a `null` overall score without logging an error, and the
+LLM context labels unknown values "unavailable".
 
 ### Shared contract fixtures
 

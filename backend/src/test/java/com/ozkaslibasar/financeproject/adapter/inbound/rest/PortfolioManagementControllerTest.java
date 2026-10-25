@@ -1,5 +1,6 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+import com.ozkaslibasar.financeproject.contract.ContractFixtures;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
@@ -22,11 +23,13 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -48,6 +51,28 @@ class PortfolioManagementControllerTest {
 
     @MockitoBean
     private JournalTradePort journalTradePort;
+
+    @Test
+    void listedTransactionsMatchSharedLineageContract() throws Exception {
+        PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
+        PortfolioTransaction csv = new PortfolioTransaction(
+                11L, 1L, "default", "NVDA", PortfolioAssetType.US_STOCK,
+                PortfolioTransactionAction.SELL, BigDecimal.ONE, new BigDecimal("130"),
+                "USD", BigDecimal.ZERO, BigDecimal.ONE, LocalDate.parse("2026-07-01"),
+                PortfolioTransactionSource.CSV, null, null, null);
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(transactionPort.findByPortfolioIdAndUserId(1L, "default")).thenReturn(List.of(saved, csv));
+
+        String body = mockMvc.perform(get("/api/v1/portfolios/1/transactions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].source").value("MANUAL"))
+                .andExpect(jsonPath("$[0].originLocator").value(saved.originLocator()))
+                .andExpect(jsonPath("$[1].source").value("CSV"))
+                .andExpect(jsonPath("$[1].originLocator").value(nullValue()))
+                .andReturn().getResponse().getContentAsString();
+
+        ContractFixtures.assertSameShape("portfolio-transactions.json", body);
+    }
 
     @Test
     void shouldCreateTransactionAndLinkedJournalEntryWhenJournalNotesExist() throws Exception {

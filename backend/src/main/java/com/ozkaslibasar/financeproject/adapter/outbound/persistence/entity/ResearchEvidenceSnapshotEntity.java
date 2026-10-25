@@ -9,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "research_evidence_snapshots")
@@ -18,18 +19,33 @@ import java.time.Instant;
 public class ResearchEvidenceSnapshotEntity {
 
     @Id
-    @Column(name = "id", length = 64)
-    private String id;
+    @Column(name = "id")
+    private UUID id;
+
+    @Column(name = "previous_id")
+    private UUID previousId;
+
+    @Column(name = "revision", nullable = false)
+    private long revision;
 
     @Column(name = "symbol", nullable = false, length = 40)
     private String symbol;
 
-    @Column(name = "revision", nullable = false)
-    private int revision;
+    @Column(name = "asset_type", nullable = false, length = 20)
+    private String assetType;
 
-    @Column(name = "supersedes_id", length = 64)
-    private String supersedesId;
+    @Column(name = "listing_status", nullable = false, length = 20)
+    private String listingStatus;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    @Column(name = "classification_basis", nullable = false, length = 30)
+    private String classificationBasis;
+
+    @Column(name = "identity_source", nullable = false, length = 80)
+    private String identitySource;
+
+    @Column(name = "identity_retrieved_at", nullable = false)
+    private Instant identityRetrievedAt;
+
+    @Column(name = "captured_at", nullable = false)
+    private Instant capturedAt;
 }
