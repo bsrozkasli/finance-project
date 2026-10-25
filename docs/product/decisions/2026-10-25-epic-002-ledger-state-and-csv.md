@@ -241,3 +241,25 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   JVM, which would change symbols, currencies and CSV identities. Scope: the code added by this PR (CSV parser/service,
   state service); the same pattern elsewhere in the codebase is out of scope and noted as a follow-up. Cost if wrong:
   none.
+- **R-20. `POST /portfolios/{portfolioId}/transactions` refuses `source=CSV` (closes R-11).** Why: CSV events must carry a
+  `csv:` identity so a re-import is idempotent; the manual route cannot produce one. The frontend only displays `CSV`
+  and never sends it, and no other consumer is visible in the repository. Decision (OQ-5 disposition: preserve path,
+  method and DTO fields; one value of `source` is refused): `source=CSV` on this route returns `422` with the standard
+  error body ("CSV transactions are created only through imports"); `MANUAL` and an omitted `source` behave as before.
+  Cost if wrong: an external client that posted `source=CSV` now gets `422`; reverse by removing the check.
+- **R-21. CSV acceptance performance target and approach.** Why: acceptance re-reads and re-validates every active event
+  for each row (O(n²)), and was never measured at the 5,000-row limit. Decision: first measure a 5,000-row valid
+  acceptance on real PostgreSQL and record the number. Target: at most 30 seconds on a developer machine. If the
+  measurement misses the target, change acceptance to validate incrementally (hold the portfolio lock for a bounded chunk
+  of rows, keep a running position state inside the chunk) while keeping every R-12 outcome, the per-row `ACCEPTED` /
+  `DUPLICATE` / `REJECTED` results and the resumability. Cost if wrong: a larger transaction per chunk; chunk size is a
+  constant that can be tuned.
+- **R-22. The V12 in-place edit needs no local action.** Verified 2026-10-25: the local development database is at
+  schema version 8, so the first V12 was never applied there. Anyone who applied the first V12 from an earlier push of
+  this branch must drop the V12 tables and the V12 `flyway_schema_history` row; the branch was pushed only after that
+  edit's successor commits, so no shared environment is known to have it.
+- **R-23. Restore exercise is evidence, not a target.** Why: OQ-8 (recovery objectives, encryption, retention) is owned by
+  the operations/security lead and is not delegated. Decision: add a repeatable restore proof (dump a PostgreSQL
+  container holding ledger, voided events, states and import batches, restore into a fresh container, replay every stored
+  state and compare versions) and document that it proves logical recoverability only. It sets no RPO/RTO, encryption or
+  retention requirement; Task 3 acceptance stays open until OQ-8 records those. Cost if wrong: none.
