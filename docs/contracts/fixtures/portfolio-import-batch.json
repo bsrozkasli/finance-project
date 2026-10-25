@@ -1,0 +1,45 @@
+{
+  "batchId": 9,
+  "portfolioId": 1,
+  "status": "ACCEPTED",
+  "fileSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "createdAt": "2026-10-25T10:00:00Z",
+  "acceptedAt": "2026-10-25T10:05:00Z",
+  "counts": {
+    "valid": 0,
+    "invalid": 1,
+    "duplicate": 1,
+    "accepted": 1,
+    "rejected": 1
+  },
+  "rows": [
+    {
+      "rowNumber": 1,
+      "status": "ACCEPTED",
+      "message": null,
+      "originLocator": "csv:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "transactionId": 500
+    },
+    {
+      "rowNumber": 2,
+      "status": "INVALID",
+      "message": "trade_date: invalid date",
+      "originLocator": null,
+      "transactionId": null
+    },
+    {
+      "rowNumber": 3,
+      "status": "DUPLICATE",
+      "message": "Already in the ledger",
+      "originLocator": "csv:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "transactionId": null
+    },
+    {
+      "rowNumber": 4,
+      "status": "REJECTED",
+      "message": "Sell exceeds the holding",
+      "originLocator": "csv:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "transactionId": null
+    }
+  ]
+}
