@@ -11,6 +11,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchEvidencePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SentimentDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
@@ -26,6 +27,7 @@ import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
+import com.ozkaslibasar.financeproject.domain.service.ResearchEvidenceService;
 import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchSnapshotUseCase;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
@@ -91,6 +93,11 @@ public class DomainConfig {
                 priceRefreshService,
                 technicalAnalysisPort,
                 researchDataPort);
+    }
+
+    @Bean
+    public ResearchEvidenceService researchEvidenceService(ResearchEvidencePort researchEvidencePort) {
+        return new ResearchEvidenceService(researchEvidencePort, java.util.UUID::randomUUID);
     }
 
     @Bean

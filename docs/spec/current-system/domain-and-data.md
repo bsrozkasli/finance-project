@@ -28,12 +28,16 @@ ports with in-memory state.
   `CURRENT_OBSERVATION` never proves point-in-time stock/ETF eligibility.
   Only a point-in-time master classification can pass that gate; no master
   adapter or public eligibility consumer is wired yet.
-- The internal `ResearchEvidenceService` creates in-memory immutable evidence
-  revisions from caller-supplied fields. A field has a raw value or an explicit
-  missing reason, plus source and retrieval time; present values also require
-  observation time. Revisions receive a new ID and retain the previous ID.
-  No provider fetch, database persistence, public endpoint, quality grade, or
-  external-use permission is attached to this research model.
+- The internal `ResearchEvidenceService` records immutable evidence revisions
+  from caller-supplied fields, bound to the `InstrumentIdentity` they were
+  captured for, and retains them append-only through `ResearchEvidencePort`
+  (V9). A field has a raw value or a typed missing reason, never both, plus
+  source, retrieval time and freshness; present values also require
+  observation time, which cannot follow retrieval. A field name may repeat for
+  different periods or sources. Revisions receive a new UUID and retain the
+  previous ID; only the latest revision of a symbol can be revised. No
+  provider fetch, public endpoint, quality grade, or external-use permission
+  is attached to this research model.
 
 ### Price history
 
@@ -140,6 +144,7 @@ Applied migrations are immutable.
 | `V6__allow_unknown_journal_market_values.sql` | Allows journal current/derived market values to remain `NULL` when current price evidence is unavailable |
 | `V7__relabel_unresolved_asset_types.sql` | Relabels `assets` rows stored as `STOCK` with `UNAVAILABLE` metadata as `UNRESOLVED` (OQ-5) |
 | `V8__manual_transaction_origin_locator.sql` | Adds `portfolio_transactions.origin_locator`, backfills `manual:legacy:<id>`, adds the manual-locator check and `(source, origin_locator)` uniqueness |
+| `V9__research_evidence_snapshots.sql` | `research_evidence_snapshots` (with the captured instrument identity) and `research_evidence_fields`: append-only evidence versions with linear revision uniqueness, a value-xor-missing-reason check, and observation-time checks; no route reads them yet |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.
