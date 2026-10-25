@@ -1,13 +1,21 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.persistence;
 
 import com.ozkaslibasar.financeproject.FinanceProjectApplication;
+import com.ozkaslibasar.financeproject.domain.model.Asset;
+import com.ozkaslibasar.financeproject.domain.model.AssetMetadataStatus;
+import com.ozkaslibasar.financeproject.domain.model.AssetType;
+import com.ozkaslibasar.financeproject.domain.model.ExposureStatus;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioState;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
+import com.ozkaslibasar.financeproject.domain.model.PositionValuationStatus;
+import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import org.junit.jupiter.api.Test;
@@ -19,6 +27,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -55,6 +64,11 @@ class PortfolioStateRestartReplayTest {
                 LocalDate.of(2026, 10, day), PortfolioTransactionSource.MANUAL, null, null, null);
     }
 
+    private static PriceHistory close(String close, LocalDate date) {
+        BigDecimal c = new BigDecimal(close);
+        return new PriceHistory("AAPL", c, c, c, c, BigDecimal.ONE, date.atStartOfDay());
+    }
+
     @Test
     void aNewApplicationContextDerivesTheSameStateAndVersion() {
         Long portfolioId;
@@ -67,6 +81,10 @@ class PortfolioStateRestartReplayTest {
             PortfolioLedgerService ledger = first.getBean(PortfolioLedgerService.class);
             ledger.addTransaction(tx(portfolioId, PortfolioTransactionAction.BUY, "10", "100.25", "1.5", 1));
             ledger.addTransaction(tx(portfolioId, PortfolioTransactionAction.SELL, "4", "130.10", "1", 2));
+            first.getBean(AssetRepositoryPort.class).save(new Asset("AAPL", "Apple", AssetType.STOCK, "NASDAQ",
+                    "USD", "fixture", "AAPL", AssetMetadataStatus.VERIFIED));
+            first.getBean(PriceRepositoryPort.class).saveAll(List.of(
+                    close("130.50", LocalDate.of(2026, 10, 19)), close("999", LocalDate.of(2026, 10, 21))));
             before = first.getBean(PortfolioStateService.class).stateAt(portfolioId, USER, AS_OF);
         }
 
@@ -76,6 +94,11 @@ class PortfolioStateRestartReplayTest {
             PortfolioState after = second.getBean(PortfolioStateService.class).stateAt(portfolioId, USER, AS_OF);
 
             assertThat(after).isEqualTo(before);
+            assertThat(after.version()).startsWith("pstate-v2:");
+            assertThat(after.exposureStatus()).isEqualTo(ExposureStatus.COMPLETE);
+            assertThat(after.positions().get(0).valuationStatus()).isEqualTo(PositionValuationStatus.PRICED);
+            assertThat(after.positions().get(0).marketValue()).isEqualByComparingTo("783.00");
+            assertThat(after.positions().get(0).weight()).isEqualByComparingTo("1");
             assertThat(after.sourceEventIds()).hasSize(2);
         }
     }

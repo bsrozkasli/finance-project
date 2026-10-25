@@ -8,6 +8,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
@@ -107,8 +108,12 @@ public class DomainConfig {
 
     @Bean
     public PortfolioStateService portfolioStateService(PortfolioTransactionPort transactionPort,
-                                                       PortfolioLedgerService portfolioLedgerService) {
-        return new PortfolioStateService(transactionPort, portfolioLedgerService);
+                                                       PortfolioLedgerService portfolioLedgerService,
+                                                       PriceRepositoryPort priceRepositoryPort,
+                                                       AssetRepositoryPort assetRepositoryPort,
+                                                       PortfolioPort portfolioPort) {
+        return new PortfolioStateService(transactionPort, portfolioLedgerService, priceRepositoryPort,
+                assetRepositoryPort, portfolioPort);
     }
 
     @Bean

@@ -7,6 +7,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
@@ -62,6 +63,9 @@ class DomainConfigWiringTest {
 
     @Autowired
     private PortfolioTransactionPort portfolioTransactionPort;
+
+    @Autowired
+    private PortfolioPort portfolioPort;
 
     @Autowired
     private JournalTradePort journalTradePort;
@@ -166,10 +170,13 @@ class DomainConfigWiringTest {
     }
 
     @Test
-    void should_wirePortfolioStateService_with_transactionPortAndLedger() {
+    void should_wirePortfolioStateService_with_ledgerAndValuationPorts() {
         PortfolioStateService service = applicationContext.getBean(PortfolioStateService.class);
         assertThat(ReflectionTestUtils.getField(service, "transactionPort")).isSameAs(portfolioTransactionPort);
         assertThat(ReflectionTestUtils.getField(service, "ledger")).isSameAs(portfolioLedgerService);
+        assertThat(ReflectionTestUtils.getField(service, "priceRepository")).isSameAs(priceRepositoryPort);
+        assertThat(ReflectionTestUtils.getField(service, "assetRepository")).isSameAs(assetRepositoryPort);
+        assertThat(ReflectionTestUtils.getField(service, "portfolioPort")).isSameAs(portfolioPort);
     }
 
     @Test
@@ -274,6 +281,12 @@ class DomainConfigWiringTest {
         PortfolioTransactionPort portfolioTransactionPort() {
             // Mock rationale: persistence boundary is mocked to keep context test deterministic.
             return mock(PortfolioTransactionPort.class);
+        }
+
+        @Bean
+        PortfolioPort portfolioPort() {
+            // Mock rationale: persistence boundary is mocked to keep context test deterministic.
+            return mock(PortfolioPort.class);
         }
 
         @Bean
