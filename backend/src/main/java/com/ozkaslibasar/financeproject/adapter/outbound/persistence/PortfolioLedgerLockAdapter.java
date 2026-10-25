@@ -5,6 +5,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.function.Supplier;
@@ -24,6 +25,9 @@ public class PortfolioLedgerLockAdapter implements PortfolioLedgerLockPort {
 
     public PortfolioLedgerLockAdapter(PlatformTransactionManager transactionManager) {
         this.transactionTemplate = new TransactionTemplate(transactionManager);
+        // The lock's correctness depends on READ COMMITTED (R-18): a waiter must see the committed insert or void it
+        // waited for. Under REPEATABLE READ its snapshot would predate the lock and it could validate stale events.
+        this.transactionTemplate.setIsolationLevel(TransactionDefinition.ISOLATION_READ_COMMITTED);
     }
 
     @Override
