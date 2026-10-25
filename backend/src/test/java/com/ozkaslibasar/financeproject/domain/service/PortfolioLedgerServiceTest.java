@@ -74,9 +74,16 @@ class PortfolioLedgerServiceTest {
 
     @Test
     void shouldThrowNullPointerExceptionWhenConstructedWithNullPort() {
-        assertThatThrownBy(() -> new PortfolioLedgerService(null))
+        assertThatThrownBy(() -> new PortfolioLedgerService(null, lockPort))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("transactionPort");
+    }
+
+    @Test
+    void shouldThrowNullPointerExceptionWhenConstructedWithoutLockPort() {
+        assertThatThrownBy(() -> new PortfolioLedgerService(transactionPort, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("lockPort");
     }
 
     @Test

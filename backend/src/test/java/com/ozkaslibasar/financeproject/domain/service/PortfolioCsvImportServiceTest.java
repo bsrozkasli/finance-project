@@ -43,7 +43,7 @@ class PortfolioCsvImportServiceTest {
     void setUp() {
         transactions = new InMemoryTransactions();
         imports = new InMemoryImports();
-        service = new PortfolioCsvImportService(imports, transactions, new PortfolioLedgerService(transactions),
+        service = new PortfolioCsvImportService(imports, transactions, LedgerTestSupport.ledger(transactions),
                 Clock.fixed(NOW, ZoneOffset.UTC));
     }
 

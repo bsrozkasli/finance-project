@@ -16,22 +16,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Supplier;
 
 public class PortfolioLedgerService {
 
     private final PortfolioTransactionPort transactionPort;
     private final PortfolioLedgerLockPort lockPort;
-
-    /** For read-only use (holdings); additions made through this instance are not serialized. */
-    public PortfolioLedgerService(PortfolioTransactionPort transactionPort) {
-        this(transactionPort, new PortfolioLedgerLockPort() {
-            @Override
-            public <T> T withPortfolioLock(Long portfolioId, Supplier<T> work) {
-                return work.get();
-            }
-        });
-    }
 
     public PortfolioLedgerService(PortfolioTransactionPort transactionPort, PortfolioLedgerLockPort lockPort) {
         this.transactionPort = Objects.requireNonNull(transactionPort, "transactionPort must not be null");
