@@ -19,12 +19,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -125,7 +127,7 @@ class PortfolioManagementControllerTest {
     }
 
     @Test
-    void shouldDeleteLinkedJournalEntryWhenTransactionIsDeleted() throws Exception {
+    void shouldVoidTransactionAndDeleteLinkedJournalEntryWhenTransactionIsDeleted() throws Exception {
         PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
         when(transactionPort.findByIdAndPortfolioIdAndUserId(10L, 1L, "default")).thenReturn(Optional.of(saved));
@@ -134,7 +136,19 @@ class PortfolioManagementControllerTest {
                 .andExpect(status().isNoContent());
 
         verify(journalTradePort).deleteByPortfolioIdAndTransactionIdAndUserId(1L, 10L, "default");
-        verify(transactionPort).deleteByIdAndPortfolioIdAndUserId(10L, 1L, "default");
+        verify(transactionPort).voidByIdAndPortfolioIdAndUserId(eq(10L), eq(1L), eq("default"), any(Instant.class));
+    }
+
+    @Test
+    void shouldReturn404WhenTransactionIsUnknownOrAlreadyVoided() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(transactionPort.findByIdAndPortfolioIdAndUserId(10L, 1L, "default")).thenReturn(Optional.empty());
+
+        mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
+                .andExpect(status().isNotFound());
+
+        verify(transactionPort, never()).voidByIdAndPortfolioIdAndUserId(any(), any(), any(), any());
+        verify(journalTradePort, never()).deleteByPortfolioIdAndTransactionIdAndUserId(any(), any(), any());
     }
 
     @Test

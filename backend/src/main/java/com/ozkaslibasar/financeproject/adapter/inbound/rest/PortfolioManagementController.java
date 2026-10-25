@@ -28,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -131,7 +132,7 @@ public class PortfolioManagementController {
         transactionPort.findByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not found: " + transactionId));
         journalTradePort.deleteByPortfolioIdAndTransactionIdAndUserId(portfolioId, transactionId, DEFAULT_USER);
-        transactionPort.deleteByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER);
+        transactionPort.voidByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER, Instant.now());
     }
 
     @GetMapping("/{portfolioId}/holdings")

@@ -66,6 +66,8 @@ class PortfolioTransactionLineagePersistenceTest {
         }
         legacyRows = legacyBusinessRows();
         migrateTo("8");
+        assertThat(currentMigration()).isEqualTo("8");
+        migrateTo("10"); // V10 adds the nullable voided_at column the entity maps.
         // Validate only the exercised entities; Hibernate must not create/repair the V8 schema.
         var registry = new StandardServiceRegistryBuilder()
                 .applySetting("jakarta.persistence.jdbc.url", postgres.getJdbcUrl())
@@ -88,7 +90,7 @@ class PortfolioTransactionLineagePersistenceTest {
 
     @Test
     void v8BackfillsOnlyKnownManualOriginsWithoutChangingLegacyTransactions() throws SQLException {
-        assertThat(currentMigration()).isEqualTo("8");
+        assertThat(currentMigration()).isEqualTo("10");
         assertThat(legacyBusinessRows()).isEqualTo(legacyRows);
         try (Connection connection = connection(); var statement = connection.createStatement();
              var rows = statement.executeQuery("""

@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.model;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -22,8 +23,20 @@ public record PortfolioTransaction(
         String notes,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        String originLocator
+        String originLocator,
+        Instant voidedAt
 ) {
+    // Retain existing callers; an event is active (not voided) unless a voided timestamp is given.
+    public PortfolioTransaction(
+            Long id, Long portfolioId, String userId, String symbol,
+            PortfolioAssetType assetType, PortfolioTransactionAction action,
+            BigDecimal quantity, BigDecimal price, String currency, BigDecimal fee,
+            BigDecimal fxRateToBase, LocalDate tradeDate, PortfolioTransactionSource source,
+            String notes, LocalDateTime createdAt, LocalDateTime updatedAt, String originLocator) {
+        this(id, portfolioId, userId, symbol, assetType, action, quantity, price,
+                currency, fee, fxRateToBase, tradeDate, source, notes, createdAt, updatedAt, originLocator, null);
+    }
+
     // Retain existing callers; the locator is generated once when a manual entry is created.
     public PortfolioTransaction(
             Long id, Long portfolioId, String userId, String symbol,
@@ -32,7 +45,7 @@ public record PortfolioTransaction(
             BigDecimal fxRateToBase, LocalDate tradeDate, PortfolioTransactionSource source,
             String notes, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this(id, portfolioId, userId, symbol, assetType, action, quantity, price,
-                currency, fee, fxRateToBase, tradeDate, source, notes, createdAt, updatedAt, null);
+                currency, fee, fxRateToBase, tradeDate, source, notes, createdAt, updatedAt, null, null);
     }
 
     public PortfolioTransaction {

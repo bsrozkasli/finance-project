@@ -240,7 +240,7 @@ class CoreSystemIntegrationTest {
                 ORDER BY installed_rank DESC
                 LIMIT 1
                 """, String.class);
-        assertThat(currentVersion).isEqualTo("8");
+        assertThat(currentVersion).isEqualTo("10");
     }
 
     private long countRows(String table) {

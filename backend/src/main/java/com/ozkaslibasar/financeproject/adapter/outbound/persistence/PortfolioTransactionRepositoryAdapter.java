@@ -8,6 +8,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,7 +21,7 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
 
     @Override
     public List<PortfolioTransaction> findByPortfolioIdAndUserId(Long portfolioId, String userId) {
-        return jpaRepository.findByPortfolioIdAndUserIdOrderByTradeDateAscIdAsc(portfolioId, userId)
+        return jpaRepository.findByPortfolioIdAndUserIdAndVoidedAtIsNullOrderByTradeDateAscIdAsc(portfolioId, userId)
                 .stream()
                 .map(this::toDomain)
                 .toList();
@@ -27,7 +29,7 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
 
     @Override
     public Optional<PortfolioTransaction> findByIdAndPortfolioIdAndUserId(Long id, Long portfolioId, String userId) {
-        return jpaRepository.findByIdAndPortfolioIdAndUserId(id, portfolioId, userId).map(this::toDomain);
+        return jpaRepository.findByIdAndPortfolioIdAndUserIdAndVoidedAtIsNull(id, portfolioId, userId).map(this::toDomain);
     }
 
     @Override
@@ -37,8 +39,19 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
 
     @Override
     @Transactional
-    public void deleteByIdAndPortfolioIdAndUserId(Long id, Long portfolioId, String userId) {
-        jpaRepository.deleteByIdAndPortfolioIdAndUserId(id, portfolioId, userId);
+    public void voidByIdAndPortfolioIdAndUserId(Long id, Long portfolioId, String userId, Instant voidedAt) {
+        jpaRepository.voidActive(id, portfolioId, userId, voidedAt);
+    }
+
+    @Override
+    public List<PortfolioTransaction> findByIdsIncludingVoided(Long portfolioId, String userId, Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return jpaRepository.findByPortfolioIdAndUserIdAndIdInOrderByTradeDateAscIdAsc(portfolioId, userId, ids)
+                .stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     private PortfolioTransaction toDomain(PortfolioTransactionEntity e) {
@@ -59,7 +72,8 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
                 e.getNotes(),
                 e.getCreatedAt(),
                 e.getUpdatedAt(),
-                e.getOriginLocator());
+                e.getOriginLocator(),
+                e.getVoidedAt());
     }
 
     private PortfolioTransactionEntity toEntity(PortfolioTransaction transaction) {
@@ -80,6 +94,7 @@ public class PortfolioTransactionRepositoryAdapter implements PortfolioTransacti
         e.setTradeDate(transaction.tradeDate());
         e.setSource(transaction.source());
         e.setOriginLocator(transaction.originLocator());
+        e.setVoidedAt(transaction.voidedAt());
         e.setNotes(transaction.notes());
         return e;
     }

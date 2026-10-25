@@ -10,8 +10,10 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransaction
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -172,11 +174,29 @@ class PortfolioStateServiceTest {
     }
 
     @Test
+    void stateAtIgnoresVoidedEventsButKeepsThemReplayable() {
+        buyThenPartialSell().forEach(port::save);
+        port.voidByIdAndPortfolioIdAndUserId(2L, PORTFOLIO, USER, Instant.parse("2026-10-21T10:00:00Z"));
+
+        PortfolioState state = service.stateAt(PORTFOLIO, USER, AS_OF);
+
+        assertThat(state.sourceEventIds()).containsExactly(1L);
+        assertThat(state.positions().get(0).quantity()).isEqualByComparingTo("10");
+        assertThat(port.findByIdsIncludingVoided(PORTFOLIO, USER, List.of(1L, 2L))).hasSize(2);
+    }
+
+    @Test
     void stateListsAreImmutable() {
         PortfolioState state = service.project(PORTFOLIO, USER, AS_OF, buyThenPartialSell());
 
         assertThatThrownBy(() -> state.positions().clear()).isInstanceOf(UnsupportedOperationException.class);
         assertThatThrownBy(() -> state.sourceEventIds().clear()).isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    private static PortfolioTransaction withVoidedAt(PortfolioTransaction t, Instant voidedAt) {
+        return new PortfolioTransaction(t.id(), t.portfolioId(), t.userId(), t.symbol(), t.assetType(), t.action(),
+                t.quantity(), t.price(), t.currency(), t.fee(), t.fxRateToBase(), t.tradeDate(), t.source(),
+                t.notes(), t.createdAt(), t.updatedAt(), t.originLocator(), voidedAt);
     }
 
     private static final class InMemoryTransactionPort implements PortfolioTransactionPort {
@@ -185,7 +205,8 @@ class PortfolioStateServiceTest {
         @Override
         public List<PortfolioTransaction> findByPortfolioIdAndUserId(Long portfolioId, String userId) {
             return saved.stream()
-                    .filter(t -> t.portfolioId().equals(portfolioId) && t.userId().equals(userId))
+                    .filter(t -> t.portfolioId().equals(portfolioId) && t.userId().equals(userId)
+                            && t.voidedAt() == null)
                     .toList();
         }
 
@@ -201,8 +222,21 @@ class PortfolioStateServiceTest {
         }
 
         @Override
-        public void deleteByIdAndPortfolioIdAndUserId(Long id, Long portfolioId, String userId) {
-            saved.removeIf(t -> t.id().equals(id));
+        public void voidByIdAndPortfolioIdAndUserId(Long id, Long portfolioId, String userId, Instant voidedAt) {
+            for (int i = 0; i < saved.size(); i++) {
+                PortfolioTransaction t = saved.get(i);
+                if (t.id().equals(id) && t.portfolioId().equals(portfolioId) && t.userId().equals(userId)
+                        && t.voidedAt() == null) {
+                    saved.set(i, withVoidedAt(t, voidedAt));
+                }
+            }
+        }
+
+        @Override
+        public List<PortfolioTransaction> findByIdsIncludingVoided(Long portfolioId, String userId, Collection<Long> ids) {
+            return saved.stream()
+                    .filter(t -> t.portfolioId().equals(portfolioId) && t.userId().equals(userId) && ids.contains(t.id()))
+                    .toList();
         }
     }
 }
