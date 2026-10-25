@@ -176,3 +176,28 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   7. `created_at` is set by the database.
   8. The response has no `baseCurrency` field, because D-3 lists the fields exactly; the base currency is stored and used
      for replay.
+- **R-10. The CSV row identity also covers the portfolio and the user** (corrects D-4 item 3). Why: D-4 hashed only the
+  row, but V8's `(source, origin_locator)` unique index spans every portfolio, so the same trade imported into a second
+  portfolio would be reported `DUPLICATE` and refused. Reordering rows within one portfolio still yields the same
+  identities. Cost if wrong: none known; no CSV data existed when this was decided.
+- **R-11. `POST /portfolios/{portfolioId}/transactions` keeps accepting `source=CSV` without a locator.** Why: it is an
+  existing contract and D-1 preserves existing routes; closing it needs its own OQ-5 disposition. Cost if wrong: events
+  posted that way are not idempotent and can duplicate an imported row.
+- **R-12. CSV parsing details not fixed by D-4** (Task 4). Why: each refuses ambiguous input rather than guessing.
+  Cost if wrong: a stricter or looser parser, without effect on accepted ledger events.
+  1. `rowNumber` counts non-blank data rows (a quoted field may span lines), from 1.
+  2. A header without data rows, or a repeated header name, rejects the file.
+  3. `trade_date`, `action`, `asset_type` and `currency` must be present in the row; otherwise the model would default
+     them (today, `OTHER`, `USD`), which would invent data. Empty `symbol`, `quantity` and `price` are passed as absent
+     so the model applies its per-action rules.
+  4. A row with the wrong number of columns is `INVALID`; the rest of the file still stages.
+  5. Values that cannot fit the ledger columns (symbol over 32 characters, notes over 1,000, numbers beyond
+     `NUMERIC(24,8)` or `NUMERIC(24,10)` for the FX rate) make the row `INVALID` instead of failing at acceptance.
+  6. Fields are trimmed and a leading UTF-8 byte-order mark is ignored. A quote inside an unquoted field is data. Text
+     after a closing quote, an unterminated quote, or invalid UTF-8 rejects the file.
+  7. The identity uses the values after model construction; `notes` are not part of it.
+  8. An unknown batch, a batch of another portfolio, and an unknown portfolio all return `404`; a body that is not
+     `text/csv` returns `415`.
+  9. Acceptance checks the ledger for the identity before inserting, and still relies on the unique index for races.
+  10. A staged row's link to its accepted event is cleared if that event's row disappears (only possible through
+      portfolio deletion).
