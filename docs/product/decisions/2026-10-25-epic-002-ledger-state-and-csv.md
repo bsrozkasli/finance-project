@@ -312,3 +312,26 @@ Rulings made during implementation are appended here as `R-n` with the decision,
   Decision: keep the lazy loading (the main page still loads less on first paint), restore the removed hint and the
   count tiles that carry meaning, and raise the budget by 10 KiB in the same change, recorded here. Cost if wrong: a
   slightly larger download; the budget remains a guard, and the next frontend change must again justify its size.
+- **R-30. The backup/restore proof becomes opt-in, and the default CSV performance case shrinks** (corrects R-23's gating).
+  Why: the single reused Surefire fork has a 120-second limit for the whole suite (`forkedProcessTimeoutInSeconds`), and
+  the last green CI run spent about 73 seconds in the test phase; the restore proof (about 55 s) and the default
+  1,000-row case (about 54 s for its class) were judged by class time, not against the suite budget, and together would
+  probably break it. Decision: `PortfolioBackupRestoreTest` runs only with `-Dbackup.restore=true`; the default
+  back-dated case drops to 300 rows with a generous bound; both opt-in commands are documented, and the documented
+  opt-in runs say they take longer than the 120-second fork limit and must be run with the fork timeout lifted for
+  that run (the pom hard-codes it, so the command line cannot lift it; they are run from a short-lived local copy of
+  the configuration or in the background where Maven reports the timeout after the tests pass). The pull request's
+  CI run is the evidence that the default suite fits. No CI workflow is edited here; adding a nightly step for the
+  opt-in tests is a follow-up. Cost if wrong: the restore proof is no longer run on every build.
+- **R-31. A CSV acceptance must refresh the portfolio screen's holdings.** Why: after an accepted import the positions
+  table kept the quantities of the previous ledger until a reload, because only manual add and delete refreshed the
+  application-level holdings. Decision: the import panel signals `onLedgerChanged` after a successful accept and the
+  portfolio screen runs the same reloads as manual add and delete (investment portfolio and journal trades). Cost if
+  wrong: one extra request after an accept.
+- **R-32. Documentation corrections from the second final review.** (1) R-24 said a back-dated row replays "only the
+  later events"; the code replays the row's own symbol (all of that symbol's events), which is financially equivalent
+  because positions are independent per symbol; the ruling is read as the code does. A single-symbol 5,000-row
+  back-dated file therefore costs more in memory than the 50-symbol measurement shows, and that case is recorded as
+  unmeasured. (2) Measured figures are quoted once, with their conditions, in `domain-and-data.md`, and other notes link
+  to it instead of restating them. (3) The frontend request type narrows `source` to `MANUAL` to match R-20.
+  Cost if wrong: none.
