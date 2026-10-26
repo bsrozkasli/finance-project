@@ -203,9 +203,63 @@ describe('WatchlistsView', () => {
     expect(screen.getByText('MSFT - MSFT Incorporated')).toBeInTheDocument();
     expect(screen.getAllByText('$320.00').length).toBeGreaterThan(0);
     // The price's own time is shown apart from the observation time, so an old price never reads as current.
-    expect(screen.getByText(/^Fiyat zamanı /)).toBeInTheDocument();
     expect(screen.getByText('Served stale price')).toBeInTheDocument();
     expect(screen.getAllByText('Eski veri').length).toBeGreaterThan(0);
+  });
+
+  // Same options as the component's formatter, so the expected string is time-zone independent.
+  const formatLikeTheView = (value: string) => new Intl.DateTimeFormat('tr-TR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+
+  const PRICE_TIME = '2026-07-09T07:30:00.000Z';
+  const REQUEST_TIME = '2026-07-09T09:00:00.000Z';
+
+  const mockMsftPriceTimestamp = (timestamp: string | null) => {
+    const base = snapshot.rows.find((row) => row.symbol === 'MSFT')!;
+    mockedUseWatchlistResearchSnapshot.mockReturnValue({
+      snapshot: {
+        ...snapshot,
+        rows: [{
+          ...base,
+          price: { ...base.price, observedAt: REQUEST_TIME, data: { ...base.price.data!, timestamp } },
+        }],
+      },
+      loading: false,
+      error: null,
+      reload: vi.fn(),
+    });
+  };
+
+  it('shows the exact price time in the pill, apart from the request time', () => {
+    mockMsftPriceTimestamp(PRICE_TIME);
+    renderView();
+
+    expect(formatLikeTheView(PRICE_TIME)).not.toEqual(formatLikeTheView(REQUEST_TIME));
+    const pill = screen.getByText(/^Fiyat zamanı /);
+    expect(pill).toHaveTextContent(`Fiyat zamanı ${formatLikeTheView(PRICE_TIME)}`);
+    expect(pill.textContent).not.toContain(formatLikeTheView(REQUEST_TIME));
+    expect(screen.getByText(`Son gözlem ${formatLikeTheView(REQUEST_TIME)}`)).toBeInTheDocument();
+  });
+
+  it('shows no price-time pill when the price has no timestamp', () => {
+    mockMsftPriceTimestamp(null);
+    renderView();
+
+    expect(screen.queryByText(/^Fiyat zamanı /)).not.toBeInTheDocument();
+    expect(screen.getByText(`Son gözlem ${formatLikeTheView(REQUEST_TIME)}`)).toBeInTheDocument();
+  });
+
+  it('shows a dash, never a wrong time, for an invalid price timestamp', () => {
+    mockMsftPriceTimestamp('not-a-date');
+    renderView();
+
+    const pill = screen.getByText(/^Fiyat zamanı /);
+    expect(pill).toHaveTextContent('Fiyat zamanı —');
+    expect(pill.textContent).not.toContain(formatLikeTheView(REQUEST_TIME));
   });
 
   it('labels a STALE overall status "Eski veri" in the table row and the detail header', async () => {
