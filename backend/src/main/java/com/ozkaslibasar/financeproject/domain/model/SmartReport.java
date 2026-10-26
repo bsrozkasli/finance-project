@@ -15,6 +15,13 @@ public class SmartReport {
 
     private final List<PeerComparison> peers;
 
+    /** Nullable: null means the evidence status is unknown (older source or pre-existing cache entry). */
+    private final SmartReportSectionStatus sectionStatus;
+
+    public SmartReportSectionStatus getSectionStatus() {
+        return sectionStatus;
+    }
+
     public String getSymbol() {
         return symbol;
     }

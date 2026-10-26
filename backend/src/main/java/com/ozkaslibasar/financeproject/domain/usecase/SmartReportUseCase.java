@@ -1,6 +1,8 @@
 package com.ozkaslibasar.financeproject.domain.usecase;
 
 import com.ozkaslibasar.financeproject.domain.model.SmartReport;
+import com.ozkaslibasar.financeproject.domain.model.SmartReportSectionStatus;
+import com.ozkaslibasar.financeproject.domain.service.SectionStatusMapper;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportMarketDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,11 @@ import java.util.List;
 
 @Slf4j
 public class SmartReportUseCase {
+
+    /** Component keys of the composite breakdown, as the data-service names them. */
+    private static final List<String> FALLBACK_COMPONENTS = List.of(
+            "fundamental_score", "valuation_score", "quality_score", "growth_score",
+            "momentum_score", "risk_score", "earnings_score", "sentiment_score");
 
     private final SmartReportScorePort smartReportScorePort;
     private final SmartReportMarketDataPort smartReportMarketDataPort;
@@ -31,6 +38,7 @@ public class SmartReportUseCase {
         Integer overallScore;
         String grade;
         String recommendation;
+        SmartReportSectionStatus sectionStatus;
 
         if (score != null && score.breakdown() != null) {
             SmartReportScorePort.ScoreBreakdown scoreBreakdown = score.breakdown();
@@ -47,6 +55,7 @@ public class SmartReportUseCase {
             overallScore = score.overallScore();
             grade = score.grade() != null ? score.grade() : overallScore == null ? null : gradeFromScore(overallScore);
             recommendation = score.recommendation() != null ? score.recommendation() : overallScore == null ? null : recFromScore(overallScore);
+            sectionStatus = SectionStatusMapper.fromAvailability(score.breakdownAvailability());
         } else {
             log.warn("Data-service unavailable for {}; building fallback report from Finnhub metrics", symbol);
             SmartReportMarketDataPort.CompanyMetrics metrics = smartReportMarketDataPort.fetchCompanyMetrics(symbol)
@@ -74,6 +83,7 @@ public class SmartReportUseCase {
                     .earningsScore(null)
                     .sentimentScore(null)
                     .build();
+            sectionStatus = SectionStatusMapper.fallback(FALLBACK_COMPONENTS);
         }
 
         List<String> peers;
@@ -104,6 +114,7 @@ public class SmartReportUseCase {
                 .recommendation(recommendation)
                 .breakdown(breakdown)
                 .peers(peerComparisons)
+                .sectionStatus(sectionStatus)
                 .build();
     }
 

@@ -18,8 +18,8 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
- * Proves that the four data-service consumer adapters silently ignore the additive
- * C0a availability fields and return populated domain results (spec §5 P1.1 C0a,
+ * Proves that the data-service consumer adapters tolerate the additive C0a availability
+ * fields (the composite adapter now also consumes them; see DataServiceCompositeAvailabilityTest) and return populated domain results (spec §5 P1.1 C0a,
  * spec §9 "existing suites run unchanged").
  *
  * RestTemplate's default MappingJackson2HttpMessageConverter uses Jackson with
@@ -67,7 +67,7 @@ class DataServiceC0aCompatibilityTest {
     }
 
     @Test
-    void compositeIgnoresBreakdownAvailability() {
+    void compositeStillMapsScoresWhenBreakdownAvailabilityIsPresent() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         DataServiceResearchAdapter adapter = new DataServiceResearchAdapter(restTemplate);

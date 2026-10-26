@@ -12,7 +12,9 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Component
@@ -162,11 +164,23 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
                 dtoBreakdown.getRiskScore(),
                 dtoBreakdown.getEarningsScore(),
                 dtoBreakdown.getSentimentScore());
+        Map<String, ComponentAvailability> availability = null;
+        if (dto.getBreakdownAvailability() != null) {
+            availability = new LinkedHashMap<>();
+            for (Map.Entry<String, ComponentAvailabilityDto> entry : dto.getBreakdownAvailability().entrySet()) {
+                ComponentAvailabilityDto value = entry.getValue();
+                availability.put(entry.getKey(), value == null
+                        ? new ComponentAvailability(null, null)
+                        : new ComponentAvailability(value.getStatus(), value.getUnavailableReason()));
+            }
+        }
         return new CompositeScore(
                 dto.getOverallScore(),
                 dto.getGrade(),
                 dto.getRecommendation(),
-                breakdown);
+                breakdown,
+                availability,
+                dto.getUnavailableComponents());
     }
 
     @Data
@@ -180,6 +194,18 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
         private Double confidence;
         @JsonProperty("calculated_at")
         private String calculatedAt;
+        // Absent from older data-service versions; stays null then.
+        @JsonProperty("breakdown_availability")
+        private Map<String, ComponentAvailabilityDto> breakdownAvailability;
+        @JsonProperty("unavailable_components")
+        private List<String> unavailableComponents;
+    }
+
+    @Data
+    public static class ComponentAvailabilityDto {
+        private String status;
+        @JsonProperty("unavailable_reason")
+        private String unavailableReason;
     }
 
     @Data
