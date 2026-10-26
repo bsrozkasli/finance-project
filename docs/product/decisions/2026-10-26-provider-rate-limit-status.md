@@ -89,3 +89,8 @@ Rulings made while coding are appended below as `R-n`.
   "too many requests" match on the exception message only. (4) Direct-Yahoo 429s carry no `Retry-After` (yfinance gives no
   headers). (5) The earnings route is covered only as a pass-through; a real Finnhub 429 is out of scope (D-6) and still ends
   as a 500. (6) Yahoo `get_financial_statements` and `get_news` still swallow rate limits (not in D-3).
+- **R-4. "Every component rate limited" means no component produced data and at least one was rate limited.** Why: earnings
+  and sentiment run through Finnhub and never raise `RateLimitedError`, so a strict "all components" reading could never
+  fire. The blacklist cause is tracked per provider, not per operation, like the blacklist itself. A rate limit in the
+  fundamental or risk component has no per-field reason code and is listed only in `unavailable_components`. Cost if wrong:
+  a composite with a few limited components answers 200 where a strict reading would answer 429.
