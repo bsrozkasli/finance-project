@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPortfolioTransaction } from '../api/client';
@@ -138,6 +138,79 @@ describe('TradingJournalView', () => {
     expect(screen.getByText('Ort. getiri').parentElement).toHaveTextContent('—');
     expect(screen.getByRole('columnheader', { name: 'Kâr / zarar' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'AAPL işlemini sil' })).toBeInTheDocument();
+  });
+
+  describe('price staleness pill', () => {
+    const formatExpected = (value: string) => new Intl.DateTimeFormat('tr-TR', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(value));
+
+    const PRICE_AS_OF = '2026-07-15T13:45:00Z';
+    const makeTrade = (overrides: Record<string, unknown>) => ({
+      id: 9,
+      symbol: 'AAPL',
+      type: 'BUY' as const,
+      quantity: 2,
+      purchasePrice: 100,
+      currentPrice: 110,
+      pnl: 20,
+      returnPct: 10,
+      openedAt: '2026-07-01T10:00:00Z',
+      status: 'OPEN' as const,
+      ...overrides,
+    });
+    const renderWith = (trade: ReturnType<typeof makeTrade>) => {
+      mockedUseJournalTrades.mockReturnValue({
+        ...defaultHookState,
+        trades: [trade],
+        stats: { totalTrades: 1, openTrades: 1, closedTrades: 0, winRate: 0, avgReturn: 10 },
+      });
+      renderJournal();
+      return screen.getByRole('row', { name: /AAPL/ });
+    };
+
+    it('shows "Eski fiyat" with the formatted priceAsOf for a STALE row and keeps the numbers', () => {
+      const row = renderWith(makeTrade({ priceStatus: 'STALE', priceAsOf: PRICE_AS_OF }));
+      expect(within(row).getByText('Eski fiyat')).toBeInTheDocument();
+      expect(row).toHaveTextContent(formatExpected(PRICE_AS_OF));
+      expect(row).toHaveTextContent('$20.00');
+      expect(row).toHaveTextContent('10.00%');
+      expect(within(row).queryByText('Fiyat yok')).not.toBeInTheDocument();
+    });
+
+    it('shows a dash instead of a wrong time when priceAsOf is invalid or missing', () => {
+      const row = renderWith(makeTrade({ priceStatus: 'STALE', priceAsOf: 'not-a-date' }));
+      const pill = within(row).getByText('Eski fiyat');
+      expect(pill.parentElement).toHaveTextContent('Eski fiyat');
+      expect(pill.parentElement).toHaveTextContent('—');
+      expect(row).not.toHaveTextContent('Invalid');
+    });
+
+    it.each(['FAILED', 'EMPTY'])('shows "Fiyat yok" for %s', (priceStatus) => {
+      const row = renderWith(makeTrade({ priceStatus, priceAsOf: null, currentPrice: null, pnl: null, returnPct: null }));
+      expect(within(row).getByText('Fiyat yok')).toBeInTheDocument();
+      expect(within(row).queryByText('Eski fiyat')).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['OK', { priceStatus: 'OK', priceAsOf: PRICE_AS_OF }],
+      ['null', { priceStatus: null, priceAsOf: null }],
+      ['absent', {}],
+    ])('shows no pill for %s status', (_label, extra) => {
+      const row = renderWith(makeTrade(extra));
+      expect(within(row).queryByText('Eski fiyat')).not.toBeInTheDocument();
+      expect(within(row).queryByText('Fiyat yok')).not.toBeInTheDocument();
+      expect(row).not.toHaveTextContent(formatExpected(PRICE_AS_OF));
+    });
+
+    it('shows no pill for a closed trade with null price fields', () => {
+      const row = renderWith(makeTrade({ status: 'CLOSED', closedAt: '2026-07-10T10:00:00Z', priceStatus: null, priceAsOf: null }));
+      expect(within(row).queryByText('Eski fiyat')).not.toBeInTheDocument();
+      expect(within(row).queryByText('Fiyat yok')).not.toBeInTheDocument();
+    });
   });
 
   it('accepts a free typed symbol in journal-only mode', async () => {
