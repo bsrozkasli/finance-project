@@ -10,6 +10,7 @@ import { useWatchlistResearch } from '../hooks/useWatchlistResearch';
 import { useAssetResearchDetail } from '../hooks/useAssetResearchDetail';
 import AssetDetailChart from './AssetDetailChart';
 import CompanyLogo from './CompanyLogo';
+import SmartReportStatusPanel from './SmartReportStatusPanel';
 
 interface StockDetailModalProps {
   stock: Stock | null;
@@ -63,7 +64,7 @@ const buildAnalystRating = (
 
   return {
     consensus,
-    targetPrice: targetPrice ?? 0,
+    targetPrice,
     buyPercent,
     holdPercent,
     sellPercent,
@@ -190,8 +191,8 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
   const profile = assetDetail?.profile.data;
   const quote = assetDetail?.market.data;
   const currentPrice = stock?.price ?? quote?.regularPrice ?? latestHistoryPoint?.price ?? null;
-  // buildAnalystRating stores 0 when the provider sent no price target; a zero target is never real.
-  const ratingTargetPrice = analystRating && analystRating.targetPrice > 0 ? analystRating.targetPrice : null;
+  // A missing provider price target stays null; a zero target is never real.
+  const ratingTargetPrice = analystRating?.targetPrice != null && analystRating.targetPrice > 0 ? analystRating.targetPrice : null;
   const targetPriceForUpside = analystTargetPrice ?? ratingTargetPrice;
   const analystUpside = targetPriceForUpside == null || currentPrice == null || currentPrice === 0 ? null : (((targetPriceForUpside - currentPrice) / currentPrice) * 100).toFixed(1);
   const analystUpsideText = analystUpside == null ? '—' : `${analystUpside}%`;
@@ -491,7 +492,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                 <div className="bg-bg-base/40 border border-outline-variant/20 rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] font-label-caps text-text-muted uppercase">Hesaplanan destek / direnç</span>
-                    <span className="text-[10px] text-text-muted">{workspaceLoading ? 'Yükleniyor' : workspaceError ? 'Yüklenemedi' : `${technicalWorkspace?.candles.length ?? 0} mum`}</span>
+                    <span className="text-[10px] text-text-muted">{workspaceLoading ? 'Yükleniyor' : workspaceError ? 'Yüklenemedi' : `${technicalWorkspace ? technicalWorkspace.candles.length : '—'} mum`}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {(technicalWorkspace?.levels ?? []).map((level) => (
@@ -625,6 +626,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                 ) : aiReport ? (
                   <div className="bg-bg-base/40 border border-outline-variant/20 p-4 rounded-xl prose max-w-none">
                     <CustomMarkdownParser text={aiReport} />
+                    {smartReport ? <SmartReportStatusPanel breakdown={smartReport.breakdown} sectionStatus={smartReport.sectionStatus} /> : null}
 
                     <div className="mt-4 pt-3 border-t border-outline-variant/20 flex justify-between items-center text-[9px] text-text-muted font-data-mono">
                       <span>KAYNAK: BACKEND AKILLI RAPOR</span>
