@@ -352,14 +352,57 @@ class WatchlistResearchSnapshotUseCaseTest {
         assertThat(price.data()).isNull();
     }
 
-    @Test
-    void aStalePriceDoesNotChangeTheOverallPrecedence() {
-        stubLookup(PriceLookup.Origin.STORED_REFRESH_FAILED);
-        // Every other section is EMPTY (setUp): STALE takes no part in the precedence, so the row reads EMPTY.
-        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.EMPTY);
+    // ---- overall status: RATE_LIMITED > FAILED > STALE > INSUFFICIENT_DATA > OK > EMPTY (R-1) ----
 
+    @Test
+    void aStalePriceWithAllOtherSectionsEmptyMakesTheOverallStale() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_FAILED);
+
+        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.STALE);
+    }
+
+    @Test
+    void aStalePriceWithOkSectionsMakesTheOverallStaleNotOk() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_EMPTY);
         when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.ok(FUNDAMENTAL));
-        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.OK);
+
+        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.STALE);
+    }
+
+    @Test
+    void failedOutranksStaleInTheOverall() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_FAILED);
+        when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.failed("m"));
+
+        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.FAILED);
+    }
+
+    @Test
+    void rateLimitedOutranksStaleInTheOverall() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_FAILED);
+        when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.rateLimited("m"));
+
+        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.RATE_LIMITED);
+    }
+
+    @Test
+    void staleOutranksInsufficientDataInTheOverall() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_FAILED);
+        when(researchDataPort.fetchEarningsResult("AAPL")).thenReturn(ProviderFetch.insufficientData("m"));
+
+        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.STALE);
+    }
+
+    @Test
+    void anOpenBreakersStaleSectionMakesTheOverallStale() {
+        when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.failed("m"));
+        callThreeTimes();
+        when(researchDataPort.fetchEarningsResult("AAPL")).thenReturn(ProviderFetch.ok(List.of(QUARTER)));
+
+        var row = row();
+
+        assertThat(row.fundamentals().status()).isEqualTo(WatchlistResearchStatus.STALE);
+        assertThat(row.overallStatus()).isEqualTo(WatchlistResearchStatus.STALE);
     }
 
     @Test

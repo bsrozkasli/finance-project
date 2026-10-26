@@ -394,6 +394,9 @@ public class WatchlistResearchSnapshotUseCase {
         if (statuses.stream().anyMatch(status -> status == WatchlistResearchStatus.FAILED)) {
             return WatchlistResearchStatus.FAILED;
         }
+        if (statuses.stream().anyMatch(status -> status == WatchlistResearchStatus.STALE)) {
+            return WatchlistResearchStatus.STALE;
+        }
         if (statuses.stream().anyMatch(status -> status == WatchlistResearchStatus.INSUFFICIENT_DATA)) {
             return WatchlistResearchStatus.INSUFFICIENT_DATA;
         }
