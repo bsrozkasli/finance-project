@@ -29,7 +29,11 @@ class PortfolioLedgerChunkDifferentialTest {
     private static final String[] SYMBOLS = {"AAA", "BBB", "CCC", "DDD"};
     private static final PortfolioTransactionAction[] ACTIONS = {
             PortfolioTransactionAction.BUY, PortfolioTransactionAction.BUY, PortfolioTransactionAction.SELL,
-            PortfolioTransactionAction.SELL, PortfolioTransactionAction.DIVIDEND, PortfolioTransactionAction.FEE};
+            PortfolioTransactionAction.SELL, PortfolioTransactionAction.DIVIDEND, PortfolioTransactionAction.FEE,
+            PortfolioTransactionAction.FEE, PortfolioTransactionAction.CASH_DEPOSIT};
+    private static final PortfolioAssetType[] TYPES = {PortfolioAssetType.US_STOCK, PortfolioAssetType.US_ETF,
+            PortfolioAssetType.BIST_STOCK, PortfolioAssetType.GOLD};
+    private static final String[] CURRENCIES = {"USD", "USD", "TRY", "EUR"};
 
     @Test
     void chunkedAdditionsMatchSequentialAdditionsOnRandomSequences() {
@@ -57,20 +61,29 @@ class PortfolioLedgerChunkDifferentialTest {
                 expected.add(tryAdd(sequentialLedger, candidate));
             }
 
-            List<PortfolioHolding> chunkPositions = new ArrayList<>();
-            List<Boolean> actual = chunkedLedger.inLedgerChunk(PORTFOLIO, USER, chunk -> {
-                List<Boolean> decisions = new ArrayList<>();
-                for (PortfolioTransaction candidate : candidates) {
-                    try {
-                        chunk.add(candidate);
-                        decisions.add(true);
-                    } catch (IllegalArgumentException e) {
-                        decisions.add(false);
+            // The candidates are split into several chunks (each a separate lock transaction that re-reads the
+            // ledger), so state carried across chunk boundaries is exercised as well as state inside one chunk.
+            List<Boolean> actual = new ArrayList<>();
+            int from = 0;
+            while (from < candidates.size()) {
+                int to = Math.min(candidates.size(), from + 1 + random.nextInt(12));
+                List<PortfolioTransaction> part = candidates.subList(from, to);
+                actual.addAll(chunkedLedger.inLedgerChunk(PORTFOLIO, USER, chunk -> {
+                    List<Boolean> decisions = new ArrayList<>();
+                    for (PortfolioTransaction candidate : part) {
+                        try {
+                            chunk.add(candidate);
+                            decisions.add(true);
+                        } catch (IllegalArgumentException e) {
+                            decisions.add(false);
+                        }
                     }
-                }
-                chunkPositions.addAll(chunk.positions());
-                return decisions;
-            });
+                    return decisions;
+                }));
+                from = to;
+            }
+            List<PortfolioHolding> chunkPositions = chunkedLedger.inLedgerChunk(PORTFOLIO, USER,
+                    PortfolioLedgerService.LedgerChunk::positions);
 
             assertThat(actual).as("decisions, sequence %d", sequence).isEqualTo(expected);
             List<PortfolioHolding> replayed = sequentialLedger.calculatePositions(
@@ -78,7 +91,7 @@ class PortfolioLedgerChunkDifferentialTest {
             assertThat(chunked.saved).hasSameSizeAs(sequential.saved);
             for (PortfolioHolding holding : replayed) {
                 PortfolioHolding other = chunkPositions.stream()
-                        .filter(h -> h.symbol().equals(holding.symbol())).findFirst().orElseThrow();
+                        .filter(h -> java.util.Objects.equals(h.symbol(), holding.symbol())).findFirst().orElseThrow();
                 assertThat(other.quantity()).as("quantity %s #%d", holding.symbol(), sequence)
                         .isEqualByComparingTo(holding.quantity());
                 assertThat(other.costBasis()).as("cost basis %s #%d", holding.symbol(), sequence)
@@ -101,14 +114,16 @@ class PortfolioLedgerChunkDifferentialTest {
 
     private static PortfolioTransaction randomEvent(Random random) {
         PortfolioTransactionAction action = ACTIONS[random.nextInt(ACTIONS.length)];
-        String symbol = SYMBOLS[random.nextInt(SYMBOLS.length)];
+        int symbolIndex = random.nextInt(SYMBOLS.length);
+        boolean noSymbol = action == PortfolioTransactionAction.FEE || action == PortfolioTransactionAction.CASH_DEPOSIT;
+        String symbol = noSymbol && random.nextBoolean() ? null : SYMBOLS[symbolIndex];
         boolean trade = action == PortfolioTransactionAction.BUY || action == PortfolioTransactionAction.SELL;
         BigDecimal quantity = trade ? BigDecimal.valueOf(1 + random.nextInt(10)) : null;
         BigDecimal price = BigDecimal.valueOf(1 + random.nextInt(200), 1);
         BigDecimal fee = BigDecimal.valueOf(random.nextInt(30), 1);
         BigDecimal fx = random.nextBoolean() ? BigDecimal.ONE : new BigDecimal("1.0" + (1 + random.nextInt(8)));
-        return new PortfolioTransaction(null, PORTFOLIO, USER, symbol, PortfolioAssetType.US_STOCK, action, quantity,
-                price, "USD", fee, fx, LocalDate.parse("2026-01-01").plusDays(random.nextInt(12)),
+        return new PortfolioTransaction(null, PORTFOLIO, USER, symbol, TYPES[symbolIndex], action, quantity,
+                price, CURRENCIES[symbolIndex], fee, fx, LocalDate.parse("2026-01-01").plusDays(random.nextInt(12)),
                 PortfolioTransactionSource.MANUAL, null, null, null);
     }
 

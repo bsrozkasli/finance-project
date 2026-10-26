@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * R-21 guard: staging and accepting a valid file at the 5,000-row limit on real PostgreSQL. The elapsed times are
  * printed so the measured value can be recorded; the assertion is a generous regression guard, not the target.
- * The 1,000-row back-dated case runs by default (the harder path; appended rows are covered by the opt-in run); the 5,000-row cases need {@code -Dcsv.perf=true} (R-25).
+ * The 300-row back-dated case (R-30) runs by default (the harder path; appended rows are covered by the opt-in run); the 5,000-row cases need {@code -Dcsv.perf=true} (R-25).
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -62,8 +62,8 @@ class PortfolioCsvImportPerformanceTest {
     }
 
     @Test
-    void stagesAndAcceptsAThousandBackDatedRowsWithinTheBound() {
-        measure(1000, true, SMALL_GUARD);
+    void stagesAndAcceptsThreeHundredBackDatedRowsWithinTheBound() {
+        measure(300, true, SMALL_GUARD);
     }
 
     /** Opt-in (R-25): {@code -Dcsv.perf=true}; the row count can be lowered with {@code -Dcsv.perf.rows=N}. */

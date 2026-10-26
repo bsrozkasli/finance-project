@@ -24,6 +24,7 @@ import com.ozkaslibasar.financeproject.domain.service.PortfolioCsvImportService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -55,9 +56,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * validation included) is started against B. Timings are printed for information; the only bound is a generous guard.
  * Both contexts run in this JVM.</p>
  *
- * <p>Runs in the default suite (about 50 s); see {@code docs/spec/current-system/operations.md}.</p>
+ * <p>Opt-in (R-30): {@code -Dbackup.restore=true}; it takes about 55 s, so it stays out of the default suite. See
+ * {@code docs/spec/current-system/operations.md}.</p>
  */
 @Testcontainers(disabledWithoutDocker = true)
+@EnabledIfSystemProperty(named = "backup.restore", matches = "true")
 class PortfolioBackupRestoreTest {
 
     private static final String USER = "backup-restore-user";
@@ -295,7 +298,7 @@ class PortfolioBackupRestoreTest {
                 assertThat(states.replay(portfolioId, USER, stateTwoVersion).orElseThrow().exposureStatus())
                         .isEqualTo(ExposureStatus.PARTIAL);
 
-                // Voided events still reserve their locators: the manual-void and the CSV-void rows stay DUPLICATE.
+                // Voided events still reserve their locators: the active SAP row and the voided TSLA row stay DUPLICATE.
                 PortfolioCsvImportService csv = second.getBean(PortfolioCsvImportService.class);
                 CsvImportBatch restaged = csv.stage(portfolioId, USER, CSV.getBytes(StandardCharsets.UTF_8));
                 assertThat(restaged.rows()).extracting(CsvImportRow::status).containsExactly(
@@ -303,6 +306,13 @@ class PortfolioBackupRestoreTest {
                 List<Long> voidedIds = second.getBean(JdbcTemplate.class).queryForList(
                         "SELECT id FROM portfolio_transactions WHERE voided_at IS NOT NULL ORDER BY id", Long.class);
                 assertThat(voidedIds).hasSize(2);
+
+                // Sequences were restored too: a new ledger event gets an id above every restored id.
+                Long maxRestoredId = second.getBean(JdbcTemplate.class)
+                        .queryForObject("SELECT max(id) FROM portfolio_transactions", Long.class);
+                PortfolioTransaction inserted = second.getBean(PortfolioLedgerService.class).addTransaction(
+                        manual(portfolioId, "AAPL", PortfolioTransactionAction.BUY, "1", "131", 6));
+                assertThat(inserted.id()).isGreaterThan(maxRestoredId);
             }
             long verifyMillis = (System.nanoTime() - verifyStart) / 1_000_000;
 
