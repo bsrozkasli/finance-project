@@ -8,12 +8,18 @@ import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -103,8 +109,8 @@ class PortfolioDashboardControllerTest {
         @Test
         void shouldEnrichPositionsWithFreshLatestPrice() throws Exception {
                 when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
-                when(priceRefreshService.getFreshLatest("AAPL"))
-                                .thenReturn(Optional.of(price("AAPL", "110", Instant.now())));
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.fresh(price("AAPL", "110", Instant.now())));
 
                 mockMvc.perform(get("/api/v1/portfolio/positions/enriched"))
                                 .andExpect(status().isOk())
@@ -117,7 +123,7 @@ class PortfolioDashboardControllerTest {
         @Test
         void shouldKeepPositionAndExposeNullValuationWhenLatestPriceIsUnavailable() throws Exception {
                 when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
-                when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.empty());
+                when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_EMPTY));
 
                 mockMvc.perform(get("/api/v1/portfolio/positions/enriched"))
                                 .andExpect(status().isOk())
@@ -133,7 +139,7 @@ class PortfolioDashboardControllerTest {
         @Test
         void shouldDegradeEnrichedPositionWhenLatestPriceLookupFails() throws Exception {
                 when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
-                when(priceRefreshService.getFreshLatest("AAPL"))
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
                                 .thenThrow(new IllegalStateException("provider unavailable"));
 
                 mockMvc.perform(get("/api/v1/portfolio/positions/enriched"))
@@ -146,7 +152,7 @@ class PortfolioDashboardControllerTest {
         @Test
         void shouldReturnUnavailableSummaryMetricsWhenLatestPriceIsUnavailable() throws Exception {
                 when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
-                when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.empty());
+                when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_EMPTY));
                 when(priceRefreshService.getFreshHistory("AAPL", "1d", "5d")).thenReturn(List.of());
 
                 mockMvc.perform(get("/api/v1/portfolio/summary"))
@@ -164,8 +170,8 @@ class PortfolioDashboardControllerTest {
                 when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
                 LocalDateTime first = LocalDateTime.now().minusDays(2);
                 LocalDateTime second = LocalDateTime.now().minusDays(1);
-                when(priceRefreshService.getFreshLatest("AAPL"))
-                                .thenReturn(Optional.of(price("AAPL", "110", Instant.now())));
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.fresh(price("AAPL", "110", Instant.now())));
                 when(priceRefreshService.getFreshHistory("AAPL", "1d", "5d"))
                                 .thenReturn(List.of(
                                                 price("AAPL", "100", first),
@@ -290,8 +296,8 @@ class PortfolioDashboardControllerTest {
                                 .thenReturn(List.of(holding(10L, "AAPL", "2")));
                 when(transactionPort.findByPortfolioIdAndUserId(10L, "default"))
                                 .thenReturn(List.of(transaction(10L, "AAPL", "2026-01-02", "100")));
-                when(priceRefreshService.getFreshLatest("AAPL"))
-                                .thenReturn(Optional.of(price("AAPL", "140", latest)));
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.fresh(price("AAPL", "140", latest)));
                 when(priceRefreshService.getFreshHistory("AAPL", "1d", "1y"))
                                 .thenReturn(List.of(
                                                 price("AAPL", "70", LocalDateTime.of(2025, 7, 9, 16, 0)),
@@ -327,8 +333,8 @@ class PortfolioDashboardControllerTest {
                                 .thenReturn(List.of(holding(10L, "MSFT", "1")));
                 when(transactionPort.findByPortfolioIdAndUserId(10L, "default"))
                                 .thenReturn(List.of());
-                when(priceRefreshService.getFreshLatest("MSFT"))
-                                .thenReturn(Optional.of(price("MSFT", "55", Instant.now())));
+                when(priceRefreshService.lookupFreshLatest("MSFT"))
+                                .thenReturn(PriceLookups.fresh(price("MSFT", "55", Instant.now())));
                 when(priceRefreshService.getFreshHistory("MSFT", "1d", "1y")).thenReturn(List.of());
 
                 mockMvc.perform(get("/api/v1/portfolio/positions/performance")
@@ -346,7 +352,7 @@ class PortfolioDashboardControllerTest {
                 when(ledgerService.calculateHoldings(10L, "default"))
                                 .thenReturn(List.of(holding(10L, "AAPL", "2")));
                 when(transactionPort.findByPortfolioIdAndUserId(10L, "default")).thenReturn(List.of());
-                when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.empty());
+                when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_EMPTY));
                 when(priceRefreshService.getFreshHistory("AAPL", "1d", "1y")).thenReturn(List.of());
 
                 mockMvc.perform(get("/api/v1/portfolio/positions/performance")
@@ -358,6 +364,180 @@ class PortfolioDashboardControllerTest {
                                 .andExpect(jsonPath("$[0].marketValue").value(nullValue()))
                                 .andExpect(jsonPath("$[0].weight").value(nullValue()))
                                 .andExpect(jsonPath("$[0].totalReturn").value(nullValue()));
+        }
+
+        private static final Instant PRICE_TIME = Instant.parse("2026-07-09T16:00:00Z");
+
+        private void stubOnePosition(String symbol) {
+                when(positionPort.findByUserId("default")).thenReturn(List.of(position(symbol, "2", "90")));
+        }
+
+        private void stubOneHolding(String symbol) {
+                when(portfolioPort.findByUserId("default")).thenReturn(List.of(portfolio(10L, "ALFA", "USD")));
+                when(ledgerService.calculateHoldings(10L, "default"))
+                                .thenReturn(List.of(holding(10L, symbol, "2")));
+                when(transactionPort.findByPortfolioIdAndUserId(10L, "default")).thenReturn(List.of());
+                when(priceRefreshService.getFreshHistory(symbol, "1d", "1y")).thenReturn(List.of());
+        }
+
+        @Test
+        void enrichedPositionLabelsFreshPriceOkWithCandleTime() throws Exception {
+                stubOnePosition("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.fresh(price("AAPL", "110", PRICE_TIME)));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/enriched"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].priceStatus").value("OK"))
+                                .andExpect(jsonPath("$[0].priceAsOf").value("2026-07-09T16:00:00Z"));
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = PriceLookup.Origin.class, names = {"STORED_REFRESH_FAILED", "STORED_REFRESH_EMPTY"})
+        void enrichedPositionKeepsStoredPriceAndLabelsItStale(PriceLookup.Origin origin) throws Exception {
+                stubOnePosition("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.stored(price("AAPL", "110", PRICE_TIME), origin));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/enriched"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].currentPrice").value(110))
+                                .andExpect(jsonPath("$[0].marketValue").value(220))
+                                .andExpect(jsonPath("$[0].priceStatus").value("STALE"))
+                                .andExpect(jsonPath("$[0].priceAsOf").value("2026-07-09T16:00:00Z"));
+        }
+
+        @ParameterizedTest
+        @CsvSource({"NONE_REFRESH_FAILED,FAILED", "NONE_REFRESH_EMPTY,EMPTY"})
+        void enrichedPositionWithoutPriceHasStatusAndNullTime(PriceLookup.Origin origin, String expected) throws Exception {
+                stubOnePosition("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(PriceLookups.none(origin));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/enriched"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].currentPrice").value(nullValue()))
+                                .andExpect(jsonPath("$[0].priceAsOf").value(nullValue()))
+                                .andExpect(jsonPath("$[0].priceStatus").value(expected));
+        }
+
+        @Test
+        void enrichedPositionReportsFailedWhenLookupThrows() throws Exception {
+                stubOnePosition("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL")).thenThrow(new IllegalStateException("down"));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/enriched"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].currentPrice").value(nullValue()))
+                                .andExpect(jsonPath("$[0].priceAsOf").value(nullValue()))
+                                .andExpect(jsonPath("$[0].priceStatus").value("FAILED"));
+        }
+
+        @Test
+        void positionPerformanceLabelsFreshPriceOk() throws Exception {
+                stubOneHolding("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.fresh(price("AAPL", "140", PRICE_TIME)));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/performance").param("portfolioId", "10"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].priceStatus").value("OK"))
+                                .andExpect(jsonPath("$[0].priceAsOf").value("2026-07-09T16:00:00Z"));
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = PriceLookup.Origin.class, names = {"STORED_REFRESH_FAILED", "STORED_REFRESH_EMPTY"})
+        void positionPerformanceKeepsStoredPriceAndLabelsItStale(PriceLookup.Origin origin) throws Exception {
+                stubOneHolding("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.stored(price("AAPL", "140", PRICE_TIME), origin));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/performance").param("portfolioId", "10"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].currentPrice").value(140))
+                                .andExpect(jsonPath("$[0].marketValue").value(280))
+                                .andExpect(jsonPath("$[0].priceStatus").value("STALE"))
+                                .andExpect(jsonPath("$[0].priceAsOf").value("2026-07-09T16:00:00Z"));
+        }
+
+        @ParameterizedTest
+        @CsvSource({"NONE_REFRESH_FAILED,FAILED", "NONE_REFRESH_EMPTY,EMPTY"})
+        void positionPerformanceWithoutPriceHasStatusAndNullTime(PriceLookup.Origin origin, String expected) throws Exception {
+                stubOneHolding("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(PriceLookups.none(origin));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/performance").param("portfolioId", "10"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].currentPrice").value(nullValue()))
+                                .andExpect(jsonPath("$[0].priceAsOf").value(nullValue()))
+                                .andExpect(jsonPath("$[0].priceStatus").value(expected));
+        }
+
+        @Test
+        void positionPerformanceReportsFailedWhenLookupThrows() throws Exception {
+                stubOneHolding("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL")).thenThrow(new IllegalStateException("down"));
+
+                mockMvc.perform(get("/api/v1/portfolio/positions/performance").param("portfolioId", "10"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$[0].currentPrice").value(nullValue()))
+                                .andExpect(jsonPath("$[0].priceStatus").value("FAILED"));
+        }
+
+        @Test
+        void summaryPricingStatusIsNullWithoutPositions() throws Exception {
+                when(positionPort.findByUserId("default")).thenReturn(List.of());
+
+                mockMvc.perform(get("/api/v1/portfolio/summary"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.pricingStatus").value(nullValue()));
+        }
+
+        @Test
+        void summaryPricingCompleteIsNotMadeFalseByStalePrice() throws Exception {
+                stubOnePosition("AAPL");
+                when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.stored(price("AAPL", "110", PRICE_TIME),
+                                                PriceLookup.Origin.STORED_REFRESH_FAILED));
+                when(priceRefreshService.getFreshHistory("AAPL", "1d", "5d")).thenReturn(List.of());
+
+                mockMvc.perform(get("/api/v1/portfolio/summary"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.totalValue").value(220))
+                                .andExpect(jsonPath("$.pricingComplete").value(true))
+                                .andExpect(jsonPath("$.pricingStatus").value("STALE"));
+        }
+
+        @ParameterizedTest
+        @MethodSource("summaryPrecedence")
+        void summaryPricingStatusIsTheWorstOfItsPositions(List<PriceLookup> lookups, String expected) throws Exception {
+                String[] symbols = {"AAPL", "MSFT", "NVDA", "TSLA"};
+                List<PortfolioPosition> positions = new java.util.ArrayList<>();
+                for (int i = 0; i < lookups.size(); i++) {
+                        positions.add(position(symbols[i], "2", "90"));
+                        when(priceRefreshService.lookupFreshLatest(symbols[i])).thenReturn(lookups.get(i));
+                        when(priceRefreshService.getFreshHistory(symbols[i], "1d", "5d")).thenReturn(List.of());
+                }
+                when(positionPort.findByUserId("default")).thenReturn(positions);
+
+                mockMvc.perform(get("/api/v1/portfolio/summary"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.pricingStatus").value(expected));
+        }
+
+        static java.util.stream.Stream<Arguments> summaryPrecedence() {
+                PriceHistory p = new PriceHistory("X", BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN,
+                                BigDecimal.ONE, PRICE_TIME);
+                PriceLookup ok = PriceLookups.fresh(p);
+                PriceLookup stale = PriceLookups.stored(p, PriceLookup.Origin.STORED_REFRESH_FAILED);
+                PriceLookup failed = PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_FAILED);
+                PriceLookup empty = PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_EMPTY);
+                return java.util.stream.Stream.of(
+                                Arguments.of(List.of(ok), "OK"),
+                                Arguments.of(List.of(ok, empty), "EMPTY"),
+                                Arguments.of(List.of(ok, empty, stale), "STALE"),
+                                Arguments.of(List.of(ok, empty, stale, failed), "FAILED"),
+                                Arguments.of(List.of(stale, empty), "STALE"),
+                                Arguments.of(List.of(failed, stale), "FAILED"));
         }
 
         private PortfolioPosition position(String symbol, String quantity, String avgCostPrice) {

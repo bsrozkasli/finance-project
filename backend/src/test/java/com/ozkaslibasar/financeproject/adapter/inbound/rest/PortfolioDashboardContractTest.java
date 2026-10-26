@@ -4,6 +4,7 @@ import com.ozkaslibasar.financeproject.contract.ContractFixtures;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioPosition;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
@@ -58,7 +59,8 @@ class PortfolioDashboardContractTest {
         LocalDateTime previous = LocalDateTime.now().minusDays(2);
         LocalDateTime latest = LocalDateTime.now().minusDays(1);
         when(positionPort.findByUserId("default")).thenReturn(List.of(position("AAPL", "2", "90")));
-        when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.of(price("AAPL", "110", latest)));
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                                .thenReturn(PriceLookups.fresh(price("AAPL", "110", latest)));
         when(priceRefreshService.getFreshHistory(eq("AAPL"), eq("1d"), anyString()))
                 .thenReturn(List.of(price("AAPL", "100", previous), price("AAPL", "110", latest)));
         when(priceRefreshService.getFreshHistory(eq("SPY"), eq("1d"), anyString()))

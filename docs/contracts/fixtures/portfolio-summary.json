@@ -5,5 +5,6 @@
   "dailyPnLPercent": 10.0,
   "totalPnL": 40,
   "totalReturn": 22.22,
-  "pricingComplete": true
+  "pricingComplete": true,
+  "pricingStatus": "OK"
 }

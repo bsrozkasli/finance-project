@@ -11,6 +11,8 @@ import com.ozkaslibasar.financeproject.domain.model.PortfolioPosition;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
+import com.ozkaslibasar.financeproject.domain.model.PriceStatus;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
@@ -82,7 +84,8 @@ public class PortfolioDashboardController {
                 percentOrNull(dailyPnl, previousValue),
                 totalPnl,
                 percentOrNull(totalPnl, costBasis),
-                totalValue != null);
+                totalValue != null,
+                worstStatus(valuations.stream().map(PositionValuation::priceStatus).toList()));
     }
 
     @Operation(summary = "GET Portfolio Dashboard endpoint", description = "Implements the GET operation for the Portfolio Dashboard API described in SPEC.md sections 7 and 8.")
@@ -224,14 +227,14 @@ public class PortfolioDashboardController {
         }
 
         Map<String, LocalDate> addedDates = earliestAddedDates(portfolio.id());
-        Map<String, BigDecimal> currentPrices = new LinkedHashMap<>();
+        Map<String, PriceQuote> quotes = new LinkedHashMap<>();
         Map<String, BigDecimal> marketValues = new LinkedHashMap<>();
 
         for (PortfolioHolding holding : holdings) {
             String symbol = holding.symbol().toUpperCase();
-            BigDecimal currentPrice = currentPrice(symbol);
-            BigDecimal marketValue = currentPrice == null ? null : holding.quantity().multiply(currentPrice);
-            currentPrices.put(symbol, currentPrice);
+            PriceQuote quote = quote(symbol);
+            BigDecimal marketValue = quote.price() == null ? null : holding.quantity().multiply(quote.price());
+            quotes.put(symbol, quote);
             marketValues.put(symbol, marketValue);
         }
         BigDecimal totalMarketValue = sumIfComplete(new ArrayList<>(marketValues.values()));
@@ -239,7 +242,8 @@ public class PortfolioDashboardController {
         List<PortfolioPositionPerformance> positions = new ArrayList<>();
         for (PortfolioHolding holding : holdings) {
             String symbol = holding.symbol().toUpperCase();
-            BigDecimal currentPrice = currentPrices.get(symbol);
+            PriceQuote quote = quotes.get(symbol);
+            BigDecimal currentPrice = quote.price();
             BigDecimal marketValue = marketValues.get(symbol);
             List<PriceHistory> history = sortedHistory(symbol, "1y");
             LocalDate latestDate = latestPriceDate(history);
@@ -260,7 +264,9 @@ public class PortfolioDashboardController {
                     returnSince(history, currentPrice, latestDate, latestDate == null ? null : latestDate.minusYears(1)),
                     currentPrice == null
                             ? null
-                            : percentOrNull(currentPrice.subtract(holding.averageCost()), holding.averageCost())));
+                            : percentOrNull(currentPrice.subtract(holding.averageCost()), holding.averageCost()),
+                    quote.asOf(),
+                    quote.status()));
         }
 
         positions.sort(Comparator.comparing(
@@ -336,7 +342,9 @@ public class PortfolioDashboardController {
                 percentOrNull(marketValue, totalValue),
                 null,
                 percentOrNull(unrealizedPnl, costBasis),
-                unrealizedPnl);
+                unrealizedPnl,
+                valuation.priceAsOf(),
+                valuation.priceStatus());
     }
 
     private TreeMap<LocalDate, BigDecimal> benchmarkHistory(String benchmark, String period) {
@@ -431,14 +439,30 @@ public class PortfolioDashboardController {
         return date == null ? null : date.toString();
     }
 
-    private BigDecimal currentPrice(String symbol) {
+    /**
+     * One price lookup for a symbol. A stored price after a failed or empty refresh is still returned (it is a real
+     * recorded price) but labelled STALE; a lookup that throws is "no price" and never reported as OK.
+     */
+    private PriceQuote quote(String symbol) {
         try {
-            return priceRefreshService.getFreshLatest(symbol.toUpperCase())
-                    .map(PriceHistory::close)
-                    .orElse(null);
+            PriceLookup lookup = priceRefreshService.lookupFreshLatest(symbol.toUpperCase());
+            PriceStatus status = PriceStatus.from(lookup.origin());
+            return lookup.price()
+                    .map(price -> new PriceQuote(price.close(), price.timestampAsInstant(), status))
+                    .orElseGet(() -> new PriceQuote(null, null, status));
         } catch (Exception ignored) {
-            return null;
+            return new PriceQuote(null, null, PriceStatus.FAILED);
         }
+    }
+
+    /** Worst status of the given ones (FAILED, STALE, EMPTY, OK); null when there are none. */
+    private PriceStatus worstStatus(List<PriceStatus> statuses) {
+        for (PriceStatus candidate : List.of(PriceStatus.FAILED, PriceStatus.STALE, PriceStatus.EMPTY)) {
+            if (statuses.contains(candidate)) {
+                return candidate;
+            }
+        }
+        return statuses.isEmpty() ? null : PriceStatus.OK;
     }
 
     private List<PriceHistory> sortedHistory(String symbol, String range) {
@@ -675,9 +699,9 @@ public class PortfolioDashboardController {
     }
 
     private PositionValuation valuation(PortfolioPosition position) {
-        BigDecimal currentPrice = currentPrice(position.symbol());
-        BigDecimal marketValue = currentPrice == null ? null : position.quantity().multiply(currentPrice);
-        return new PositionValuation(position, currentPrice, marketValue);
+        PriceQuote quote = quote(position.symbol());
+        BigDecimal marketValue = quote.price() == null ? null : position.quantity().multiply(quote.price());
+        return new PositionValuation(position, quote.price(), marketValue, quote.asOf(), quote.status());
     }
 
     private BigDecimal dailyPnl(PortfolioPosition position) {
@@ -776,7 +800,8 @@ public class PortfolioDashboardController {
             BigDecimal dailyPnLPercent,
             BigDecimal totalPnL,
             BigDecimal totalReturn,
-            boolean pricingComplete) {
+            boolean pricingComplete,
+            PriceStatus pricingStatus) {
     }
 
     public record PortfolioPerformance(String period, List<PortfolioPerformancePoint> series,
@@ -813,7 +838,9 @@ public class PortfolioDashboardController {
             BigDecimal threeMonthReturn,
             BigDecimal sixMonthReturn,
             BigDecimal oneYearReturn,
-            BigDecimal totalReturn) {
+            BigDecimal totalReturn,
+            Instant priceAsOf,
+            PriceStatus priceStatus) {
     }
     public record PortfolioMetrics(Double sharpe, Double maxDrawdown) {
     }
@@ -836,12 +863,19 @@ public class PortfolioDashboardController {
             BigDecimal allocation,
             BigDecimal dailyReturn,
             BigDecimal totalReturn,
-            BigDecimal unrealizedPnL) {
+            BigDecimal unrealizedPnL,
+            Instant priceAsOf,
+            PriceStatus priceStatus) {
     }
 
     private record PositionValuation(
             PortfolioPosition position,
             BigDecimal currentPrice,
-            BigDecimal marketValue) {
+            BigDecimal marketValue,
+            Instant priceAsOf,
+            PriceStatus priceStatus) {
+    }
+
+    private record PriceQuote(BigDecimal price, Instant asOf, PriceStatus status) {
     }
 }
