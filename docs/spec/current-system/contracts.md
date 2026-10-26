@@ -202,8 +202,11 @@ controller contracts change.
 Research routes (`/api/v1/research/*`) return 422 insufficient data (for example
 fewer than 30 sessions of risk history), 503 when a required dependency is
 unconfigured (for example `FINNHUB_API_KEY` for earnings), and 500 with the
-generic detail `<section> research failed` for unexpected errors. Spring
-research adapters treat every non-2xx response as empty evidence.
+generic detail `<section> research failed` for unexpected errors. The Spring
+research and technical adapters' `Optional`/list methods treat every non-2xx
+response as empty evidence; their outcome-returning methods (`ProviderFetch`,
+used by the watchlist research snapshot) map the status instead (see Partial
+research).
 
 FastAPI router prefixes and decorators are the route authority. The analysis
 routes use the direct `/api/v1` paths shown above; do not insert another path
@@ -337,6 +340,33 @@ Watchlist and report aggregation preserve successful sections when another
 provider fails. Watchlist sections expose one of `OK`, `STALE`, `EMPTY`, `FAILED`,
 `RATE_LIMITED`, `INSUFFICIENT_DATA`, or `PENDING_REFRESH`, plus source/message data
 where supported.
+
+**Watchlist research-snapshot section status (2026-10-26).** For the
+`technical`, `fundamentals`, `earnings` and `institutional` sections of
+`GET /watchlists/{id}/research-snapshot`, the status comes from the outcome of the
+data-service call, not from message text. Endpoint path, field names and the
+seven status strings are unchanged; only which status is returned changes.
+
+| Data-service result | Section status | Section message |
+|---|---|---|
+| 200 with data | `OK` | none |
+| 200 with no body or no usable data, or 404 | `EMPTY` (no data exists) | `Provider returned no data` |
+| 422 | `INSUFFICIENT_DATA` | `Insufficient history` |
+| 429 | `RATE_LIMITED` | `Provider rate limited` |
+| other 4xx, 5xx, I/O error, timeout, unreadable body | `FAILED` | `Provider request failed` |
+
+`EMPTY` therefore means the provider answered that no data exists, `FAILED` means
+the call itself failed, and the two are no longer confused. Messages are fixed
+sentences, never raw provider text. `RATE_LIMITED` rarely appears from the
+data-service because it sends no 429 (a provider 429 becomes a 500 or a 404);
+the snapshot's own concurrency-queue timeout still yields `RATE_LIMITED`. The
+technical section combines two calls (indicators and signal): data from either
+gives `OK` with the other part null; with none, the more severe outcome wins
+(`RATE_LIMITED`, `FAILED`, `INSUFFICIENT_DATA`, `EMPTY`). `FAILED` and
+`RATE_LIMITED` count toward the section's circuit breaker (3 failures open it for
+60 seconds, then the section is `STALE`); `OK`, `EMPTY` and `INSUFFICIENT_DATA` do
+not. The `price` section and the overall-status precedence are unchanged.
+Decision record `docs/product/decisions/2026-10-26-provider-failure-status.md`.
 
 ## Evidence Anchors
 

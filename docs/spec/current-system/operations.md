@@ -144,6 +144,18 @@ the next request asks the data-service again. A cached entry without
 `decision_status` (written before 2026-10-26) is treated as a miss and evicted,
 so an old placeholder verdict is never served.
 
+`researchCache` does not store an empty result (empty `Optional` or empty list)
+for fundamentals, valuation, earnings, institutional scores or the composite
+score, because the adapter cannot tell "no data exists" from a swallowed failure
+on that path; the data-service has its own caches. Non-empty results keep the
+12 hour TTL. The outcome-returning methods used by the watchlist research
+snapshot are cached in `researchCache` under their own keys
+(`fundamental-result:`, `earnings-result:`, `institutional-result:`) only when
+the outcome is `OK`; `FAILED`, `RATE_LIMITED`, `INSUFFICIENT_DATA` and `EMPTY` are
+never cached. The technical outcome methods are not cached. Earnings lists are
+returned as mutable lists because an immutable list cannot be read back from the
+Redis serializer.
+
 ### Data-service caches
 
 - Macro snapshots are cached for four hours in Redis with in-memory fallback.
