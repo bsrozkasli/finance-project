@@ -3,7 +3,7 @@ from typing import NoReturn
 
 from fastapi import APIRouter, HTTPException
 
-from app.errors import DependencyUnavailableError, InsufficientDataError
+from app.errors import DependencyUnavailableError, InsufficientDataError, RateLimitedError
 
 from app.models.fundamental import FundamentalAnalysisResponse
 from app.models.valuation import ValuationResponse
@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 
 def _raise_research_error(section: str, symbol: str, exc: Exception) -> NoReturn:
+    if isinstance(exc, RateLimitedError):
+        raise exc  # translated to 429 by the app-level handler
     if isinstance(exc, InsufficientDataError):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if isinstance(exc, DependencyUnavailableError):

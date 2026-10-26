@@ -184,6 +184,19 @@ includes this `STALE` (order `RATE_LIMITED`, `FAILED`, `STALE`,
 `INSUFFICIENT_DATA`, `OK`, `EMPTY`), so rows that read `OK` during an outage now
 read `STALE`: a behavior change, see `contracts.md`.
 
+`RATE_LIMITED` now arises from provider limits: the data-service answers 429 with
+`Retry-After` when Yahoo or Tiingo rate limits and no provider returned data
+(`contracts.md`), the backend maps it to `RATE_LIMITED`, and it counts toward the
+breaker, so a Yahoo rate limit can open the technical or fundamentals breaker
+where it used to read `EMPTY`. The data-service resolver also counts the rate
+limit toward its provider blacklist (three failures, 60 seconds) and remembers
+whether the failure that completed the threshold was a rate limit: during that
+window the skipped provider still counts as rate limited, with the remaining
+blacklist time as `Retry-After`, so the limit is not reported as "no data"
+(a blacklist from other failures stays silent). Unchanged: the
+legacy Spring adapters (price, asset detail, metadata) swallow every error, and
+the backend does not read `Retry-After`.
+
 ### Data-service caches
 
 - Macro snapshots are cached for four hours in Redis with in-memory fallback.

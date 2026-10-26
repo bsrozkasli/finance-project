@@ -20,6 +20,7 @@ from typing import Optional
 
 import httpx
 
+from app.providers.rate_limit import raise_if_rate_limited
 from app.providers.base import (
     AnalystRecommendation,
     AssetInfo,
@@ -132,12 +133,14 @@ class TiingoProvider:
             return bars
 
         except httpx.HTTPStatusError as exc:
+            raise_if_rate_limited(exc, self._PROVIDER_NAME)
             logger.error(
                 "TiingoProvider HTTP error for symbol=%s: %s %s",
                 symbol, exc.response.status_code, exc.response.text[:200],
             )
             return []
         except Exception as exc:
+            raise_if_rate_limited(exc, self._PROVIDER_NAME)
             logger.error(
                 "TiingoProvider.get_ohlcv failed for symbol=%s: %s", symbol, exc
             )
@@ -162,6 +165,7 @@ class TiingoProvider:
                 currency="USD",  # Tiingo free tier is USD-only
             )
         except Exception as exc:
+            raise_if_rate_limited(exc, self._PROVIDER_NAME)
             logger.error(
                 "TiingoProvider.get_asset_info failed for symbol=%s: %s", symbol, exc
             )

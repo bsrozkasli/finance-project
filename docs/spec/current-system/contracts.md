@@ -208,6 +208,27 @@ response as empty evidence; their outcome-returning methods (`ProviderFetch`,
 used by the watchlist research snapshot) map the status instead (see Partial
 research).
 
+Data-service error responses for provider rate limits (decision
+`docs/product/decisions/2026-10-26-provider-rate-limit-status.md`):
+
+| Status | Body | Header | Meaning |
+|---|---|---|---|
+| `429` | `{"detail": "Market data provider rate limited"}` | `Retry-After: <whole seconds, rounded up>` only when the provider gave a wait hint | An upstream provider (Yahoo or Tiingo, or Yahoo read directly by the fundamental, valuation and factor services) rate limited the request and no other provider returned data. Applies to every route, including the prices route, which answers `200 []` only when the chain is empty for other reasons |
+
+The detail is a fixed sentence, never provider text. A rate-limited provider is
+skipped in favor of the next one in the chain; the 429 is sent only when no
+provider returned data. While a provider is blacklisted because rate limits
+caused it (60 seconds after three failures, ruling R-1), the 429 is still sent
+when no other provider has data, with `Retry-After` set to the remaining
+blacklist time (at least 1 second); a provider blacklisted for any other reason
+is skipped and the chain answers empty as before. The composite score route
+(`/api/v1/research/composite/{symbol}`, ruling R-2) degrades per component: a
+rate-limited component is marked `unavailable` with the reason code
+`provider_rate_limited` in `breakdown_availability` and listed in
+`unavailable_components`, and the rest are computed as before; the route answers
+429 only when no component produced data and at least one was rate limited. Finnhub, FMP and FRED rate limits and the Finnhub earnings
+route are not translated yet. The Spring backend does not read `Retry-After` yet.
+
 FastAPI router prefixes and decorators are the route authority. The analysis
 routes use the direct `/api/v1` paths shown above; do not insert another path
 segment between the version prefix and the operation.
@@ -357,9 +378,9 @@ seven status strings are unchanged; only which status is returned changes.
 
 `EMPTY` therefore means the provider answered that no data exists, `FAILED` means
 the call itself failed, and the two are no longer confused. Messages are fixed
-sentences, never raw provider text. `RATE_LIMITED` rarely appears from the
-data-service because it sends no 429 (a provider 429 becomes a 500 or a 404);
-the snapshot's own concurrency-queue timeout still yields `RATE_LIMITED`. The
+sentences, never raw provider text. `RATE_LIMITED` arises when the data-service
+answers 429 for a provider rate limit (see the data-service error table) and from
+the snapshot's own concurrency-queue timeout. The
 technical section combines two calls (indicators and signal): data from either
 gives `OK` with the other part null, so a failed half is hidden when the other
 half has data and a 422 on the indicators call no longer fails the section; with

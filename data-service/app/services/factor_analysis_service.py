@@ -17,6 +17,7 @@ import pandas as pd
 import yfinance as yf
 
 from app.dependencies import get_resolver
+from app.providers.rate_limit import raise_if_rate_limited
 from app.services.price_history import fetch_daily_frame
 from app.models.factors import (
     FactorAnalysisResponse,
@@ -66,7 +67,8 @@ class FactorAnalysisService:
         try:
             info = ticker.info
             return info if isinstance(info, dict) else {}
-        except Exception:
+        except Exception as exc:
+            raise_if_rate_limited(exc, "yahoo")
             logger.warning("Failed to fetch .info for %s", ticker.ticker, exc_info=True)
             return {}
 
@@ -78,7 +80,8 @@ class FactorAnalysisService:
             if df is None or not isinstance(df, pd.DataFrame) or df.empty:
                 return pd.DataFrame()
             return df
-        except Exception:
+        except Exception as exc:
+            raise_if_rate_limited(exc, "yahoo")
             logger.warning("Failed to fetch .%s for %s", attr, ticker.ticker, exc_info=True)
             return pd.DataFrame()
 

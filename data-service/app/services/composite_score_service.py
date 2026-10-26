@@ -7,6 +7,8 @@ from app.models.composite import (
     CompositeScoreBreakdown,
     InvestmentGrade,
 )
+from app.errors import RateLimitedError
+from app.providers.rate_limit import merge_rate_limited
 from app.services.fundamental_analysis_service import FundamentalAnalysisService
 from app.services.valuation_service import ValuationService
 from app.services.factor_analysis_service import FactorAnalysisService
@@ -26,7 +28,16 @@ def _missing(result) -> bool:
     return result is None or isinstance(result, Exception)
 
 
+_RATE_LIMITED_REASON = "provider_rate_limited"
+
+
+def _rate_limited(result) -> bool:
+    return isinstance(result, RateLimitedError)
+
+
 def _factor_score(factor_res, attribute: str) -> tuple[int | None, SectionAvailability]:
+    if _rate_limited(factor_res):
+        return None, SectionAvailability.unavailable(_RATE_LIMITED_REASON)
     if _missing(factor_res):
         return None, SectionAvailability.unavailable("factor_component_unavailable")
     scores = getattr(factor_res, "scores", None)  # FactorAnalysisResponse.scores
@@ -39,6 +50,8 @@ def _factor_score(factor_res, attribute: str) -> tuple[int | None, SectionAvaila
 
 
 def _valuation_score(val_res) -> tuple[int | None, SectionAvailability]:
+    if _rate_limited(val_res):
+        return None, SectionAvailability.unavailable(_RATE_LIMITED_REASON)
     if _missing(val_res):
         return None, SectionAvailability.unavailable("valuation_component_unavailable")
     metrics = getattr(val_res, "metrics", None)  # ValuationResponse.metrics
@@ -54,6 +67,8 @@ def _valuation_score(val_res) -> tuple[int | None, SectionAvailability]:
 
 
 def _earnings_score(earn_res) -> tuple[int | None, SectionAvailability]:
+    if _rate_limited(earn_res):
+        return None, SectionAvailability.unavailable(_RATE_LIMITED_REASON)
     if _missing(earn_res):
         return None, SectionAvailability.unavailable("earnings_component_unavailable")
     metrics = getattr(earn_res, "metrics", None)  # EarningsAnalysisResponse.metrics
@@ -65,6 +80,8 @@ def _earnings_score(earn_res) -> tuple[int | None, SectionAvailability]:
 
 
 def _sentiment_score(sent_res) -> tuple[int | None, SectionAvailability]:
+    if _rate_limited(sent_res):
+        return None, SectionAvailability.unavailable(_RATE_LIMITED_REASON)
     if _missing(sent_res):
         return None, SectionAvailability.unavailable("sentiment_component_unavailable")
     if not hasattr(sent_res, "sentiment_score"):
@@ -84,24 +101,32 @@ class CompositeScoreService:
         async def fetch_fundamental():
             try:
                 return await asyncio.to_thread(FundamentalAnalysisService.analyze, symbol)
+            except RateLimitedError as exc:
+                return exc
             except Exception:
                 return None
 
         async def fetch_valuation():
             try:
                 return await asyncio.to_thread(ValuationService.analyze, symbol)
+            except RateLimitedError as exc:
+                return exc
             except Exception:
                 return None
 
         async def fetch_factor():
             try:
                 return await asyncio.to_thread(FactorAnalysisService.analyze_factors, symbol)
+            except RateLimitedError as exc:
+                return exc
             except Exception:
                 return None
 
         async def fetch_risk():
             try:
                 return await asyncio.to_thread(RiskAnalyticsService.analyze, symbol)
+            except RateLimitedError as exc:
+                return exc
             except Exception:
                 return None
 
@@ -127,6 +152,11 @@ class CompositeScoreService:
             return_exceptions=True
         )
 
+        # A rate limit degrades only its own component; it surfaces as an error only when no component is usable.
+        rate_limited = [result for result in results if isinstance(result, RateLimitedError)]
+        if rate_limited and all(_missing(result) for result in results):
+            raise merge_rate_limited(rate_limited)
+
         fund_res, val_res, factor_res, risk_res, earn_res, sent_res = results
         fetched = {
             "fundamental": fund_res, "valuation": val_res, "factor": factor_res,
@@ -146,6 +176,9 @@ class CompositeScoreService:
         if quality_score is not None and growth_score is not None:
             fundamental_score = (quality_score + growth_score) // 2
             fundamental_availability = SectionAvailability.available()
+        elif _rate_limited(factor_res):
+            fundamental_score = None
+            fundamental_availability = SectionAvailability.unavailable(_RATE_LIMITED_REASON)
         else:
             fundamental_score = None
             fundamental_availability = SectionAvailability.unavailable("derived_from_defaulted_fields")

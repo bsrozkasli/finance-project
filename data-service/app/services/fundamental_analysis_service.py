@@ -9,6 +9,7 @@ from typing import Optional
 import pandas as pd
 import yfinance as yf
 
+from app.providers.rate_limit import raise_if_rate_limited
 from app.models.fundamental import FundamentalAnalysisResponse, FundamentalMetrics
 
 logger = logging.getLogger(__name__)
@@ -109,7 +110,8 @@ class FundamentalAnalysisService:
         try:
             info = ticker.info
             return info if isinstance(info, dict) else {}
-        except Exception:
+        except Exception as exc:
+            raise_if_rate_limited(exc, "yahoo")
             logger.warning("Failed to fetch .info for %s", ticker.ticker, exc_info=True)
             return {}
 
@@ -121,7 +123,8 @@ class FundamentalAnalysisService:
             if df is None or not isinstance(df, pd.DataFrame) or df.empty:
                 return pd.DataFrame()
             return df
-        except Exception:
+        except Exception as exc:
+            raise_if_rate_limited(exc, "yahoo")
             logger.warning("Failed to fetch .%s for %s", attr, ticker.ticker, exc_info=True)
             return pd.DataFrame()
 
