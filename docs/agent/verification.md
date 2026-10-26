@@ -36,6 +36,12 @@ CI also runs backend tests, data-service tests (Python 3.12 in both
 lint/API-boundary/build/bundle-budget/coverage/E2E, frontend integrated E2E
 against a real backend, and Compose validation.
 
+The opt-in backend tests (`PortfolioBackupRestoreTest` with `-Dbackup.restore=true` and each
+`PortfolioCsvImportPerformanceTest` opt-in method with `-Dcsv.perf=true`) run in
+`.github/workflows/backend-opt-in-tests.yml`, one Maven invocation per method so none exceeds the 120 s Surefire
+fork limit. Trigger it from the Actions tab (`workflow_dispatch`); it also runs weekly. It is not a pull request
+gate, and it uploads the Surefire reports as an artifact.
+
 ### Command timeout policy
 
 - No non-interactive command may run longer than 120 seconds. Agent tool calls

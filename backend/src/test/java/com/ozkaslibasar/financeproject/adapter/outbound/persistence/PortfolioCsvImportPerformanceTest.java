@@ -80,18 +80,29 @@ class PortfolioCsvImportPerformanceTest {
         measure(Integer.getInteger("csv.perf.rows", 5000), true, BACK_DATED_GUARD);
     }
 
+    /** Opt-in (R-33.2): a historical file for ONE symbol into a portfolio holding a newer event for that symbol. */
+    @Test
+    @EnabledIfSystemProperty(named = "csv.perf", matches = "true")
+    void stagesAndAcceptsAFullFileOfBackDatedRowsForOneSymbol() {
+        measure(Integer.getInteger("csv.perf.rows", 5000), true, BACK_DATED_GUARD, 1);
+    }
+
     private void measure(int rows, boolean backDated, Duration guard) {
+        measure(rows, backDated, guard, SYMBOLS);
+    }
+
+    private void measure(int rows, boolean backDated, Duration guard, int symbols) {
         portfolioId = portfolioPort.save(new Portfolio(null, USER, "CSV performance", "USD", null, false, null, null))
                 .id();
         if (backDated) {
-            for (int s = 0; s < SYMBOLS; s++) {
+            for (int s = 0; s < symbols; s++) {
                 ledger.addTransaction(new PortfolioTransaction(null, portfolioId, USER, "SYM" + s,
                         PortfolioAssetType.US_STOCK, PortfolioTransactionAction.BUY, new BigDecimal("1000"),
                         new BigDecimal("100"), "USD", BigDecimal.ZERO, BigDecimal.ONE,
                         LocalDate.parse("2026-06-01"), PortfolioTransactionSource.MANUAL, null, null, null));
             }
         }
-        byte[] file = buildFile(rows);
+        byte[] file = buildFile(rows, symbols);
 
         long stageStart = System.nanoTime();
         CsvImportBatch staged = service.stage(portfolioId, USER, file);
@@ -103,14 +114,14 @@ class PortfolioCsvImportPerformanceTest {
         CsvImportBatch accepted = service.accept(portfolioId, USER, staged.id()).orElseThrow();
         Duration acceptTime = Duration.ofNanos(System.nanoTime() - acceptStart);
 
-        System.out.printf("R-21 MEASURE rows=%d backDated=%b stage=%d ms accept=%d ms%n", rows, backDated,
+        System.out.printf("R-21 MEASURE rows=%d backDated=%b symbols=%d stage=%d ms accept=%d ms%n", rows, backDated, symbols,
                 stageTime.toMillis(), acceptTime.toMillis());
         assertThat(accepted.rows()).extracting(CsvImportRow::status).containsOnly(CsvImportRowStatus.ACCEPTED);
         assertThat(acceptTime).isLessThan(guard);
     }
 
     /** Alternating BUY 10 / SELL 5 over {@value #SYMBOLS} symbols, one pair per day, so every SELL is covered. */
-    private static byte[] buildFile(int rows) {
+    private static byte[] buildFile(int rows, int symbols) {
         StringBuilder csv = new StringBuilder(
                 "trade_date,action,symbol,asset_type,quantity,price,currency,fee,fx_rate_to_base,notes\n");
         LocalDate start = LocalDate.parse("2010-01-01");
@@ -118,7 +129,7 @@ class PortfolioCsvImportPerformanceTest {
             int pair = i / 2;
             boolean buy = i % 2 == 0;
             csv.append(start.plusDays(pair)).append(',').append(buy ? "BUY" : "SELL").append(",SYM")
-                    .append(pair % SYMBOLS).append(",US_STOCK,").append(buy ? 10 : 5).append(',')
+                    .append(pair % symbols).append(",US_STOCK,").append(buy ? 10 : 5).append(',')
                     .append(100 + pair % 50).append(",USD,0,1,\n");
         }
         return csv.toString().getBytes(StandardCharsets.UTF_8);
