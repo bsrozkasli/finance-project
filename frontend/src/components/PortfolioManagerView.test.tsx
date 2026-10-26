@@ -1,10 +1,11 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Portfolio, Stock } from '../types';
 import { API_BASE_URL as API_BASE } from '../api/config';
-import { deleteInvestmentPortfolio } from '../api/client';
+import { deleteInvestmentPortfolio, fetchPortfolioHoldings } from '../api/client';
 import { server } from '../test/server';
 import PortfolioManagerView from './PortfolioManagerView';
 
@@ -391,5 +392,59 @@ describe('PortfolioManagerView', () => {
     await user.click(await screen.findByRole('button', { name: 'Kabul et' }));
 
     await waitFor(() => expect(transactionLoads).toBe(2));
+  });
+
+  it('refreshes the application holdings after a CSV accept so quantities are not stale', async () => {
+    installPortfolioHandlers();
+    let holdingsLoads = 0;
+    server.use(
+      http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([])),
+      http.get(apiUrl('/portfolios/1/holdings'), () => {
+        holdingsLoads += 1;
+        return HttpResponse.json([{ symbol: 'AAPL', quantity: 5, avgCostPrice: 100 }]);
+      }),
+      http.post(apiUrl('/portfolios/1/imports'), () => HttpResponse.json({
+        batchId: 9, portfolioId: 1, status: 'STAGED', fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z', acceptedAt: null,
+        counts: { valid: 1, invalid: 0, duplicate: 0, accepted: 0, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'VALID', message: null, originLocator: 'csv:abc', transactionId: null }],
+      }, { status: 201 })),
+      http.post(apiUrl('/portfolios/1/imports/9/accept'), () => HttpResponse.json({
+        batchId: 9, portfolioId: 1, status: 'ACCEPTED', fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z', acceptedAt: '2026-10-25T10:05:00Z',
+        counts: { valid: 0, invalid: 0, duplicate: 0, accepted: 1, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'ACCEPTED', message: null, originLocator: 'csv:abc', transactionId: 5 }],
+      })),
+    );
+    const user = userEvent.setup();
+    // Stands in for App: the ledger-changed signal reloads the application-level holdings.
+    function Host() {
+      const [holdings, setHoldings] = useState(portfolio.holdings);
+      return (
+        <PortfolioManagerView
+          stocks={[makeStock('AAPL', 210), makeStock('MSFT', 160)]}
+          portfolios={[{ ...portfolio, holdings }]}
+          activePortfolioId="1"
+          onSelectPortfolioId={vi.fn()}
+          onExecuteTrade={vi.fn()}
+          onLedgerChanged={async () => {
+            const fresh = await fetchPortfolioHoldings(1);
+            setHoldings(fresh.map((holding) => ({
+              symbol: holding.symbol, quantity: holding.quantity, costPrice: holding.averageCost,
+            })));
+          }}
+        />
+      );
+    }
+    render(<Host />);
+
+    await waitFor(() => expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('$580.00'));
+    expect(holdingsLoads).toBe(0);
+    await user.upload(await screen.findByLabelText('CSV dosyası'), new File(['a,b'], 'x.csv', { type: 'text/csv' }));
+    await user.click(screen.getByRole('button', { name: 'Yükle' }));
+    await user.click(await screen.findByRole('button', { name: 'Kabul et' }));
+
+    await waitFor(() => expect(holdingsLoads).toBe(1));
+    await waitFor(() => expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('$1,050.00'));
   });
 });

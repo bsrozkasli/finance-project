@@ -23,6 +23,8 @@ interface PortfolioManagerViewProps {
   onSelectPortfolioId: (id: string) => void;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
   onOpenTradingJournal?: () => void;
+  /** Reloads application-level ledger data (holdings, journal trades) after a CSV accept. */
+  onLedgerChanged?: () => void | Promise<void>;
 }
 
 type AllocationMode = 'daily' | 'total' | 'allocation';
@@ -79,6 +81,7 @@ export default function PortfolioManagerView({
   activePortfolioId,
   onSelectPortfolioId,
   onOpenTradingJournal,
+  onLedgerChanged,
 }: PortfolioManagerViewProps) {
   const [allocationMode, setAllocationMode] = useState<AllocationMode>('daily');
   const [activeTab, setActiveTab] = useState<HoldingsTab>('holdings');
@@ -751,7 +754,10 @@ export default function PortfolioManagerView({
             <PortfolioImportPanel
               key={`import-${activeInvestmentPortfolioId}`}
               portfolioId={activeInvestmentPortfolioId}
-              onAccepted={() => setDetailsReload((value) => value + 1)}
+              onLedgerChanged={async () => {
+                setDetailsReload((value) => value + 1);
+                await onLedgerChanged?.();
+              }}
             />
             <PortfolioStatePanel key={`state-${activeInvestmentPortfolioId}`} portfolioId={activeInvestmentPortfolioId} />
           </div>
