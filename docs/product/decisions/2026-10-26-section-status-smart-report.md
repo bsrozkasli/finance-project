@@ -85,3 +85,24 @@ Cost if wrong: copy and layout only.
 ## Implementation rulings
 
 Rulings made while coding are appended below as `R-n`.
+
+- **R-1. Component keys are the real `*_score` keys** of the data-service breakdown (eight keys, for example
+  `sentiment_score`), not the short names used as examples in D-3.1. Why: D-3.1 says the components are the keys of
+  `breakdown_availability`. Cost if wrong: a rename of keys in a nullable additive field.
+- **R-2. An empty `breakdown_availability` map is treated as absent**, so `sectionStatus` is `null` (unknown), never `OK`.
+- **R-3. An unrecognised component status never makes the overall status `OK`**; the overall is then `null` unless a worse
+  known status decides it.
+- **R-4. The fallback path always reports the eight composite keys as `INSUFFICIENT_DATA`**, even when the Finnhub
+  metrics are also missing, because the composite itself is what is missing.
+- **R-5. A null availability entry becomes a component with `status` and `reason` both `null`.**
+- **R-6. The report cache can now be read back (found during review).** `SmartReport` has only a Lombok builder, and the
+  cache serializer registered no creator for it, so a cache hit on the `smartReportCache` entry could not be
+  deserialized (and no `CacheErrorHandler` exists, so it would have surfaced as a server error on the second request for
+  a symbol within six hours). Decision: keep the builder mixins in `RedisConfig` (the domain stays annotation-free),
+  prove the round trip with a real Redis test that calls the endpoint twice, and also round-trip a `CompositeScore` and a
+  report with peers through the real serializer. Cost if wrong: the mixins touch only the three smart-report types.
+- **R-7. A component whose data-service status is `available` but whose score is null is reported with status `null`**
+  (unknown), never `OK`. Why: the data-service validator forbids this state, but evidence shown as present must not rest
+  on trust in a source. Cost if wrong: none while the source behaves.
+- **R-8. `unavailable_components` is carried but unused;** it keeps its short names, unlike the `*_score` keys. Decision:
+  keep it only as pass-through data and say so in a comment, so the next reader does not mix the two naming schemes.
