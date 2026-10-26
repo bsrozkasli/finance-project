@@ -15,6 +15,8 @@ import {
 import { createPortfolioTransaction } from '../api/client';
 import type { Portfolio, Stock } from '../types';
 import { useJournalTrades } from '../hooks/useJournalTrades';
+import type { JournalPriceStatus } from '../api/journal';
+import StatusPill from './StatusPill';
 
 interface TradingJournalViewProps {
   stocks: Stock[];
@@ -45,6 +47,38 @@ const formatNumber = (value: number | null | undefined, digits = 4) => {
   if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: digits }).format(value);
 };
+
+const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('tr-TR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
+
+/** Data-availability label for the price behind a row's profit/loss; not an investment signal. */
+function PriceFreshness({ status, asOf }: { status: JournalPriceStatus | null | undefined; asOf: string | null | undefined }) {
+  if (status === 'STALE') {
+    return (
+      <div className="mt-1 flex flex-col items-start gap-0.5 font-sans">
+        <StatusPill status="STALE" label="Eski fiyat" compact />
+        <span className="text-[10px] text-text-muted">{formatDateTime(asOf)}</span>
+      </div>
+    );
+  }
+  if (status === 'FAILED' || status === 'EMPTY') {
+    return (
+      <div className="mt-1">
+        <StatusPill status="EMPTY" label="Fiyat yok" compact />
+      </div>
+    );
+  }
+  return null;
+}
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -459,6 +493,7 @@ export default function TradingJournalView({
                           <td className="px-3 py-4 font-data-mono">
                             <div className={trade.pnl == null ? 'text-text-muted' : trade.pnl >= 0 ? 'text-bull-green' : 'text-bear-red'}>{formatCurrency(trade.pnl)}</div>
                             <div className={trade.returnPct == null ? 'text-text-muted' : trade.returnPct >= 0 ? 'text-bull-green' : 'text-bear-red'}>{trade.returnPct == null ? '—' : `${trade.returnPct.toFixed(2)}%`}</div>
+                            <PriceFreshness status={trade.priceStatus} asOf={trade.priceAsOf} />
                           </td>
                           <td className="px-3 py-4">
                             <span className={`rounded-full border px-2 py-1 text-xs font-bold ${trade.status === 'OPEN' ? 'border-primary/30 bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary'}`}>
