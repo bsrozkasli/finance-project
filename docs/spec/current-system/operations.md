@@ -162,8 +162,9 @@ Watchlist research snapshot circuit breaker: one breaker per section (`price`,
 and requests. Three provider-side failures (`RATE_LIMITED`, or `FAILED` from a
 5xx, I/O error, timeout, unreadable body or other exception) open it for 60
 seconds and the section reads `STALE` meanwhile. A `FAILED` from a 4xx other than
-429, `EMPTY` and `INSUFFICIENT_DATA` do not count, and an `OK` or `EMPTY` answer
-resets the count. A real provider outage therefore shows `STALE` for that section
+429, `EMPTY` and `INSUFFICIENT_DATA` do not count, and an `OK`, `EMPTY` or
+`INSUFFICIENT_DATA` answer resets the count (a `FAILED` from a 4xx neither counts nor
+resets it). A real provider outage therefore shows `STALE` for that section
 across the whole watchlist for up to 60 seconds.
 
 ### Data-service caches
