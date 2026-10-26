@@ -16,6 +16,8 @@ import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerform
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
 import { valuePortfolio } from '../utils/portfolioValuation';
 import CompanyLogo from './CompanyLogo';
+import PriceFreshness, { PricingStatusNote } from './PriceFreshness';
+import type { PriceStatus } from '../api/types';
 
 interface DashboardHomeProps {
   stocks: Stock[];
@@ -26,6 +28,8 @@ interface DashboardHomeProps {
   onOpenTradingJournal: () => void;
   onNavigateToNews: () => void;
   onNavigateToResearch?: () => void;
+  /** Worst price status of the API summary; STALE or FAILED adds one note next to the total. */
+  pricingStatus?: PriceStatus | null;
   news: News[];
   calendarEvents: CalendarEvent[];
 }
@@ -39,6 +43,7 @@ export default function DashboardHome({
   onOpenTradingJournal,
   onNavigateToNews,
   onNavigateToResearch,
+  pricingStatus,
   news,
   calendarEvents,
 }: DashboardHomeProps) {
@@ -187,6 +192,9 @@ export default function DashboardHome({
       return {
         ...position,
         currentPrice: stock.price,
+        // The price is live market data here, so the API's staleness label does not apply.
+        priceAsOf: null,
+        priceStatus: null,
         marketValue,
         dailyReturn: stock.changePercent,
         totalReturn: position.costPrice > 0 ? ((stock.price - position.costPrice) / position.costPrice) * 100 : position.totalReturn,
@@ -557,6 +565,7 @@ export default function DashboardHome({
               {portfolioMetrics.holdingsCount === 0 ? 'Veri yok: portföyde pozisyon yok' : portfolioMetrics.totalValue == null ? 'Kısmi veri: güncel fiyat eksik' : 'Tüm pozisyonlar fiyatlı'}
             </span>
           )}
+          <PricingStatusNote status={pricingStatus} />
         </div>
 
         <div className="bg-bg-card border border-outline-variant rounded-md p-5 flex flex-col justify-between">
@@ -1058,7 +1067,7 @@ export default function DashboardHome({
                           </div>
                         </td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-secondary">{formatCurrency(pos.costPrice)}</td>
-                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}</td>
+                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}<PriceFreshness status={pos.priceStatus} asOf={pos.priceAsOf} /></td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{pos.weight == null ? '-' : `${pos.weight.toFixed(2)}%`}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.dailyReturn)}`}>{formatReturn(pos.dailyReturn)}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.weeklyReturn)}`}>{formatReturn(pos.weeklyReturn)}</td>
