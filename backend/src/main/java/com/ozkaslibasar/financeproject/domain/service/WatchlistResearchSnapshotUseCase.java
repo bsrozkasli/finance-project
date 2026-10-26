@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
 import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
 import com.ozkaslibasar.financeproject.domain.model.Watchlist;
 import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchSnapshot;
@@ -31,8 +32,12 @@ import java.util.function.Supplier;
 
 public class WatchlistResearchSnapshotUseCase {
 
-    private static final String NO_DATA_MESSAGE = "No data returned by provider";
     private static final String FAILED_MESSAGE = "Provider request failed";
+    private static final String PRICE_SOURCE = "local-store/provider-chain";
+    private static final String PRICE_STALE_REFRESH_FAILED_MESSAGE =
+            "Provider refresh failed; showing the last stored price";
+    private static final String PRICE_STALE_REFRESH_EMPTY_MESSAGE =
+            "Provider returned no newer price; showing the last stored price";
     private static final int DEFAULT_LIMIT = 25;
     private static final int MAX_LIMIT = 50;
     private static final int PROVIDER_CONCURRENCY_LIMIT = 4;
@@ -94,7 +99,7 @@ public class WatchlistResearchSnapshotUseCase {
 
     private WatchlistResearchSnapshot.WatchlistResearchRow toRow(String symbol, boolean refresh) {
         WatchlistResearchSnapshot.WatchlistResearchSection<WatchlistResearchSnapshot.PriceSummary> price =
-                section("price", "local-store/provider-chain", () -> ProviderFetch.ofOptional(priceSummary(symbol), NO_DATA_MESSAGE));
+                guardedSection(null, PRICE_SOURCE, () -> priceSection(symbol));
         WatchlistResearchSnapshot.WatchlistResearchSection<WatchlistResearchSnapshot.TechnicalSummary> technical =
                 section("technical", "data-service/technical", () -> technicalSummary(symbol, refresh));
         WatchlistResearchSnapshot.WatchlistResearchSection<WatchlistResearchSnapshot.FundamentalSummary> fundamentals =
@@ -114,15 +119,38 @@ public class WatchlistResearchSnapshotUseCase {
                 overallStatus(List.of(price.status(), technical.status(), fundamentals.status(), earnings.status(), institutional.status())));
     }
 
-    private Optional<WatchlistResearchSnapshot.PriceSummary> priceSummary(String symbol) {
-        return priceRefreshService.getFreshLatest(symbol)
-                .map(price -> new WatchlistResearchSnapshot.PriceSummary(
-                        price.close(),
-                        price.open(),
-                        price.high(),
-                        price.low(),
-                        price.volume(),
-                        price.timestampAsInstant()));
+    /**
+     * The price section follows how the lookup obtained the price: only a price confirmed by a provider
+     * refresh is OK; a stored price after a failed or empty refresh is STALE and keeps its data; with no
+     * price at all the section is FAILED or EMPTY. The section has no circuit breaker.
+     */
+    private WatchlistResearchSnapshot.WatchlistResearchSection<WatchlistResearchSnapshot.PriceSummary> priceSection(
+            String symbol) {
+        PriceLookup lookup = Objects.requireNonNull(
+                priceRefreshService.lookupFreshLatest(symbol), "price lookup must not be null");
+        Instant observedAt = Instant.now();
+        Optional<WatchlistResearchSnapshot.PriceSummary> summary = lookup.price().map(this::toPriceSummary);
+        return switch (lookup.origin()) {
+            case FRESH -> WatchlistResearchSnapshot.WatchlistResearchSection.ok(PRICE_SOURCE, summary.orElseThrow(), observedAt);
+            case STORED_REFRESH_FAILED -> WatchlistResearchSnapshot.WatchlistResearchSection.stale(
+                    PRICE_SOURCE, summary.orElseThrow(), PRICE_STALE_REFRESH_FAILED_MESSAGE, observedAt);
+            case STORED_REFRESH_EMPTY -> WatchlistResearchSnapshot.WatchlistResearchSection.stale(
+                    PRICE_SOURCE, summary.orElseThrow(), PRICE_STALE_REFRESH_EMPTY_MESSAGE, observedAt);
+            case NONE_REFRESH_FAILED -> WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                    WatchlistResearchStatus.FAILED, PRICE_SOURCE, FAILED_MESSAGE, observedAt);
+            case NONE_REFRESH_EMPTY -> WatchlistResearchSnapshot.WatchlistResearchSection.empty(
+                    PRICE_SOURCE, ProviderFetch.NO_DATA_MESSAGE, observedAt);
+        };
+    }
+
+    private WatchlistResearchSnapshot.PriceSummary toPriceSummary(PriceHistory price) {
+        return new WatchlistResearchSnapshot.PriceSummary(
+                price.close(),
+                price.open(),
+                price.high(),
+                price.low(),
+                price.volume(),
+                price.timestampAsInstant());
     }
 
     /**
@@ -201,6 +229,18 @@ public class WatchlistResearchSnapshotUseCase {
             String circuitKey,
             String source,
             Supplier<ProviderFetch<T>> supplier) {
+        return guardedSection(circuitKey, source,
+                () -> toSection(circuitKey, source, requireFetch(supplier.get())));
+    }
+
+    /**
+     * Same concurrency limit and timeout as {@link #section}; a {@code null} circuit key means the section
+     * has no circuit breaker (the price section), so nothing is read from or written to the breaker state.
+     */
+    private <T> WatchlistResearchSnapshot.WatchlistResearchSection<T> guardedSection(
+            String circuitKey,
+            String source,
+            Supplier<WatchlistResearchSnapshot.WatchlistResearchSection<T>> sectionSupplier) {
         Instant now = Instant.now();
         if (isCircuitOpen(circuitKey, now)) {
             return WatchlistResearchSnapshot.WatchlistResearchSection.failed(
@@ -222,7 +262,7 @@ public class WatchlistResearchSnapshotUseCase {
                             "Provider concurrency queue timed out",
                             Instant.now());
                 }
-                return toSection(circuitKey, source, requireFetch(supplier.get()));
+                return sectionSupplier.get();
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 recordFailure(circuitKey, Instant.now());
@@ -305,15 +345,23 @@ public class WatchlistResearchSnapshotUseCase {
     }
 
     private boolean isCircuitOpen(String key, Instant now) {
+        if (key == null) {
+            return false;
+        }
         CircuitState state = circuitStates.get(key);
         return state != null && state.openUntil != null && state.openUntil.isAfter(now);
     }
 
     private void recordSuccess(String key) {
-        circuitStates.remove(key);
+        if (key != null) {
+            circuitStates.remove(key);
+        }
     }
 
     private void recordFailure(String key, Instant now) {
+        if (key == null) {
+            return;
+        }
         circuitStates.compute(key, (ignored, current) -> {
             int failures = current == null ? 1 : current.failures + 1;
             Instant openUntil = failures >= CIRCUIT_FAILURE_THRESHOLD ? now.plus(CIRCUIT_OPEN_DURATION) : null;

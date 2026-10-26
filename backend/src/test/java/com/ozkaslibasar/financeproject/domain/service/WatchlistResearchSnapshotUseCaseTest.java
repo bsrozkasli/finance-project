@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
 import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
 import com.ozkaslibasar.financeproject.domain.model.Watchlist;
 import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchSnapshot;
@@ -61,7 +62,8 @@ class WatchlistResearchSnapshotUseCaseTest {
                 researchDataPort);
         when(watchlistPort.findByIdAndUserId(1L, "default"))
                 .thenReturn(Optional.of(new Watchlist(1L, "default", "Core", List.of("AAPL"), null, null)));
-        when(priceRefreshService.getFreshLatest(anyString())).thenReturn(Optional.empty());
+        when(priceRefreshService.lookupFreshLatest(anyString()))
+                .thenReturn(new PriceLookup(Optional.empty(), PriceLookup.Origin.NONE_REFRESH_EMPTY));
         stubAllEmpty();
     }
 
@@ -137,7 +139,8 @@ class WatchlistResearchSnapshotUseCaseTest {
                 BigDecimal.valueOf(194),
                 BigDecimal.valueOf(123456),
                 LocalDateTime.of(2026, 7, 10, 15, 30));
-        when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.of(price));
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(new PriceLookup(Optional.of(price), PriceLookup.Origin.FRESH));
         when(technicalAnalysisPort.fetchTechnicalAnalysisResult("AAPL", "1d", "3mo"))
                 .thenReturn(ProviderFetch.rateLimited("Provider rate limited"));
         when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.ok(FUNDAMENTAL));
@@ -273,12 +276,101 @@ class WatchlistResearchSnapshotUseCaseTest {
         assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.EMPTY);
     }
 
+    // ---- price section: status from how the price was obtained (D-2) ----
+
+    private static final String STALE_FAILED_MESSAGE = "Provider refresh failed; showing the last stored price";
+    private static final String STALE_EMPTY_MESSAGE = "Provider returned no newer price; showing the last stored price";
+
+    private static PriceHistory storedPrice() {
+        return new PriceHistory("AAPL", BigDecimal.valueOf(190), BigDecimal.valueOf(195), BigDecimal.valueOf(188),
+                BigDecimal.valueOf(194), BigDecimal.valueOf(123456), LocalDateTime.of(2026, 7, 3, 20, 0));
+    }
+
+    private void stubLookup(PriceLookup.Origin origin) {
+        boolean hasPrice = origin == PriceLookup.Origin.FRESH
+                || origin == PriceLookup.Origin.STORED_REFRESH_FAILED
+                || origin == PriceLookup.Origin.STORED_REFRESH_EMPTY;
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(new PriceLookup(hasPrice ? Optional.of(storedPrice()) : Optional.empty(), origin));
+    }
+
     @Test
-    void thePriceSectionIsUnchangedAndKeepsItsOwnEmptyMessage() {
+    void aFreshPriceIsOkWithNoMessage() {
+        stubLookup(PriceLookup.Origin.FRESH);
+
+        var price = row().price();
+
+        assertThat(price.status()).isEqualTo(WatchlistResearchStatus.OK);
+        assertThat(price.message()).isNull();
+        assertThat(price.data().lastPrice()).isEqualByComparingTo("194");
+    }
+
+    @Test
+    void aStoredPriceAfterAFailedRefreshIsStaleAndKeepsItsData() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_FAILED);
+
+        var price = row().price();
+
+        assertThat(price.status()).isEqualTo(WatchlistResearchStatus.STALE);
+        assertThat(price.message()).isEqualTo(STALE_FAILED_MESSAGE);
+        assertThat(price.data().lastPrice()).isEqualByComparingTo("194");
+        assertThat(price.data().timestamp()).isEqualTo(storedPrice().timestampAsInstant());
+        assertThat(price.source()).isEqualTo("local-store/provider-chain");
+        assertThat(price.observedAt()).isNotNull();
+    }
+
+    @Test
+    void aStoredPriceAfterAnEmptyRefreshIsStaleAndKeepsItsData() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_EMPTY);
+
+        var price = row().price();
+
+        assertThat(price.status()).isEqualTo(WatchlistResearchStatus.STALE);
+        assertThat(price.message()).isEqualTo(STALE_EMPTY_MESSAGE);
+        assertThat(price.data().lastPrice()).isEqualByComparingTo("194");
+    }
+
+    @Test
+    void noPriceAfterAFailedRefreshIsFailedWithNoData() {
+        stubLookup(PriceLookup.Origin.NONE_REFRESH_FAILED);
+
+        var price = row().price();
+
+        assertThat(price.status()).isEqualTo(WatchlistResearchStatus.FAILED);
+        assertThat(price.message()).isEqualTo("Provider request failed");
+        assertThat(price.data()).isNull();
+    }
+
+    @Test
+    void noPriceAfterAnEmptyRefreshIsEmptyWithNoData() {
+        stubLookup(PriceLookup.Origin.NONE_REFRESH_EMPTY);
+
         var price = row().price();
 
         assertThat(price.status()).isEqualTo(WatchlistResearchStatus.EMPTY);
-        assertThat(price.message()).isEqualTo("No data returned by provider");
+        assertThat(price.message()).isEqualTo("Provider returned no data");
+        assertThat(price.data()).isNull();
+    }
+
+    @Test
+    void aStalePriceDoesNotChangeTheOverallPrecedence() {
+        stubLookup(PriceLookup.Origin.STORED_REFRESH_FAILED);
+        // Every other section is EMPTY (setUp): STALE takes no part in the precedence, so the row reads EMPTY.
+        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.EMPTY);
+
+        when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.ok(FUNDAMENTAL));
+        assertThat(row().overallStatus()).isEqualTo(WatchlistResearchStatus.OK);
+    }
+
+    @Test
+    void repeatedFailedPriceRefreshesNeverOpenABreaker() {
+        stubLookup(PriceLookup.Origin.NONE_REFRESH_FAILED);
+
+        for (int i = 0; i < 5; i++) {
+            assertThat(row().price().status()).isEqualTo(WatchlistResearchStatus.FAILED);
+            assertThat(row().price().message()).isEqualTo("Provider request failed");
+        }
+        verify(priceRefreshService, times(10)).lookupFreshLatest("AAPL");
     }
 
     // ---- circuit breaker: 3 failures open it for 60 s; per section key ----
