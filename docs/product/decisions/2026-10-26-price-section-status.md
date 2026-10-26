@@ -76,3 +76,12 @@ Rulings made while coding are appended below as `R-n`.
   a breaker for the price section.
 - **R-4. The watchlist screen shows the price's own time ("Fiyat zamanı").** The existing "Son gözlem" is the time of the
   request, so an old stored price looked current. "Son gözlem" keeps its meaning.
+- **R-5. Accepted semantics noted after review.** (1) The "Sağlıklı" tile counts snapshot rows whose overall status is `OK`,
+  so rows with a `STALE` section no longer count as healthy; this follows from R-1. (2) `FRESH` means the provider answered
+  with at least one row for the symbol; if all returned rows are older than the stored price, the stored price is still the
+  newest and the result is still `FRESH`, because the provider confirmed the symbol and no newer row exists to be shown.
+  A provider that serves old bars is not detected by this lookup. Cost if wrong: such a provider reads `OK` where a
+  freshness policy would read `STALE`.
+- **R-6. The "Fiyat zamanı" pill is proven by value, not by label.** The review found that its test asserted only the label,
+  so a pill showing the request time would pass. The test must assert the exact formatted price time, differ from the
+  request time in its fixture, and cover a null and an invalid timestamp.
