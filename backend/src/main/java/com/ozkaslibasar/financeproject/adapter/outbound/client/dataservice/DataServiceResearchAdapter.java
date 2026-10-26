@@ -42,13 +42,15 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'composite:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'composite:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<CompositeScore> fetchCompositeScore(String symbol) {
         return getCompositeScore(symbol).map(this::toDomain);
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'fundamental:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'fundamental:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<FundamentalResearch> fetchFundamental(String symbol) {
         try {
             String url = baseUrl + "/api/v1/research/fundamental/" + encode(symbol);
@@ -85,7 +87,8 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'valuation:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'valuation:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<ValuationMetrics> fetchValuation(String symbol) {
         try {
             String url = baseUrl + "/api/v1/research/valuation/" + encode(symbol);
@@ -103,7 +106,8 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
         }
     }
     @Override
-    @Cacheable(value = "researchCache", key = "'earnings:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'earnings:' + #symbol.toUpperCase()",
+            unless = "#result == null || #result.isEmpty()")
     public List<EarningsQuarter> fetchEarnings(String symbol) {
         try {
             String url = baseUrl + "/api/v1/research/earnings/" + encode(symbol);
@@ -119,7 +123,8 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
                             q.getSurprise(),
                             q.getSurprisePct(),
                             q.getBeat()))
-                    .toList();
+                    // Mutable list: an immutable Stream.toList() result cannot be read back from the Redis cache.
+                    .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
         } catch (Exception e) {
             log.warn("Failed to fetch earnings research for symbol={}. Reason: {}", symbol, e.getMessage());
             return List.of();
@@ -127,7 +132,8 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'institutional:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'institutional:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<InstitutionalScores> fetchInstitutionalScores(String symbol) {
         try {
             String url = baseUrl + "/api/v1/research/institutional-scores/" + encode(symbol);
