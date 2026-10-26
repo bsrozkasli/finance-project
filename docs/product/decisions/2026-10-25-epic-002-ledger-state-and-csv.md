@@ -349,3 +349,10 @@ Rulings made during implementation are appended here as `R-n` with the decision,
      document owners and describe the baseline, not delivery. The stale execution status of the EPIC-002 backend plan
      is updated to say what is merged and what still blocks acceptance (OQ-8, OQ-5 for the remaining contracts).
   Cost if wrong: documentation wording only.
+- **R-34. Opt-in workflow details** (R-33.1 follow-up, controller review). (1) Every step runs even when an earlier one
+  fails, so one failure does not hide the others; the job result is the verdict. (2) Surefire names reports by class, and
+  the three performance methods share one class, so each step copies its reports to its own folder before the next run
+  overwrites them; the uploaded artifact holds all four. (3) The single-symbol back-dated case measured 23.6 s staging and
+  46.0 s acceptance, but its test class took 107 s including context start, close to the 120-second fork limit; on a slower
+  runner that step can fail on the fork limit without a code fault. It is kept because an unmeasured limit is worse; if it
+  fails for that reason only, split its staging and acceptance across two methods. Cost if wrong: a noisy weekly job.
