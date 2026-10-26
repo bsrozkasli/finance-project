@@ -8,6 +8,8 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 @Slf4j
@@ -55,7 +57,16 @@ public class SmartReportUseCase {
             overallScore = score.overallScore();
             grade = score.grade() != null ? score.grade() : overallScore == null ? null : gradeFromScore(overallScore);
             recommendation = score.recommendation() != null ? score.recommendation() : overallScore == null ? null : recFromScore(overallScore);
-            sectionStatus = SectionStatusMapper.fromAvailability(score.breakdownAvailability());
+            Map<String, Integer> componentScores = new HashMap<>();
+            componentScores.put("fundamental_score", scoreBreakdown.fundamentalScore());
+            componentScores.put("valuation_score", scoreBreakdown.valuationScore());
+            componentScores.put("quality_score", scoreBreakdown.qualityScore());
+            componentScores.put("growth_score", scoreBreakdown.growthScore());
+            componentScores.put("momentum_score", scoreBreakdown.momentumScore());
+            componentScores.put("risk_score", scoreBreakdown.riskScore());
+            componentScores.put("earnings_score", scoreBreakdown.earningsScore());
+            componentScores.put("sentiment_score", scoreBreakdown.sentimentScore());
+            sectionStatus = SectionStatusMapper.fromAvailability(score.breakdownAvailability(), componentScores);
         } else {
             log.warn("Data-service unavailable for {}; building fallback report from Finnhub metrics", symbol);
             SmartReportMarketDataPort.CompanyMetrics metrics = smartReportMarketDataPort.fetchCompanyMetrics(symbol)

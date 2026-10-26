@@ -13,7 +13,9 @@ public interface SmartReportScorePort {
 
     /**
      * @param breakdownAvailability component name to availability; null when the source sent none
-     * @param unavailableComponents component names the source reported as missing; null when absent
+     * @param unavailableComponents component names the source reported as missing; null when absent.
+     *        Pass-through data only, not used (R-8): it keeps the data-service short names
+     *        ("valuation"), unlike the "*_score" keys of {@code breakdownAvailability}.
      */
     record CompositeScore(
             Integer overallScore,

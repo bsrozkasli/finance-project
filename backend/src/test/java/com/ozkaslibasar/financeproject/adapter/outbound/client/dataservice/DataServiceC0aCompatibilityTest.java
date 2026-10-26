@@ -19,8 +19,9 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 /**
  * Proves that the data-service consumer adapters tolerate the additive C0a availability
- * fields (the composite adapter now also consumes them; see DataServiceCompositeAvailabilityTest) and return populated domain results (spec §5 P1.1 C0a,
- * spec §9 "existing suites run unchanged").
+ * fields and return populated domain results (spec §5 P1.1 C0a, spec §9 "existing
+ * suites run unchanged"). The composite adapter now also consumes its fields; see
+ * DataServiceCompositeAvailabilityTest.
  *
  * RestTemplate's default MappingJackson2HttpMessageConverter uses Jackson with
  * FAIL_ON_UNKNOWN_PROPERTIES=false, so unknown fields are dropped without error.

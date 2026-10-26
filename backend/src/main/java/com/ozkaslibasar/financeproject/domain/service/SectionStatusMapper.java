@@ -33,15 +33,28 @@ public final class SectionStatusMapper {
         };
     }
 
-    /** Returns null when the source sent no availability at all. */
-    public static SmartReportSectionStatus fromAvailability(Map<String, ComponentAvailability> availability) {
+    /**
+     * Returns null when the source sent no availability at all. An "available" component whose
+     * score is null or missing from {@code scores} is reported with status null (R-7): present
+     * evidence is never claimed without a value.
+     */
+    public static SmartReportSectionStatus fromAvailability(
+            Map<String, ComponentAvailability> availability, Map<String, Integer> scores) {
         if (availability == null || availability.isEmpty()) {
             return null;
         }
         Map<String, SmartReportSectionStatus.Component> components = new LinkedHashMap<>();
-        availability.forEach((name, value) -> components.put(name, value == null
-                ? new SmartReportSectionStatus.Component(null, null)
-                : new SmartReportSectionStatus.Component(mapStatus(value.status()), value.unavailableReason())));
+        availability.forEach((name, value) -> {
+            if (value == null) {
+                components.put(name, new SmartReportSectionStatus.Component(null, null));
+                return;
+            }
+            WatchlistResearchStatus status = mapStatus(value.status());
+            if (status == WatchlistResearchStatus.OK && (scores == null || scores.get(name) == null)) {
+                status = null;
+            }
+            components.put(name, new SmartReportSectionStatus.Component(status, value.unavailableReason()));
+        });
         return new SmartReportSectionStatus(
                 overall(components.values().stream().map(SmartReportSectionStatus.Component::status).toList()),
                 components);

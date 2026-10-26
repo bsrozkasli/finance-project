@@ -46,7 +46,7 @@ class SectionStatusMapperTest {
         availability.put("risk_score", new ComponentAvailability("unparseable", "llm_response_invalid"));
         availability.put("growth_score", new ComponentAvailability("brand_new", "Some_Reason"));
 
-        SmartReportSectionStatus result = SectionStatusMapper.fromAvailability(availability);
+        SmartReportSectionStatus result = SectionStatusMapper.fromAvailability(availability, scoresFor(availability));
 
         assertThat(result.components().get("fundamental_score"))
                 .isEqualTo(new SmartReportSectionStatus.Component(WatchlistResearchStatus.OK, null));
@@ -64,12 +64,12 @@ class SectionStatusMapperTest {
     void overallIsOkOnlyWhenEveryComponentIsOk() {
         SmartReportSectionStatus allOk = SectionStatusMapper.fromAvailability(Map.of(
                 "a", new ComponentAvailability("available", null),
-                "b", new ComponentAvailability("available", null)));
+                "b", new ComponentAvailability("available", null)), Map.of("a", 1, "b", 1));
         assertThat(allOk.overall()).isEqualTo(WatchlistResearchStatus.OK);
 
         SmartReportSectionStatus oneEmpty = SectionStatusMapper.fromAvailability(Map.of(
                 "a", new ComponentAvailability("available", null),
-                "b", new ComponentAvailability("unavailable", "b_failed")));
+                "b", new ComponentAvailability("unavailable", "b_failed")), Map.of("a", 1));
         assertThat(oneEmpty.overall()).isEqualTo(WatchlistResearchStatus.EMPTY);
     }
 
@@ -93,10 +93,50 @@ class SectionStatusMapperTest {
                 .isEqualTo(WatchlistResearchStatus.EMPTY);
     }
 
+    private static Map<String, Integer> scoresFor(Map<String, ComponentAvailability> availability) {
+        Map<String, Integer> scores = new LinkedHashMap<>();
+        availability.forEach((name, value) -> scores.put(name, 1));
+        return scores;
+    }
+
+    @Test
+    void availableComponentWithNullScoreIsUnknownNeverOk() {
+        Map<String, Integer> scores = new LinkedHashMap<>();
+        scores.put("a", null);
+        scores.put("b", 70);
+
+        SmartReportSectionStatus result = SectionStatusMapper.fromAvailability(Map.of(
+                "a", new ComponentAvailability("available", null),
+                "b", new ComponentAvailability("available", null)), scores);
+
+        assertThat(result.components().get("a").status()).isNull();
+        assertThat(result.components().get("b").status()).isEqualTo(WatchlistResearchStatus.OK);
+        assertThat(result.overall()).isNull();
+    }
+
+    @Test
+    void availableComponentMissingFromScoresIsUnknownNeverOk() {
+        SmartReportSectionStatus result = SectionStatusMapper.fromAvailability(
+                Map.of("a", new ComponentAvailability("available", null)), Map.of());
+
+        assertThat(result.components().get("a").status()).isNull();
+    }
+
+    @Test
+    void nullScoreDoesNotDowngradeNonAvailableStatuses() {
+        java.util.Map<String, Integer> scores = new LinkedHashMap<>();
+        scores.put("a", null);
+
+        SmartReportSectionStatus result = SectionStatusMapper.fromAvailability(
+                Map.of("a", new ComponentAvailability("unavailable", "a_failed")), scores);
+
+        assertThat(result.components().get("a").status()).isEqualTo(WatchlistResearchStatus.EMPTY);
+    }
+
     @Test
     void noAvailabilityAtAllMeansNoSectionStatus() {
-        assertThat(SectionStatusMapper.fromAvailability(null)).isNull();
-        assertThat(SectionStatusMapper.fromAvailability(Map.of())).isNull();
+        assertThat(SectionStatusMapper.fromAvailability(null, Map.of())).isNull();
+        assertThat(SectionStatusMapper.fromAvailability(Map.of(), Map.of())).isNull();
     }
 
     @Test

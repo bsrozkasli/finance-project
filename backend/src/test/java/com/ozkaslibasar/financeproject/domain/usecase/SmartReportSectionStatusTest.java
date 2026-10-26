@@ -53,6 +53,26 @@ class SmartReportSectionStatusTest {
     }
 
     @Test
+    void availableComponentWithNullScoreIsNotOkInTheReport() {
+        SmartReportUseCase useCase = new SmartReportUseCase(scorePort, marketDataPort);
+        when(scorePort.fetchCompositeScore("AAPL")).thenReturn(Optional.of(new SmartReportScorePort.CompositeScore(
+                51, "C", "Hold", breakdown(),
+                Map.of("valuation_score", new ComponentAvailability("available", null),
+                        "fundamental_score", new ComponentAvailability("available", null)),
+                List.of())));
+        when(marketDataPort.fetchPeers("AAPL")).thenReturn(List.of());
+        when(marketDataPort.fetchCompanyMetrics("AAPL")).thenReturn(Optional.empty());
+
+        SmartReport report = useCase.getSmartReport("AAPL");
+
+        assertThat(report.getBreakdown().getValuationScore()).isNull();
+        assertThat(report.getSectionStatus().components().get("valuation_score").status()).isNull();
+        assertThat(report.getSectionStatus().components().get("fundamental_score").status())
+                .isEqualTo(WatchlistResearchStatus.OK);
+        assertThat(report.getSectionStatus().overall()).isNull();
+    }
+
+    @Test
     void compositeWithoutAvailabilityLeavesSectionStatusNull() {
         SmartReportUseCase useCase = new SmartReportUseCase(scorePort, marketDataPort);
         when(scorePort.fetchCompositeScore("AAPL")).thenReturn(Optional.of(new SmartReportScorePort.CompositeScore(
