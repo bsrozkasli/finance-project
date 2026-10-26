@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.client.dataservice;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
 import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -61,25 +62,7 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
             if (response == null || response.getSignal() == null) {
                 return Optional.empty();
             }
-            return Optional.of(new TechnicalAnalysisResult(
-                    response.getSymbol(),
-                    response.getTimestamp(),
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    response.getSignal().getAction(),
-                    response.getSignal().getConfidence()
-            ));
+            return Optional.of(toSignalResult(response));
         } catch (HttpClientErrorException e) {
             if (e.getStatusCode().value() == HttpStatus.UNPROCESSABLE_ENTITY.value()) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, INSUFFICIENT_CANDLES_MESSAGE, e);
@@ -90,6 +73,55 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
             log.warn("Failed to fetch technical signals for symbol={}. Returning empty result. Reason: {}", symbol, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    @Override
+    public ProviderFetch<TechnicalAnalysisResult> fetchTechnicalAnalysisResult(String symbol, String interval, String range) {
+        try {
+            TechnicalAnalysisResponseDto response =
+                    restTemplate.getForObject(technicalUrl(symbol, interval, range), TechnicalAnalysisResponseDto.class);
+            if (response == null || response.getIndicators() == null) {
+                return ProviderFetch.empty(DataServiceOutcomes.NO_DATA);
+            }
+            return ProviderFetch.ok(toResult(response));
+        } catch (RuntimeException e) {
+            return DataServiceOutcomes.fromException(e, "technical analysis", symbol);
+        }
+    }
+
+    @Override
+    public ProviderFetch<TechnicalAnalysisResult> fetchTechnicalSignalsResult(String symbol, String interval, String range) {
+        try {
+            AnalysisSummaryResponseDto response =
+                    restTemplate.getForObject(technicalSignalsUrl(symbol, interval, range), AnalysisSummaryResponseDto.class);
+            if (response == null || response.getSignal() == null) {
+                return ProviderFetch.empty(DataServiceOutcomes.NO_DATA);
+            }
+            return ProviderFetch.ok(toSignalResult(response));
+        } catch (RuntimeException e) {
+            return DataServiceOutcomes.fromException(e, "technical signals", symbol);
+        }
+    }
+
+    private TechnicalAnalysisResult toSignalResult(AnalysisSummaryResponseDto response) {
+        return new TechnicalAnalysisResult(
+                response.getSymbol(),
+                response.getTimestamp(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                response.getSignal().getAction(),
+                response.getSignal().getConfidence());
     }
 
     @Override

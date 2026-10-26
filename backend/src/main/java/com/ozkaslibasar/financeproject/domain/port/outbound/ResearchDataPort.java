@@ -1,9 +1,13 @@
 package com.ozkaslibasar.financeproject.domain.port.outbound;
 
+import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
+
 import java.util.List;
 import java.util.Optional;
 
 public interface ResearchDataPort {
+
+    String NO_DATA_MESSAGE = "Provider returned no data";
 
     Optional<FundamentalResearch> fetchFundamental(String symbol);
 
@@ -12,6 +16,22 @@ public interface ResearchDataPort {
     List<EarningsQuarter> fetchEarnings(String symbol);
 
     Optional<InstitutionalScores> fetchInstitutionalScores(String symbol);
+
+    /**
+     * Outcome-returning variants that keep a provider failure apart from "no data". The defaults wrap the
+     * Optional methods and so can only report OK or EMPTY; adapters that can see the failure override them.
+     */
+    default ProviderFetch<FundamentalResearch> fetchFundamentalResult(String symbol) {
+        return ProviderFetch.ofOptional(fetchFundamental(symbol), NO_DATA_MESSAGE);
+    }
+
+    default ProviderFetch<List<EarningsQuarter>> fetchEarningsResult(String symbol) {
+        return ProviderFetch.ofList(fetchEarnings(symbol), NO_DATA_MESSAGE);
+    }
+
+    default ProviderFetch<InstitutionalScores> fetchInstitutionalScoresResult(String symbol) {
+        return ProviderFetch.ofOptional(fetchInstitutionalScores(symbol), NO_DATA_MESSAGE);
+    }
 
     record FundamentalResearch(
             String symbol,

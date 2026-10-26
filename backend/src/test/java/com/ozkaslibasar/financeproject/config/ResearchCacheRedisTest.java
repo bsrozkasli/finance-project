@@ -26,12 +26,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 
+import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
+import org.springframework.test.web.client.ResponseCreator;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpMethod.GET;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
+import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.TOO_MANY_REQUESTS;
+import static org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -152,5 +158,75 @@ class ResearchCacheRedisTest {
         assertFailureIsNotRemembered("composite/AAPL",
                 "{\"symbol\":\"AAPL\",\"overall_score\":61,\"grade\":\"B\",\"recommendation\":\"Buy\"}",
                 () -> scorePort.fetchCompositeScore("AAPL"), Optional::isPresent);
+    }
+
+    /**
+     * D-4: FAILED, EMPTY, INSUFFICIENT_DATA and RATE_LIMITED are never remembered (each call reaches the stub);
+     * an OK outcome is stored and read back equal through the real Redis serializer (no stub for the third call).
+     */
+    private <T> void assertOnlyOkOutcomeIsCached(String path, String okBody, Supplier<ProviderFetch<T>> call) {
+        for (ResponseCreator nonOk : List.of(
+                withStatus(INTERNAL_SERVER_ERROR), withStatus(NOT_FOUND),
+                withStatus(UNPROCESSABLE_ENTITY), withStatus(TOO_MANY_REQUESTS))) {
+            server.reset();
+            server.expect(once(), requestTo(BASE + path)).andExpect(method(GET)).andRespond(nonOk);
+            assertThat(call.get().ok()).isFalse();
+            server.verify();
+        }
+        server.reset();
+        expectBody(path, okBody);
+        ProviderFetch<T> ok = call.get();
+        assertThat(ok.ok()).isTrue();
+        server.verify();
+
+        server.reset(); // nothing expected: a stub hit would fail
+        ProviderFetch<T> fromCache = call.get();
+        assertThat(fromCache).isEqualTo(ok);
+        assertThat(fromCache.data()).isNotNull();
+    }
+
+    @Test
+    void fundamentalOutcomeIsCachedOnlyWhenOkAndRoundTripsThroughRedis() {
+        assertOnlyOkOutcomeIsCached("fundamental/AAPL",
+                "{\"symbol\":\"AAPL\",\"metrics\":{\"roe\":0.2},\"fiscal_year\":\"2025\",\"currency\":\"USD\"}",
+                () -> adapter.fetchFundamentalResult("AAPL"));
+    }
+
+    @Test
+    void earningsOutcomeIsCachedOnlyWhenOkAndRoundTripsThroughRedis() {
+        assertOnlyOkOutcomeIsCached("earnings/AAPL",
+                "{\"symbol\":\"AAPL\",\"history\":[{\"period\":\"2026Q1\",\"actual\":1.5,\"estimate\":1.4,\"beat\":true}]}",
+                () -> adapter.fetchEarningsResult("AAPL"));
+    }
+
+    @Test
+    void institutionalOutcomeIsCachedOnlyWhenOkAndRoundTripsThroughRedis() {
+        assertOnlyOkOutcomeIsCached("institutional-scores/AAPL",
+                "{\"symbol\":\"AAPL\",\"scores\":{\"piotroski_f_score\":7,\"altman_z_score\":3.1,\"economic_moat\":\"wide\"}}",
+                () -> adapter.fetchInstitutionalScoresResult("AAPL"));
+    }
+
+    @Test
+    void outcomeCacheKeysDoNotCollideWithTheOptionalMethodKeys() {
+        expectBody("fundamental/AAPL", "{\"symbol\":\"AAPL\",\"metrics\":{\"roe\":0.2}}");
+        assertThat(adapter.fetchFundamentalResult("AAPL").ok()).isTrue();
+        server.verify();
+        server.reset();
+        // The Optional method has its own key and value type, so it must still reach the stub once.
+        expectBody("fundamental/AAPL", "{\"symbol\":\"AAPL\",\"metrics\":{\"roe\":0.2}}");
+        assertThat(adapter.fetchFundamental("AAPL")).isPresent();
+        server.verify();
+    }
+
+    @Test
+    void technicalOutcomeValueRoundTripsThroughTheSharedSerializer() {
+        ProviderFetch<TechnicalAnalysisPort.TechnicalAnalysisResult> fetch = ProviderFetch.ok(
+                new TechnicalAnalysisPort.TechnicalAnalysisResult("AAPL", "t", 55.0, 1.0, 0.5, 0.5, 200.0, 190.0,
+                        180.0, 2.0, 191.0, 190.0, 185.0, 170.0, 192.0, "BUY", 0.7));
+        cacheManager.getCache("researchCache").put("technical-result:AAPL", fetch);
+
+        Object read = cacheManager.getCache("researchCache").get("technical-result:AAPL").get();
+
+        assertThat(read).isEqualTo(fetch);
     }
 }
