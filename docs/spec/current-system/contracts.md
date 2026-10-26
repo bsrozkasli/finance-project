@@ -376,9 +376,33 @@ disable the section for the others. `OK`, `EMPTY` and `INSUFFICIENT_DATA` never
 count.
 
 Behavior change: a failed data-service call now reads `FAILED` instead of `EMPTY`,
-and a 422 (`INSUFFICIENT_DATA`) no longer counts toward the breaker. The `price`
-section and the overall-status precedence are unchanged.
+and a 422 (`INSUFFICIENT_DATA`) no longer counts toward the breaker. The
+overall-status precedence is unchanged.
 Decision record `docs/product/decisions/2026-10-26-provider-failure-status.md`.
+
+**Watchlist research-snapshot `price` section status (2026-10-26).** The `price`
+section status comes from how the newest price was obtained, not from whether a
+price exists. Endpoint path, field names and the seven status strings are
+unchanged; a `STALE` price section keeps its `data` (price, volume and the price's
+own `timestamp`).
+
+| Price lookup | Section status | Data | Section message |
+|---|---|---|---|
+| Provider returned a row for the symbol | `OK` | price | none |
+| Stored price only, provider call threw | `STALE` | stored price | `Provider refresh failed; showing the last stored price` |
+| Stored price only, provider returned nothing (or only other symbols) | `STALE` | stored price | `Provider returned no newer price; showing the last stored price` |
+| No price, provider call threw | `FAILED` | null | `Provider request failed` |
+| No price, provider returned nothing | `EMPTY` | null | `Provider returned no data` |
+
+For `price`, `STALE` means a refresh was attempted and could not confirm the price
+is current; no market-calendar logic applies, so a price that is current only
+because the market is closed reads `STALE` when the provider returns nothing newer.
+`STALE` takes no part in the overall-status precedence (it is not in the list of
+`RATE_LIMITED`, `FAILED`, `INSUFFICIENT_DATA`, `OK`), so a row whose only data is a
+`STALE` price and whose other sections are `EMPTY` still reads `EMPTY` overall. The
+price section has no circuit breaker. The detail panel shows the price's own time
+("Fiyat zamanı") beside the observation time.
+Decision record `docs/product/decisions/2026-10-26-price-section-status.md`.
 
 ## Evidence Anchors
 
