@@ -3,6 +3,10 @@ name: backend-opt-in-tests
 # Opt-in backend tests that do not fit the default suite's 120 s Surefire fork
 # limit (fixed in backend/pom.xml). Never runs on push or pull_request (R-33.1).
 # Each test method runs in its own Maven invocation so none exceeds that limit.
+# Every step runs even if an earlier one failed, and each step's Surefire reports
+# are copied to their own folder because the perf methods share one class and
+# Surefire names reports by class (a later run would overwrite an earlier one).
+# The verdict is the job result and these reports.
 
 on:
   workflow_dispatch:
@@ -40,29 +44,48 @@ jobs:
         run: chmod +x ./mvnw
 
       - name: Backup restore proof
-        continue-on-error: false
         working-directory: backend
         run: ./mvnw test -B --no-transfer-progress -Dbackup.restore=true -Dtest=PortfolioBackupRestoreTest
 
+      - name: Keep reports (restore)
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: mkdir -p ../opt-in-reports/restore && cp -r target/surefire-reports/. ../opt-in-reports/restore/ || true
+
       - name: CSV import performance, appended rows
-        continue-on-error: false
+        if: ${{ !cancelled() }}
         working-directory: backend
         run: ./mvnw test -B --no-transfer-progress -Dcsv.perf=true -Dtest='PortfolioCsvImportPerformanceTest#stagesAndAcceptsAFullFileOfAppendedRows'
 
+      - name: Keep reports (perf-appended)
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: mkdir -p ../opt-in-reports/perf-appended && cp -r target/surefire-reports/. ../opt-in-reports/perf-appended/ || true
+
       - name: CSV import performance, back-dated rows over 50 symbols
-        continue-on-error: false
+        if: ${{ !cancelled() }}
         working-directory: backend
         run: ./mvnw test -B --no-transfer-progress -Dcsv.perf=true -Dtest='PortfolioCsvImportPerformanceTest#stagesAndAcceptsAFullFileOfBackDatedRows'
 
+      - name: Keep reports (perf-backdated-50)
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: mkdir -p ../opt-in-reports/perf-backdated-50 && cp -r target/surefire-reports/. ../opt-in-reports/perf-backdated-50/ || true
+
       - name: CSV import performance, back-dated rows over one symbol
-        continue-on-error: false
+        if: ${{ !cancelled() }}
         working-directory: backend
         run: ./mvnw test -B --no-transfer-progress -Dcsv.perf=true -Dtest='PortfolioCsvImportPerformanceTest#stagesAndAcceptsAFullFileOfBackDatedRowsForOneSymbol'
+
+      - name: Keep reports (perf-backdated-1)
+        if: ${{ !cancelled() }}
+        working-directory: backend
+        run: mkdir -p ../opt-in-reports/perf-backdated-1 && cp -r target/surefire-reports/. ../opt-in-reports/perf-backdated-1/ || true
 
       - name: Upload backend test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: backend-opt-in-surefire-reports
-          path: backend/target/surefire-reports/
+          path: opt-in-reports/
           if-no-files-found: warn
