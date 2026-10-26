@@ -83,3 +83,7 @@ The three open items from the 2026-10-17 draft are answered:
 - This closes OQ-5 only for the unresolved instrument type (`PRD-FR-003`). The other OQ-5 contract migrations stay open until their stories are authored: CSV lineage (`PRD-FR-012`), PEG (`PRD-FR-061`), and agent replay and decision vocabulary (`PRD-FR-027`, `PRD-FR-028`).
 - Eligibility still fails closed. `InstrumentEligibilityService` has no `SecurityMasterPort` adapter, because OQ-2 (licensed point-in-time master and use rights) is a data-governance and legal decision and remains open.
 - The number of rows V7 changes on a deployed database is not known from the repository. It is logged by Flyway as the affected-row count of the update.
+
+## Note (2026-10-26)
+
+`WatchlistResearchService` was removed on 2026-10-26. It was unused: no production code or configuration referenced it and only its own test did. Its third `STOCK` metadata fallback (path P4 and the matching consumer row above) went with it. The rows above are kept as the record of the audit state. See `docs/product/decisions/2026-10-26-remove-dead-watchlist-service.md`.
