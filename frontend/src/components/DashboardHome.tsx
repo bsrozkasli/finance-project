@@ -16,8 +16,7 @@ import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerform
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
 import { valuePortfolio } from '../utils/portfolioValuation';
 import CompanyLogo from './CompanyLogo';
-import PriceFreshness, { PricingStatusNote } from './PriceFreshness';
-import type { PriceStatus } from '../api/types';
+import PriceFreshness from './PriceFreshness';
 
 interface DashboardHomeProps {
   stocks: Stock[];
@@ -28,8 +27,6 @@ interface DashboardHomeProps {
   onOpenTradingJournal: () => void;
   onNavigateToNews: () => void;
   onNavigateToResearch?: () => void;
-  /** Worst price status of the API summary; STALE or FAILED adds one note next to the total. */
-  pricingStatus?: PriceStatus | null;
   news: News[];
   calendarEvents: CalendarEvent[];
 }
@@ -43,7 +40,6 @@ export default function DashboardHome({
   onOpenTradingJournal,
   onNavigateToNews,
   onNavigateToResearch,
-  pricingStatus,
   news,
   calendarEvents,
 }: DashboardHomeProps) {
@@ -565,7 +561,6 @@ export default function DashboardHome({
               {portfolioMetrics.holdingsCount === 0 ? 'Veri yok: portföyde pozisyon yok' : portfolioMetrics.totalValue == null ? 'Kısmi veri: güncel fiyat eksik' : 'Tüm pozisyonlar fiyatlı'}
             </span>
           )}
-          <PricingStatusNote status={pricingStatus} />
         </div>
 
         <div className="bg-bg-card border border-outline-variant rounded-md p-5 flex flex-col justify-between">

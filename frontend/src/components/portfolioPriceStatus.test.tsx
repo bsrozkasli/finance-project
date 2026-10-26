@@ -54,7 +54,8 @@ const renderManager = (pricingStatus?: PriceStatus | null) => render(
   />,
 );
 
-const renderDashboard = (pricingStatus?: PriceStatus | null) => render(
+// DashboardHome takes no pricingStatus: its total is live (R-14); any status passed by the shared cases is ignored.
+const renderDashboard = () => render(
   <DashboardHome
     stocks={[stock('AAPL', 120)]}
     portfolios={[portfolio]}
@@ -63,7 +64,6 @@ const renderDashboard = (pricingStatus?: PriceStatus | null) => render(
     onSelectStock={vi.fn()}
     onOpenTradingJournal={vi.fn()}
     onNavigateToNews={vi.fn()}
-    pricingStatus={pricingStatus}
     news={[]}
     calendarEvents={[]}
   />,
@@ -122,11 +122,12 @@ describe.each(screens)('%s price staleness', (_name, renderScreen) => {
     expect(row).not.toHaveTextContent(formatExpected(PRICE_AS_OF));
   });
 
-  it.each(['STALE', 'FAILED'] as const)('shows one summary note for pricingStatus %s', async (status) => {
+  it.each(['STALE', 'FAILED'] as const)('summary note count for pricingStatus %s (manager 1, dashboard 0)', async (status) => {
     useRows([position('NVDA')]);
     renderScreen(status);
     await rowOf('NVDA');
-    expect(screen.getAllByText(NOTE)).toHaveLength(1);
+    // Only the manager's total comes from API prices; the dashboard total is live (R-14).
+    expect(screen.queryAllByText(NOTE)).toHaveLength(_name === 'PortfolioManagerView' ? 1 : 0);
   });
 
   it.each([['OK', 'OK' as PriceStatus], ['EMPTY', 'EMPTY' as PriceStatus], ['null', null], ['absent', undefined]])(

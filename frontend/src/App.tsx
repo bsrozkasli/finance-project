@@ -406,7 +406,6 @@ export default function App() {
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
                 onNavigateToNews={() => navigate('/news')}
                 onNavigateToResearch={() => navigate('/workspace')}
-                pricingStatus={apiPortfolioSummary?.pricingStatus}
                 news={news}
                 calendarEvents={calendarEvents}
               />

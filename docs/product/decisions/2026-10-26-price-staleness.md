@@ -124,3 +124,4 @@ Rulings made while coding are appended below as `R-n`.
   controller and real-Redis tests instead.
 - **R-13. Frontend tests were written after the implementation** (no red run); four mutations were caught as compensating
   evidence.
+- **R-14. DashboardHome shows no summary note.** Why: its header total is computed from live market data, so the API summary pricingStatus does not describe it; the per-row pill already shows only for DTO prices. Cost if wrong: a stale backend summary is not mentioned on that screen.
