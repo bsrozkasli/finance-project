@@ -154,7 +154,17 @@ snapshot are cached in `researchCache` under their own keys
 the outcome is `OK`; `FAILED`, `RATE_LIMITED`, `INSUFFICIENT_DATA` and `EMPTY` are
 never cached. The technical outcome methods are not cached. Earnings lists are
 returned as mutable lists because an immutable list cannot be read back from the
-Redis serializer.
+Redis serializer. Cached outcome entries embed record class names, so a change to
+those record shapes needs the cache cleared or its 12 hours to pass.
+
+Watchlist research snapshot circuit breaker: one breaker per section (`price`,
+`technical`, `fundamentals`, `earnings`, `institutional`), shared across symbols
+and requests. Three provider-side failures (`RATE_LIMITED`, or `FAILED` from a
+5xx, I/O error, timeout, unreadable body or other exception) open it for 60
+seconds and the section reads `STALE` meanwhile. A `FAILED` from a 4xx other than
+429, `EMPTY` and `INSUFFICIENT_DATA` do not count, and an `OK` or `EMPTY` answer
+resets the count. A real provider outage therefore shows `STALE` for that section
+across the whole watchlist for up to 60 seconds.
 
 ### Data-service caches
 

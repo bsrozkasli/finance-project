@@ -361,11 +361,23 @@ sentences, never raw provider text. `RATE_LIMITED` rarely appears from the
 data-service because it sends no 429 (a provider 429 becomes a 500 or a 404);
 the snapshot's own concurrency-queue timeout still yields `RATE_LIMITED`. The
 technical section combines two calls (indicators and signal): data from either
-gives `OK` with the other part null; with none, the more severe outcome wins
-(`RATE_LIMITED`, `FAILED`, `INSUFFICIENT_DATA`, `EMPTY`). `FAILED` and
-`RATE_LIMITED` count toward the section's circuit breaker (3 failures open it for
-60 seconds, then the section is `STALE`); `OK`, `EMPTY` and `INSUFFICIENT_DATA` do
-not. The `price` section and the overall-status precedence are unchanged.
+gives `OK` with the other part null, so a failed half is hidden when the other
+half has data and a 422 on the indicators call no longer fails the section; with
+no data from either, the more severe outcome wins (`RATE_LIMITED`, `FAILED`,
+`INSUFFICIENT_DATA`, `EMPTY`).
+
+The circuit breaker is per section and shared across all symbols and requests:
+3 provider-side failures open it for 60 seconds, during which that section reads
+`STALE` for every symbol. Provider-side failures are `RATE_LIMITED` and `FAILED`
+caused by a 5xx, I/O error, timeout, unreadable body or any other exception. A
+`FAILED` caused by a 4xx other than 429 (for example 400 or 403 for one unknown
+symbol) keeps the `FAILED` status but does not count, so one bad symbol cannot
+disable the section for the others. `OK`, `EMPTY` and `INSUFFICIENT_DATA` never
+count.
+
+Behavior change: a failed data-service call now reads `FAILED` instead of `EMPTY`,
+and a 422 (`INSUFFICIENT_DATA`) no longer counts toward the breaker. The `price`
+section and the overall-status precedence are unchanged.
 Decision record `docs/product/decisions/2026-10-26-provider-failure-status.md`.
 
 ## Evidence Anchors
