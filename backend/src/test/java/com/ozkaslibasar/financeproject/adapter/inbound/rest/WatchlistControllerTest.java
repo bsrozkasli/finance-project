@@ -107,6 +107,37 @@ class WatchlistControllerTest {
         // RATE_LIMITED is covered by researchSnapshotReturnsPaginatedPartialStatusPayload.
     }
 
+    /** A STALE price section keeps its data on the wire: same fields, price and timestamp present. */
+    @Test
+    void researchSnapshotSerializesAStalePriceSectionWithItsData() throws Exception {
+        Instant at = Instant.parse("2026-07-10T00:00:00Z");
+        Instant priceAt = Instant.parse("2026-07-03T20:00:00Z");
+        WatchlistResearchSnapshot snapshot = new WatchlistResearchSnapshot(
+                7L, "Core", 1, 25, 0, List.of("AAPL"),
+                List.of(new WatchlistResearchSnapshot.WatchlistResearchRow(
+                        "AAPL",
+                        WatchlistResearchSnapshot.WatchlistResearchSection.stale("local-store/provider-chain",
+                                new WatchlistResearchSnapshot.PriceSummary(
+                                        new java.math.BigDecimal("194"), null, null, null, null, priceAt),
+                                "Provider refresh failed; showing the last stored price", at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.empty("data-service/technical", "n", at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.empty("f", "n", at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.empty("e", "n", at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.empty("i", "n", at),
+                        WatchlistResearchStatus.EMPTY)),
+                new WatchlistResearchSnapshot.WatchlistResearchPolicy(50, 4, 4000, true, true), at);
+        when(researchSnapshotUseCase.getSnapshot("default", 7L, 25, 0, List.of(), false)).thenReturn(snapshot);
+
+        mockMvc.perform(get("/api/v1/watchlists/7/research-snapshot"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].price.status").value("STALE"))
+                .andExpect(jsonPath("$.rows[0].price.source").value("local-store/provider-chain"))
+                .andExpect(jsonPath("$.rows[0].price.message").value("Provider refresh failed; showing the last stored price"))
+                .andExpect(jsonPath("$.rows[0].price.observedAt").exists())
+                .andExpect(jsonPath("$.rows[0].price.data.lastPrice").value(194))
+                .andExpect(jsonPath("$.rows[0].price.data.timestamp").exists());
+    }
+
     @Test
     void researchSnapshotReturns404WhenWatchlistDoesNotExist() throws Exception {
         when(researchSnapshotUseCase.getSnapshot("default", 404L, 25, 0, List.of(), false))

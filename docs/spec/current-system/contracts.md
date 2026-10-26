@@ -376,9 +376,39 @@ disable the section for the others. `OK`, `EMPTY` and `INSUFFICIENT_DATA` never
 count.
 
 Behavior change: a failed data-service call now reads `FAILED` instead of `EMPTY`,
-and a 422 (`INSUFFICIENT_DATA`) no longer counts toward the breaker. The `price`
-section and the overall-status precedence are unchanged.
+and a 422 (`INSUFFICIENT_DATA`) no longer counts toward the breaker. (The overall
+status later gained `STALE`; see the `price` section note below.)
 Decision record `docs/product/decisions/2026-10-26-provider-failure-status.md`.
+
+**Watchlist research-snapshot `price` section status (2026-10-26).** The `price`
+section status comes from how the newest price was obtained, not from whether a
+price exists. Endpoint path, field names and the seven status strings are
+unchanged; a `STALE` price section keeps its `data` (price, volume and the price's
+own `timestamp`).
+
+| Price lookup | Section status | Data | Section message |
+|---|---|---|---|
+| Provider returned a row for the symbol | `OK` | price | none |
+| Stored price only, provider call threw | `STALE` | stored price | `Provider refresh failed; showing the last stored price` |
+| Stored price only, provider returned nothing (or only other symbols) | `STALE` | stored price | `Provider returned no newer price; showing the last stored price` |
+| No price, provider call threw | `FAILED` | null | `Provider request failed` |
+| No price, provider returned nothing | `EMPTY` | null | `Provider returned no data` |
+
+For `price`, `STALE` means a refresh was attempted and could not confirm the price
+is current; no market-calendar logic applies, so a price that is current only
+because the market is closed reads `STALE` when the provider returns nothing newer.
+The per-row `overallStatus` is the worst section status in the order
+`RATE_LIMITED`, `FAILED`, `STALE`, `INSUFFICIENT_DATA`, `OK`, `EMPTY`. Behavior
+change (ruling R-1): `STALE` now takes part, so a row whose overall read `OK` (or
+`EMPTY`) because of a `STALE` price, or of a section held `STALE` by an open circuit
+breaker, now reads `STALE`; `STALE` ranks above `INSUFFICIENT_DATA`. The price
+section has no circuit breaker. The "Sağlıklı" tile counts rows whose overall
+status is `OK`, so rows with a `STALE` section no longer count as healthy. `OK` for
+`price` means the provider returned at least one row for the symbol, even when the
+stored price is newer than every returned row (the stored price is then shown); a
+provider that serves old bars is not detected and reads `OK`. The detail panel
+shows the price's own time ("Fiyat zamanı") beside the observation time.
+Decision record `docs/product/decisions/2026-10-26-price-section-status.md`.
 
 ## Evidence Anchors
 

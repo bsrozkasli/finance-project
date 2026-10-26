@@ -95,6 +95,17 @@ tests for success, empty response, provider failure, and fallback ordering.
   Price DTOs expose timestamps but no explicit stale flag, so consumers can only
   infer freshness from time. This is a current contract gap; documentation and UI
   must not claim that fallback price rows carry explicit stale metadata.
+- `PriceRefreshService.lookupFreshLatest` returns the newest price with its origin:
+  `FRESH` (the provider returned a row for the symbol), `STORED_REFRESH_FAILED` (the
+  provider call threw, only a stored price), `STORED_REFRESH_EMPTY` (null, empty or
+  only other symbols' rows, only a stored price), `NONE_REFRESH_FAILED`,
+  `NONE_REFRESH_EMPTY`. It shares the fetch-and-persist path with `getFreshLatest`;
+  failure is told from empty by the exception, never by message text. Only the
+  watchlist research snapshot uses it (price section status, see `contracts.md`).
+  Follow-up: `JournalTradeService`, `PortfolioDashboardController` and
+  `PriceController` still use `getFreshLatest` and can present a stored price as
+  current after a failed refresh; each needs its own contract decision (a staleness
+  field on its response).
 - Asset metadata uses `VERIFIED`, `PARTIAL`, or `UNAVAILABLE`.
 - Technical analysis rejects fewer than 30 candles and leaves long-lookback
   indicators nullable when history is insufficient.
@@ -157,15 +168,19 @@ returned as mutable lists because an immutable list cannot be read back from the
 Redis serializer. Cached outcome entries embed record class names, so a change to
 those record shapes needs the cache cleared or its 12 hours to pass.
 
-Watchlist research snapshot circuit breaker: one breaker per section (`price`,
-`technical`, `fundamentals`, `earnings`, `institutional`), shared across symbols
+Watchlist research snapshot circuit breaker: one breaker per section
+(`technical`, `fundamentals`, `earnings`, `institutional`; the `price` section has
+none), shared across symbols
 and requests. Three provider-side failures (`RATE_LIMITED`, or `FAILED` from a
 5xx, I/O error, timeout, unreadable body or other exception) open it for 60
 seconds and the section reads `STALE` meanwhile. A `FAILED` from a 4xx other than
 429, `EMPTY` and `INSUFFICIENT_DATA` do not count, and an `OK`, `EMPTY` or
 `INSUFFICIENT_DATA` answer resets the count (a `FAILED` from a 4xx neither counts nor
 resets it). A real provider outage therefore shows `STALE` for that section
-across the whole watchlist for up to 60 seconds.
+across the whole watchlist for up to 60 seconds. The per-row overall status
+includes this `STALE` (order `RATE_LIMITED`, `FAILED`, `STALE`,
+`INSUFFICIENT_DATA`, `OK`, `EMPTY`), so rows that read `OK` during an outage now
+read `STALE`: a behavior change, see `contracts.md`.
 
 ### Data-service caches
 

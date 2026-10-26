@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import org.junit.jupiter.api.Test;
@@ -482,6 +483,141 @@ class PriceRefreshServiceTest {
         assertThat(toCaptor.getValue()).isBeforeOrEqualTo(after.plusSeconds(2));
 
         org.mockito.Mockito.clearInvocations(priceRepository, financialDataPort);
+    }
+
+    // ---- lookupFreshLatest: the price together with how it was obtained ----
+
+    private PriceRefreshService lookupService(PriceHistory stored) {
+        when(priceRepository.findLatestByAssetId("AAPL")).thenReturn(Optional.ofNullable(stored));
+        return new PriceRefreshService(priceRepository, financialDataPort);
+    }
+
+    @Test
+    void lookupReportsFreshWhenTheProviderReturnsAMatchingRow() {
+        PriceHistory stored = price("AAPL", "100", Instant.now().minusSeconds(3600));
+        PriceHistory fetched = price("AAPL", "111", Instant.now());
+        PriceRefreshService service = lookupService(stored);
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d")).thenReturn(List.of(fetched));
+
+        PriceLookup result = service.lookupFreshLatest("aapl");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.FRESH);
+        assertThat(result.price()).contains(fetched);
+        verify(priceRepository).saveAll(List.of(fetched));
+    }
+
+    @Test
+    void lookupReportsFreshWithNoStoredPrice() {
+        PriceHistory fetched = price("AAPL", "111", Instant.now());
+        PriceRefreshService service = lookupService(null);
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d")).thenReturn(List.of(fetched));
+
+        PriceLookup result = service.lookupFreshLatest("AAPL");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.FRESH);
+        assertThat(result.price()).contains(fetched);
+    }
+
+    @Test
+    void lookupStillReportsFreshWhenTheStoredRowIsNewerThanTheFetchedOne() {
+        PriceHistory stored = price("AAPL", "120", Instant.now());
+        PriceHistory fetched = price("AAPL", "111", Instant.now().minusSeconds(86400));
+        PriceRefreshService service = lookupService(stored);
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d")).thenReturn(List.of(fetched));
+
+        PriceLookup result = service.lookupFreshLatest("AAPL");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.FRESH);
+        assertThat(result.price()).contains(stored);
+    }
+
+    @Test
+    void lookupReportsStoredRefreshFailedWhenTheProviderThrows() {
+        PriceHistory stored = price("AAPL", "100", Instant.now().minusSeconds(3600));
+        PriceRefreshService service = lookupService(stored);
+        // The message deliberately reads like "no data": classification must not look at message text.
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d"))
+                .thenThrow(new IllegalStateException("No data returned"));
+
+        PriceLookup result = service.lookupFreshLatest("AAPL");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.STORED_REFRESH_FAILED);
+        assertThat(result.price()).contains(stored);
+        verify(priceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void lookupReportsStoredRefreshEmptyWhenTheProviderReturnsNullOrNothing() {
+        PriceHistory stored = price("AAPL", "100", Instant.now().minusSeconds(3600));
+        PriceRefreshService service = lookupService(stored);
+
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d")).thenReturn(null);
+        PriceLookup nullResult = service.lookupFreshLatest("AAPL");
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d")).thenReturn(List.of());
+        PriceLookup emptyResult = service.lookupFreshLatest("AAPL");
+
+        assertThat(nullResult.origin()).isEqualTo(PriceLookup.Origin.STORED_REFRESH_EMPTY);
+        assertThat(nullResult.price()).contains(stored);
+        assertThat(emptyResult.origin()).isEqualTo(PriceLookup.Origin.STORED_REFRESH_EMPTY);
+        assertThat(emptyResult.price()).contains(stored);
+    }
+
+    @Test
+    void lookupCountsRowsForAnotherSymbolAsEmptyAndKeepsTheStoredPrice() {
+        PriceHistory stored = price("AAPL", "100", Instant.now().minusSeconds(3600));
+        PriceRefreshService service = lookupService(stored);
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d"))
+                .thenReturn(List.of(price("MSFT", "400", Instant.now())));
+
+        PriceLookup result = service.lookupFreshLatest("AAPL");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.STORED_REFRESH_EMPTY);
+        assertThat(result.price()).contains(stored);
+        verify(priceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void lookupReportsNoneRefreshFailedWhenNothingIsStoredAndTheProviderThrows() {
+        PriceRefreshService service = lookupService(null);
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d")).thenThrow(new IllegalStateException("boom"));
+
+        PriceLookup result = service.lookupFreshLatest("AAPL");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.NONE_REFRESH_FAILED);
+        assertThat(result.price()).isEmpty();
+    }
+
+    @Test
+    void lookupReportsNoneRefreshEmptyWhenNothingIsStoredAndTheProviderReturnsNothing() {
+        PriceRefreshService service = lookupService(null);
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d")).thenReturn(List.of());
+
+        PriceLookup result = service.lookupFreshLatest("AAPL");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.NONE_REFRESH_EMPTY);
+        assertThat(result.price()).isEmpty();
+    }
+
+    @Test
+    void lookupCountsRowsForAnotherSymbolAsEmptyWhenNothingIsStored() {
+        PriceRefreshService service = lookupService(null);
+        when(financialDataPort.fetchPriceHistory("AAPL", "1d", "5d"))
+                .thenReturn(List.of(price("MSFT", "400", Instant.now())));
+
+        PriceLookup result = service.lookupFreshLatest("AAPL");
+
+        assertThat(result.origin()).isEqualTo(PriceLookup.Origin.NONE_REFRESH_EMPTY);
+        assertThat(result.price()).isEmpty();
+        verify(priceRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void lookupRejectsABlankSymbolBeforeAnyPortCall() {
+        PriceRefreshService service = new PriceRefreshService(priceRepository, financialDataPort);
+
+        assertThatThrownBy(() -> service.lookupFreshLatest(" "))
+                .isInstanceOf(IllegalArgumentException.class);
+        verifyNoInteractions(priceRepository, financialDataPort);
     }
 
     private PriceHistory price(String symbol, String close, Instant timestamp) {
