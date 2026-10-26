@@ -27,6 +27,7 @@ const PortfolioSummarySchema = z.strictObject({
   totalPnL: z.number().nullable(),
   totalReturn: z.number().nullable(),
   pricingComplete: z.boolean(),
+  pricingStatus: z.enum(['OK', 'STALE', 'FAILED', 'EMPTY']).nullable(),
 });
 
 const PortfolioPerformanceSchema = z.strictObject({
@@ -54,6 +55,8 @@ const EnrichedPositionsSchema = z.array(z.strictObject({
   dailyReturn: z.number().nullable(),
   totalReturn: z.number().nullable(),
   unrealizedPnL: z.number().nullable(),
+  priceAsOf: z.string().datetime().nullable(),
+  priceStatus: z.enum(['OK', 'STALE', 'FAILED', 'EMPTY']).nullable(),
 }));
 
 const PortfolioTransactionsSchema = z.array(z.strictObject({
@@ -227,6 +230,10 @@ describe('shared HTTP contract fixtures', () => {
     server.use(http.get(url('/portfolio/summary'), () => HttpResponse.json(fixture)));
 
     await expect(fetchPortfolioSummary()).resolves.toEqual(fixture);
+    expect(fixture.pricingStatus).toBe('OK');
+    // null when the portfolio has no positions; a stale price is a price, so pricingComplete stays true.
+    expect(PortfolioSummarySchema.parse({ ...fixture, pricingStatus: null }).pricingStatus).toBeNull();
+    expect(PortfolioSummarySchema.parse({ ...fixture, pricingStatus: 'STALE' }).pricingComplete).toBe(true);
   });
 
   it('portfolio performance fixture matches the frontend type, including nullable metrics', async () => {
@@ -241,6 +248,11 @@ describe('shared HTTP contract fixtures', () => {
     server.use(http.get(url('/portfolio/positions/enriched'), () => HttpResponse.json(fixture)));
 
     await expect(fetchEnrichedPositions()).resolves.toEqual(fixture);
+    expect(fixture[0].priceStatus).toBe('OK');
+    expect(fixture[0].priceAsOf).toBe('2026-10-20T20:00:00Z');
+    // A position without any price carries a status and no time.
+    expect(EnrichedPositionsSchema.parse([{ ...fixture[0], currentPrice: null, priceAsOf: null, priceStatus: 'EMPTY' }])[0]
+      .priceAsOf).toBeNull();
   });
 
   it('portfolio transaction fixture retains the backend source locator', async () => {

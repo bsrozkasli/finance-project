@@ -1,4 +1,5 @@
 import { apiClient } from './http';
+import type { PriceStatus } from './types';
 
 export interface PortfolioPosition {
   id: number;
@@ -47,6 +48,8 @@ export interface PortfolioSummary {
   totalPnL: number | null;
   totalReturn: number | null;
   pricingComplete: boolean;
+  /** Worst status of the priced positions; null/absent when unknown. */
+  pricingStatus?: PriceStatus | null;
 }
 
 export interface PortfolioPerformancePoint {
@@ -96,6 +99,8 @@ export interface PortfolioPositionPerformance {
   sixMonthReturn?: number | null;
   oneYearReturn?: number | null;
   totalReturn: number | null;
+  priceAsOf?: string | null;
+  priceStatus?: PriceStatus | null;
 }
 export interface AllocationSlice {
   name: string;
@@ -122,6 +127,8 @@ export interface EnrichedPosition {
   dailyReturn: number | null;
   totalReturn: number | null;
   unrealizedPnL: number | null;
+  priceAsOf?: string | null;
+  priceStatus?: PriceStatus | null;
 }
 
 

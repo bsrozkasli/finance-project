@@ -22,9 +22,9 @@ non-null, add a backend shape test for the endpoint, and add a frontend schema t
 
 | Fixture | Endpoint |
 |---|---|
-| `portfolio-summary.json` | `GET /portfolio/summary` |
+| `portfolio-summary.json` | `GET /portfolio/summary` (`pricingStatus`: worst price status of its positions, `null` without positions; `pricingComplete` is not made false by `STALE`) |
 | `portfolio-performance.json` | `GET /portfolio/performance?period=&benchmark=` |
-| `portfolio-enriched-positions.json` | `GET /portfolio/positions/enriched` |
+| `portfolio-enriched-positions.json` | `GET /portfolio/positions/enriched` (`priceAsOf` ISO instant and `priceStatus` `OK`; a position without a price has `priceAsOf` `null` and status `FAILED` or `EMPTY`, covered by controller tests. `GET /portfolio/positions/performance` and `GET /prices/{symbol}/latest` carry the same two fields and are pinned by controller tests, without a fixture) |
 | `portfolio-transactions.json` | `GET /portfolios/{portfolioId}/transactions` |
 | `portfolio-import-batch.json` | `POST/GET /portfolios/{portfolioId}/imports[...]`, `POST .../imports/{batchId}/accept` |
 | `portfolio-state-complete.json` | `POST /portfolios/{portfolioId}/states`, `GET .../states/{version}` (`COMPLETE`, weights present) |

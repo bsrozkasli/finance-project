@@ -12,6 +12,8 @@ import {
 import type { Stock, Portfolio, Trade } from '../types';
 import type { PortfolioPositionPerformance, PortfolioTransaction } from '../api/client';
 import { fetchPortfolioPositionsPerformance, fetchPortfolioTransactions } from '../api/client';
+import type { PriceStatus } from '../api/types';
+import PriceFreshness, { PricingStatusNote } from './PriceFreshness';
 
 interface PortfolioManagerViewProps {
   stocks: Stock[];
@@ -25,6 +27,8 @@ interface PortfolioManagerViewProps {
   onOpenTradingJournal?: () => void;
   /** Reloads application-level ledger data (holdings, journal trades) after a CSV accept. */
   onLedgerChanged?: () => void | Promise<void>;
+  /** Worst price status of the API summary; STALE or FAILED adds one note next to the total. */
+  pricingStatus?: PriceStatus | null;
 }
 
 type AllocationMode = 'daily' | 'total' | 'allocation';
@@ -82,6 +86,7 @@ export default function PortfolioManagerView({
   onSelectPortfolioId,
   onOpenTradingJournal,
   onLedgerChanged,
+  pricingStatus,
 }: PortfolioManagerViewProps) {
   const [allocationMode, setAllocationMode] = useState<AllocationMode>('daily');
   const [activeTab, setActiveTab] = useState<HoldingsTab>('holdings');
@@ -596,7 +601,10 @@ export default function PortfolioManagerView({
 
       {!portfolioSummary.complete && <p role="status" className="rounded-md border border-warning-amber/35 bg-warning-amber/10 p-4 text-sm text-warning-amber">{portfolioSummary.pricedCount}/{portfolioSummary.totalCount} pozisyonun fiyatı var. Toplam değer ve getiri hesaplanamıyor.</p>}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="Güncel değer" value={formatCurrency(portfolioSummary.totalValue)} tone="neutral" />
+        <div>
+          <MetricCard label="Güncel değer" value={formatCurrency(portfolioSummary.totalValue)} tone="neutral" />
+          <PricingStatusNote status={pricingStatus} />
+        </div>
         <MetricCard label="En yüksek getiri" value={healthMetrics.best ? `${healthMetrics.best.symbol} ${formatReturn(healthMetrics.best.totalReturn)}` : '-'} tone="positive" />
         <MetricCard label="En düşük getiri" value={healthMetrics.worst ? `${healthMetrics.worst.symbol} ${formatReturn(healthMetrics.worst.totalReturn)}` : '-'} tone="negative" />
         <MetricCard label="En büyük ağırlık" value={healthMetrics.largest ? `${healthMetrics.largest.symbol} ${healthMetrics.largest.weight.toFixed(1)}%` : '-'} tone={portfolioSummary.largestWeight > 25 ? 'warning' : 'neutral'} />
@@ -1054,7 +1062,7 @@ function HoldingsTable({
                 </div>
               </td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(position.costPrice)}</td>
-              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(position.currentPrice)}</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(position.currentPrice)}<PriceFreshness status={position.priceStatus} asOf={position.priceAsOf} /></td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{position.weight == null ? '-' : `${position.weight.toFixed(2)}%`}</td>
               <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.dailyReturn)}`}>{formatReturn(position.dailyReturn)}</td>
               <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.weeklyReturn)}`}>{formatReturn(position.weeklyReturn)}</td>

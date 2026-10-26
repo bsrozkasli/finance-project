@@ -16,6 +16,7 @@ import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerform
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
 import { valuePortfolio } from '../utils/portfolioValuation';
 import CompanyLogo from './CompanyLogo';
+import PriceFreshness from './PriceFreshness';
 
 interface DashboardHomeProps {
   stocks: Stock[];
@@ -187,6 +188,9 @@ export default function DashboardHome({
       return {
         ...position,
         currentPrice: stock.price,
+        // The price is live market data here, so the API's staleness label does not apply.
+        priceAsOf: null,
+        priceStatus: null,
         marketValue,
         dailyReturn: stock.changePercent,
         totalReturn: position.costPrice > 0 ? ((stock.price - position.costPrice) / position.costPrice) * 100 : position.totalReturn,
@@ -1058,7 +1062,7 @@ export default function DashboardHome({
                           </div>
                         </td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-secondary">{formatCurrency(pos.costPrice)}</td>
-                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}</td>
+                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}<PriceFreshness status={pos.priceStatus} asOf={pos.priceAsOf} /></td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{pos.weight == null ? '-' : `${pos.weight.toFixed(2)}%`}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.dailyReturn)}`}>{formatReturn(pos.dailyReturn)}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.weeklyReturn)}`}>{formatReturn(pos.weeklyReturn)}</td>

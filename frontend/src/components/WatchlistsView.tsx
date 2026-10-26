@@ -14,6 +14,7 @@ import {
 import type { WatchlistResearchRow, WatchlistResearchStatus } from '../api/client';
 import { useWatchlistResearchSnapshot } from '../hooks/useWatchlistResearchSnapshot';
 import type { Stock, Watchlist } from '../types';
+import { formatDateTime } from '../utils/formatters';
 import CompanyLogo from './CompanyLogo';
 import StatusPill from './StatusPill';
 import { statusClass, statusLabel } from './sectionStatus';
@@ -52,18 +53,6 @@ const formatNumber = (value: number | null | undefined, digits = 2) => {
 const formatVolume = (value: number | null | undefined) => {
   if (value == null || !Number.isFinite(value)) return '—';
   return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
-};
-
-const formatDateTime = (value: string | null | undefined) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('tr-TR', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
 };
 
 

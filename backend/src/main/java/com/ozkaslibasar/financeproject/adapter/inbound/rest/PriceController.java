@@ -4,6 +4,8 @@ import com.ozkaslibasar.financeproject.adapter.inbound.rest.dto.PriceResponseDto
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
 import com.ozkaslibasar.financeproject.domain.model.AssetMarketBatch;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
+import com.ozkaslibasar.financeproject.domain.model.PriceStatus;
 import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -45,12 +47,19 @@ public class PriceController {
             @ApiResponse(responseCode = "503", description = "Required dependency unavailable")
     })
     @GetMapping("/{symbol}/latest")
-    @Cacheable(value = "latestPriceCache", key = "#symbol.toUpperCase()")
+    @Cacheable(value = "latestPriceCache", key = "#symbol.toUpperCase()",
+            unless = "#result.priceStatus.name() != 'OK'")
     public PriceResponseDto getLatestPrice(@PathVariable String symbol) {
-        PriceHistory latest = priceRefreshService.getFreshLatest(symbol.toUpperCase(Locale.ROOT))
+        PriceLookup lookup = priceRefreshService.lookupFreshLatest(symbol.toUpperCase(Locale.ROOT));
+        // A stored price after a failed or empty refresh is still answered (it is a real recorded price) and labelled
+        // STALE; the cache condition above keeps such an answer out of latestPriceCache. No price at all stays a 404.
+        PriceHistory latest = lookup.price()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Price not found"));
         try {
-            return mapper.toPriceResponseDto(latest);
+            PriceResponseDto dto = mapper.toPriceResponseDto(latest);
+            dto.setPriceAsOf(latest.timestampAsInstant());
+            dto.setPriceStatus(PriceStatus.from(lookup.origin()));
+            return dto;
         } catch (RuntimeException e) {
             // Mapper failure is a local technical error (500), not an upstream dependency failure (503).
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Price mapping failed", e);
