@@ -287,7 +287,8 @@ export interface CreatePortfolioTransactionRequest {
   fee?: number;
   fxRateToBase?: number;
   tradeDate?: string;
-  source?: PortfolioTransactionSource;
+  /** Only MANUAL is accepted; CSV events are created through imports (R-20). */
+  source?: 'MANUAL';
   notes?: string;
   journalNotes?: string;
 }

@@ -73,7 +73,7 @@ describe('PortfolioImportPanel', () => {
   });
 
   it('accepts the staged batch explicitly, shows final statuses and locks the button', async () => {
-    const onAccepted = vi.fn();
+    const onLedgerChanged = vi.fn();
     let acceptCalls = 0;
     server.use(
       http.post(url('/portfolios/1/imports'), () => HttpResponse.json(staged, { status: 201 })),
@@ -82,17 +82,18 @@ describe('PortfolioImportPanel', () => {
         return HttpResponse.json(accepted);
       }),
     );
-    render(<PortfolioImportPanel portfolioId={1} onAccepted={onAccepted} />);
+    render(<PortfolioImportPanel portfolioId={1} onLedgerChanged={onLedgerChanged} />);
 
     await uploadFile();
     expect(acceptCalls).toBe(0);
+    expect(onLedgerChanged).not.toHaveBeenCalled();
     await userEvent.click(await screen.findByRole('button', { name: 'Kabul et' }));
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Kabul et' })).toBeDisabled());
     const table = screen.getByRole('table', { name: 'Aşamalı satırlar' });
     expect(within(table).getByText('Kabul edildi')).toBeInTheDocument();
     expect(screen.getByText(/Toplu aktarım kabul edildi/)).toBeInTheDocument();
-    expect(onAccepted).toHaveBeenCalledTimes(1);
+    expect(onLedgerChanged).toHaveBeenCalledTimes(1);
     expect(acceptCalls).toBe(1);
   });
 
@@ -113,6 +114,26 @@ describe('PortfolioImportPanel', () => {
     expect(screen.getByRole('button', { name: 'Kabul ediliyor…' })).toBeDisabled();
     release();
     await waitFor(() => expect(screen.getByRole('button', { name: 'Kabul et' })).toBeDisabled());
+  });
+
+  it('does not signal a ledger change when staging or accepting fails', async () => {
+    const onLedgerChanged = vi.fn();
+    server.use(
+      http.post(url('/portfolios/1/imports'), () => HttpResponse.json(staged, { status: 201 })),
+      http.post(url('/portfolios/1/imports/9/accept'), () => HttpResponse.json({
+        timestamp: '2026-10-25T10:00:00Z',
+        status: 500,
+        error: 'Internal Server Error',
+        message: 'Accept failed',
+        path: '/api/v1/portfolios/1/imports/9/accept',
+      }, { status: 500 })),
+    );
+    render(<PortfolioImportPanel portfolioId={1} onLedgerChanged={onLedgerChanged} />);
+    await uploadFile();
+    await userEvent.click(await screen.findByRole('button', { name: 'Kabul et' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Accept failed');
+    expect(onLedgerChanged).not.toHaveBeenCalled();
   });
 
   it('shows the backend message when the whole file is rejected', async () => {

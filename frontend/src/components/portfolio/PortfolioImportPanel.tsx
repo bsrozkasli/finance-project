@@ -5,8 +5,8 @@ import type { PortfolioImportBatch, PortfolioImportRowStatus } from '../../api/c
 
 interface PortfolioImportPanelProps {
   portfolioId: number;
-  /** Called once the backend confirms the batch was accepted, so the screen can reload ledger data. */
-  onAccepted?: () => void;
+  /** Called after the backend accepted a batch (never after staging or on error) so ledger-derived data reloads. */
+  onLedgerChanged?: () => void | Promise<void>;
 }
 
 const ROW_STATUS_LABELS: Record<PortfolioImportRowStatus, string> = {
@@ -35,7 +35,7 @@ const ROW_STATUS_CLASSES: Record<PortfolioImportRowStatus, string> = {
 };
 
 
-export default function PortfolioImportPanel({ portfolioId, onAccepted }: PortfolioImportPanelProps) {
+export default function PortfolioImportPanel({ portfolioId, onLedgerChanged }: PortfolioImportPanelProps) {
   const [file, setFile] = useState<File | null>(null);
   const [batch, setBatch] = useState<PortfolioImportBatch | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -67,7 +67,7 @@ export default function PortfolioImportPanel({ portfolioId, onAccepted }: Portfo
     setError('');
     try {
       setBatch(await acceptPortfolioImport(portfolioId, batch.batchId));
-      onAccepted?.();
+      await onLedgerChanged?.();
     } catch (acceptError) {
       setError(getApiErrorMessage(acceptError, 'Toplu aktarım kabul edilemedi.'));
     } finally {
