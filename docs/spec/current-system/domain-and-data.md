@@ -38,6 +38,16 @@ ports with in-memory state.
   previous ID; only the latest revision of a symbol can be revised. No
   provider fetch, public endpoint, quality grade, or external-use permission
   is attached to this research model.
+- `EvidencePolicies` defines the two approved Evidence Strength policies as
+  versioned immutable data: `stock-v1` (six mandatory fields, sixteen weighted
+  optional fields summing to 100) and `etf-v1` Option A (mandatory
+  `price.close`, six weighted fund and price fields summing to 100), approved
+  2026-10-26 for personal use. Freshness windows are 5 or 400 days per field.
+  They do not cover instruments other than STOCK/ETF, OQ-4 labels, PEG or
+  Portfolio Fit, the seven section statuses, or external use. No code yet
+  produces snapshots with these field names, so nothing consumes the policies
+  outside tests, and ETF fund fields have no data source (an ETF reads at most
+  Low today).
 
 ### Price history
 
