@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 
 from app.errors import RateLimitedError
@@ -79,8 +81,9 @@ def test_rate_limit_counts_toward_the_blacklist(scripted_provider):
     health = resolver.get_provider_health("fx-rl-g")
     assert health.consecutive_failures == 3
     assert health.status.value == "blacklisted"
-    # Blacklisted: no provider is active, so the chain is empty and returns empty as before.
-    assert resolver.get_ohlcv("AAPL") == []
+    # Blacklisted: the provider is skipped, but the window still reports the rate limit (R-1).
+    with pytest.raises(RateLimitedError):
+        resolver.get_ohlcv("AAPL")
     assert len(limited.calls_for("ohlcv")) == 3
 
 
@@ -103,3 +106,86 @@ def test_asset_info_and_quote_fall_through_to_data():
 
     assert resolver.get_asset_info("AAPL") == "data"
     assert resolver.get_market_quote("AAPL") == "data"
+
+
+def _drive_to_blacklist(resolver):
+    for _ in range(3):
+        try:
+            resolver.get_ohlcv("AAPL")
+        except RateLimitedError:
+            pass
+
+
+def test_blacklist_window_reports_rate_limit_with_remaining_seconds(scripted_provider):
+    limited = scripted_provider("fx-bl-a", ohlcv=RateLimitedError(provider="fx-bl-a", retry_after=5))
+    resolver = MarketDataResolver([limited])
+    _drive_to_blacklist(resolver)
+
+    with pytest.raises(RateLimitedError) as error:
+        resolver.get_ohlcv("AAPL")
+
+    assert error.value.provider == "fx-bl-a"
+    assert 1 <= error.value.retry_after <= 60
+    assert len(limited.calls_for("ohlcv")) == 3  # skipped, not called
+
+
+def test_blacklist_window_reports_for_asset_info_and_quote():
+    limit = RateLimitedError(provider="fx-bl-q", retry_after=5)
+    resolver = MarketDataResolver([_Quoting("fx-bl-q", limit)])
+    for _ in range(3):
+        with pytest.raises(RateLimitedError):
+            resolver.get_asset_info("AAPL")
+
+    with pytest.raises(RateLimitedError) as info:
+        resolver.get_asset_info("AAPL")
+    with pytest.raises(RateLimitedError) as quote:
+        resolver.get_market_quote("AAPL")
+
+    assert info.value.retry_after >= 1
+    assert quote.value.retry_after >= 1
+
+
+def test_rate_limited_blacklist_recovers_after_the_window(scripted_provider, bars):
+    limited = scripted_provider("fx-bl-b", ohlcv=RateLimitedError(provider="fx-bl-b", retry_after=5))
+    resolver = MarketDataResolver([limited])
+    _drive_to_blacklist(resolver)
+    resolver._blacklisted_until["fx-bl-b"] = datetime.now(timezone.utc) - timedelta(seconds=1)
+    limited.ohlcv = bars([1.0, 2.0])
+
+    assert len(resolver.get_ohlcv("AAPL")) == 2
+    assert "fx-bl-b" not in resolver._blacklisted_until
+
+
+def test_non_rate_limit_blacklist_still_returns_empty(scripted_provider):
+    broken = scripted_provider("fx-bl-c", ohlcv=RuntimeError("503"))
+    resolver = MarketDataResolver([broken])
+    for _ in range(3):
+        assert resolver.get_ohlcv("AAPL") == []
+
+    assert resolver.get_provider_health("fx-bl-c").status.value == "blacklisted"
+    assert resolver.get_ohlcv("AAPL") == []
+
+
+def test_mixed_chain_reports_only_the_rate_limit_blacklist(scripted_provider):
+    limited = scripted_provider("fx-bl-d", ohlcv=RateLimitedError(provider="fx-bl-d", retry_after=5))
+    broken = scripted_provider("fx-bl-e", ohlcv=RuntimeError("503"))
+    resolver = MarketDataResolver([limited, broken])
+    _drive_to_blacklist(resolver)
+
+    with pytest.raises(RateLimitedError) as error:
+        resolver.get_ohlcv("AAPL")
+
+    assert error.value.provider == "fx-bl-d"
+
+
+def test_blacklist_cause_is_the_failure_that_completes_the_threshold(scripted_provider):
+    flaky = scripted_provider("fx-bl-f", ohlcv=RateLimitedError(provider="fx-bl-f", retry_after=5))
+    resolver = MarketDataResolver([flaky])
+    for _ in range(2):
+        with pytest.raises(RateLimitedError):
+            resolver.get_ohlcv("AAPL")
+    flaky.ohlcv = RuntimeError("503")  # the failure that blacklists is not a rate limit
+    assert resolver.get_ohlcv("AAPL") == []
+
+    assert resolver.get_provider_health("fx-bl-f").status.value == "blacklisted"
+    assert resolver.get_ohlcv("AAPL") == []

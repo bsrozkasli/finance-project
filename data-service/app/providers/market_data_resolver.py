@@ -17,6 +17,7 @@ Features:
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 from collections import defaultdict
@@ -113,6 +114,8 @@ class MarketDataResolver:
             for p in providers
         }
         self._blacklisted_until: dict[str, datetime] = {}
+        # Why a provider is blacklisted: True when the failure that completed the threshold was a rate limit.
+        self._blacklist_rate_limited: dict[str, bool] = {}
         self._failure_counts: dict[str, int] = defaultdict(int)
         self._fallback_counters: dict[str, int] = defaultdict(int)
         self._success_counters: dict[str, int] = defaultdict(int)
@@ -161,9 +164,12 @@ class MarketDataResolver:
                 )
                 if isinstance(exc, RateLimitedError):
                     rate_limited.append(exc)
-                self._record_failure(provider.provider_name, operation, str(exc))
+                self._record_failure(
+                    provider.provider_name, operation, str(exc), rate_limited=isinstance(exc, RateLimitedError)
+                )
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
+        rate_limited += self._skipped_rate_limits()
         if rate_limited:
             raise merge_rate_limited(rate_limited)
         logger.error("%s operation=ohlcv symbol=%s result=exhausted", _request_log_context(), symbol)
@@ -189,7 +195,9 @@ class MarketDataResolver:
                     "%s operation=financial_statements provider=%s symbol=%s result=error reason=%s",
                     _request_log_context(), provider.provider_name, symbol, exc,
                 )
-                self._record_failure(provider.provider_name, operation, str(exc))
+                self._record_failure(
+                    provider.provider_name, operation, str(exc), rate_limited=isinstance(exc, RateLimitedError)
+                )
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
         return FinancialStatements(symbol=symbol.upper())
@@ -217,9 +225,12 @@ class MarketDataResolver:
                 )
                 if isinstance(exc, RateLimitedError):
                     rate_limited.append(exc)
-                self._record_failure(provider.provider_name, operation, str(exc))
+                self._record_failure(
+                    provider.provider_name, operation, str(exc), rate_limited=isinstance(exc, RateLimitedError)
+                )
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
+        rate_limited += self._skipped_rate_limits()
         if rate_limited:
             raise merge_rate_limited(rate_limited)
         return None
@@ -250,9 +261,12 @@ class MarketDataResolver:
                 )
                 if isinstance(exc, RateLimitedError):
                     rate_limited.append(exc)
-                self._record_failure(provider.provider_name, operation, str(exc))
+                self._record_failure(
+                    provider.provider_name, operation, str(exc), rate_limited=isinstance(exc, RateLimitedError)
+                )
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
+        rate_limited += self._skipped_rate_limits(supports_quote=True)
         if rate_limited:
             raise merge_rate_limited(rate_limited)
         return None
@@ -282,7 +296,9 @@ class MarketDataResolver:
                     "%s operation=news provider=%s symbol=%s result=error reason=%s",
                     _request_log_context(), provider.provider_name, symbol, exc,
                 )
-                self._record_failure(provider.provider_name, operation, str(exc))
+                self._record_failure(
+                    provider.provider_name, operation, str(exc), rate_limited=isinstance(exc, RateLimitedError)
+                )
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
         return []
@@ -309,7 +325,9 @@ class MarketDataResolver:
                     "%s operation=analyst_recommendations provider=%s symbol=%s result=error reason=%s",
                     _request_log_context(), provider.provider_name, symbol, exc,
                 )
-                self._record_failure(provider.provider_name, operation, str(exc))
+                self._record_failure(
+                    provider.provider_name, operation, str(exc), rate_limited=isinstance(exc, RateLimitedError)
+                )
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
         return []
@@ -358,6 +376,24 @@ class MarketDataResolver:
                 active.append(provider)
         return active
 
+    def _skipped_rate_limits(self, supports_quote: bool = False) -> list[RateLimitedError]:
+        """Rate limits hidden by a blacklist window: providers skipped because rate limits blacklisted them (R-1).
+
+        ``retry_after`` is the remaining blacklist time in whole seconds, at least 1.
+        """
+        now = datetime.now(timezone.utc)
+        errors: list[RateLimitedError] = []
+        with self._lock:
+            for provider in self._providers:
+                name = provider.provider_name
+                until = self._blacklisted_until.get(name)
+                if until is None or now >= until or not self._blacklist_rate_limited.get(name):
+                    continue
+                if supports_quote and getattr(provider, "get_market_quote", None) is None:
+                    continue
+                errors.append(RateLimitedError(provider=name, retry_after=max(1, math.ceil((until - now).total_seconds()))))
+        return errors
+
     def _record_success(self, name: str, operation: str) -> None:
         with self._lock:
             self._failure_counts[name] = 0
@@ -370,6 +406,7 @@ class MarketDataResolver:
                 consecutive_failures=0,
             )
             self._blacklisted_until.pop(name, None)
+            self._blacklist_rate_limited.pop(name, None)
             PROVIDER_BLACKLISTED.labels(provider=name).set(0)
             self._set_health_metric(name, ProviderStatus.HEALTHY)
 
@@ -381,7 +418,7 @@ class MarketDataResolver:
             self._empty_counters[name] += 1
             PROVIDER_EMPTY_TOTAL.labels(provider=name, operation=operation).inc()
 
-    def _record_failure(self, name: str, operation: str, error: str) -> None:
+    def _record_failure(self, name: str, operation: str, error: str, rate_limited: bool = False) -> None:
         with self._lock:
             self._failure_counts[name] += 1
             self._error_counters[name] += 1
@@ -392,6 +429,7 @@ class MarketDataResolver:
             if count >= _FAILURE_THRESHOLD:
                 until = now + timedelta(seconds=_BLACKLIST_DURATION_SECONDS)
                 self._blacklisted_until[name] = until
+                self._blacklist_rate_limited[name] = rate_limited
                 logger.warning(
                     "%s provider=%s result=blacklisted duration_seconds=%s consecutive_failures=%s",
                     _request_log_context(), name, _BLACKLIST_DURATION_SECONDS, count,
@@ -466,6 +504,7 @@ class MarketDataResolver:
                         if health.status == ProviderStatus.HEALTHY:
                             self._failure_counts[name] = 0
                             self._blacklisted_until.pop(name, None)
+                            self._blacklist_rate_limited.pop(name, None)
                             PROVIDER_BLACKLISTED.labels(provider=name).set(0)
                             logger.info(
                                 "%s provider=%s result=recovered", _request_log_context(), name
