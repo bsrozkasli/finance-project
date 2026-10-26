@@ -61,3 +61,18 @@ their responses), recorded as follow-ups. The data-service still sends no 429.
 ## Implementation rulings
 
 Rulings made while coding are appended below as `R-n`.
+
+- **R-1. The overall status includes `STALE`** (corrects the unchanged precedence assumed in D-3). Why: with a `STALE`
+  price and any `OK` section the overall read `OK`, which says "current" about a snapshot that contains a price the refresh
+  could not confirm. The same hid the existing `STALE` of an open circuit breaker. The overall status is the worst section
+  status, in this order: `RATE_LIMITED`, `FAILED`, `STALE`, `INSUFFICIENT_DATA`, `OK`, `EMPTY`. `STALE` ranks above
+  `INSUFFICIENT_DATA` because a value that may be out of date is a stronger warning than a section that has too little
+  history. This changes the overall of snapshots that have a `STALE` section; the frontend already labels `STALE`. Cost if
+  wrong: an overall pill reads `STALE` where it read `OK`.
+- **R-2. The `EMPTY` price message** is now the shared "Provider returned no data" constant, like the other sections.
+- **R-3. The price section has no circuit breaker.** The code had a `price` breaker key that counted escaping exceptions;
+  it was removed, because the price path reads the local store and a provider failure is already reported by the lookup
+  result. `operations.md` listed the key and was corrected. Cost if wrong: repeated failures of the local store do not open
+  a breaker for the price section.
+- **R-4. The watchlist screen shows the price's own time ("Fiyat zamanı").** The existing "Son gözlem" is the time of the
+  request, so an old stored price looked current. "Son gözlem" keeps its meaning.
