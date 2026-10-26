@@ -177,7 +177,10 @@ seconds and the section reads `STALE` meanwhile. A `FAILED` from a 4xx other tha
 429, `EMPTY` and `INSUFFICIENT_DATA` do not count, and an `OK`, `EMPTY` or
 `INSUFFICIENT_DATA` answer resets the count (a `FAILED` from a 4xx neither counts nor
 resets it). A real provider outage therefore shows `STALE` for that section
-across the whole watchlist for up to 60 seconds.
+across the whole watchlist for up to 60 seconds. The per-row overall status
+includes this `STALE` (order `RATE_LIMITED`, `FAILED`, `STALE`,
+`INSUFFICIENT_DATA`, `OK`, `EMPTY`), so rows that read `OK` during an outage now
+read `STALE`: a behavior change, see `contracts.md`.
 
 ### Data-service caches
 
