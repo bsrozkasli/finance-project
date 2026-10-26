@@ -58,7 +58,10 @@ describe('StockDetailModal smart report section status', () => {
 
   it('shows no warning and no incomplete-evidence note when every component is OK', async () => {
     await renderReport();
-    expect(within(panel()).getAllByText('OK')).toHaveLength(8);
+    const pills = within(panel()).getAllByText('OK');
+    expect(pills).toHaveLength(8);
+    for (const pill of pills) expect(pill.className).not.toMatch(/warning-amber|bear-red/);
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
     expect(screen.queryByText(/eksik kanıta/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/durum bilinmiyor/i)).not.toBeInTheDocument();
   });
@@ -77,6 +80,8 @@ describe('StockDetailModal smart report section status', () => {
     expect(within(valuation).getByText('Veri yok', { selector: '[data-value]' })).toBeInTheDocument();
     expect(within(valuation).getByText(pillLabel, { selector: 'span.rounded-full' })).toBeInTheDocument();
     expect(within(valuation).getByText(reason)).toBeInTheDocument();
+    expect(within(valuation).getByLabelText('puan yok')).toBeInTheDocument();
+    if (reason === 'fallback_source_used') expect(within(valuation).getByText(/yedek kaynak/)).toBeInTheDocument();
     expect(within(valuation).queryByText(/^0/)).not.toBeInTheDocument();
     expect(screen.getByText(/eksik kanıta/i)).toBeInTheDocument();
   });
@@ -102,15 +107,52 @@ describe('StockDetailModal smart report section status', () => {
     expect(within(row('Risk')).queryByText('OK')).not.toBeInTheDocument();
     expect(within(row('Risk')).getByText(/durum bilinmiyor/i)).toBeInTheDocument();
     expect(within(row('Büyüme')).queryByText('OK')).not.toBeInTheDocument();
+    expect(within(row('Büyüme')).queryByText('Yüklenemedi')).not.toBeInTheDocument();
+    expect(row('Büyüme').querySelector('span.rounded-full')).toBeNull();
+    expect(within(row('Büyüme')).getByText(/durum bilinmiyor/i)).toBeInTheDocument();
     expect(screen.getByText(/eksik kanıta/i)).toBeInTheDocument();
   });
 
-  it('does not crash on an unknown component key and keeps grade and recommendation visible', async () => {
+  it('lists a component that only sectionStatus reports, with its status and reason', async () => {
     const sectionStatus = okStatus();
-    sectionStatus.components.brand_new_score = { status: 'EMPTY', reason: 'x' };
+    sectionStatus.components.brand_new_score = { status: 'EMPTY', reason: 'brand_new_unavailable' };
     await renderReport({ sectionStatus });
-    expect(panel()).toBeInTheDocument();
+    const extra = row('brand new');
+    expect(within(extra).getByText('Veri yok', { selector: 'span.rounded-full' })).toBeInTheDocument();
+    expect(within(extra).getByText('brand_new_unavailable')).toBeInTheDocument();
     expect(screen.getAllByText(/Hold/).length).toBeGreaterThan(0);
+  });
+
+  it('still lists sectionStatus components when the breakdown is null', async () => {
+    const sectionStatus = okStatus();
+    await renderReport({ sectionStatus, breakdown: null });
+    expect(within(panel()).getAllByText('OK')).toHaveLength(8);
+  });
+
+  it.each([
+    ['non-OK', { ...okStatus(), overall: 'EMPTY' as const }],
+    ['unknown', null],
+  ])('puts the incomplete-evidence note before the grade text for %s status', async (_name, sectionStatus) => {
+    await renderReport({ sectionStatus });
+    const note = screen.getByRole('note');
+    const grade = screen.getByText('Not:', { exact: false, selector: 'strong' });
+    expect(note.compareDocumentPosition(grade) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(panel()).queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  it('hides the analyst rating bar when there is no analyst data', async () => {
+    vi.mocked(useSmartReport).mockReturnValue({ report: null, loading: false, error: null } as never);
+    const { container } = render(<StockDetailModal stock={stock} onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Analist görüşü' }));
+    expect(container.querySelector('.bg-bull-green.h-full')).toBeNull();
+  });
+
+  it('does not colour a missing price change as a gain', () => {
+    vi.mocked(useSmartReport).mockReturnValue({ report: null, loading: false, error: null } as never);
+    render(<StockDetailModal stock={{ ...stock, changePercent: null as never }} onClose={vi.fn()} onOpenTradeModal={vi.fn()} />);
+    const change = screen.getByText('Güncel değer').parentElement?.querySelector('span.text-sm');
+    expect(change).toBeDefined();
+    expect(change?.className).not.toContain('text-bull-green');
   });
 
   it('shows the candle count as unknown instead of 0 when the workspace has no data', async () => {

@@ -38,31 +38,29 @@ export default function SmartReportStatusPanel({
   sectionStatus: SmartReportSectionStatus | null | undefined;
 }) {
   const statusKnown = sectionStatus != null;
-  const overallOk = statusKnown && sectionStatus.overall === 'OK';
-  const rows = breakdown ? Object.entries(breakdown) : [];
+  const rows: Array<{ key: string; snake: string; label: string; value: number | null | undefined }> = breakdown
+    ? Object.entries(breakdown).map(([key, value]) => ({ key, snake: toSnakeKey(key), label: COMPONENT_LABELS[key] ?? key, value }))
+    : [];
+  const shown = new Set(rows.map((r) => r.snake));
+  // R-10.1: components reported only by sectionStatus are still listed; their score is not in the breakdown.
+  for (const key of Object.keys(sectionStatus?.components ?? {})) {
+    if (!shown.has(key)) rows.push({ key, snake: key, label: key.replace(/_score$/, '').replace(/_/g, ' '), value: undefined });
+  }
 
   return (
     <section aria-label="Veri durumu" className="mt-4 pt-3 border-t border-outline-variant/20 space-y-2">
       <h3 className="font-headline text-sm font-bold text-text-primary tracking-tight">Veri durumu</h3>
-      {!statusKnown ? (
-        <p className="text-[11px] text-text-muted font-sans">
-          Durum bilinmiyor: bu raporun bileşen durumu alınamadı, bu yüzden verinin eksiksiz olduğu varsayılmaz.
-        </p>
-      ) : null}
-      {!overallOk ? (
-        <p role="note" className="text-[11px] font-sans font-bold text-warning-amber border border-warning-amber/30 bg-warning-amber/10 rounded px-2 py-1.5">
-          Bu puan eksik kanıta dayanıyor. Not ve öneri yalnızca eldeki veriyi yansıtır; durum bir yatırım sinyali değildir.
-        </p>
-      ) : null}
       <ul className="space-y-1">
-        {rows.map(([key, value]) => {
-          const entry = sectionStatus?.components?.[toSnakeKey(key)];
+        {rows.map(({ key, snake, label, value }) => {
+          const entry = sectionStatus?.components?.[snake];
           const status = entry?.status;
           return (
             <li key={key} data-component-row className="flex flex-wrap items-center gap-2 text-xs font-sans">
-              <span className="text-text-secondary w-24 shrink-0">{COMPONENT_LABELS[key] ?? key}</span>
-              {value == null ? (
-                <span data-value className="font-data-mono text-text-muted">Veri yok</span>
+              <span className="text-text-secondary w-24 shrink-0">{label}</span>
+              {value === undefined ? (
+                <span data-value aria-label="puan bu raporda yok" className="font-data-mono text-text-muted">—</span>
+              ) : value === null ? (
+                <span data-value aria-label="puan yok" className="font-data-mono text-text-muted">Veri yok</span>
               ) : (
                 <span data-value className="font-data-mono text-text-primary">{value.toFixed(0)}</span>
               )}
@@ -74,8 +72,9 @@ export default function SmartReportStatusPanel({
                 )
               ) : null}
               {entry?.reason ? (
-                <span className="text-[10px] text-text-muted font-data-mono" title={explainReason(entry.reason) ?? entry.reason}>
-                  {entry.reason}
+                <span className="text-[10px] text-text-muted" title={entry.reason}>
+                  <span className="font-data-mono">{entry.reason}</span>
+                  {explainReason(entry.reason) ? ` — ${explainReason(entry.reason)}` : ''}
                 </span>
               ) : null}
             </li>

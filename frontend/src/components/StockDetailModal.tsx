@@ -11,6 +11,7 @@ import { useAssetResearchDetail } from '../hooks/useAssetResearchDetail';
 import AssetDetailChart from './AssetDetailChart';
 import CompanyLogo from './CompanyLogo';
 import SmartReportStatusPanel from './SmartReportStatusPanel';
+import SmartReportEvidenceNote from './SmartReportEvidenceNote';
 
 interface StockDetailModalProps {
   stock: Stock | null;
@@ -382,7 +383,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                     <span className="font-data-mono text-3xl font-bold text-text-primary">
                       {formatMoney(currentPrice)}
                     </span>
-                    <span className={`font-data-mono text-sm font-bold ${(marketChangePercent ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                    <span className={`font-data-mono text-sm font-bold ${marketChangePercent == null ? 'text-text-muted' : marketChangePercent >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
                       {marketChangePercent != null ? `${marketChangePercent >= 0 ? '+' : ''}${marketChangePercent.toFixed(2)}%` : '—'}
                     </span>
                   </div>
@@ -569,11 +570,13 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                       <span className="font-data-mono text-bear-red font-bold">{analystRating ? `${analystRating.sellPercent}%` : '—'}</span>
                     </div>
 
+                    {analystRating ? (
                     <div className="w-full h-2.5 bg-bg-base rounded-full overflow-hidden flex mt-2">
-                      <div className="bg-bull-green h-full" style={{ width: `${analystRating?.buyPercent ?? 0}%` }} />
-                      <div className="bg-warning-amber h-full" style={{ width: `${analystRating?.holdPercent ?? 0}%` }} />
-                      <div className="bg-bear-red h-full" style={{ width: `${analystRating?.sellPercent ?? 0}%` }} />
+                      <div className="bg-bull-green h-full" style={{ width: `${analystRating.buyPercent}%` }} />
+                      <div className="bg-warning-amber h-full" style={{ width: `${analystRating.holdPercent}%` }} />
+                      <div className="bg-bear-red h-full" style={{ width: `${analystRating.sellPercent}%` }} />
                     </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -625,6 +628,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                   </div>
                 ) : aiReport ? (
                   <div className="bg-bg-base/40 border border-outline-variant/20 p-4 rounded-xl prose max-w-none">
+                    {smartReport ? <SmartReportEvidenceNote sectionStatus={smartReport.sectionStatus} /> : null}
                     <CustomMarkdownParser text={aiReport} />
                     {smartReport ? <SmartReportStatusPanel breakdown={smartReport.breakdown} sectionStatus={smartReport.sectionStatus} /> : null}
 
