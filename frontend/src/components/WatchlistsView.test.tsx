@@ -208,6 +208,19 @@ describe('WatchlistsView', () => {
     expect(screen.getAllByText('Eski veri').length).toBeGreaterThan(0);
   });
 
+  it('labels a STALE overall status "Eski veri" in the table row and the detail header', async () => {
+    const user = userEvent.setup();
+    renderView();
+
+    await user.type(screen.getByPlaceholderText('Sembol ara'), 'msft');
+
+    const row = within(screen.getByRole('table')).getByText('MSFT').closest('tr') as HTMLElement;
+    expect(within(row).getAllByText('Eski veri').length).toBeGreaterThan(0);
+    const header = screen.getByText('MSFT - MSFT Incorporated').closest('section') as HTMLElement;
+    // Overall pill and the "Fiyat" source pill, both from the shared vocabulary.
+    expect(within(header).getAllByText('Eski veri').length).toBeGreaterThanOrEqual(2);
+  });
+
   it('removes a symbol and refreshes the research snapshot', async () => {
     const user = userEvent.setup();
     const reload = vi.fn();
