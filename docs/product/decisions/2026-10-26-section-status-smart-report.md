@@ -61,7 +61,7 @@ Cost if wrong: an additive field can be reshaped before any consumer depends on 
 ## D-4. Display rules (frontend)
 
 1. A component with a `null` score still shows "Veri yok"; next to it the section status appears as a labelled pill using
-   the Turkish labels the watchlist screen already uses ("Tamam", "Yetersiz veri", "Boş", "Başarısız", ...), and the reason
+   the Turkish labels the watchlist screen already uses (today "OK", "Yetersiz geçmiş", "Veri yok", "Yüklenemedi", ...; the shared module is the source of truth, not this list), and the reason
    code is shown as small text. `OK` shows no warning styling.
 2. A report whose overall status is not `OK`, or is unknown, carries a visible note that the score rests on incomplete
    evidence; the grade and recommendation are still shown but never as stronger than the status allows.
@@ -106,3 +106,13 @@ Rulings made while coding are appended below as `R-n`.
   on trust in a source. Cost if wrong: none while the source behaves.
 - **R-8. `unavailable_components` is carried but unused;** it keeps its short names, unlike the `*_score` keys. Decision:
   keep it only as pass-through data and say so in a comment, so the next reader does not mix the two naming schemes.
+
+- **R-9. The incomplete-evidence note is shown before the grade and recommendation** (corrects the placement in D-4.2). Why:
+  the first implementation put the note below the markdown report, so a user read "Not: B, Öneri: Hold" first and met the
+  warning only after the breakdown. The overall note (and the "Durum bilinmiyor" line) is rendered above the report body;
+  the per-component rows stay in the panel under the breakdown. Cost if wrong: layout only.
+- **R-10. Further display rules from the frontend review.** (1) A component that appears in `sectionStatus` but not in the
+  report breakdown is still listed with its status (a new data-service component must not disappear). (2) The reason
+  explanation is visible text, not only a tooltip, so it reaches touch and keyboard users. (3) A missing price change
+  is not coloured as a gain, and the analyst bar is hidden when there is no analyst data, because a styled "zero" is a
+  default presented as evidence. Cost if wrong: layout only.
