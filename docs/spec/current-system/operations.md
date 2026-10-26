@@ -189,7 +189,11 @@ read `STALE`: a behavior change, see `contracts.md`.
 (`contracts.md`), the backend maps it to `RATE_LIMITED`, and it counts toward the
 breaker, so a Yahoo rate limit can open the technical or fundamentals breaker
 where it used to read `EMPTY`. The data-service resolver also counts the rate
-limit toward its provider blacklist (three failures, 60 seconds). Unchanged: the
+limit toward its provider blacklist (three failures, 60 seconds) and remembers
+whether the failure that completed the threshold was a rate limit: during that
+window the skipped provider still counts as rate limited, with the remaining
+blacklist time as `Retry-After`, so the limit is not reported as "no data"
+(a blacklist from other failures stays silent). Unchanged: the
 legacy Spring adapters (price, asset detail, metadata) swallow every error, and
 the backend does not read `Retry-After`.
 

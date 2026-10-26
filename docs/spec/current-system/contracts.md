@@ -217,7 +217,16 @@ Data-service error responses for provider rate limits (decision
 
 The detail is a fixed sentence, never provider text. A rate-limited provider is
 skipped in favor of the next one in the chain; the 429 is sent only when no
-provider returned data. Finnhub, FMP and FRED rate limits and the Finnhub earnings
+provider returned data. While a provider is blacklisted because rate limits
+caused it (60 seconds after three failures, ruling R-1), the 429 is still sent
+when no other provider has data, with `Retry-After` set to the remaining
+blacklist time (at least 1 second); a provider blacklisted for any other reason
+is skipped and the chain answers empty as before. The composite score route
+(`/api/v1/research/composite/{symbol}`, ruling R-2) degrades per component: a
+rate-limited component is marked `unavailable` with the reason code
+`provider_rate_limited` in `breakdown_availability` and listed in
+`unavailable_components`, and the rest are computed as before; the route answers
+429 only when no component produced data and at least one was rate limited. Finnhub, FMP and FRED rate limits and the Finnhub earnings
 route are not translated yet. The Spring backend does not read `Retry-After` yet.
 
 FastAPI router prefixes and decorators are the route authority. The analysis
