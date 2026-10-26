@@ -29,7 +29,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class DataServiceC0aCompatibilityTest {
 
     @Test
-    void agentAnalysisIgnoresDecisionAvailability() {
+    void agentAnalysisConsumesDecisionAvailabilityAndWithholdsThePlaceholder() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         DataServiceAgentAnalysisAdapter adapter = new DataServiceAgentAnalysisAdapter(restTemplate, new SimpleMeterRegistry());
@@ -62,8 +62,13 @@ class DataServiceC0aCompatibilityTest {
                 adapter.runAnalysis("AAPL", metrics, null);
 
         assertThat(result).isPresent();
-        assertThat(result.get().decision()).isEqualTo("SELL");
-        assertThat(result.get().confidence()).isEqualTo(70);
+        // The unparseable placeholder (SELL/70) is no longer passed on; the status carries the reason.
+        assertThat(result.get().decision()).isNull();
+        assertThat(result.get().confidence()).isNull();
+        assertThat(result.get().decisionStatus().status())
+                .isEqualTo(com.ozkaslibasar.financeproject.domain.model.WatchlistResearchStatus.FAILED);
+        assertThat(result.get().decisionStatus().reason()).isEqualTo("pm_response_not_json_keyword_fallback");
+        assertThat(result.get().portfolioManagerReasoning()).isEqualTo("Reduce position.");
         server.verify();
     }
 

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.ozkaslibasar.financeproject.domain.model.AgentAnalysisResult;
 import com.ozkaslibasar.financeproject.domain.model.AgentMetricSnapshot;
 import com.ozkaslibasar.financeproject.domain.model.AgentSentimentSnapshot;
+import com.ozkaslibasar.financeproject.domain.model.DecisionStatus;
+import com.ozkaslibasar.financeproject.domain.service.DecisionStatusMapper;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
@@ -107,10 +109,17 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
     }
 
     private AgentAnalysisResult toDomain(String ticker, AgentAnalysisResponseDto response) {
+        DecisionAvailabilityDto availability = response.getDecisionAvailability();
+        DecisionStatus status = availability == null
+                ? null
+                : DecisionStatusMapper.fromAvailability(availability.getStatus(), availability.getUnavailableReason());
+        // A FAILED status withholds the placeholder verdict (D-1.3); the model's own text is kept.
+        boolean failed = status != null && status.isFailed();
         return new AgentAnalysisResult(
                 ticker,
-                response.getDecision(),
-                response.getConfidence(),
+                failed ? null : response.getDecision(),
+                failed ? null : response.getConfidence(),
+                status,
                 nullToEmpty(response.getFundamentalSummary()),
                 nullToEmpty(response.getTechnicalSummary()),
                 nullToEmpty(response.getRiskSummary()),
@@ -155,5 +164,15 @@ public class DataServiceAgentAnalysisAdapter implements AgentAnalysisAiPort {
         private String portfolioManagerReasoning;
         @JsonProperty("token_usage")
         private Integer tokenUsage;
+        /** Absent from an older data-service; then the decision status is unknown. */
+        @JsonProperty("decision_availability")
+        private DecisionAvailabilityDto decisionAvailability;
+    }
+
+    @Data
+    static class DecisionAvailabilityDto {
+        private String status;
+        @JsonProperty("unavailable_reason")
+        private String unavailableReason;
     }
 }

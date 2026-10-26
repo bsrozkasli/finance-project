@@ -108,6 +108,7 @@ public class AgentAnalysisUseCase {
                 result.ticker(),
                 result.decision(),
                 result.confidence(),
+                result.decisionStatus(),
                 result.fundamentalSummary(),
                 result.technicalSummary(),
                 result.riskSummary(),
