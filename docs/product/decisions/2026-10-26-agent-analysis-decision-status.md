@@ -67,3 +67,13 @@ Rulings made while coding are appended below as `R-n`.
 - **R-4. A `FAILED` result is not written to `agent_analysis_history`.** The history columns `decision` and `confidence`
   are `NOT NULL`, and writing the placeholder there would put a synthetic decision into an immutable-looking record.
   No migration is made. Cost if wrong: a failed run leaves no history row; the next successful run does.
+- **R-5. Known limits accepted after review.** (1) A verdict with an unknown status (an older data-service that sends no
+  availability) still carries its decision and is still written to `agent_analysis_history`, because R-4 covers only
+  `FAILED`; if that older service produced a placeholder, it would be recorded. The data-service in this repository always
+  sends the availability, so this exists only during a mixed-version rollout. (2) `AgentAnalysisResult` does not enforce
+  "`FAILED` means a null decision" in its constructor; the adapter never builds that combination, and a structural
+  assertion is a follow-up. (3) The adapter returns an empty result (a 503) when `decision` or `confidence` is missing,
+  before it reads the status; the data-service model makes both fields required, so a missing decision together with
+  `unavailable` cannot occur today. (4) The status value's `isOk()` and `isFailed()` helpers may appear in the JSON written
+  to the history record; this is cosmetic and was not verified. Cost if wrong: a placeholder in the history during a mixed
+  rollout; a stray key in a history JSON.
