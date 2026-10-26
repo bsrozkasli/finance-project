@@ -174,34 +174,98 @@ def test_earnings_route_translates_rate_limit(monkeypatch, client):
     _assert_429(client.get("/api/v1/research/earnings/AAPL"))
 
 
-def _stub_composite(monkeypatch, *, fundamental):
-    def boom(cls, symbol):
-        raise RuntimeError("component down")
+def _boom(cls, symbol):
+    raise RuntimeError("component down")
 
-    async def aboom(cls, symbol):
-        raise RuntimeError("component down")
 
+async def _aboom(cls, symbol):
+    raise RuntimeError("component down")
+
+
+def _rate_limited(cls, symbol):
+    raise _limited()
+
+
+async def _arate_limited(cls, symbol):
+    raise _limited()
+
+
+def _valuation_ok(cls, symbol):
+    from datetime import datetime, timezone
+
+    from app.models.valuation import ValuationGrade, ValuationMetrics, ValuationResponse
+
+    return ValuationResponse(
+        symbol=symbol,
+        metrics=ValuationMetrics(valuation_grade=ValuationGrade.CHEAP),
+        peer_comparison=None,
+        calculated_at=datetime.now(timezone.utc),
+    )
+
+
+def _stub_composite(
+    monkeypatch, *, fundamental=_boom, valuation=_boom, factor=_boom, risk=_boom,
+    earnings=_aboom, sentiment=_aboom,
+):
     monkeypatch.setattr(FundamentalAnalysisService, "analyze", classmethod(fundamental))
-    monkeypatch.setattr(ValuationService, "analyze", classmethod(boom))
-    monkeypatch.setattr(FactorAnalysisService, "analyze_factors", classmethod(boom))
-    monkeypatch.setattr(RiskAnalyticsService, "analyze", classmethod(boom))
-    monkeypatch.setattr(EarningsAnalysisService, "analyze", classmethod(aboom))
-    monkeypatch.setattr(EnhancedSentimentService, "analyze", classmethod(aboom))
+    monkeypatch.setattr(ValuationService, "analyze", classmethod(valuation))
+    monkeypatch.setattr(FactorAnalysisService, "analyze_factors", classmethod(factor))
+    monkeypatch.setattr(RiskAnalyticsService, "analyze", classmethod(risk))
+    monkeypatch.setattr(EarningsAnalysisService, "analyze", classmethod(earnings))
+    monkeypatch.setattr(EnhancedSentimentService, "analyze", classmethod(sentiment))
 
 
-def test_composite_route_translates_a_rate_limited_component(monkeypatch, client):
-    def limited(cls, symbol):
-        raise _limited()
+def test_composite_degrades_per_component_when_one_is_rate_limited(monkeypatch, client):
+    _stub_composite(monkeypatch, fundamental=_rate_limited, valuation=_valuation_ok)
 
-    _stub_composite(monkeypatch, fundamental=limited)
+    response = client.get("/api/v1/research/composite/AAPL")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["breakdown"]["valuation_score"] == 75
+    assert body["breakdown_availability"]["valuation_score"]["status"] == "available"
+    assert "fundamental" in body["unavailable_components"]
+
+
+def test_composite_marks_rate_limited_factor_components_with_the_reason_code(monkeypatch, client):
+    _stub_composite(monkeypatch, factor=_rate_limited, valuation=_valuation_ok)
+
+    body = client.get("/api/v1/research/composite/AAPL").json()
+
+    for field in ("quality_score", "growth_score", "momentum_score", "risk_score", "fundamental_score"):
+        assert body["breakdown_availability"][field] == {
+            "status": "unavailable", "unavailable_reason": "provider_rate_limited",
+        }
+    assert body["breakdown_availability"]["valuation_score"]["status"] == "available"
+
+
+def test_composite_marks_rate_limited_valuation_with_the_reason_code(monkeypatch, client):
+    _stub_composite(monkeypatch, valuation=_rate_limited, fundamental=lambda cls, symbol: object())
+
+    body = client.get("/api/v1/research/composite/AAPL").json()
+
+    assert body["breakdown_availability"]["valuation_score"] == {
+        "status": "unavailable", "unavailable_reason": "provider_rate_limited",
+    }
+    # a component that failed for another reason keeps its old reason
+    assert body["breakdown_availability"]["earnings_score"]["unavailable_reason"] == "earnings_component_unavailable"
+
+
+def test_composite_is_429_when_every_component_is_rate_limited(monkeypatch, client):
+    _stub_composite(
+        monkeypatch, fundamental=_rate_limited, valuation=_rate_limited, factor=_rate_limited,
+        risk=_rate_limited, earnings=_arate_limited, sentiment=_arate_limited,
+    )
+    _assert_429(client.get("/api/v1/research/composite/AAPL"))
+
+
+def test_composite_is_429_when_nothing_usable_remains_and_one_was_rate_limited(monkeypatch, client):
+    _stub_composite(monkeypatch, fundamental=_rate_limited)  # the rest fail for other reasons
     _assert_429(client.get("/api/v1/research/composite/AAPL"))
 
 
 def test_composite_route_keeps_degrading_for_other_component_failures(monkeypatch, client):
-    def broken(cls, symbol):
-        raise RuntimeError("component down")
-
-    _stub_composite(monkeypatch, fundamental=broken)
+    _stub_composite(monkeypatch)
     response = client.get("/api/v1/research/composite/AAPL")
     assert response.status_code == 200
     assert response.json()["overall_score"] is None
