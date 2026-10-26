@@ -194,6 +194,20 @@ describe('WatchlistsView', () => {
     expect(onAddStockToWatchlist).toHaveBeenCalledWith('1', 'NVDA');
   });
 
+  it('keeps a STALE price, its own timestamp, the stale pill and the message in the detail panel', async () => {
+    const user = userEvent.setup();
+    renderView();
+
+    await user.type(screen.getByPlaceholderText('Sembol ara'), 'msft');
+
+    expect(screen.getByText('MSFT - MSFT Incorporated')).toBeInTheDocument();
+    expect(screen.getAllByText('$320.00').length).toBeGreaterThan(0);
+    // The price's own time is shown apart from the observation time, so an old price never reads as current.
+    expect(screen.getByText(/^Fiyat zamanı /)).toBeInTheDocument();
+    expect(screen.getByText('Served stale price')).toBeInTheDocument();
+    expect(screen.getAllByText('Eski veri').length).toBeGreaterThan(0);
+  });
+
   it('removes a symbol and refreshes the research snapshot', async () => {
     const user = userEvent.setup();
     const reload = vi.fn();

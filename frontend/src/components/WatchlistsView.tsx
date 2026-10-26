@@ -585,6 +585,11 @@ function SelectedInstrumentPanel({
             <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-xs text-text-muted">
               Son gözlem {formatDateTime(row?.price.observedAt)}
             </span>
+            {price?.timestamp ? (
+              <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-xs text-text-muted">
+                Fiyat zamanı {formatDateTime(price.timestamp)}
+              </span>
+            ) : null}
           </div>
         </div>
 
