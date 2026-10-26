@@ -310,6 +310,7 @@ keeps every existing field and adds `sectionStatus`:
 Component keys are the data-service `breakdown_availability` keys unchanged
 (`fundamental_score`, `valuation_score`, ... `sentiment_score`); `status` is a
 `WatchlistResearchStatus` value and `reason` is the data-service reason code unchanged.
+A component reported `available` whose score is null has `status` `null` (R-7).
 `sectionStatus` is `null` when the composite carried no availability (older data-service
 or a cache entry written before this field). Mapping and precedence are in
 `domain-and-data.md`; decision record
