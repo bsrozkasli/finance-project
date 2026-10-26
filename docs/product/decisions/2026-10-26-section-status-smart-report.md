@@ -1,0 +1,118 @@
+# Decisions: section status on the smart report (first slice of the seven-state contract)
+
+**Recorded:** 2026-10-26
+
+**Decision input:** The product owner delegated the Backend/Architecture Lead decisions (OQ-5) to the implementing agent
+and asked that every decision be recorded (2026-10-22 and 2026-10-25). Legal, data-rights, policy and recovery decisions
+(OQ-1, OQ-2, OQ-3, OQ-8) are outside this delegation and are not taken here.
+
+**Scope:** `PRD-FR-007` and `PRD-FR-009` for one path: composite `breakdown_availability` → smart report → Stock Detail
+screen. The EPIC-001 plan listed "the seven section statuses" as an OQ-5 item still open. An exploration on 2026-10-26
+found that the data-service already says which score components are unavailable and why, but the backend drops those
+fields, so a user can read a score without knowing a component was missing.
+**State:** Accepted 2026-10-26.
+
+Each decision states what it costs if wrong.
+
+## D-1. Vocabulary and meaning
+
+1. The seven statuses are the existing domain enum `WatchlistResearchStatus` (`OK`, `STALE`, `EMPTY`, `FAILED`,
+   `RATE_LIMITED`, `INSUFFICIENT_DATA`, `PENDING_REFRESH`). No second enum is created.
+2. Meaning for this contract: `STALE` is data older than its freshness policy. (The watchlist snapshot also uses `STALE`
+   for "circuit open"; that is a known inconsistency, not changed here, and is listed under follow-ups.)
+3. This slice produces only `OK`, `EMPTY`, `INSUFFICIENT_DATA` and `FAILED`. `RATE_LIMITED`, `STALE` and
+   `PENDING_REFRESH` are not produced because no source can state them honestly: the data-service has no rate-limit,
+   stale or pending signal in any reason code, and the backend adapters turn exceptions into an empty result.
+   Inventing them from message text would present a guess as a status.
+
+Cost if wrong: two more statuses need a source later; the field already carries any of the seven.
+
+## D-2. Mapping from the data-service
+
+| Data-service `status` | Reason codes (examples) | Section status |
+|---|---|---|
+| `available` | none | `OK` |
+| `insufficient` | `no_articles_in_lookback`, `*_empty` | `INSUFFICIENT_DATA` |
+| `unavailable` | `*_component_unavailable`, `*_score_not_mapped`, `*_score_missing`, `*_grade_missing`, `*_failed` | `EMPTY` (the data was not produced) |
+| `unparseable` | `llm_response_*`, `pm_response_*` | `FAILED` |
+
+1. The reason code is passed through unchanged as `reason`; the backend does not rewrite it.
+2. An unknown `status` value maps to no status (`null`), never to `OK`.
+3. Fallback score: when the composite call is missing and the Finnhub-derived score is used, every component and the
+   overall status are `INSUFFICIENT_DATA` with reason `fallback_source_used`, because the evidence behind the number is
+   different and thinner than the composite. It is never `OK`.
+
+Cost if wrong: a few codes move to a different status; the mapping is one table in one class.
+
+## D-3. Contract (additive)
+
+1. `GET /api/v1/reports/smart/{symbol}` keeps every existing field and gains `sectionStatus` (nullable):
+   `{ "overall": <status|null>, "components": { "<component>": { "status": <status|null>, "reason": <string|null> } } }`.
+   Components are the keys of `breakdown_availability` (for example `sentiment`, `factor`, `valuation`, `earnings`,
+   `fundamental`); the map is empty or absent only when the data-service sent none.
+2. Overall: `OK` only when every component is `OK`; otherwise the most severe of `FAILED`, `INSUFFICIENT_DATA`, `EMPTY`
+   in that order. If the composite response carried no availability at all (an older data-service, or a cached report
+   written before this change), `sectionStatus` is `null` and the UI says the status is unknown; it is never shown as `OK`.
+3. Existing getters, the cached report shape and `OpportunityRadarJob` are unchanged. The Redis `smartReportCache`
+   (6 hours) may still hold old entries without the field; that is tolerated and needs no eviction.
+
+Cost if wrong: an additive field can be reshaped before any consumer depends on it.
+
+## D-4. Display rules (frontend)
+
+1. A component with a `null` score still shows "Veri yok"; next to it the section status appears as a labelled pill using
+   the Turkish labels the watchlist screen already uses (today "OK", "Yetersiz geçmiş", "Veri yok", "Yüklenemedi", ...; the shared module is the source of truth, not this list), and the reason
+   code is shown as small text. `OK` shows no warning styling.
+2. A report whose overall status is not `OK`, or is unknown, carries a visible note that the score rests on incomplete
+   evidence; the grade and recommendation are still shown but never as stronger than the status allows.
+3. The status is not an investment signal and is never combined into the score.
+4. Places that default a missing value to 0 or to a neutral number are inspected; any that present a missing evidence
+   value as a real one are fixed, cosmetic ones are listed and left.
+
+Cost if wrong: copy and layout only.
+
+## D-5. Out of this slice (next, in this order)
+
+1. Agent analysis: the portfolio-manager parse fallback returns HOLD with confidence 50 or BUY/SELL with 70 and the
+   frontend shows it as a decision. This is the largest "missing becomes evidence" gap; it needs its own additive
+   `decisionStatus`, a cache payload change and positional-record changes.
+2. Exceptions swallowed to empty results in the data-service adapters, so rate limits and failures can reach the
+   statuses honestly (`RATE_LIMITED`, `FAILED`).
+3. The `STALE` meaning in the watchlist snapshot and the two precedence rules in `WatchlistResearchService` versus
+   `WatchlistResearchSnapshotUseCase` (the use case is the canonical one).
+4. Asset detail sections (`OK`/`EMPTY`/`FAILED` only) and shared fixtures for the remaining responses.
+
+## Implementation rulings
+
+Rulings made while coding are appended below as `R-n`.
+
+- **R-1. Component keys are the real `*_score` keys** of the data-service breakdown (eight keys, for example
+  `sentiment_score`), not the short names used as examples in D-3.1. Why: D-3.1 says the components are the keys of
+  `breakdown_availability`. Cost if wrong: a rename of keys in a nullable additive field.
+- **R-2. An empty `breakdown_availability` map is treated as absent**, so `sectionStatus` is `null` (unknown), never `OK`.
+- **R-3. An unrecognised component status never makes the overall status `OK`**; the overall is then `null` unless a worse
+  known status decides it.
+- **R-4. The fallback path always reports the eight composite keys as `INSUFFICIENT_DATA`**, even when the Finnhub
+  metrics are also missing, because the composite itself is what is missing.
+- **R-5. A null availability entry becomes a component with `status` and `reason` both `null`.**
+- **R-6. The report cache can now be read back (found during review).** `SmartReport` has only a Lombok builder, and the
+  cache serializer registered no creator for it, so a cache hit on the `smartReportCache` entry could not be
+  deserialized (and no `CacheErrorHandler` exists, so it would have surfaced as a server error on the second request for
+  a symbol within six hours). Decision: keep the builder mixins in `RedisConfig` (the domain stays annotation-free),
+  prove the round trip with a real Redis test that calls the endpoint twice, and also round-trip a `CompositeScore` and a
+  report with peers through the real serializer. Cost if wrong: the mixins touch only the three smart-report types.
+- **R-7. A component whose data-service status is `available` but whose score is null is reported with status `null`**
+  (unknown), never `OK`. Why: the data-service validator forbids this state, but evidence shown as present must not rest
+  on trust in a source. Cost if wrong: none while the source behaves.
+- **R-8. `unavailable_components` is carried but unused;** it keeps its short names, unlike the `*_score` keys. Decision:
+  keep it only as pass-through data and say so in a comment, so the next reader does not mix the two naming schemes.
+
+- **R-9. The incomplete-evidence note is shown before the grade and recommendation** (corrects the placement in D-4.2). Why:
+  the first implementation put the note below the markdown report, so a user read "Not: B, Öneri: Hold" first and met the
+  warning only after the breakdown. The overall note (and the "Durum bilinmiyor" line) is rendered above the report body;
+  the per-component rows stay in the panel under the breakdown. Cost if wrong: layout only.
+- **R-10. Further display rules from the frontend review.** (1) A component that appears in `sectionStatus` but not in the
+  report breakdown is still listed with its status (a new data-service component must not disappear). (2) The reason
+  explanation is visible text, not only a tooltip, so it reaches touch and keyboard users. (3) A missing price change
+  is not coloured as a gain, and the analyst bar is hidden when there is no analyst data, because a styled "zero" is a
+  default presented as evidence. Cost if wrong: layout only.

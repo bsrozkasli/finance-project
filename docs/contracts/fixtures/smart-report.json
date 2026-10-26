@@ -1,0 +1,33 @@
+{
+  "symbol": "AAPL",
+  "overallScore": 51,
+  "grade": "C",
+  "recommendation": "Hold",
+  "breakdown": {
+    "fundamentalScore": 50,
+    "valuationScore": null,
+    "qualityScore": 50,
+    "growthScore": 50,
+    "momentumScore": 50,
+    "riskScore": 50,
+    "earningsScore": 50,
+    "sentimentScore": 70
+  },
+  "peers": [
+    {
+      "symbol": "AAPL",
+      "peRatio": 20.0,
+      "pbRatio": 3.0,
+      "debtToEquity": 0.5,
+      "netProfitMargin": 0.2,
+      "roe": 0.3
+    }
+  ],
+  "sectionStatus": {
+    "overall": "EMPTY",
+    "components": {
+      "fundamental_score": { "status": "OK", "reason": null },
+      "valuation_score": { "status": "EMPTY", "reason": "valuation_component_unavailable" }
+    }
+  }
+}

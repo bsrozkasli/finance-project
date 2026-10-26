@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiClient } from '../api/client';
+import type { WatchlistResearchStatus } from '../api/watchlists';
 
 export interface ScoreBreakdown {
   fundamentalScore: number | null;
@@ -21,6 +22,21 @@ export interface PeerComparison {
   roe: number | null;
 }
 
+/** Same seven-value vocabulary as the watchlist research status (decision D-1). */
+export type SectionStatus = WatchlistResearchStatus;
+
+export interface ComponentSectionStatus {
+  status: SectionStatus | null;
+  reason: string | null;
+}
+
+/** Availability of each score component; a data label, never part of the score. */
+export interface SmartReportSectionStatus {
+  overall: SectionStatus | null;
+  /** Keyed by data-service component key, e.g. `sentiment_score`. */
+  components: Record<string, ComponentSectionStatus>;
+}
+
 export interface SmartReport {
   symbol: string;
   overallScore: number | null;
@@ -28,6 +44,8 @@ export interface SmartReport {
   recommendation: string | null;
   breakdown: ScoreBreakdown | null;
   peers: PeerComparison[];
+  /** Absent on old cache entries or old backends; null/absent means status unknown, never OK. */
+  sectionStatus?: SmartReportSectionStatus | null;
 }
 
 export const useSmartReport = (symbol: string | null) => {

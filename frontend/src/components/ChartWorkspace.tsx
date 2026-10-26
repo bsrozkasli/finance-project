@@ -316,8 +316,8 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="font-data-mono text-3xl font-bold text-text-primary">{activeStock ? `$${fmt(activeStock.price)}` : '—'}</span>
-                <span className={`font-data-mono text-sm font-bold ${(activeStock?.change ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                  {activeStock ? `${activeStock.change >= 0 ? '+' : ''}${fmt(activeStock.changePercent)}%` : '—'}
+                <span className={`font-data-mono text-sm font-bold ${activeStock?.change == null ? 'text-text-muted' : activeStock.change >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                  {activeStock && activeStock.change != null ? `${activeStock.change >= 0 ? '+' : ''}${fmt(activeStock.changePercent)}%` : '—'}
                 </span>
               </div>
               <div className="font-data-mono text-xs text-text-muted flex flex-wrap gap-3 mt-1 uppercase">

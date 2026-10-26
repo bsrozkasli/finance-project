@@ -56,7 +56,7 @@ export interface Stock {
   technicals: TechnicalIndicators | null;
   analystRating: {
     consensus: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL';
-    targetPrice: number;
+    targetPrice: number | null;
     buyPercent: number;
     holdPercent: number;
     sellPercent: number;

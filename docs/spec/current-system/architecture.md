@@ -108,6 +108,23 @@ change together when API routing changes.
   close with Escape; validation and save results appear inside the dialog
   rather than through browser `alert`/`confirm`/`prompt`. Dates use the `tr-TR`
   locale (for example `9 Tem 2026`); money keeps the `$1,234.56` USD format.
+- The seven-value research status vocabulary (`WatchlistResearchStatus`) has one
+  UI home: `components/sectionStatus.ts` (labels, styles, `isKnownStatus`) and
+  `components/StatusPill.tsx`, shared by `WatchlistsView` and the smart report.
+  `StockDetailModal` renders `SmartReportEvidenceNote` above the generated smart
+  report body (R-9) and `SmartReportStatusPanel` ("Veri durumu") under it. When the
+  overall status is not `OK` or is unknown, the note (`role="note"`) says the score
+  rests on incomplete evidence, so it precedes grade and recommendation, which stay
+  visible; an absent or `null` `sectionStatus` adds a "Durum bilinmiyor" line and is
+  never treated as `OK`. The panel lists per score component the score or "Veri yok",
+  the status pill from `sectionStatus.components["<x>_score"]` (camelCase breakdown
+  keys map to snake_case `*_score` keys), and the reason code with a visible Turkish
+  explanation. Components reported only by `sectionStatus` are listed too, also when
+  the breakdown is null. `OK` carries no warning styling; a `null` or unrecognised
+  component status shows "Durum bilinmiyor". The status is a data label: not an
+  investment signal and never added into the score. A missing analyst price target
+  stays `null` (`—`), an absent candle series shows `— mum`, a missing price change
+  is neutral-coloured, and the analyst bar is hidden without analyst data.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted

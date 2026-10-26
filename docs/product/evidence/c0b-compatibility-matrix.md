@@ -32,7 +32,7 @@ to work without modification.
 
 | Consumer | Runtime | How it deserializes | C0a impact | Evidence |
 |---|---|---|---|---|
-| `DataServiceResearchAdapter` | Spring (Java) | `RestTemplate` + Jackson default | Both fields silently dropped | `DataServiceC0aCompatibilityTest#compositeIgnoresBreakdownAvailability` — 4/4 pass 2026-10-15 |
+| `DataServiceResearchAdapter` | Spring (Java) | `RestTemplate` + Jackson default | Both fields consumed since 2026-10-26 (null when absent); no longer silently dropped | `DataServiceCompositeAvailabilityTest` (present and absent cases); `DataServiceC0aCompatibilityTest#compositeStillMapsScoresWhenBreakdownAvailabilityIsPresent` |
 
 ### `GET /api/v1/sentiment/{symbol}` — new field: `availability`
 

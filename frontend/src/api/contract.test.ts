@@ -124,6 +124,43 @@ const PortfolioStateSchema = z.strictObject({
   assetTypeWeights: z.partialRecord(AssetTypeSchema, z.number()),
 });
 
+const SectionStatusSchema = z.enum([
+  'OK', 'STALE', 'EMPTY', 'FAILED', 'RATE_LIMITED', 'INSUFFICIENT_DATA', 'PENDING_REFRESH',
+]);
+
+// The smart report has no client.ts type yet (next change); this pins the backend field set.
+const SmartReportSchema = z.strictObject({
+  symbol: z.string(),
+  overallScore: z.number().nullable(),
+  grade: z.string().nullable(),
+  recommendation: z.string().nullable(),
+  breakdown: z.strictObject({
+    fundamentalScore: z.number().nullable(),
+    valuationScore: z.number().nullable(),
+    qualityScore: z.number().nullable(),
+    growthScore: z.number().nullable(),
+    momentumScore: z.number().nullable(),
+    riskScore: z.number().nullable(),
+    earningsScore: z.number().nullable(),
+    sentimentScore: z.number().nullable(),
+  }),
+  peers: z.array(z.strictObject({
+    symbol: z.string(),
+    peRatio: z.number().nullable(),
+    pbRatio: z.number().nullable(),
+    debtToEquity: z.number().nullable(),
+    netProfitMargin: z.number().nullable(),
+    roe: z.number().nullable(),
+  })),
+  sectionStatus: z.strictObject({
+    overall: SectionStatusSchema.nullable(),
+    components: z.record(z.string(), z.strictObject({
+      status: SectionStatusSchema.nullable(),
+      reason: z.string().nullable(),
+    })),
+  }).nullable(),
+});
+
 const BackendErrorSchema = z.strictObject({
   timestamp: z.string(),
   status: z.number().int(),
@@ -196,5 +233,13 @@ describe('shared HTTP contract fixtures', () => {
     await expect(fetchPortfolioState(1, partial.version)).resolves.toEqual(partial);
     expect(partial.positions[0]).toMatchObject({ price: null, marketValue: null, weight: null });
     expect(partial.assetTypeWeights).toEqual({});
+  });
+
+  it('smart report fixture matches the schema, including section status', () => {
+    const fixture = SmartReportSchema.parse(loadContractFixture('smart-report.json'));
+
+    expect(fixture.breakdown.valuationScore).toBeNull();
+    expect(fixture.sectionStatus?.overall).toBe('EMPTY');
+    expect(fixture.sectionStatus?.components.valuation_score.reason).toBe('valuation_component_unavailable');
   });
 });
