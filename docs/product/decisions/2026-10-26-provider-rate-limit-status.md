@@ -94,3 +94,10 @@ Rulings made while coding are appended below as `R-n`.
   fire. The blacklist cause is tracked per provider, not per operation, like the blacklist itself. A rate limit in the
   fundamental or risk component has no per-field reason code and is listed only in `unavailable_components`. Cost if wrong:
   a composite with a few limited components answers 200 where a strict reading would answer 429.
+- **R-5. Known limits accepted after review.** (1) The legacy `TechnicalAnalysisAdapter` methods and `DataServicePriceAdapter`
+  still swallow the 429 into an empty result (D-6: outside this change); the snapshot path maps it to `RATE_LIMITED`.
+  (2) The blacklist cause is the failure that completes the threshold, so two 429s followed by a timeout hide the limit for
+  the window. (3) The "too many requests" text fallback can classify an unrelated error that quotes the phrase. (4) A
+  rate-limited provider plus another that answers "unknown symbol" gives 429, not 404. (5) No end-to-end test for the
+  backtest route, the quote path through `/prices`, or `retry_after` of a skipped provider on `/prices`. Cost if wrong: a
+  misleading empty or 429 in those edge cases; no wrong numbers.
