@@ -138,6 +138,15 @@ change together when API routing changes.
   `null` or an absent field show nothing extra. Profit/loss and return are rendered
   as sent, never recoloured or recomputed in the browser. The pill is a data label,
   not an investment signal.
+- `PortfolioManagerView` and `DashboardHome` render the same pill through the shared
+  `components/PriceFreshness.tsx` (also used by the journal) for rows whose API price is
+  shown (`priceStatus`/`priceAsOf` of `GET /portfolio/positions/performance`; price staleness
+  R-7): `STALE` shows "Eski fiyat" with the formatted `priceAsOf`, `FAILED`/`EMPTY` show
+  "Fiyat yok", `OK`, `null` or absent show nothing. A row whose price the dashboard replaces
+  with live market data (`stock.price`) carries no pill. The summary `pricingStatus`
+  (`STALE` or `FAILED` only) adds one `role="note"` beside the total ("Bazı fiyatlar
+  doğrulanamadı; toplam eski fiyatlar içerebilir."). Numbers are never recoloured, recomputed
+  or hidden, and `pricingComplete` logic is unchanged.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted

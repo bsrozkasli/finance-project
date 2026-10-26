@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
 import type { Stock, Trade, Watchlist, Portfolio } from './types';
+import type { PriceStatus } from './api/types';
 import type { JournalTrade } from './api/client';
 import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction } from './api/client';
 import { useAssets } from './hooks/useAssets';
@@ -63,6 +64,7 @@ function PortfolioRoute({
   onOpenTradingJournal,
   onLedgerChanged,
   stocks,
+  pricingStatus,
 }: {
   portfolios: Portfolio[];
   activePortfolioId: string;
@@ -73,6 +75,7 @@ function PortfolioRoute({
   onOpenTradingJournal: () => void;
   onLedgerChanged: () => Promise<void>;
   stocks: Stock[];
+  pricingStatus?: PriceStatus | null;
 }) {
   const { portfolioId } = useParams();
   const navigate = useNavigate();
@@ -99,6 +102,7 @@ function PortfolioRoute({
       onExecuteTrade={onExecuteTrade}
       onOpenTradingJournal={onOpenTradingJournal}
       onLedgerChanged={onLedgerChanged}
+      pricingStatus={pricingStatus}
     />
   );
 }
@@ -131,6 +135,7 @@ export default function App() {
     createPortfolio: createApiPortfolio,
     setSelectedPortfolioId: setApiPortfolioId,
     reload: reloadInvestmentPortfolio,
+    summary: apiPortfolioSummary,
   } = useInvestmentPortfolio(numericPortfolioId(activePortfolioId) ?? null);
   const {
     watchlists: apiWatchlists,
@@ -401,6 +406,7 @@ export default function App() {
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
                 onNavigateToNews={() => navigate('/news')}
                 onNavigateToResearch={() => navigate('/workspace')}
+                pricingStatus={apiPortfolioSummary?.pricingStatus}
                 news={news}
                 calendarEvents={calendarEvents}
               />
@@ -484,6 +490,7 @@ export default function App() {
                 onExecuteTrade={handleExecuteTrade}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
                 onLedgerChanged={handleLedgerChanged}
+                pricingStatus={apiPortfolioSummary?.pricingStatus}
               />
             } />
             <Route path="/portfolio/:portfolioId" element={
@@ -497,6 +504,7 @@ export default function App() {
                 onExecuteTrade={handleExecuteTrade}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
                 onLedgerChanged={handleLedgerChanged}
+                pricingStatus={apiPortfolioSummary?.pricingStatus}
               />
             } />
             <Route path="/portfolios" element={<Navigate to="/portfolio" replace />} />
