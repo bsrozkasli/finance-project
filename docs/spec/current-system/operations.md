@@ -92,22 +92,24 @@ tests for success, empty response, provider failure, and fallback ordering.
   explicit status metadata, or dependency errors according to the public endpoint
   contract.
 - `PriceRefreshService` may return existing persisted rows when a refresh fails.
-  Price DTOs expose timestamps but no explicit stale flag, so consumers can only
-  infer freshness from time. This is a current contract gap; documentation and UI
-  must not claim that fallback price rows carry explicit stale metadata.
+  History price DTOs (`/prices/{symbol}/history`) expose timestamps but no explicit stale
+  flag, so consumers can only infer freshness from time; documentation and UI must not
+  claim that fallback history rows carry explicit stale metadata. Latest-price consumers
+  listed below carry `priceStatus`/`priceAsOf`.
 - `PriceRefreshService.lookupFreshLatest` returns the newest price with its origin:
   `FRESH` (the provider returned a row for the symbol), `STORED_REFRESH_FAILED` (the
   provider call threw, only a stored price), `STORED_REFRESH_EMPTY` (null, empty or
   only other symbols' rows, only a stored price), `NONE_REFRESH_FAILED`,
   `NONE_REFRESH_EMPTY`. It shares the fetch-and-persist path with `getFreshLatest`;
   failure is told from empty by the exception, never by message text. Only the
-  watchlist research snapshot (price section status) and the journal's open-trade
-  enrichment use it (see `contracts.md`); both map the origin through the single
+  watchlist research snapshot (price section status), the journal's open-trade
+  enrichment, the portfolio dashboard (`PortfolioDashboardController`: summary,
+  `positions/enriched`, `positions/performance`, `allocation`) and
+  `GET /prices/{symbol}/latest` use it (see `contracts.md`); all map the origin through the single
   `PriceStatus.from` (`FRESH`=`OK`, `STORED_*`=`STALE`, `NONE_REFRESH_FAILED`=`FAILED`,
-  `NONE_REFRESH_EMPTY`=`EMPTY`). Follow-up: `PortfolioDashboardController` and
-  `PriceController` still use `getFreshLatest` and can present a stored price as
-  current after a failed refresh (decided in
-  `docs/product/decisions/2026-10-26-price-staleness.md` D-4, not built).
+  `NONE_REFRESH_EMPTY`=`EMPTY`). A dashboard lookup that throws is treated as no price with
+  status `FAILED`, never `OK`. Decision record
+  `docs/product/decisions/2026-10-26-price-staleness.md`.
 - Asset metadata uses `VERIFIED`, `PARTIAL`, or `UNAVAILABLE`.
 - Technical analysis rejects fewer than 30 candles and leaves long-lookback
   indicators nullable when history is insufficient.
@@ -134,7 +136,7 @@ tests for success, empty response, provider failure, and fallback ordering.
 | Cache | TTL |
 |---|---:|
 | default | 60 minutes |
-| `latestPriceCache` | 30 seconds |
+| `latestPriceCache` | 30 seconds; caches only `OK` answers (`unless` on `PriceController.getLatestPrice`), so a `STALE` answer is looked up again on the next call |
 | `marketQuoteCache` | 30 seconds |
 | `assetProfileCache` | 24 hours |
 | `priceCache` | 5 minutes |
