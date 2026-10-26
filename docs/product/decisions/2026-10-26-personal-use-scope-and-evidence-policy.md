@@ -135,3 +135,19 @@ What follows from the approval: the policies `stock-v1` and `etf-v1` (Option A) 
 the section 2.3 cases as independent tests. This closes the policy part of OQ-3 for the personal-use scope. It does not
 approve OQ-4, any investment label, weight cap, PEG, Portfolio Fit or directional decision, or any external use. The
 deferred gates of section 1 reopen at their stated triggers.
+
+## Implementation rulings
+
+Details the approved text did not fix, decided while coding. They do not change any approved number.
+
+- **R-1. Field names of the optional fields carry a group prefix.** The approved tables name optional fields without one
+  (`roe`, `forwardPe`). In code they are `fundamentals.*`, `valuation.*`, `institutional.*` for stocks and `fund.*` and
+  `price.volume` for ETFs, matching the prefixes of the mandatory fields. Why: one field name must identify one field across
+  the snapshot. Cost if wrong: a rename of the keys when snapshots are assembled.
+- **R-2. ETF windows.** The approval gave windows only for `price.close` (5 days). `price.volume` is 5 days, and the fund
+  fields (`fund.expenseRatio`, `fund.holdings`, `fund.assets`, `fund.navPremium`, `fund.dividendYield`) are 400 days, like
+  the annual stock fundamentals. Why: fund facts change slowly; volume moves daily like price. Cost if wrong: such a field
+  reads stale earlier or later than intended; no fund source exists yet, so nothing is affected today.
+- **R-3. Nothing builds snapshots with these field names yet.** The policies are data used by tests only. Task 3 of EPIC-001
+  is not accepted: it still needs the seven section statuses, snapshot assembly from research data under these names, and
+  cross-runtime fixtures.
