@@ -15,7 +15,7 @@ decisions (OQ-1, OQ-2, OQ-3, OQ-8) are not taken here.
 When the portfolio manager model does not return valid JSON, the data-service builds a placeholder verdict: `HOLD` with
 confidence `50`, or `BUY`/`SELL` with confidence `70` chosen by keyword, and marks the section `unparseable`
 (`decision_availability`). The Spring backend drops that availability field, so the placeholder reaches the API response
-and the six-hour Redis cache as if it were a decision. The only frontend consumer (`ResearchAgentReport`) does not render
+and the Redis cache (15 minutes by default, `agent-analysis.cache-ttl-minutes`) as if it were a decision. The only frontend consumer (`ResearchAgentReport`) does not render
 `decision` or `confidence` today, so the placeholder is not on screen yet, but it is in the contract and in the cache, and
 any future consumer would show it as evidence. AGENTS.md forbids replacing missing evidence with synthetic values.
 
@@ -56,3 +56,14 @@ the `STALE` meaning remain open from the earlier decision record.
 ## Implementation rulings
 
 Rulings made while coding are appended below as `R-n`.
+
+- **R-1. Correction of the cache duration.** The decision text said six hours; the code default is 15 minutes
+  (`agent-analysis.cache-ttl-minutes`). The six hours belong to the smart report cache. Nothing else depends on the
+  number; the rules in D-2 hold for any duration.
+- **R-2. An unknown status is serialized as `decision_status: null`** (the whole object), not as an object whose `status`
+  is null. Frontend and schema accept both. Cost if wrong: none, both mean unknown.
+- **R-3. Old cache entries are detected by a missing or non-`OK` `decisionStatus` in the stored payload.** They count as a
+  miss and are evicted, so a stale placeholder is never served. Cost if wrong: one recomputation per symbol.
+- **R-4. A `FAILED` result is not written to `agent_analysis_history`.** The history columns `decision` and `confidence`
+  are `NOT NULL`, and writing the placeholder there would put a synthetic decision into an immutable-looking record.
+  No migration is made. Cost if wrong: a failed run leaves no history row; the next successful run does.

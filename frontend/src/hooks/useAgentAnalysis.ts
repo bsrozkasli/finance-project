@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '../api/client';
+import type { WatchlistResearchStatus } from '../api/watchlists';
+
+/** Data-availability label of the portfolio manager verdict; null/absent means unknown. Not an investment signal. */
+export interface AgentDecisionStatus {
+  status: WatchlistResearchStatus | null;
+  reason: string | null;
+}
 
 export interface AgentAnalysis {
   ticker: string;
-  decision: string;
-  confidence: number;
+  /** Null when the verdict could not be produced (decision_status FAILED); never render null as a value. */
+  decision: string | null;
+  confidence: number | null;
+  decision_status?: AgentDecisionStatus | null;
   fundamental_summary: string;
   technical_summary: string;
   risk_summary: string;
