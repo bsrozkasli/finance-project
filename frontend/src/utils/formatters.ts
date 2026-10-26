@@ -36,3 +36,16 @@ export const assetTypeLabel = (type: string | null | undefined) => {
   if (!type) return 'Tür bilinmiyor';
   return ASSET_TYPE_LABELS[type.toUpperCase()] ?? type;
 };
+
+/** Short Turkish date and time for a price time; an unknown or invalid value is `—`, never a guess. */
+export const formatDateTime = (value: string | null | undefined) => {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+  return new Intl.DateTimeFormat('tr-TR', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date);
+};
