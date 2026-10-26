@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
+import { ApiError } from '../api/errors';
 import type { Trade } from '../types';
 import TradingJournalModal from './TradingJournalModal';
 
@@ -16,7 +17,11 @@ const trade = (overrides: Partial<Trade>): Trade => ({
   ...overrides,
 });
 
-const renderJournal = (trades: Trade[], onClose = vi.fn()) => {
+const renderJournal = (
+  trades: Trade[],
+  onClose = vi.fn(),
+  onRemoveTrade: (id: string) => Promise<void> | void = vi.fn(),
+) => {
   render(
     <TradingJournalModal
       isOpen
@@ -24,7 +29,7 @@ const renderJournal = (trades: Trade[], onClose = vi.fn()) => {
       trades={trades}
       stocks={[]}
       portfolios={[{ id: '1', name: 'ALFA', holdings: [] }]}
-      onRemoveTrade={vi.fn()}
+      onRemoveTrade={onRemoveTrade}
       onOpenTradeModal={vi.fn()}
     />,
   );
@@ -59,5 +64,30 @@ describe('TradingJournalModal', () => {
     await userEvent.type(screen.getByLabelText('Notlarda ara'), 'zzz');
 
     expect(screen.getByText('Veri yok: filtrelerle eşleşen işlem kaydı yok.')).toBeInTheDocument();
+  });
+
+  it('shows the backend 409 message when deleting a transaction is refused', async () => {
+    const message = 'Cannot delete the AAPL buy: a later sell depends on it';
+    const onRemoveTrade = vi.fn().mockRejectedValue(
+      new ApiError(message, { status: 409, path: '/api/v1/portfolios/1/transactions/10', isNetworkError: false }),
+    );
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderJournal([trade({})], vi.fn(), onRemoveTrade);
+
+    await userEvent.click(screen.getByRole('button', { name: 'İşlemi sil' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+  });
+
+  it('keeps the generic message for other delete failures', async () => {
+    const onRemoveTrade = vi.fn().mockRejectedValue(
+      new ApiError('Sunucuya ulaşılamadı.', { status: null, path: null, isNetworkError: true }),
+    );
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderJournal([trade({})], vi.fn(), onRemoveTrade);
+
+    await userEvent.click(screen.getByRole('button', { name: 'İşlemi sil' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('İşlem silinemedi. Daha sonra yeniden deneyin.');
   });
 });

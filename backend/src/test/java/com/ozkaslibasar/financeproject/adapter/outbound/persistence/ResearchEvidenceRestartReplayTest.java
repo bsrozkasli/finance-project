@@ -39,14 +39,13 @@ class ResearchEvidenceRestartReplayTest {
     private static ConfigurableApplicationContext start() {
         return new SpringApplicationBuilder(FinanceProjectApplication.class)
                 .profiles("test")
-                .properties(
-                        "spring.datasource.url=" + POSTGRES.getJdbcUrl(),
-                        "spring.datasource.username=" + POSTGRES.getUsername(),
-                        "spring.datasource.password=" + POSTGRES.getPassword(),
-                        "spring.datasource.driver-class-name=org.postgresql.Driver",
-                        "spring.jpa.show-sql=false",
-                        "server.port=0")
-                .run();
+                .run(
+                        "--spring.datasource.url=" + POSTGRES.getJdbcUrl(),
+                        "--spring.datasource.username=" + POSTGRES.getUsername(),
+                        "--spring.datasource.password=" + POSTGRES.getPassword(),
+                        "--spring.datasource.driver-class-name=org.postgresql.Driver",
+                        "--spring.jpa.show-sql=false",
+                        "--server.port=0");
     }
 
     private static InstrumentIdentity identity(Instant retrievedAt) {
@@ -64,6 +63,8 @@ class ResearchEvidenceRestartReplayTest {
         ResearchEvidenceSnapshot first;
         ResearchEvidenceSnapshot second;
         try (ConfigurableApplicationContext before = start()) {
+            assertThat(before.getEnvironment().getProperty("spring.datasource.url"))
+                    .isEqualTo(POSTGRES.getJdbcUrl());
             ResearchEvidenceService service = before.getBean(ResearchEvidenceService.class);
             first = service.record(identity(T0), T0, List.of(present("100.00", T0),
                     new ResearchEvidenceField("volume", null, EvidenceMissingness.PROVIDER_FAILED,
@@ -72,6 +73,8 @@ class ResearchEvidenceRestartReplayTest {
         }
 
         try (ConfigurableApplicationContext after = start()) {
+            assertThat(after.getEnvironment().getProperty("spring.datasource.url"))
+                    .isEqualTo(POSTGRES.getJdbcUrl());
             ResearchEvidenceService service = after.getBean(ResearchEvidenceService.class);
 
             assertThat(service.findById(first.id())).contains(first);

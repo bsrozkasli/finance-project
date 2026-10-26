@@ -164,6 +164,52 @@ computing and writes it only after successful analysis.
 - Watchlist research provider calls are bounded by per-provider timeouts and
   circuit behavior so one section does not erase other evidence.
 
+### Logical backup and restore exercise
+
+`PortfolioBackupRestoreTest` (R-23) is a repeatable proof that EPIC-002 data survives a logical PostgreSQL backup. It
+is evidence, not a target: it sets no recovery objective, encryption, retention or access-control requirement.
+
+What it covers, on two real PostgreSQL 16 Testcontainers (A and B):
+
+- Container A is filled through the application's own beans: a portfolio; assets and daily closes (AAPL and MSFT
+  priced in USD, SAP priced in EUR against a USD ledger, so its position is `CURRENCY_MISMATCH`); ledger events (a BUY
+  later partly sold, a dividend, a manual event and a CSV-imported event that are then voided); three CSV batches
+  (accepted with an `INVALID` row, a second accepted with `DUPLICATE` rows including one whose event is voided, and one
+  left `STAGED`); two persisted Portfolio States, a `COMPLETE` one stored before the void and a `PARTIAL` one after.
+- `pg_dump -Fc` runs inside A; the file is copied out and into B; `pg_restore --no-owner --exit-on-error` restores it
+  into an empty database there.
+- The application starts against the restored database, so Flyway validates the restored `flyway_schema_history`
+  (same rows, checksums and success flags as in A). Row counts and an `md5` digest of every public table equal A's.
+  Active and voided event counts, CSV batch statuses and per-row outcomes, and holdings equal A's. Every stored state
+  replays through `PortfolioStateService.replay` to the same version hash, including the state stored before the
+  void. Re-staging the same CSV marks the voided and active rows `DUPLICATE`, so voided events still reserve their
+  locator.
+
+It is opt-in (R-30) because it would not fit the default suite's 120 s fork budget. From `backend/` in PowerShell, with Docker running:
+
+```powershell
+node ..\scripts\run-with-timeout.cjs 115000 .\mvnw.cmd "-Dtest=PortfolioBackupRestoreTest" "-Dbackup.restore=true" test
+```
+
+Measured on a developer machine (Windows, Docker Desktop, 2026-10-25; information only, no threshold beyond a
+110 s guard on dump plus restore plus verification): seeding 36-38 s, dump and copy out 0.4 s, copy in and restore
+0.6 s, application start on the restored database about 7 s, verification 7-8 s in total, dump 59 KB, whole test
+class 50-54 s. A later run on a loaded machine took 82 s (seed 52 s, restore 4 s, start 17 s). Both application contexts run in this JVM. The pom hard-codes `forkedProcessTimeoutInSeconds=120`: a run longer than that reports BUILD FAILURE after the tests passed, so judge the result from `backend/target/surefire-reports`, not the Maven exit code (both runs here finished in under 120 s and reported success). The test also inserts one ledger event after the restore and asserts its id is above every restored id, so the sequences were restored.
+
+What this does not prove:
+
+- No RPO, RTO or backup schedule.
+- No encryption of dumps or of at-rest storage.
+- No retention period.
+- No access control on dumps or on the dump file's location.
+- No point-in-time recovery (WAL archiving); the dump is one logical snapshot.
+- No restore across PostgreSQL or application versions; both sides use `postgres:16-alpine` and the same build.
+- No restore of Redis or data-service state; only the Spring PostgreSQL database is dumped.
+- No production-size data; the dataset is a few dozen rows.
+
+OQ-8 (recovery objectives, encryption, retention) is still open and owned by the operations/security lead; Task 3
+acceptance stays blocked on it.
+
 ## Security Boundary
 
 - Provider keys and database credentials remain server-side environment values.

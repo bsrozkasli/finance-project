@@ -61,6 +61,7 @@ function PortfolioRoute({
   onDeletePortfolio,
   onExecuteTrade,
   onOpenTradingJournal,
+  onLedgerChanged,
   stocks,
 }: {
   portfolios: Portfolio[];
@@ -70,6 +71,7 @@ function PortfolioRoute({
   onDeletePortfolio: (id: string) => Promise<void>;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void>;
   onOpenTradingJournal: () => void;
+  onLedgerChanged: () => Promise<void>;
   stocks: Stock[];
 }) {
   const { portfolioId } = useParams();
@@ -96,6 +98,7 @@ function PortfolioRoute({
       onSelectPortfolioId={handleSelectPortfolioId}
       onExecuteTrade={onExecuteTrade}
       onOpenTradingJournal={onOpenTradingJournal}
+      onLedgerChanged={onLedgerChanged}
     />
   );
 }
@@ -298,6 +301,10 @@ export default function App() {
     }
     await reloadInvestmentPortfolio();
   };
+  const handleLedgerChanged = async () => {
+    await Promise.all([reloadInvestmentPortfolio(), reloadJournalTrades()]);
+  };
+
   // 5. Ledger & Transaction execution coordinates (API-backed journal)
   const handleExecuteTrade = async (newTrade: Omit<Trade, 'id' | 'date'>) => {
     const targetPortfolioId = newTrade.portfolioId || activePortfolioId;
@@ -312,7 +319,7 @@ export default function App() {
         quantity: newTrade.quantity,
         price: newTrade.price,
         tradeDate,
-        source: newTrade.source ?? 'MANUAL',
+        source: 'MANUAL',
         notes: newTrade.notes,
         journalNotes,
       });
@@ -476,6 +483,7 @@ export default function App() {
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+                onLedgerChanged={handleLedgerChanged}
               />
             } />
             <Route path="/portfolio/:portfolioId" element={
@@ -488,6 +496,7 @@ export default function App() {
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+                onLedgerChanged={handleLedgerChanged}
               />
             } />
             <Route path="/portfolios" element={<Navigate to="/portfolio" replace />} />

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import type { FormEvent, MouseEvent } from 'react';
 import {
   ArrowDownRight,
@@ -23,6 +23,8 @@ interface PortfolioManagerViewProps {
   onSelectPortfolioId: (id: string) => void;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
   onOpenTradingJournal?: () => void;
+  /** Reloads application-level ledger data (holdings, journal trades) after a CSV accept. */
+  onLedgerChanged?: () => void | Promise<void>;
 }
 
 type AllocationMode = 'daily' | 'total' | 'allocation';
@@ -60,6 +62,9 @@ const numericPortfolioId = (id: string | undefined): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const PortfolioImportPanel = lazy(() => import('./portfolio/PortfolioImportPanel'));
+const PortfolioStatePanel = lazy(() => import('./portfolio/PortfolioStatePanel'));
+
 const monthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
 const parseDate = (value: string) => {
@@ -76,6 +81,7 @@ export default function PortfolioManagerView({
   activePortfolioId,
   onSelectPortfolioId,
   onOpenTradingJournal,
+  onLedgerChanged,
 }: PortfolioManagerViewProps) {
   const [allocationMode, setAllocationMode] = useState<AllocationMode>('daily');
   const [activeTab, setActiveTab] = useState<HoldingsTab>('holdings');
@@ -94,6 +100,7 @@ export default function PortfolioManagerView({
   const [isDeletingPortfolio, setIsDeletingPortfolio] = useState(false);
   const [isCreatePortfolioOpen, setIsCreatePortfolioOpen] = useState(false);
   const [isDeletePortfolioOpen, setIsDeletePortfolioOpen] = useState(false);
+  const [detailsReload, setDetailsReload] = useState(0);
 
   const activePortfolio = useMemo(() => {
     return portfolios.find((portfolio) => portfolio.id === activePortfolioId) || (!activePortfolioId ? portfolios[0] : null);
@@ -147,7 +154,7 @@ export default function PortfolioManagerView({
     return () => {
       cancelled = true;
     };
-  }, [activeInvestmentPortfolioId]);
+  }, [activeInvestmentPortfolioId, detailsReload]);
 
   const fallbackPositions = useMemo<LocalPositionPerformance[]>(() => {
     if (!activePortfolio) return [];
@@ -740,6 +747,22 @@ export default function PortfolioManagerView({
           )}
         </div>
       </section>
+
+      {activeInvestmentPortfolioId !== undefined && (
+        <Suspense fallback={<p role="status">Paneller yükleniyor…</p>}>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <PortfolioImportPanel
+              key={`import-${activeInvestmentPortfolioId}`}
+              portfolioId={activeInvestmentPortfolioId}
+              onLedgerChanged={async () => {
+                setDetailsReload((value) => value + 1);
+                await onLedgerChanged?.();
+              }}
+            />
+            <PortfolioStatePanel key={`state-${activeInvestmentPortfolioId}`} portfolioId={activeInvestmentPortfolioId} />
+          </div>
+        </Suspense>
+      )}
 
       {healthMetrics.unpriced > 0 && (
         <div className="rounded-md border border-outline-variant/35 bg-bg-card px-4 py-3 text-xs text-text-muted">

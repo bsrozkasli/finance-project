@@ -18,6 +18,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -76,6 +77,9 @@ public class PortfolioTransactionEntity {
 
     @Column(name = "notes", length = 1000)
     private String notes;
+
+    @Column(name = "voided_at", updatable = false)
+    private Instant voidedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

@@ -6,6 +6,8 @@ import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionAction;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioLedgerLockPort;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -17,12 +19,14 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -38,8 +42,18 @@ class PortfolioLedgerServiceTest {
     // Mock rationale: outbound transaction port is persistence I/O boundary.
     private PortfolioTransactionPort transactionPort;
 
+    @Mock
+    // Mock rationale: the lock is a persistence-transaction boundary; here it simply runs the work.
+    private PortfolioLedgerLockPort lockPort;
+
     @InjectMocks
     private PortfolioLedgerService ledgerService;
+
+    @BeforeEach
+    void lockRunsWork() {
+        lenient().when(lockPort.withPortfolioLock(any(), any()))
+                .thenAnswer(invocation -> ((Supplier<?>) invocation.getArgument(1)).get());
+    }
 
     @Test
     void shouldGiveIndependentManualEntriesDistinctStableOriginLocators() {
@@ -60,9 +74,16 @@ class PortfolioLedgerServiceTest {
 
     @Test
     void shouldThrowNullPointerExceptionWhenConstructedWithNullPort() {
-        assertThatThrownBy(() -> new PortfolioLedgerService(null))
+        assertThatThrownBy(() -> new PortfolioLedgerService(null, lockPort))
                 .isInstanceOf(NullPointerException.class)
                 .hasMessageContaining("transactionPort");
+    }
+
+    @Test
+    void shouldThrowNullPointerExceptionWhenConstructedWithoutLockPort() {
+        assertThatThrownBy(() -> new PortfolioLedgerService(transactionPort, null))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessageContaining("lockPort");
     }
 
     @Test

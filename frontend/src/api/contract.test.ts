@@ -5,8 +5,12 @@ import {
   deleteInvestmentPortfolio,
   fetchEnrichedPositions,
   fetchPortfolioPerformance,
+  acceptPortfolioImport,
+  createPortfolioState,
+  fetchPortfolioState,
   fetchPortfolioSummary,
   fetchPortfolioTransactions,
+  uploadPortfolioImport,
 } from './client';
 import { API_BASE_URL } from './config';
 import { ApiError } from './errors';
@@ -72,6 +76,54 @@ const PortfolioTransactionsSchema = z.array(z.strictObject({
   originLocator: z.string().nullable(),
 }));
 
+const AssetTypeSchema = z.enum(['US_STOCK', 'US_ETF', 'BIST_STOCK', 'FUND', 'GOLD', 'CASH', 'OTHER']);
+
+const PortfolioImportBatchSchema = z.strictObject({
+  batchId: z.number().int(),
+  portfolioId: z.number().int(),
+  status: z.enum(['STAGED', 'ACCEPTED']),
+  fileSha256: z.string(),
+  createdAt: z.string(),
+  acceptedAt: z.string().nullable(),
+  counts: z.strictObject({
+    valid: z.number().int(),
+    invalid: z.number().int(),
+    duplicate: z.number().int(),
+    accepted: z.number().int(),
+    rejected: z.number().int(),
+  }),
+  rows: z.array(z.strictObject({
+    rowNumber: z.number().int(),
+    status: z.enum(['VALID', 'INVALID', 'DUPLICATE', 'ACCEPTED', 'REJECTED']),
+    message: z.string().nullable(),
+    originLocator: z.string().nullable(),
+    transactionId: z.number().int().nullable(),
+  })),
+});
+
+const PortfolioStateSchema = z.strictObject({
+  version: z.string(),
+  portfolioId: z.number().int(),
+  asOf: z.string(),
+  exposureStatus: z.enum(['COMPLETE', 'PARTIAL', 'EMPTY']),
+  sourceEventIds: z.array(z.number().int()),
+  positions: z.array(z.strictObject({
+    symbol: z.string(),
+    assetType: AssetTypeSchema,
+    quantity: z.number(),
+    averageCost: z.number().nullable(),
+    costBasis: z.number().nullable(),
+    realizedPnl: z.number().nullable(),
+    currency: z.string().nullable(),
+    valuationStatus: z.enum(['PRICED', 'STALE_PRICE', 'NO_PRICE', 'CURRENCY_UNKNOWN', 'CURRENCY_MISMATCH', 'CLOSED']),
+    price: z.number().nullable(),
+    priceDate: z.string().nullable(),
+    marketValue: z.number().nullable(),
+    weight: z.number().nullable(),
+  })),
+  assetTypeWeights: z.partialRecord(AssetTypeSchema, z.number()),
+});
+
 const BackendErrorSchema = z.strictObject({
   timestamp: z.string(),
   status: z.number().int(),
@@ -119,5 +171,30 @@ describe('shared HTTP contract fixtures', () => {
 
     await expect(rejection).rejects.toBeInstanceOf(ApiError);
     await expect(rejection).rejects.toMatchObject({ message: fixture.message, status: fixture.status });
+  });
+
+  it('import batch fixture matches the frontend type and passes through upload and accept', async () => {
+    const fixture = PortfolioImportBatchSchema.parse(loadContractFixture('portfolio-import-batch.json'));
+    server.use(
+      http.post(url('/portfolios/1/imports'), () => HttpResponse.json(fixture, { status: 201 })),
+      http.post(url('/portfolios/1/imports/9/accept'), () => HttpResponse.json(fixture)),
+    );
+
+    await expect(uploadPortfolioImport(1, new Blob(['a,b']))).resolves.toEqual(fixture);
+    await expect(acceptPortfolioImport(1, 9)).resolves.toEqual(fixture);
+  });
+
+  it('COMPLETE and PARTIAL portfolio state fixtures match the frontend type', async () => {
+    const complete = PortfolioStateSchema.parse(loadContractFixture('portfolio-state-complete.json'));
+    const partial = PortfolioStateSchema.parse(loadContractFixture('portfolio-state-partial.json'));
+    server.use(
+      http.post(url('/portfolios/1/states'), () => HttpResponse.json(complete, { status: 201 })),
+      http.get(url('/portfolios/1/states/:version'), () => HttpResponse.json(partial)),
+    );
+
+    await expect(createPortfolioState(1, '2026-10-25')).resolves.toEqual(complete);
+    await expect(fetchPortfolioState(1, partial.version)).resolves.toEqual(partial);
+    expect(partial.positions[0]).toMatchObject({ price: null, marketValue: null, weight: null });
+    expect(partial.assetTypeWeights).toEqual({});
   });
 });
