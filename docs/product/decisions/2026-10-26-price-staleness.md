@@ -109,3 +109,18 @@ Rulings made while coding are appended below as `R-n`.
   is `STALE` or `FAILED`. Types, shared fixtures and the frontend schema change in the same pull request.
 - **R-8. Not changed:** `GET /portfolios/performance` and its comparison (history only; the last series point is not marked),
   the journal (done), open-trade statistics.
+
+## Dashboard and latest-price rulings (second pull request)
+
+- **R-9. The summary note may not describe the active portfolio.** `GET /portfolio/summary` takes no portfolio id, so with
+  several portfolios its `pricingStatus` can come from another one. The initial release is single-portfolio. Cost if wrong:
+  a note about the wrong portfolio until the endpoint takes an id.
+- **R-10. Summary `pricingStatus` is the worst status over all positions, including positions with no price.** A position
+  without any price makes the summary `FAILED` or `EMPTY`, never `OK`. Cost if wrong: a summary reads worse than its priced
+  positions.
+- **R-11. `/allocation` is unchanged.** It reads the same lookup price but its slice shape has no price field, so there is
+  nothing to label. It can use a stored price without a flag; recorded as a known limit.
+- **R-12. History rows leave both fields `null`; no fixtures for positions/performance or latest price.** They are pinned by
+  controller and real-Redis tests instead.
+- **R-13. Frontend tests were written after the implementation** (no red run); four mutations were caught as compensating
+  evidence.
