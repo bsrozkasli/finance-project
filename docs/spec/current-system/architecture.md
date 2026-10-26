@@ -111,17 +111,20 @@ change together when API routing changes.
 - The seven-value research status vocabulary (`WatchlistResearchStatus`) has one
   UI home: `components/sectionStatus.ts` (labels, styles, `isKnownStatus`) and
   `components/StatusPill.tsx`, shared by `WatchlistsView` and the smart report.
-  `StockDetailModal` renders `SmartReportStatusPanel` ("Veri durumu") under the
-  generated smart report: per score component the score or "Veri yok", the status
-  pill from `sectionStatus.components["<x>_score"]` (camelCase breakdown keys map
-  to the snake_case `*_score` keys) and the reason code as small text with a
-  Turkish explanation in its tooltip. `OK` carries no warning styling. An absent or
-  `null` `sectionStatus`, or a `null` or unrecognised status, shows "Durum
-  bilinmiyor" and is never treated as `OK`. When the overall status is not `OK` or
-  is unknown, a visible note says the score rests on incomplete evidence; grade
-  and recommendation stay visible. The status is a data label: it is not an
-  investment signal and is never added into the score. A missing analyst price
-  target stays `null` (shown `—`) and an absent candle series shows `— mum`, not `0`.
+  `StockDetailModal` renders `SmartReportEvidenceNote` above the generated smart
+  report body (R-9) and `SmartReportStatusPanel` ("Veri durumu") under it. When the
+  overall status is not `OK` or is unknown, the note (`role="note"`) says the score
+  rests on incomplete evidence, so it precedes grade and recommendation, which stay
+  visible; an absent or `null` `sectionStatus` adds a "Durum bilinmiyor" line and is
+  never treated as `OK`. The panel lists per score component the score or "Veri yok",
+  the status pill from `sectionStatus.components["<x>_score"]` (camelCase breakdown
+  keys map to snake_case `*_score` keys), and the reason code with a visible Turkish
+  explanation. Components reported only by `sectionStatus` are listed too, also when
+  the breakdown is null. `OK` carries no warning styling; a `null` or unrecognised
+  component status shows "Durum bilinmiyor". The status is a data label: not an
+  investment signal and never added into the score. A missing analyst price target
+  stays `null` (`—`), an absent candle series shows `— mum`, a missing price change
+  is neutral-coloured, and the analyst bar is hidden without analyst data.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted
