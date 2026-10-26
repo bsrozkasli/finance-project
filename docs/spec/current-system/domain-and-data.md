@@ -202,6 +202,16 @@ ports with in-memory state.
   symbol. If refresh fails or returns no evidence, the trade remains present with
   nullable price-derived values. Journal statistics exclude unpriced trades from
   return aggregates and expose `null` when no priced trade supports the result.
+- Open-trade enrichment uses `PriceRefreshService.lookupFreshLatest` once per symbol
+  per request and maps its origin through `PriceStatus.from`. `FRESH`: recompute,
+  `priceStatus=OK`, `priceAsOf` = candle time. `STORED_*`: recompute from the stored
+  price, `STALE`, `priceAsOf` = candle time. No price but a persisted `currentPrice`:
+  persisted `currentPrice`, `marketValue`, `pnl`, `returnPct` unchanged, `STALE`,
+  `priceAsOf` = the row's `updatedAt` converted with the JVM default zone (the same
+  zone Hibernate writes it in; approximate, the last row write rather than the price
+  time). No price at all: `FAILED` or `EMPTY`, `priceAsOf` null. Closed trades keep
+  both fields null. Nothing is persisted for the status (no column); create/update
+  keep their price resolution. Journal statistics count open trades of any status.
 - Watchlists persist through `WatchlistPort`; ordered normalized symbols survive
   restart through `watchlist_symbols`.
 - Research snapshot requests default to `limit=25`, cap at `limit=50`, require
