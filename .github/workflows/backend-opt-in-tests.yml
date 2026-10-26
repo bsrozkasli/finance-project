@@ -1,0 +1,68 @@
+name: backend-opt-in-tests
+
+# Opt-in backend tests that do not fit the default suite's 120 s Surefire fork
+# limit (fixed in backend/pom.xml). Never runs on push or pull_request (R-33.1).
+# Each test method runs in its own Maven invocation so none exceeds that limit.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  backend-opt-in-tests:
+    name: backend-opt-in-tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('backend/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-
+
+      - name: Make Maven wrapper executable
+        working-directory: backend
+        run: chmod +x ./mvnw
+
+      - name: Backup restore proof
+        continue-on-error: false
+        working-directory: backend
+        run: ./mvnw test -B --no-transfer-progress -Dbackup.restore=true -Dtest=PortfolioBackupRestoreTest
+
+      - name: CSV import performance, appended rows
+        continue-on-error: false
+        working-directory: backend
+        run: ./mvnw test -B --no-transfer-progress -Dcsv.perf=true -Dtest='PortfolioCsvImportPerformanceTest#stagesAndAcceptsAFullFileOfAppendedRows'
+
+      - name: CSV import performance, back-dated rows over 50 symbols
+        continue-on-error: false
+        working-directory: backend
+        run: ./mvnw test -B --no-transfer-progress -Dcsv.perf=true -Dtest='PortfolioCsvImportPerformanceTest#stagesAndAcceptsAFullFileOfBackDatedRows'
+
+      - name: CSV import performance, back-dated rows over one symbol
+        continue-on-error: false
+        working-directory: backend
+        run: ./mvnw test -B --no-transfer-progress -Dcsv.perf=true -Dtest='PortfolioCsvImportPerformanceTest#stagesAndAcceptsAFullFileOfBackDatedRowsForOneSymbol'
+
+      - name: Upload backend test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-opt-in-surefire-reports
+          path: backend/target/surefire-reports/
+          if-no-files-found: warn
