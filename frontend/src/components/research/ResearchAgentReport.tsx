@@ -1,6 +1,19 @@
 import {useEffect, useState} from 'react';
 import {apiClient} from '../../api/client';
 import type {AgentAnalysis} from '../../hooks/useAgentAnalysis';
+import {isKnownStatus} from '../sectionStatus';
+import StatusPill from '../StatusPill';
+
+function DecisionStatusNote({data}: { data: AgentAnalysis }) {
+    const raw = data.decision_status?.status;
+    const status = isKnownStatus(raw) ? raw : null;
+    if (status === 'OK') return null;
+    const reason = data.decision_status?.reason;
+    return <p role="note" className="desk-footnote">
+        {status === null ? 'Durum bilinmiyor' : status === 'FAILED' ? 'Karar çıktısı ayrıştırılamadı; karar gösterilmiyor' : <StatusPill status={status} compact/>}
+        {status !== null && reason ? <small> · {reason}</small> : null}
+    </p>;
+}
 
 const roles = [['Temel Analist', 'fundamental_summary'], ['Teknik Analist', 'technical_summary'], ['Risk Analisti', 'risk_summary'], ['Boğa Araştırmacısı', 'bull_case'], ['Ayı Araştırmacısı', 'bear_case'], ['Portföy Yöneticisi', 'portfolio_manager_reasoning']] as const;
 export default function ResearchAgentReport({symbol}: { symbol: string | null }) {
@@ -41,7 +54,7 @@ export default function ResearchAgentReport({symbol}: { symbol: string | null })
         zamanı: {new Date(current.data.generated_at).toLocaleString('tr-TR')} · {current.data.from_cache ? 'Önbellekten' : 'Sunucudan'}</p>}
         <div className="desk-analysts">{roles.map(([name, key], index) => <section key={key} className="desk-analyst">
             <span className="desk-analyst-number">{index + 1}</span>
-            <div><h3>{name}</h3><p
+            <div><h3>{name}</h3>{key === 'portfolio_manager_reasoning' && current.data && <DecisionStatusNote data={current.data}/>}<p
                 className="desk-report-text">{typeof current.data?.[key] === 'string' && current.data[key].trim() ? current.data[key] : 'Çıktı kullanılamıyor.'}</p>
             </div>
         </section>)}</div>

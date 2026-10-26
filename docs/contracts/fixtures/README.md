@@ -31,3 +31,5 @@ non-null, add a backend shape test for the endpoint, and add a frontend schema t
 | `portfolio-state-partial.json` | Same routes, `PARTIAL`: null price, price date, market value and weight; `assetTypeWeights` is `{}` |
 | `error-response.json` | Any Spring 4xx/5xx handled by `GlobalExceptionHandler` |
 | `smart-report.json` | `GET /reports/smart/{symbol}`: nullable `sectionStatus` with an `EMPTY` component and a null reason (frontend: schema-only test in `contract.test.ts`; `client.ts` type is the next change) |
+| `agent-analysis.json` | `GET /agent-analysis/{ticker}`, `OK` status: `decision_status` `{status: "OK", reason: null}` with decision and confidence (frontend: schema-only test in `contract.test.ts`) |
+| `agent-analysis-failed.json` | Same route, `FAILED` status: `decision` and `confidence` are `null`, `decision_status.reason` carries the data-service reason code, `portfolio_manager_reasoning` is still returned (a `null` `decision_status` means unknown and is covered by a controller test) |

@@ -1,6 +1,8 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.cache;
 
 import com.ozkaslibasar.financeproject.domain.model.AgentAnalysisResult;
+import com.ozkaslibasar.financeproject.domain.model.DecisionStatus;
+import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchStatus;
 import com.redis.testcontainers.RedisContainer;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +27,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Testcontainers(disabledWithoutDocker = true)
 class AgentAnalysisCacheServiceTest {
 
+    private static final DecisionStatus OK = new DecisionStatus(WatchlistResearchStatus.OK, null);
+
     @Container
     static final RedisContainer redis = new RedisContainer(DockerImageName.parse("redis:7.0-alpine"));
 
@@ -46,7 +50,7 @@ class AgentAnalysisCacheServiceTest {
         AgentAnalysisResult result = new AgentAnalysisResult(
                 "AAPL",
                 "BUY",
-                85,
+                85, OK,
                 "Strong earnings growth",
                 "Bullish moving average cross",
                 "Low beta",
@@ -71,6 +75,17 @@ class AgentAnalysisCacheServiceTest {
     }
 
     @Test
+    void shouldTreatEntryWithoutDecisionStatusAsMiss() {
+        String key = AgentAnalysisCacheService.KEY_PREFIX + "NVDA";
+        redisTemplate.opsForValue().set(key, "{\"ticker\":\"NVDA\",\"decision\":\"HOLD\",\"confidence\":50,"
+                + "\"fundamental_summary\":\"f\",\"technical_summary\":\"t\",\"risk_summary\":\"r\","
+                + "\"bull_case\":\"bu\",\"bear_case\":\"be\",\"portfolio_manager_reasoning\":\"x\","
+                + "\"metrics_used\":{},\"generated_at\":\"2026-10-26T10:00:00Z\"}");
+
+        assertThat(cacheService.get("NVDA")).isEmpty();
+    }
+
+    @Test
     void shouldReturnEmptyWhenCacheMiss() {
         // Act
         Optional<AgentAnalysisResult> cached = cacheService.get("UNKNOWN");
@@ -85,7 +100,7 @@ class AgentAnalysisCacheServiceTest {
         AgentAnalysisResult result = new AgentAnalysisResult(
                 "MSFT",
                 "HOLD",
-                60,
+                60, OK,
                 "Stable earnings",
                 "Neutral technicals",
                 "Moderate risk",
@@ -110,10 +125,10 @@ class AgentAnalysisCacheServiceTest {
     void shouldInvalidateAll() {
         // Arrange
         AgentAnalysisResult aapl = new AgentAnalysisResult(
-                "AAPL", "BUY", 80, "S1", "S2", "S3", "S4", "S5", "S6", Map.of(), Instant.now(), false
+                "AAPL", "BUY", 80, OK, "S1", "S2", "S3", "S4", "S5", "S6", Map.of(), Instant.now(), false
         );
         AgentAnalysisResult goog = new AgentAnalysisResult(
-                "GOOG", "SELL", 70, "S1", "S2", "S3", "S4", "S5", "S6", Map.of(), Instant.now(), false
+                "GOOG", "SELL", 70, OK, "S1", "S2", "S3", "S4", "S5", "S6", Map.of(), Instant.now(), false
         );
         cacheService.put(aapl);
         cacheService.put(goog);

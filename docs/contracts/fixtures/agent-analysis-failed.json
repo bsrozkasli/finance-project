@@ -1,0 +1,20 @@
+{
+  "ticker": "AAPL",
+  "decision": null,
+  "confidence": null,
+  "decision_status": {
+    "status": "FAILED",
+    "reason": "pm_response_not_json_default_hold"
+  },
+  "fundamental_summary": "Fixture fundamental summary.",
+  "technical_summary": "Fixture technical summary.",
+  "risk_summary": "Fixture risk summary.",
+  "bull_case": "Fixture bull case.",
+  "bear_case": "Fixture bear case.",
+  "portfolio_manager_reasoning": "Fixture unstructured portfolio manager text.",
+  "metrics_used": {
+    "pe": 28.5
+  },
+  "generated_at": "2026-06-03T12:00:00Z",
+  "from_cache": false
+}

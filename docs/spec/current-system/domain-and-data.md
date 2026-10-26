@@ -313,7 +313,8 @@ applied migration.
   with a latest real price at read time; closed trades are not silently rewritten.
 - Watchlist research aggregates independently degradable price, technical,
   fundamental, earnings, and institutional sections.
-- Agent-analysis history stores successful output for audit. Redis is an
+- Agent-analysis history stores successful output for audit; a result whose
+  decision status is `FAILED` has no decision and is not recorded. Redis is an
   acceleration layer, not the durable history source.
 
 ## Evidence Anchors

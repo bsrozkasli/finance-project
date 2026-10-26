@@ -3,6 +3,8 @@ package com.ozkaslibasar.financeproject.adapter.outbound.cache;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ozkaslibasar.financeproject.domain.model.AgentAnalysisResult;
+import com.ozkaslibasar.financeproject.domain.model.DecisionStatus;
+import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchStatus;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +43,13 @@ public class AgentAnalysisCacheService {
         }
         try {
             CachedAgentAnalysisPayload payload = objectMapper.readValue(json, CachedAgentAnalysisPayload.class);
+            // An entry written before decision_status existed (or any non-OK entry) may hold a
+            // placeholder verdict: it is a miss, never served (decision D-2.2).
+            if (!payload.hasOkDecisionStatus()) {
+                invalidate(ticker);
+                meterRegistry.counter("agent.analysis.cache", "result", "miss").increment();
+                return Optional.empty();
+            }
             meterRegistry.counter("agent.analysis.cache", "result", "hit").increment();
             return Optional.of(payload.toDomain(true));
         } catch (JsonProcessingException e) {
@@ -76,13 +85,17 @@ public class AgentAnalysisCacheService {
         return KEY_PREFIX + ticker.toUpperCase();
     }
 
+    public record DecisionStatusPayload(String status, String reason) {
+    }
+
     /**
      * JSON-friendly cache payload matching the API contract.
      */
     public record CachedAgentAnalysisPayload(
             String ticker,
             String decision,
-            int confidence,
+            Integer confidence,
+            DecisionStatusPayload decision_status,
             String fundamental_summary,
             String technical_summary,
             String risk_summary,
@@ -97,6 +110,10 @@ public class AgentAnalysisCacheService {
                     result.ticker(),
                     result.decision(),
                     result.confidence(),
+                    result.decisionStatus() == null || result.decisionStatus().status() == null
+                            ? null
+                            : new DecisionStatusPayload(
+                                    result.decisionStatus().status().name(), result.decisionStatus().reason()),
                     result.fundamentalSummary(),
                     result.technicalSummary(),
                     result.riskSummary(),
@@ -108,11 +125,18 @@ public class AgentAnalysisCacheService {
             );
         }
 
+        /** True only for an entry carrying {@code decision_status.status == "OK"}. */
+        boolean hasOkDecisionStatus() {
+            return decision_status != null
+                    && WatchlistResearchStatus.OK.name().equals(decision_status.status());
+        }
+
         AgentAnalysisResult toDomain(boolean fromCache) {
             return new AgentAnalysisResult(
                     ticker,
                     decision,
                     confidence,
+                    new DecisionStatus(WatchlistResearchStatus.OK, decision_status.reason()),
                     fundamental_summary,
                     technical_summary,
                     risk_summary,

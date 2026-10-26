@@ -125,6 +125,12 @@ change together when API routing changes.
   investment signal and never added into the score. A missing analyst price target
   stays `null` (`—`), an absent candle series shows `— mum`, a missing price change
   is neutral-coloured, and the analyst bar is hidden without analyst data.
+- `ResearchAgentReport` (AI raporu) reads `decision_status` from `GET /agent-analysis/{ticker}` and shows, inside the
+  "Portföy Yöneticisi" section, a `role="note"` only when the status is not `OK`: `FAILED` says "Karar çıktısı
+  ayrıştırılamadı; karar gösterilmiyor" with the reason code as small text; an absent, `null` or unrecognised status says
+  "Durum bilinmiyor" and is never treated as `OK`. The raw manager text stays visible. `decision` and `confidence` are
+  nullable in `AgentAnalysis` and are not rendered; nothing shows them when the status is not `OK`. The status is a data
+  label, not an investment signal.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted

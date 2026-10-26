@@ -67,7 +67,7 @@ Every path below is relative to `/api/v1`.
 | Technical | `POST /technical/{symbol}/copilot` | Technical copilot proxy; 503 when unavailable |
 | Analysis | `GET /analysis/patterns/{symbol}` | Pattern detection proxy |
 | Analysis | `POST /analysis/decision-support` | Decision-support proxy |
-| Agent analysis | `GET /agent-analysis/{ticker}` | Cached or newly computed multi-agent result |
+| Agent analysis | `GET /agent-analysis/{ticker}` | Cached or newly computed multi-agent result. `decision_status` is `{status, reason}` (`OK` or `FAILED`) or `null` when the data-service status is unknown; when `FAILED`, `decision` and `confidence` are `null` (the unparseable placeholder is withheld) and `portfolio_manager_reasoning` is still returned. Only `OK` results are cached; a cache entry without `decision_status` is ignored. See `docs/product/decisions/2026-10-26-agent-analysis-decision-status.md`. Fixtures: `agent-analysis.json`, `agent-analysis-failed.json` |
 | Agent analysis | `DELETE /agent-analysis/{ticker}/cache` | Evict one ticker cache |
 | Agent analysis | `DELETE /agent-analysis/cache` | Evict all agent-analysis cache entries |
 | Analyst | `GET /analyst/{symbol}/recommendations` | Analyst recommendation trends |
@@ -262,11 +262,15 @@ flag is `from_cache`; consumers must not silently rename it to `fromCache`.
 
 C0a added a `SectionAvailability` value object to four data-service response
 bodies. These fields are **additive** — existing fields are unchanged. Spring
-adapters other than the composite one still ignore them because Jackson's default
-`FAIL_ON_UNKNOWN_PROPERTIES = false` drops unknown properties. The composite
-adapter (`DataServiceResearchAdapter`) now consumes `breakdown_availability` and
-`unavailable_components` (null when an older data-service omits them) and the
-smart report exposes them as `sectionStatus` (see below).
+adapters other than the composite and agent-analysis ones still ignore them because
+Jackson's default `FAIL_ON_UNKNOWN_PROPERTIES = false` drops unknown properties. The
+composite adapter (`DataServiceResearchAdapter`) now consumes `breakdown_availability`
+and `unavailable_components` (null when an older data-service omits them) and the
+smart report exposes them as `sectionStatus` (see below). The agent-analysis adapter
+(`DataServiceAgentAnalysisAdapter`) consumes `decision_availability` (absent from an
+older data-service: unknown) and exposes it as `decision_status`: `available` becomes
+`OK`; `unparseable`, `unavailable` and `insufficient` become `FAILED` with the reason
+code unchanged; an absent or unknown status is `null`, never `OK`.
 
 `SectionAvailability` shape:
 

@@ -161,6 +161,27 @@ const SmartReportSchema = z.strictObject({
   }).nullable(),
 });
 
+// Agent analysis: decision and confidence are null when decision_status is FAILED (the placeholder
+// verdict is withheld); decision_status itself is null when the data-service status is unknown.
+const AgentAnalysisSchema = z.strictObject({
+  ticker: z.string(),
+  decision: z.string().nullable(),
+  confidence: z.number().int().nullable(),
+  decision_status: z.strictObject({
+    status: SectionStatusSchema.nullable(),
+    reason: z.string().nullable(),
+  }).nullable(),
+  fundamental_summary: z.string(),
+  technical_summary: z.string(),
+  risk_summary: z.string(),
+  bull_case: z.string(),
+  bear_case: z.string(),
+  portfolio_manager_reasoning: z.string(),
+  metrics_used: z.record(z.string(), z.unknown()),
+  generated_at: z.string(),
+  from_cache: z.boolean(),
+});
+
 const BackendErrorSchema = z.strictObject({
   timestamp: z.string(),
   status: z.number().int(),
@@ -233,6 +254,16 @@ describe('shared HTTP contract fixtures', () => {
     await expect(fetchPortfolioState(1, partial.version)).resolves.toEqual(partial);
     expect(partial.positions[0]).toMatchObject({ price: null, marketValue: null, weight: null });
     expect(partial.assetTypeWeights).toEqual({});
+  });
+
+  it('agent analysis fixtures match the schema, OK and FAILED with null decision and confidence', () => {
+    const ok = AgentAnalysisSchema.parse(loadContractFixture('agent-analysis.json'));
+    const failed = AgentAnalysisSchema.parse(loadContractFixture('agent-analysis-failed.json'));
+
+    expect(ok).toMatchObject({ decision: 'BUY', confidence: 85, decision_status: { status: 'OK', reason: null } });
+    expect(failed.decision).toBeNull();
+    expect(failed.confidence).toBeNull();
+    expect(failed.decision_status).toEqual({ status: 'FAILED', reason: 'pm_response_not_json_default_hold' });
   });
 
   it('smart report fixture matches the schema, including section status', () => {

@@ -90,6 +90,9 @@ public class AgentAnalysisController {
                 result.ticker(),
                 result.decision(),
                 result.confidence(),
+                result.decisionStatus() == null ? null : new AgentAnalysisResponseDto.DecisionStatusDto(
+                        result.decisionStatus().status() == null ? null : result.decisionStatus().status().name(),
+                        result.decisionStatus().reason()),
                 result.fundamentalSummary(),
                 result.technicalSummary(),
                 result.riskSummary(),

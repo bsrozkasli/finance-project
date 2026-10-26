@@ -1,0 +1,20 @@
+{
+  "ticker": "AAPL",
+  "decision": "BUY",
+  "confidence": 85,
+  "decision_status": {
+    "status": "OK",
+    "reason": null
+  },
+  "fundamental_summary": "Fixture fundamental summary.",
+  "technical_summary": "Fixture technical summary.",
+  "risk_summary": "Fixture risk summary.",
+  "bull_case": "Fixture bull case.",
+  "bear_case": "Fixture bear case.",
+  "portfolio_manager_reasoning": "Fixture portfolio manager reasoning.",
+  "metrics_used": {
+    "pe": 28.5
+  },
+  "generated_at": "2026-06-03T12:00:00Z",
+  "from_cache": false
+}

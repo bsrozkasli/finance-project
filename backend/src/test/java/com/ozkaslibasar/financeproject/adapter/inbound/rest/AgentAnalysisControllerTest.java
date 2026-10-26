@@ -1,6 +1,10 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+import com.ozkaslibasar.financeproject.contract.ContractFixtures;
 import com.ozkaslibasar.financeproject.domain.model.AgentAnalysisResult;
+import com.ozkaslibasar.financeproject.domain.model.DecisionStatus;
+import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchStatus;
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -34,6 +38,7 @@ class AgentAnalysisControllerTest {
                 "AAPL",
                 "BUY",
                 85,
+                new DecisionStatus(WatchlistResearchStatus.OK, null),
                 "Strong fundamentals",
                 "Bullish signals",
                 "Low risk",
@@ -60,7 +65,61 @@ class AgentAnalysisControllerTest {
                 .andExpect(jsonPath("$.portfolio_manager_reasoning").value("High confidence in overall growth"))
                 .andExpect(jsonPath("$.metrics_used.pe").value(28.5))
                 .andExpect(jsonPath("$.generated_at").value("2026-06-03T12:00:00Z"))
+                .andExpect(jsonPath("$.from_cache").value(false))
+                .andExpect(jsonPath("$.decision_status.status").value("OK"))
+                .andExpect(jsonPath("$.decision_status.reason").value(Matchers.nullValue()));
+    }
+
+    @Test
+    void shouldReturnNullDecisionAndConfidenceWithFailedStatus() throws Exception {
+        AgentAnalysisResult result = new AgentAnalysisResult(
+                "AAPL", null, null,
+                new DecisionStatus(WatchlistResearchStatus.FAILED, "pm_response_not_json_default_hold"),
+                "Strong fundamentals", "Bullish signals", "Low risk", "iPhone growth", "Supply chain issues",
+                "Unstructured model text", Map.of("pe", 28.5),
+                Instant.parse("2026-06-03T12:00:00Z"), false);
+        when(agentAnalysisFacade.getAnalysis("AAPL")).thenReturn(Optional.of(result));
+
+        mockMvc.perform(get("/api/v1/agent-analysis/AAPL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decision").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.confidence").value(Matchers.nullValue()))
+                .andExpect(jsonPath("$.decision_status.status").value("FAILED"))
+                .andExpect(jsonPath("$.decision_status.reason").value("pm_response_not_json_default_hold"))
+                .andExpect(jsonPath("$.portfolio_manager_reasoning").value("Unstructured model text"))
+                .andExpect(jsonPath("$.ticker").value("AAPL"))
                 .andExpect(jsonPath("$.from_cache").value(false));
+    }
+
+    @Test
+    void unknownStatusIsSerializedAsJsonNull() throws Exception {
+        AgentAnalysisResult result = new AgentAnalysisResult(
+                "AAPL", "HOLD", 50, null,
+                "f", "t", "r", "bu", "be", "x", Map.of(), Instant.parse("2026-06-03T12:00:00Z"), false);
+        when(agentAnalysisFacade.getAnalysis("AAPL")).thenReturn(Optional.of(result));
+
+        mockMvc.perform(get("/api/v1/agent-analysis/AAPL"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decision").value("HOLD"))
+                .andExpect(jsonPath("$.decision_status").value(Matchers.nullValue()));
+    }
+
+    @Test
+    void okAndFailedResponsesMatchTheSharedFixtures() throws Exception {
+        AgentAnalysisResult ok = new AgentAnalysisResult(
+                "AAPL", "BUY", 85, new DecisionStatus(WatchlistResearchStatus.OK, null),
+                "f", "t", "r", "bu", "be", "x", Map.of("pe", 28.5), Instant.parse("2026-06-03T12:00:00Z"), false);
+        when(agentAnalysisFacade.getAnalysis("AAPL")).thenReturn(Optional.of(ok));
+        ContractFixtures.assertSameShape("agent-analysis.json", mockMvc.perform(get("/api/v1/agent-analysis/AAPL"))
+                .andReturn().getResponse().getContentAsString());
+
+        AgentAnalysisResult failed = new AgentAnalysisResult(
+                "AAPL", null, null,
+                new DecisionStatus(WatchlistResearchStatus.FAILED, "pm_response_not_json_default_hold"),
+                "f", "t", "r", "bu", "be", "x", Map.of("pe", 28.5), Instant.parse("2026-06-03T12:00:00Z"), false);
+        when(agentAnalysisFacade.getAnalysis("AAPL")).thenReturn(Optional.of(failed));
+        ContractFixtures.assertSameShape("agent-analysis-failed.json",
+                mockMvc.perform(get("/api/v1/agent-analysis/AAPL")).andReturn().getResponse().getContentAsString());
     }
 
     @Test
