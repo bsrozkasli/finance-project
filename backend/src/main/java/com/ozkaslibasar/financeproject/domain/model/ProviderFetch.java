@@ -12,8 +12,16 @@ import java.util.function.Function;
  * carries STALE and PENDING_REFRESH, which a single fetch can never produce; the use case maps one to
  * the other. Data is present if and only if the outcome is {@link Outcome#OK}. The message is a short
  * fixed sentence, never raw provider text.
+ *
+ * <p>{@code providerFault} says whether a non-OK outcome is the provider's fault (5xx, I/O error,
+ * timeout, unreadable body, rate limit) as opposed to a client error about this one request (a 4xx
+ * other than 429). Only provider faults may count toward a circuit breaker shared by all symbols. It is
+ * true only for FAILED and RATE_LIMITED.
  */
-public record ProviderFetch<T>(Outcome outcome, T data, String message) {
+public record ProviderFetch<T>(Outcome outcome, T data, String message, boolean providerFault) {
+
+    /** The one text for "the provider answered that it has no data", shared by adapters and use cases. */
+    public static final String NO_DATA_MESSAGE = "Provider returned no data";
 
     public enum Outcome {
         OK,
@@ -28,26 +36,38 @@ public record ProviderFetch<T>(Outcome outcome, T data, String message) {
         if ((outcome == Outcome.OK) != (data != null)) {
             throw new IllegalArgumentException("data must be present if and only if the outcome is OK");
         }
+        if (providerFault && outcome != Outcome.FAILED && outcome != Outcome.RATE_LIMITED) {
+            throw new IllegalArgumentException("providerFault is only valid for FAILED and RATE_LIMITED");
+        }
+        if (outcome == Outcome.RATE_LIMITED && !providerFault) {
+            throw new IllegalArgumentException("RATE_LIMITED is always a provider fault");
+        }
     }
 
     public static <T> ProviderFetch<T> ok(T data) {
-        return new ProviderFetch<>(Outcome.OK, Objects.requireNonNull(data, "data must not be null"), null);
+        return new ProviderFetch<>(Outcome.OK, Objects.requireNonNull(data, "data must not be null"), null, false);
     }
 
     public static <T> ProviderFetch<T> empty(String message) {
-        return new ProviderFetch<>(Outcome.EMPTY, null, message);
+        return new ProviderFetch<>(Outcome.EMPTY, null, message, false);
     }
 
+    /** FAILED because of the provider side (5xx, I/O error, timeout, unreadable body, anything unexpected). */
     public static <T> ProviderFetch<T> failed(String message) {
-        return new ProviderFetch<>(Outcome.FAILED, null, message);
+        return new ProviderFetch<>(Outcome.FAILED, null, message, true);
+    }
+
+    /** FAILED because of a client error about this request (a 4xx other than 429); not a provider fault. */
+    public static <T> ProviderFetch<T> failedClientError(String message) {
+        return new ProviderFetch<>(Outcome.FAILED, null, message, false);
     }
 
     public static <T> ProviderFetch<T> rateLimited(String message) {
-        return new ProviderFetch<>(Outcome.RATE_LIMITED, null, message);
+        return new ProviderFetch<>(Outcome.RATE_LIMITED, null, message, true);
     }
 
     public static <T> ProviderFetch<T> insufficientData(String message) {
-        return new ProviderFetch<>(Outcome.INSUFFICIENT_DATA, null, message);
+        return new ProviderFetch<>(Outcome.INSUFFICIENT_DATA, null, message, false);
     }
 
     /** OK for a present value, EMPTY otherwise. Used where a legacy Optional method cannot tell failure from absence. */
@@ -64,11 +84,11 @@ public record ProviderFetch<T>(Outcome outcome, T data, String message) {
         return outcome == Outcome.OK;
     }
 
-    /** Maps the data of an OK result; any other outcome keeps its outcome and message. */
+    /** Maps the data of an OK result; any other outcome keeps its outcome, message and fault flag. */
     public <R> ProviderFetch<R> map(Function<? super T, ? extends R> mapper) {
         if (outcome == Outcome.OK) {
             return ok(mapper.apply(data));
         }
-        return new ProviderFetch<>(outcome, null, message);
+        return new ProviderFetch<>(outcome, null, message, providerFault);
     }
 }

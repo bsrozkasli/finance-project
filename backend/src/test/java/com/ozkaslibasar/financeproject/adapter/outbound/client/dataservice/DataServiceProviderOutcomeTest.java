@@ -57,7 +57,7 @@ class DataServiceProviderOutcomeTest {
     private record Adapters(DataServiceResearchAdapter research, TechnicalAnalysisAdapter technical) {
     }
 
-    private record Scenario(String name, ResponseCreator response, Outcome outcome, String message) {
+    private record Scenario(String name, ResponseCreator response, Outcome outcome, String message, boolean providerFault) {
         @Override
         public String toString() {
             return name;
@@ -66,18 +66,19 @@ class DataServiceProviderOutcomeTest {
 
     private static Stream<Scenario> failureScenarios() {
         return Stream.of(
-                new Scenario("404", withStatus(HttpStatus.NOT_FOUND), Outcome.EMPTY, "Provider returned no data"),
-                new Scenario("422", withStatus(HttpStatus.UNPROCESSABLE_ENTITY), Outcome.INSUFFICIENT_DATA, "Insufficient history"),
-                new Scenario("429", withStatus(HttpStatus.TOO_MANY_REQUESTS), Outcome.RATE_LIMITED, "Provider rate limited"),
-                new Scenario("500", withStatus(HttpStatus.INTERNAL_SERVER_ERROR), Outcome.FAILED, "Provider request failed"),
-                new Scenario("503", withStatus(HttpStatus.SERVICE_UNAVAILABLE), Outcome.FAILED, "Provider request failed"),
-                new Scenario("400", withStatus(HttpStatus.BAD_REQUEST), Outcome.FAILED, "Provider request failed"),
-                new Scenario("timeout", withException(new SocketTimeoutException("Read timed out")), Outcome.FAILED, "Provider request failed"),
-                new Scenario("io-error", withException(new IOException("Connection refused")), Outcome.FAILED, "Provider request failed"),
-                new Scenario("unreadable-body", withSuccess("<html>gateway</html>", MediaType.TEXT_HTML), Outcome.FAILED, "Provider request failed"),
-                new Scenario("malformed-json", withSuccess("{not json", MediaType.APPLICATION_JSON), Outcome.FAILED, "Provider request failed"),
-                new Scenario("empty-body", withSuccess("", MediaType.APPLICATION_JSON), Outcome.EMPTY, "Provider returned no data"),
-                new Scenario("empty-object", withSuccess("{}", MediaType.APPLICATION_JSON), Outcome.EMPTY, "Provider returned no data"));
+                new Scenario("404", withStatus(HttpStatus.NOT_FOUND), Outcome.EMPTY, "Provider returned no data", false),
+                new Scenario("422", withStatus(HttpStatus.UNPROCESSABLE_ENTITY), Outcome.INSUFFICIENT_DATA, "Insufficient history", false),
+                new Scenario("429", withStatus(HttpStatus.TOO_MANY_REQUESTS), Outcome.RATE_LIMITED, "Provider rate limited", true),
+                new Scenario("500", withStatus(HttpStatus.INTERNAL_SERVER_ERROR), Outcome.FAILED, "Provider request failed", true),
+                new Scenario("503", withStatus(HttpStatus.SERVICE_UNAVAILABLE), Outcome.FAILED, "Provider request failed", true),
+                new Scenario("403", withStatus(HttpStatus.FORBIDDEN), Outcome.FAILED, "Provider request failed", false),
+                new Scenario("400", withStatus(HttpStatus.BAD_REQUEST), Outcome.FAILED, "Provider request failed", false),
+                new Scenario("timeout", withException(new SocketTimeoutException("Read timed out")), Outcome.FAILED, "Provider request failed", true),
+                new Scenario("io-error", withException(new IOException("Connection refused")), Outcome.FAILED, "Provider request failed", true),
+                new Scenario("unreadable-body", withSuccess("<html>gateway</html>", MediaType.TEXT_HTML), Outcome.FAILED, "Provider request failed", true),
+                new Scenario("malformed-json", withSuccess("{not json", MediaType.APPLICATION_JSON), Outcome.FAILED, "Provider request failed", true),
+                new Scenario("empty-body", withSuccess("", MediaType.APPLICATION_JSON), Outcome.EMPTY, "Provider returned no data", false),
+                new Scenario("empty-object", withSuccess("{}", MediaType.APPLICATION_JSON), Outcome.EMPTY, "Provider returned no data", false));
     }
 
     static Stream<Arguments> everyMethodAndFailureScenario() {
@@ -110,6 +111,7 @@ class DataServiceProviderOutcomeTest {
         assertThat(result.outcome()).isEqualTo(scenario.outcome());
         assertThat(result.data()).isNull();
         assertThat(result.message()).isEqualTo(scenario.message());
+        assertThat(result.providerFault()).isEqualTo(scenario.providerFault());
         server.verify();
     }
 

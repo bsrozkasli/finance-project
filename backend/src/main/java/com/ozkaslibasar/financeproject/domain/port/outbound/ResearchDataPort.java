@@ -7,8 +7,6 @@ import java.util.Optional;
 
 public interface ResearchDataPort {
 
-    String NO_DATA_MESSAGE = "Provider returned no data";
-
     Optional<FundamentalResearch> fetchFundamental(String symbol);
 
     Optional<ValuationMetrics> fetchValuation(String symbol);
@@ -22,15 +20,15 @@ public interface ResearchDataPort {
      * Optional methods and so can only report OK or EMPTY; adapters that can see the failure override them.
      */
     default ProviderFetch<FundamentalResearch> fetchFundamentalResult(String symbol) {
-        return ProviderFetch.ofOptional(fetchFundamental(symbol), NO_DATA_MESSAGE);
+        return ProviderFetch.ofOptional(fetchFundamental(symbol), ProviderFetch.NO_DATA_MESSAGE);
     }
 
     default ProviderFetch<List<EarningsQuarter>> fetchEarningsResult(String symbol) {
-        return ProviderFetch.ofList(fetchEarnings(symbol), NO_DATA_MESSAGE);
+        return ProviderFetch.ofList(fetchEarnings(symbol), ProviderFetch.NO_DATA_MESSAGE);
     }
 
     default ProviderFetch<InstitutionalScores> fetchInstitutionalScoresResult(String symbol) {
-        return ProviderFetch.ofOptional(fetchInstitutionalScores(symbol), NO_DATA_MESSAGE);
+        return ProviderFetch.ofOptional(fetchInstitutionalScores(symbol), ProviderFetch.NO_DATA_MESSAGE);
     }
 
     record FundamentalResearch(

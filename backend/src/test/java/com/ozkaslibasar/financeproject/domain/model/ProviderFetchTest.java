@@ -27,9 +27,24 @@ class ProviderFetchTest {
             assertThat(notOk.ok()).isFalse();
             assertThat(notOk.message()).isEqualTo("m");
         }
-        assertThatThrownBy(() -> new ProviderFetch<>(Outcome.OK, null, null)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ProviderFetch<>(Outcome.FAILED, "x", "m")).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ProviderFetch<String>(null, null, "m")).isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new ProviderFetch<>(Outcome.OK, null, null, false)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProviderFetch<>(Outcome.FAILED, "x", "m", true)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProviderFetch<String>(null, null, "m", false)).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void providerFaultIsTrueOnlyForProviderSideFailuresAndRateLimits() {
+        assertThat(ProviderFetch.failed("m").providerFault()).isTrue();
+        assertThat(ProviderFetch.rateLimited("m").providerFault()).isTrue();
+        assertThat(ProviderFetch.failedClientError("m").providerFault()).isFalse();
+        assertThat(ProviderFetch.failedClientError("m").outcome()).isEqualTo(Outcome.FAILED);
+        assertThat(ProviderFetch.empty("m").providerFault()).isFalse();
+        assertThat(ProviderFetch.insufficientData("m").providerFault()).isFalse();
+        assertThat(ProviderFetch.ok("x").providerFault()).isFalse();
+        assertThatThrownBy(() -> new ProviderFetch<>(Outcome.EMPTY, null, "m", true)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProviderFetch<>(Outcome.INSUFFICIENT_DATA, null, "m", true)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ProviderFetch<>(Outcome.RATE_LIMITED, null, "m", false)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(ProviderFetch.failedClientError("m").map(v -> v).providerFault()).isFalse();
     }
 
     @Test

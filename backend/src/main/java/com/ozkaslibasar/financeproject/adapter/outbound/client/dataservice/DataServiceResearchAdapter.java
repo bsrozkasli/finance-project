@@ -145,11 +145,11 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
         try {
             D response = restTemplate.getForObject(url, responseType);
             if (response == null) {
-                return ProviderFetch.empty(DataServiceOutcomes.NO_DATA);
+                return ProviderFetch.empty(ProviderFetch.NO_DATA_MESSAGE);
             }
             return mapper.apply(response)
                     .map(ProviderFetch::ok)
-                    .orElseGet(() -> ProviderFetch.empty(DataServiceOutcomes.NO_DATA));
+                    .orElseGet(() -> ProviderFetch.empty(ProviderFetch.NO_DATA_MESSAGE));
         } catch (RuntimeException e) {
             return DataServiceOutcomes.fromException(e, what, symbol);
         }

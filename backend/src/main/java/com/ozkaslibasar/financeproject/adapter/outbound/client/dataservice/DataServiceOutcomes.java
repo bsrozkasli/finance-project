@@ -13,7 +13,6 @@ import org.springframework.web.client.HttpStatusCodeException;
 @Slf4j
 final class DataServiceOutcomes {
 
-    static final String NO_DATA = "Provider returned no data";
     static final String INSUFFICIENT = "Insufficient history";
     static final String RATE_LIMITED = "Provider rate limited";
     static final String FAILED = "Provider request failed";
@@ -23,17 +22,21 @@ final class DataServiceOutcomes {
 
     /**
      * 404 is EMPTY, 422 INSUFFICIENT_DATA, 429 RATE_LIMITED. Every other status, an I/O error or timeout
-     * (ResourceAccessException), an unreadable body (RestClientException) and any other exception is FAILED.
+     * (ResourceAccessException), an unreadable body (RestClientException) and any other exception is FAILED;
+     * a 4xx FAILED is a client error and not a provider fault, every other FAILED is.
      */
     static <T> ProviderFetch<T> fromException(RuntimeException e, String what, String symbol) {
         if (e instanceof HttpStatusCodeException statusException) {
             HttpStatusCode status = statusException.getStatusCode();
             log.warn("Data-service {} call for symbol={} returned HTTP {}", what, symbol, status.value());
             return switch (status.value()) {
-                case 404 -> ProviderFetch.empty(NO_DATA);
+                case 404 -> ProviderFetch.empty(ProviderFetch.NO_DATA_MESSAGE);
                 case 422 -> ProviderFetch.insufficientData(INSUFFICIENT);
                 case 429 -> ProviderFetch.rateLimited(RATE_LIMITED);
-                default -> ProviderFetch.failed(FAILED);
+                // A 4xx is about this request (bad symbol, forbidden): FAILED, but not a provider fault.
+                default -> status.is4xxClientError()
+                        ? ProviderFetch.failedClientError(FAILED)
+                        : ProviderFetch.failed(FAILED);
             };
         }
         log.warn("Data-service {} call for symbol={} failed ({})", what, symbol, e.getClass().getSimpleName());

@@ -315,6 +315,53 @@ class WatchlistResearchSnapshotUseCaseTest {
     }
 
     @Test
+    void threeClientErrorFailuresDoNotOpenTheBreakerButKeepTheFailedStatus() {
+        when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.failedClientError("client-message"));
+
+        callThreeTimes();
+        var fourth = row().fundamentals();
+
+        assertThat(fourth.status()).isEqualTo(WatchlistResearchStatus.FAILED);
+        assertThat(fourth.message()).isEqualTo("client-message");
+        verify(researchDataPort, times(4)).fetchFundamentalResult("AAPL");
+    }
+
+    @Test
+    void threeProviderFaultFailuresOpenTheBreaker() {
+        when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(ProviderFetch.failed("m"));
+
+        callThreeTimes();
+
+        assertThat(row().fundamentals().status()).isEqualTo(WatchlistResearchStatus.STALE);
+        verify(researchDataPort, times(3)).fetchFundamentalResult("AAPL");
+    }
+
+    @Test
+    void clientErrorsInterleavedWithProviderFaultsDoNotAddToTheCount() {
+        when(researchDataPort.fetchFundamentalResult("AAPL")).thenReturn(
+                ProviderFetch.failed("m"), ProviderFetch.failedClientError("c"), ProviderFetch.failed("m"),
+                ProviderFetch.failedClientError("c"), ProviderFetch.failed("m"));
+
+        row();
+        row();
+        row();
+        assertThat(row().fundamentals().status()).isEqualTo(WatchlistResearchStatus.FAILED); // 2 provider faults so far
+        assertThat(row().fundamentals().status()).isEqualTo(WatchlistResearchStatus.FAILED); // 3rd provider fault opens it
+        assertThat(row().fundamentals().status()).isEqualTo(WatchlistResearchStatus.STALE);
+        verify(researchDataPort, times(5)).fetchFundamentalResult("AAPL");
+    }
+
+    @Test
+    void technicalTieBetweenClientErrorAndProviderFaultCountsAsProviderFault() {
+        when(technicalAnalysisPort.fetchTechnicalAnalysisResult("AAPL", "1d", "3mo")).thenReturn(ProviderFetch.failedClientError("c"));
+        when(technicalAnalysisPort.fetchTechnicalSignalsResult("AAPL", "1d", "3mo")).thenReturn(ProviderFetch.failed("p"));
+
+        callThreeTimes();
+
+        assertThat(row().technical().status()).isEqualTo(WatchlistResearchStatus.STALE);
+    }
+
+    @Test
     void aValidAnswerResetsTheFailureCount() {
         when(researchDataPort.fetchFundamentalResult("AAPL"))
                 .thenReturn(ProviderFetch.failed("m"), ProviderFetch.failed("m"), ProviderFetch.empty("m"),

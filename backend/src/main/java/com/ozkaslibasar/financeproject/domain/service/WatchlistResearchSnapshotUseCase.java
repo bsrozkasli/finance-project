@@ -137,8 +137,9 @@ public class WatchlistResearchSnapshotUseCase {
         ProviderFetch<TechnicalAnalysisPort.TechnicalAnalysisResult> signal =
                 requireFetch(technicalAnalysisPort.fetchTechnicalSignalsResult(symbol, "1d", range));
         if (!indicators.ok() && !signal.ok()) {
-            ProviderFetch<?> worse = severity(indicators.outcome()) >= severity(signal.outcome()) ? indicators : signal;
-            return new ProviderFetch<>(worse.outcome(), null, worse.message());
+            // On a tie the provider-fault one wins, so a real provider failure still counts toward the breaker.
+            ProviderFetch<?> worse = severity(indicators) >= severity(signal) ? indicators : signal;
+            return new ProviderFetch<>(worse.outcome(), null, worse.message(), worse.providerFault());
         }
         return ProviderFetch.ok(toTechnicalSummary(indicators.data(), signal.data()));
     }
@@ -160,14 +161,15 @@ public class WatchlistResearchSnapshotUseCase {
                 indicator != null ? indicator.timestamp() : signalResult.timestamp());
     }
 
-    private static int severity(ProviderFetch.Outcome outcome) {
-        return switch (outcome) {
+    private static int severity(ProviderFetch<?> fetch) {
+        int rank = switch (fetch.outcome()) {
             case RATE_LIMITED -> 4;
             case FAILED -> 3;
             case INSUFFICIENT_DATA -> 2;
             case EMPTY -> 1;
             case OK -> 0;
         };
+        return rank * 2 + (fetch.providerFault() ? 1 : 0);
     }
 
     private ProviderFetch<WatchlistResearchSnapshot.FundamentalSummary> fundamentalSummary(String symbol, boolean refresh) {
@@ -187,7 +189,7 @@ public class WatchlistResearchSnapshotUseCase {
 
     /** A port that returns null breaks its contract; report it as a failed call, never as data or as empty. */
     private static <T> ProviderFetch<T> requireFetch(ProviderFetch<T> fetch) {
-        return fetch != null ? fetch : ProviderFetch.failed(FAILED_MESSAGE);
+        return fetch != null ? fetch : ProviderFetch.failed(FAILED_MESSAGE); // a broken port is a provider-side fault
     }
 
     /**
@@ -292,7 +294,11 @@ public class WatchlistResearchSnapshotUseCase {
                         WatchlistResearchStatus.RATE_LIMITED, source, fetch.message(), observedAt);
             case FAILED:
             default:
-                recordFailure(circuitKey, observedAt);
+                // A client error (4xx other than 429) about one request must not trip a breaker shared by all
+                // symbols: it keeps the FAILED status but leaves the failure count untouched.
+                if (fetch.providerFault()) {
+                    recordFailure(circuitKey, observedAt);
+                }
                 return WatchlistResearchSnapshot.WatchlistResearchSection.failed(
                         WatchlistResearchStatus.FAILED, source, fetch.message(), observedAt);
         }

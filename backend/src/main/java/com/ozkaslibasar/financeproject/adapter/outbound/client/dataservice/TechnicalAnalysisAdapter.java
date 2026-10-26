@@ -81,7 +81,7 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
             TechnicalAnalysisResponseDto response =
                     restTemplate.getForObject(technicalUrl(symbol, interval, range), TechnicalAnalysisResponseDto.class);
             if (response == null || response.getIndicators() == null) {
-                return ProviderFetch.empty(DataServiceOutcomes.NO_DATA);
+                return ProviderFetch.empty(ProviderFetch.NO_DATA_MESSAGE);
             }
             return ProviderFetch.ok(toResult(response));
         } catch (RuntimeException e) {
@@ -95,7 +95,7 @@ public class TechnicalAnalysisAdapter implements TechnicalAnalysisPort {
             AnalysisSummaryResponseDto response =
                     restTemplate.getForObject(technicalSignalsUrl(symbol, interval, range), AnalysisSummaryResponseDto.class);
             if (response == null || response.getSignal() == null) {
-                return ProviderFetch.empty(DataServiceOutcomes.NO_DATA);
+                return ProviderFetch.empty(ProviderFetch.NO_DATA_MESSAGE);
             }
             return ProviderFetch.ok(toSignalResult(response));
         } catch (RuntimeException e) {
