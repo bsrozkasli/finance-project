@@ -101,11 +101,13 @@ tests for success, empty response, provider failure, and fallback ordering.
   only other symbols' rows, only a stored price), `NONE_REFRESH_FAILED`,
   `NONE_REFRESH_EMPTY`. It shares the fetch-and-persist path with `getFreshLatest`;
   failure is told from empty by the exception, never by message text. Only the
-  watchlist research snapshot uses it (price section status, see `contracts.md`).
-  Follow-up: `JournalTradeService`, `PortfolioDashboardController` and
+  watchlist research snapshot (price section status) and the journal's open-trade
+  enrichment use it (see `contracts.md`); both map the origin through the single
+  `PriceStatus.from` (`FRESH`=`OK`, `STORED_*`=`STALE`, `NONE_REFRESH_FAILED`=`FAILED`,
+  `NONE_REFRESH_EMPTY`=`EMPTY`). Follow-up: `PortfolioDashboardController` and
   `PriceController` still use `getFreshLatest` and can present a stored price as
-  current after a failed refresh; each needs its own contract decision (a staleness
-  field on its response).
+  current after a failed refresh (decided in
+  `docs/product/decisions/2026-10-26-price-staleness.md` D-4, not built).
 - Asset metadata uses `VERIFIED`, `PARTIAL`, or `UNAVAILABLE`.
 - Technical analysis rejects fewer than 30 candles and leaves long-lookback
   indicators nullable when history is insufficient.

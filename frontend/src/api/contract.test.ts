@@ -129,6 +129,35 @@ const SectionStatusSchema = z.enum([
 ]);
 
 // The smart report has no client.ts type yet (next change); this pins the backend field set.
+// Full serialized JournalTrade (the record is returned as-is). priceAsOf/priceStatus are null for closed trades.
+const JournalTradeSchema = z.strictObject({
+  id: z.number().int(),
+  userId: z.string(),
+  symbol: z.string(),
+  company: z.string(),
+  type: z.enum(['BUY', 'SELL']),
+  quantity: z.number(),
+  purchasePrice: z.number(),
+  currentPrice: z.number().nullable(),
+  marketValue: z.number().nullable(),
+  commission: z.number(),
+  strategy: z.string().nullable(),
+  notes: z.string().nullable(),
+  tags: z.array(z.string()),
+  openedAt: z.string(),
+  closedAt: z.string().nullable(),
+  status: z.enum(['OPEN', 'CLOSED']),
+  pnl: z.number().nullable(),
+  returnPct: z.number().nullable(),
+  holdingDays: z.number().int(),
+  portfolioId: z.number().int().nullable(),
+  transactionId: z.number().int().nullable(),
+  createdAt: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+  priceAsOf: z.string().datetime().nullable(),
+  priceStatus: z.enum(['OK', 'STALE', 'FAILED', 'EMPTY']).nullable(),
+});
+
 const SmartReportSchema = z.strictObject({
   symbol: z.string(),
   overallScore: z.number().nullable(),
@@ -272,5 +301,15 @@ describe('shared HTTP contract fixtures', () => {
     expect(fixture.breakdown.valuationScore).toBeNull();
     expect(fixture.sectionStatus?.overall).toBe('EMPTY');
     expect(fixture.sectionStatus?.components.valuation_score.reason).toBe('valuation_component_unavailable');
+  });
+
+  it('journal trade fixture matches the schema, an open STALE trade with its price time', () => {
+    const fixture = JournalTradeSchema.parse(loadContractFixture('journal-trade.json'));
+
+    expect(fixture.status).toBe('OPEN');
+    expect(fixture.priceStatus).toBe('STALE');
+    expect(fixture.priceAsOf).toBe('2026-10-20T20:00:00Z');
+    expect(JournalTradeSchema.parse({ ...fixture, status: 'CLOSED', priceAsOf: null, priceStatus: null }).priceStatus)
+      .toBeNull();
   });
 });

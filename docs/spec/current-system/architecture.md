@@ -131,6 +131,13 @@ change together when API routing changes.
   "Durum bilinmiyor" and is never treated as `OK`. The raw manager text stays visible. `decision` and `confidence` are
   nullable in `AgentAnalysis` and are not rendered; nothing shows them when the status is not `OK`. The status is a data
   label, not an investment signal.
+- `TradingJournalView` reads the nullable `priceStatus` and `priceAsOf` of each trade
+  (price staleness D-3). `STALE` shows an "Eski fiyat" pill (shared `StatusPill`
+  with a local `label`) and the `tr-TR` formatted `priceAsOf` under the profit/loss
+  ("—" when the time is missing or invalid); `FAILED`/`EMPTY` show "Fiyat yok"; `OK`,
+  `null` or an absent field show nothing extra. Profit/loss and return are rendered
+  as sent, never recoloured or recomputed in the browser. The pill is a data label,
+  not an investment signal.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted

@@ -2,6 +2,7 @@ package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
 import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
+import com.ozkaslibasar.financeproject.domain.model.PriceStatus;
 import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
 import com.ozkaslibasar.financeproject.domain.model.Watchlist;
 import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchSnapshot;
@@ -130,15 +131,18 @@ public class WatchlistResearchSnapshotUseCase {
                 priceRefreshService.lookupFreshLatest(symbol), "price lookup must not be null");
         Instant observedAt = Instant.now();
         Optional<WatchlistResearchSnapshot.PriceSummary> summary = lookup.price().map(this::toPriceSummary);
-        return switch (lookup.origin()) {
-            case FRESH -> WatchlistResearchSnapshot.WatchlistResearchSection.ok(PRICE_SOURCE, summary.orElseThrow(), observedAt);
-            case STORED_REFRESH_FAILED -> WatchlistResearchSnapshot.WatchlistResearchSection.stale(
-                    PRICE_SOURCE, summary.orElseThrow(), PRICE_STALE_REFRESH_FAILED_MESSAGE, observedAt);
-            case STORED_REFRESH_EMPTY -> WatchlistResearchSnapshot.WatchlistResearchSection.stale(
-                    PRICE_SOURCE, summary.orElseThrow(), PRICE_STALE_REFRESH_EMPTY_MESSAGE, observedAt);
-            case NONE_REFRESH_FAILED -> WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+        // The status comes from the shared PriceStatus mapping; the origin only picks the stale message.
+        return switch (PriceStatus.from(lookup.origin())) {
+            case OK -> WatchlistResearchSnapshot.WatchlistResearchSection.ok(PRICE_SOURCE, summary.orElseThrow(), observedAt);
+            case STALE -> WatchlistResearchSnapshot.WatchlistResearchSection.stale(
+                    PRICE_SOURCE, summary.orElseThrow(),
+                    lookup.origin() == PriceLookup.Origin.STORED_REFRESH_FAILED
+                            ? PRICE_STALE_REFRESH_FAILED_MESSAGE
+                            : PRICE_STALE_REFRESH_EMPTY_MESSAGE,
+                    observedAt);
+            case FAILED -> WatchlistResearchSnapshot.WatchlistResearchSection.failed(
                     WatchlistResearchStatus.FAILED, PRICE_SOURCE, FAILED_MESSAGE, observedAt);
-            case NONE_REFRESH_EMPTY -> WatchlistResearchSnapshot.WatchlistResearchSection.empty(
+            case EMPTY -> WatchlistResearchSnapshot.WatchlistResearchSection.empty(
                     PRICE_SOURCE, ProviderFetch.NO_DATA_MESSAGE, observedAt);
         };
     }
