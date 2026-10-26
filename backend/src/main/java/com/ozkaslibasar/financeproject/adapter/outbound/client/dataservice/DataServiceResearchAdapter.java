@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.outbound.client.dataservice;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.SmartReportScorePort;
 import lombok.Data;
@@ -12,10 +13,13 @@ import org.springframework.web.client.RestTemplate;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Component
 @Slf4j
@@ -42,42 +46,19 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'composite:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'composite:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<CompositeScore> fetchCompositeScore(String symbol) {
         return getCompositeScore(symbol).map(this::toDomain);
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'fundamental:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'fundamental:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<FundamentalResearch> fetchFundamental(String symbol) {
         try {
-            String url = baseUrl + "/api/v1/research/fundamental/" + encode(symbol);
-            FundamentalResponseDto response = restTemplate.getForObject(url, FundamentalResponseDto.class);
-            if (response == null) {
-                return Optional.empty();
-            }
-            FundamentalMetricsDto m = response.getMetrics();
-            FundamentalMetrics metrics = m == null
-                    ? null
-                    : new FundamentalMetrics(
-                    m.getRoe(),
-                    m.getRoa(),
-                    m.getRoic(),
-                    m.getGrossMargin(),
-                    m.getOperatingMargin(),
-                    m.getNetMargin(),
-                    m.getCurrentRatio(),
-                    m.getQuickRatio(),
-                    m.getDebtToEquity(),
-                    m.getRevenue(),
-                    m.getNetIncome(),
-                    m.getOperatingCashFlow());
-            return Optional.of(new FundamentalResearch(
-                    response.getSymbol(),
-                    metrics,
-                    response.getFiscalYear(),
-                    response.getCurrency(),
-                    response.getCalculatedAt()));
+            FundamentalResponseDto response = restTemplate.getForObject(fundamentalUrl(symbol), FundamentalResponseDto.class);
+            return response == null ? Optional.empty() : Optional.of(toFundamental(response));
         } catch (Exception e) {
             log.warn("Failed to fetch fundamental research for symbol={}. Reason: {}", symbol, e.getMessage());
             return Optional.empty();
@@ -85,7 +66,16 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'valuation:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'fundamental-result:' + #symbol.toUpperCase()",
+            unless = "!#result.ok()")
+    public ProviderFetch<FundamentalResearch> fetchFundamentalResult(String symbol) {
+        return fetchResult("fundamental", symbol, fundamentalUrl(symbol), FundamentalResponseDto.class,
+                response -> response.getMetrics() == null ? Optional.empty() : Optional.of(toFundamental(response)));
+    }
+
+    @Override
+    @Cacheable(value = "researchCache", key = "'valuation:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<ValuationMetrics> fetchValuation(String symbol) {
         try {
             String url = baseUrl + "/api/v1/research/valuation/" + encode(symbol);
@@ -102,24 +92,14 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
             return Optional.empty();
         }
     }
+
     @Override
-    @Cacheable(value = "researchCache", key = "'earnings:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'earnings:' + #symbol.toUpperCase()",
+            unless = "#result == null || #result.isEmpty()")
     public List<EarningsQuarter> fetchEarnings(String symbol) {
         try {
-            String url = baseUrl + "/api/v1/research/earnings/" + encode(symbol);
-            EarningsResponseDto response = restTemplate.getForObject(url, EarningsResponseDto.class);
-            if (response == null || response.getHistory() == null) {
-                return List.of();
-            }
-            return response.getHistory().stream()
-                    .map(q -> new EarningsQuarter(
-                            q.getPeriod(),
-                            q.getActual(),
-                            q.getEstimate(),
-                            q.getSurprise(),
-                            q.getSurprisePct(),
-                            q.getBeat()))
-                    .toList();
+            EarningsResponseDto response = restTemplate.getForObject(earningsUrl(symbol), EarningsResponseDto.class);
+            return response == null ? List.of() : toEarnings(response);
         } catch (Exception e) {
             log.warn("Failed to fetch earnings research for symbol={}. Reason: {}", symbol, e.getMessage());
             return List.of();
@@ -127,26 +107,119 @@ public class DataServiceResearchAdapter implements SmartReportScorePort, Researc
     }
 
     @Override
-    @Cacheable(value = "researchCache", key = "'institutional:' + #symbol.toUpperCase()")
+    @Cacheable(value = "researchCache", key = "'earnings-result:' + #symbol.toUpperCase()",
+            unless = "!#result.ok()")
+    public ProviderFetch<List<EarningsQuarter>> fetchEarningsResult(String symbol) {
+        return fetchResult("earnings", symbol, earningsUrl(symbol), EarningsResponseDto.class,
+                response -> Optional.of(toEarnings(response)).filter(quarters -> !quarters.isEmpty()));
+    }
+
+    @Override
+    @Cacheable(value = "researchCache", key = "'institutional:' + #symbol.toUpperCase()",
+            unless = "#result == null")
     public Optional<InstitutionalScores> fetchInstitutionalScores(String symbol) {
         try {
-            String url = baseUrl + "/api/v1/research/institutional-scores/" + encode(symbol);
-            InstitutionalResponseDto response = restTemplate.getForObject(url, InstitutionalResponseDto.class);
-            if (response == null || response.getScores() == null) {
-                return Optional.empty();
-            }
-            InstitutionalScoresDto s = response.getScores();
-            return Optional.of(new InstitutionalScores(
-                    s.getPiotroskiFScore(),
-                    s.getAltmanZScore(),
-                    s.getBeneishMScore(),
-                    s.getQualityComposite(),
-                    s.getEconomicMoat(),
-                    s.getEarningsQuality()));
+            InstitutionalResponseDto response =
+                    restTemplate.getForObject(institutionalUrl(symbol), InstitutionalResponseDto.class);
+            return response == null ? Optional.empty() : toInstitutional(response);
         } catch (Exception e) {
             log.warn("Failed to fetch institutional scores for symbol={}. Reason: {}", symbol, e.getMessage());
             return Optional.empty();
         }
+    }
+
+    @Override
+    @Cacheable(value = "researchCache", key = "'institutional-result:' + #symbol.toUpperCase()",
+            unless = "!#result.ok()")
+    public ProviderFetch<InstitutionalScores> fetchInstitutionalScoresResult(String symbol) {
+        return fetchResult("institutional", symbol, institutionalUrl(symbol), InstitutionalResponseDto.class,
+                this::toInstitutional);
+    }
+
+    /**
+     * One data-service call mapped to an outcome. A null body or a body the mapper finds unusable is EMPTY;
+     * HTTP status and exception type decide everything else (see {@link DataServiceOutcomes}).
+     */
+    private <D, T> ProviderFetch<T> fetchResult(
+            String what, String symbol, String url, Class<D> responseType, Function<D, Optional<T>> mapper) {
+        try {
+            D response = restTemplate.getForObject(url, responseType);
+            if (response == null) {
+                return ProviderFetch.empty(ProviderFetch.NO_DATA_MESSAGE);
+            }
+            return mapper.apply(response)
+                    .map(ProviderFetch::ok)
+                    .orElseGet(() -> ProviderFetch.empty(ProviderFetch.NO_DATA_MESSAGE));
+        } catch (RuntimeException e) {
+            return DataServiceOutcomes.fromException(e, what, symbol);
+        }
+    }
+
+    private String fundamentalUrl(String symbol) {
+        return baseUrl + "/api/v1/research/fundamental/" + encode(symbol);
+    }
+
+    private String earningsUrl(String symbol) {
+        return baseUrl + "/api/v1/research/earnings/" + encode(symbol);
+    }
+
+    private String institutionalUrl(String symbol) {
+        return baseUrl + "/api/v1/research/institutional-scores/" + encode(symbol);
+    }
+
+    private FundamentalResearch toFundamental(FundamentalResponseDto response) {
+        FundamentalMetricsDto m = response.getMetrics();
+        FundamentalMetrics metrics = m == null
+                ? null
+                : new FundamentalMetrics(
+                m.getRoe(),
+                m.getRoa(),
+                m.getRoic(),
+                m.getGrossMargin(),
+                m.getOperatingMargin(),
+                m.getNetMargin(),
+                m.getCurrentRatio(),
+                m.getQuickRatio(),
+                m.getDebtToEquity(),
+                m.getRevenue(),
+                m.getNetIncome(),
+                m.getOperatingCashFlow());
+        return new FundamentalResearch(
+                response.getSymbol(),
+                metrics,
+                response.getFiscalYear(),
+                response.getCurrency(),
+                response.getCalculatedAt());
+    }
+
+    private List<EarningsQuarter> toEarnings(EarningsResponseDto response) {
+        if (response.getHistory() == null) {
+            return List.of();
+        }
+        return response.getHistory().stream()
+                .map(q -> new EarningsQuarter(
+                        q.getPeriod(),
+                        q.getActual(),
+                        q.getEstimate(),
+                        q.getSurprise(),
+                        q.getSurprisePct(),
+                        q.getBeat()))
+                // Mutable list: an immutable Stream.toList() result cannot be read back from the Redis cache.
+                .collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    private Optional<InstitutionalScores> toInstitutional(InstitutionalResponseDto response) {
+        if (response.getScores() == null) {
+            return Optional.empty();
+        }
+        InstitutionalScoresDto s = response.getScores();
+        return Optional.of(new InstitutionalScores(
+                s.getPiotroskiFScore(),
+                s.getAltmanZScore(),
+                s.getBeneishMScore(),
+                s.getQualityComposite(),
+                s.getEconomicMoat(),
+                s.getEarningsQuality()));
     }
 
     private String encode(String symbol) {

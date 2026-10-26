@@ -70,6 +70,43 @@ class WatchlistControllerTest {
                 .andExpect(jsonPath("$.policy.providerConcurrencyLimit").value(4));
     }
 
+    /** The wire contract: section field names and the seven status strings stay unchanged. */
+    @Test
+    void researchSnapshotSerializesSectionFieldsAndTheSevenStatusStrings() throws Exception {
+        Instant at = Instant.parse("2026-07-10T00:00:00Z");
+        WatchlistResearchSnapshot snapshot = new WatchlistResearchSnapshot(
+                7L, "Core", 1, 25, 0, List.of("AAPL"),
+                List.of(new WatchlistResearchSnapshot.WatchlistResearchRow(
+                        "AAPL",
+                        WatchlistResearchSnapshot.WatchlistResearchSection.ok("local-store/provider-chain",
+                                new WatchlistResearchSnapshot.PriceSummary(null, null, null, null, null, at), at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                                WatchlistResearchStatus.INSUFFICIENT_DATA, "data-service/technical", "Insufficient history", at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                                WatchlistResearchStatus.FAILED, "research-provider/fundamentals", "Provider request failed", at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                                WatchlistResearchStatus.STALE, "research-provider/earnings", "disabled", at),
+                        WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                                WatchlistResearchStatus.PENDING_REFRESH, "research-provider/institutional", "pending", at),
+                        WatchlistResearchStatus.EMPTY)),
+                new WatchlistResearchSnapshot.WatchlistResearchPolicy(50, 4, 4000, true, true), at);
+        when(researchSnapshotUseCase.getSnapshot("default", 7L, 25, 0, List.of(), false)).thenReturn(snapshot);
+
+        mockMvc.perform(get("/api/v1/watchlists/7/research-snapshot"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.rows[0].price.status").value("OK"))
+                .andExpect(jsonPath("$.rows[0].technical.status").value("INSUFFICIENT_DATA"))
+                .andExpect(jsonPath("$.rows[0].technical.message").value("Insufficient history"))
+                .andExpect(jsonPath("$.rows[0].technical.source").value("data-service/technical"))
+                .andExpect(jsonPath("$.rows[0].technical.observedAt").exists())
+                .andExpect(jsonPath("$.rows[0].fundamentals.status").value("FAILED"))
+                .andExpect(jsonPath("$.rows[0].earnings.status").value("STALE"))
+                .andExpect(jsonPath("$.rows[0].institutional.status").value("PENDING_REFRESH"))
+                .andExpect(jsonPath("$.rows[0].overallStatus").value("EMPTY"))
+                .andExpect(jsonPath("$.rows[0].technical.data").isEmpty());
+        // RATE_LIMITED is covered by researchSnapshotReturnsPaginatedPartialStatusPayload.
+    }
+
     @Test
     void researchSnapshotReturns404WhenWatchlistDoesNotExist() throws Exception {
         when(researchSnapshotUseCase.getSnapshot("default", 404L, 25, 0, List.of(), false))

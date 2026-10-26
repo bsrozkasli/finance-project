@@ -144,6 +144,29 @@ the next request asks the data-service again. A cached entry without
 `decision_status` (written before 2026-10-26) is treated as a miss and evicted,
 so an old placeholder verdict is never served.
 
+`researchCache` does not store an empty result (empty `Optional` or empty list)
+for fundamentals, valuation, earnings, institutional scores or the composite
+score, because the adapter cannot tell "no data exists" from a swallowed failure
+on that path; the data-service has its own caches. Non-empty results keep the
+12 hour TTL. The outcome-returning methods used by the watchlist research
+snapshot are cached in `researchCache` under their own keys
+(`fundamental-result:`, `earnings-result:`, `institutional-result:`) only when
+the outcome is `OK`; `FAILED`, `RATE_LIMITED`, `INSUFFICIENT_DATA` and `EMPTY` are
+never cached. The technical outcome methods are not cached. Earnings lists are
+returned as mutable lists because an immutable list cannot be read back from the
+Redis serializer. Cached outcome entries embed record class names, so a change to
+those record shapes needs the cache cleared or its 12 hours to pass.
+
+Watchlist research snapshot circuit breaker: one breaker per section (`price`,
+`technical`, `fundamentals`, `earnings`, `institutional`), shared across symbols
+and requests. Three provider-side failures (`RATE_LIMITED`, or `FAILED` from a
+5xx, I/O error, timeout, unreadable body or other exception) open it for 60
+seconds and the section reads `STALE` meanwhile. A `FAILED` from a 4xx other than
+429, `EMPTY` and `INSUFFICIENT_DATA` do not count, and an `OK`, `EMPTY` or
+`INSUFFICIENT_DATA` answer resets the count (a `FAILED` from a 4xx neither counts nor
+resets it). A real provider outage therefore shows `STALE` for that section
+across the whole watchlist for up to 60 seconds.
+
 ### Data-service caches
 
 - Macro snapshots are cached for four hours in Redis with in-memory fallback.

@@ -1,5 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.port.outbound;
 
+import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -7,6 +9,19 @@ import java.util.Optional;
 public interface TechnicalAnalysisPort {
     Optional<TechnicalAnalysisResult> fetchTechnicalAnalysis(String symbol, String interval, String range);
     Optional<TechnicalAnalysisResult> fetchTechnicalSignals(String symbol, String interval, String range);
+
+    /**
+     * Outcome-returning variants that keep a provider failure apart from "no data". The defaults wrap the
+     * Optional methods and so can only report OK or EMPTY; adapters that can see the failure override them.
+     */
+    default ProviderFetch<TechnicalAnalysisResult> fetchTechnicalAnalysisResult(String symbol, String interval, String range) {
+        return ProviderFetch.ofOptional(fetchTechnicalAnalysis(symbol, interval, range), ProviderFetch.NO_DATA_MESSAGE);
+    }
+
+    default ProviderFetch<TechnicalAnalysisResult> fetchTechnicalSignalsResult(String symbol, String interval, String range) {
+        return ProviderFetch.ofOptional(fetchTechnicalSignals(symbol, interval, range), ProviderFetch.NO_DATA_MESSAGE);
+    }
+
     Optional<TechnicalWorkspaceResult> fetchTechnicalWorkspace(String symbol, String interval, String range);
     Optional<TechnicalCopilotResult> fetchTechnicalCopilot(String symbol, String prompt, String interval, String range);
 

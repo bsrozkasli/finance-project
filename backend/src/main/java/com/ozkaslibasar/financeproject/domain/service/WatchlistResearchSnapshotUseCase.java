@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.ProviderFetch;
 import com.ozkaslibasar.financeproject.domain.model.Watchlist;
 import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchSnapshot;
 import com.ozkaslibasar.financeproject.domain.model.WatchlistResearchStatus;
@@ -30,6 +31,8 @@ import java.util.function.Supplier;
 
 public class WatchlistResearchSnapshotUseCase {
 
+    private static final String NO_DATA_MESSAGE = "No data returned by provider";
+    private static final String FAILED_MESSAGE = "Provider request failed";
     private static final int DEFAULT_LIMIT = 25;
     private static final int MAX_LIMIT = 50;
     private static final int PROVIDER_CONCURRENCY_LIMIT = 4;
@@ -91,7 +94,7 @@ public class WatchlistResearchSnapshotUseCase {
 
     private WatchlistResearchSnapshot.WatchlistResearchRow toRow(String symbol, boolean refresh) {
         WatchlistResearchSnapshot.WatchlistResearchSection<WatchlistResearchSnapshot.PriceSummary> price =
-                section("price", "local-store/provider-chain", () -> priceSummary(symbol));
+                section("price", "local-store/provider-chain", () -> ProviderFetch.ofOptional(priceSummary(symbol), NO_DATA_MESSAGE));
         WatchlistResearchSnapshot.WatchlistResearchSection<WatchlistResearchSnapshot.TechnicalSummary> technical =
                 section("technical", "data-service/technical", () -> technicalSummary(symbol, refresh));
         WatchlistResearchSnapshot.WatchlistResearchSection<WatchlistResearchSnapshot.FundamentalSummary> fundamentals =
@@ -122,18 +125,29 @@ public class WatchlistResearchSnapshotUseCase {
                         price.timestampAsInstant()));
     }
 
-    private Optional<WatchlistResearchSnapshot.TechnicalSummary> technicalSummary(String symbol, boolean refresh) {
+    /**
+     * Indicators and signal are two calls. Either one with data gives a summary (the other part stays null,
+     * as before). With no data from either, the outcome is the more severe of the two, in the same order as
+     * the overall status: RATE_LIMITED, FAILED, INSUFFICIENT_DATA, EMPTY.
+     */
+    private ProviderFetch<WatchlistResearchSnapshot.TechnicalSummary> technicalSummary(String symbol, boolean refresh) {
         String range = refresh ? "6mo" : "3mo";
-        Optional<TechnicalAnalysisPort.TechnicalAnalysisResult> indicators =
-                technicalAnalysisPort.fetchTechnicalAnalysis(symbol, "1d", range);
-        Optional<TechnicalAnalysisPort.TechnicalAnalysisResult> signal =
-                technicalAnalysisPort.fetchTechnicalSignals(symbol, "1d", range);
-        if (indicators.isEmpty() && signal.isEmpty()) {
-            return Optional.empty();
+        ProviderFetch<TechnicalAnalysisPort.TechnicalAnalysisResult> indicators =
+                requireFetch(technicalAnalysisPort.fetchTechnicalAnalysisResult(symbol, "1d", range));
+        ProviderFetch<TechnicalAnalysisPort.TechnicalAnalysisResult> signal =
+                requireFetch(technicalAnalysisPort.fetchTechnicalSignalsResult(symbol, "1d", range));
+        if (!indicators.ok() && !signal.ok()) {
+            // On a tie the provider-fault one wins, so a real provider failure still counts toward the breaker.
+            ProviderFetch<?> worse = severity(indicators) >= severity(signal) ? indicators : signal;
+            return new ProviderFetch<>(worse.outcome(), null, worse.message(), worse.providerFault());
         }
-        TechnicalAnalysisPort.TechnicalAnalysisResult indicator = indicators.orElse(null);
-        TechnicalAnalysisPort.TechnicalAnalysisResult signalResult = signal.orElse(null);
-        return Optional.of(new WatchlistResearchSnapshot.TechnicalSummary(
+        return ProviderFetch.ok(toTechnicalSummary(indicators.data(), signal.data()));
+    }
+
+    private WatchlistResearchSnapshot.TechnicalSummary toTechnicalSummary(
+            TechnicalAnalysisPort.TechnicalAnalysisResult indicator,
+            TechnicalAnalysisPort.TechnicalAnalysisResult signalResult) {
+        return new WatchlistResearchSnapshot.TechnicalSummary(
                 indicator == null ? null : indicator.rsi(),
                 indicator == null ? null : indicator.macd(),
                 indicator == null ? null : indicator.macdSignal(),
@@ -144,30 +158,49 @@ public class WatchlistResearchSnapshotUseCase {
                 indicator == null ? null : indicator.ema(),
                 signalResult == null ? null : signalResult.action(),
                 signalResult == null ? null : signalResult.confidence(),
-                indicator != null ? indicator.timestamp() : signalResult.timestamp()));
+                indicator != null ? indicator.timestamp() : signalResult.timestamp());
     }
-    private Optional<WatchlistResearchSnapshot.FundamentalSummary> fundamentalSummary(String symbol, boolean refresh) {
-        return researchDataPort.fetchFundamental(symbol)
+
+    private static int severity(ProviderFetch<?> fetch) {
+        int rank = switch (fetch.outcome()) {
+            case RATE_LIMITED -> 4;
+            case FAILED -> 3;
+            case INSUFFICIENT_DATA -> 2;
+            case EMPTY -> 1;
+            case OK -> 0;
+        };
+        return rank * 2 + (fetch.providerFault() ? 1 : 0);
+    }
+
+    private ProviderFetch<WatchlistResearchSnapshot.FundamentalSummary> fundamentalSummary(String symbol, boolean refresh) {
+        return requireFetch(researchDataPort.fetchFundamentalResult(symbol))
                 .map(WatchlistResearchSnapshot.FundamentalSummary::from);
     }
 
-    private Optional<WatchlistResearchSnapshot.EarningsSummary> earningsSummary(String symbol, boolean refresh) {
-        List<ResearchDataPort.EarningsQuarter> quarters = researchDataPort.fetchEarnings(symbol);
-        if (quarters == null || quarters.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(new WatchlistResearchSnapshot.EarningsSummary(List.copyOf(quarters)));
+    private ProviderFetch<WatchlistResearchSnapshot.EarningsSummary> earningsSummary(String symbol, boolean refresh) {
+        return requireFetch(researchDataPort.fetchEarningsResult(symbol))
+                .map(quarters -> new WatchlistResearchSnapshot.EarningsSummary(List.copyOf(quarters)));
     }
 
-    private Optional<WatchlistResearchSnapshot.InstitutionalSummary> institutionalSummary(String symbol, boolean refresh) {
-        return researchDataPort.fetchInstitutionalScores(symbol)
+    private ProviderFetch<WatchlistResearchSnapshot.InstitutionalSummary> institutionalSummary(String symbol, boolean refresh) {
+        return requireFetch(researchDataPort.fetchInstitutionalScoresResult(symbol))
                 .map(WatchlistResearchSnapshot.InstitutionalSummary::from);
     }
 
+    /** A port that returns null breaks its contract; report it as a failed call, never as data or as empty. */
+    private static <T> ProviderFetch<T> requireFetch(ProviderFetch<T> fetch) {
+        return fetch != null ? fetch : ProviderFetch.failed(FAILED_MESSAGE); // a broken port is a provider-side fault
+    }
+
+    /**
+     * Runs one provider call and turns its outcome into a section. FAILED and RATE_LIMITED count as breaker
+     * failures; OK, EMPTY and INSUFFICIENT_DATA are valid answers and count as successes. Exceptions that
+     * still escape (price path, interrupts, timeouts) keep the message-based {@link #statusFor}.
+     */
     private <T> WatchlistResearchSnapshot.WatchlistResearchSection<T> section(
             String circuitKey,
             String source,
-            Supplier<Optional<T>> supplier) {
+            Supplier<ProviderFetch<T>> supplier) {
         Instant now = Instant.now();
         if (isCircuitOpen(circuitKey, now)) {
             return WatchlistResearchSnapshot.WatchlistResearchSection.failed(
@@ -189,11 +222,7 @@ public class WatchlistResearchSnapshotUseCase {
                             "Provider concurrency queue timed out",
                             Instant.now());
                 }
-                Optional<T> data = supplier.get();
-                recordSuccess(circuitKey);
-                return data
-                        .map(value -> WatchlistResearchSnapshot.WatchlistResearchSection.ok(source, value, Instant.now()))
-                        .orElseGet(() -> WatchlistResearchSnapshot.WatchlistResearchSection.empty(source, "No data returned by provider", Instant.now()));
+                return toSection(circuitKey, source, requireFetch(supplier.get()));
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 recordFailure(circuitKey, Instant.now());
@@ -242,6 +271,36 @@ public class WatchlistResearchSnapshotUseCase {
                     source,
                     safeMessage(cause),
                     Instant.now());
+        }
+    }
+
+    private <T> WatchlistResearchSnapshot.WatchlistResearchSection<T> toSection(
+            String circuitKey, String source, ProviderFetch<T> fetch) {
+        Instant observedAt = Instant.now();
+        switch (fetch.outcome()) {
+            case OK:
+                recordSuccess(circuitKey);
+                return WatchlistResearchSnapshot.WatchlistResearchSection.ok(source, fetch.data(), observedAt);
+            case EMPTY:
+                recordSuccess(circuitKey);
+                return WatchlistResearchSnapshot.WatchlistResearchSection.empty(source, fetch.message(), observedAt);
+            case INSUFFICIENT_DATA:
+                recordSuccess(circuitKey);
+                return WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                        WatchlistResearchStatus.INSUFFICIENT_DATA, source, fetch.message(), observedAt);
+            case RATE_LIMITED:
+                recordFailure(circuitKey, observedAt);
+                return WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                        WatchlistResearchStatus.RATE_LIMITED, source, fetch.message(), observedAt);
+            case FAILED:
+            default:
+                // A client error (4xx other than 429) about one request must not trip a breaker shared by all
+                // symbols: it keeps the FAILED status but leaves the failure count untouched.
+                if (fetch.providerFault()) {
+                    recordFailure(circuitKey, observedAt);
+                }
+                return WatchlistResearchSnapshot.WatchlistResearchSection.failed(
+                        WatchlistResearchStatus.FAILED, source, fetch.message(), observedAt);
         }
     }
 
