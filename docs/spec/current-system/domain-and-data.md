@@ -74,19 +74,120 @@ ports with in-memory state.
   creation; persistence never rewrites it (`updatable=false`). V8 gives existing
   manual rows `manual:legacy:<row-id>`, which names only their known persisted
   origin. A database check requires a `manual:` locator for MANUAL rows, and
-  `(source, origin_locator)` is unique. CSV lineage is still unspecified, so CSV rows
-  may have a `NULL` locator.
+  `(source, origin_locator)` is unique. Every CSV event created by the CSV import
+  (V12) carries a `csv:<sha256 hex>` locator, with `#<n>` appended for the n-th
+  identical row of a file (n >= 2); the hash covers the portfolio id, the user id and the nine economic columns
+  (R-10), so it is independent of row order and of the notes but differs per
+  portfolio. A `source=CSV` event posted through
+  the manual transaction route has no import lineage and may still have a `NULL`
+  locator.
+- A ledger event is never physically deleted. `DELETE .../transactions/{id}` sets
+  the nullable `voided_at` once; the row, its id and its `(source, origin_locator)`
+  stay (the locator remains reserved). `findByPortfolioIdAndUserId`,
+  `findByIdAndPortfolioIdAndUserId`, holdings and `PortfolioStateService.stateAt`
+  see only events with `voided_at IS NULL`; `findByIdsIncludingVoided` returns
+  events active or voided for replaying stored states. `voidedAt` is not exposed
+  in route responses and is not part of the state version.
+  `PortfolioLedgerService.voidTransaction` (R-17) runs under the same
+  `PortfolioLedgerLockPort.withPortfolioLock` as additions: it reads the active
+  events, replays the remaining ones (without the target), and throws
+  `LedgerInconsistencyException` (route `409`) when that replay is invalid, changing
+  nothing; an id that is not active throws `NoSuchElementException` (route `404`).
+  Otherwise the same-transaction work (the linked journal delete) runs and then the
+  event is voided, in one transaction. The lock transaction is pinned to
+  `READ COMMITTED` (R-18) because a waiter must see the committed insert or void it
+  waited for; do not change that isolation level.
+  `PortfolioPositionController.addPosition` is `@Transactional`, so its ledger
+  addition joins that outer transaction and the template's `READ COMMITTED` setting
+  is not applied there; PostgreSQL's default is also `READ COMMITTED` and the
+  application does not change it, so the lock stays correct, but a change of the
+  default would need that path revisited (R-18 addendum).
 - The internal `PortfolioStateService` derives a `PortfolioState` from accepted
   ledger events (each has an id and belongs to the requested portfolio and
   user) traded on or before an as-of date. It lists every traded symbol,
-  including positions closed back to zero, with quantity, cost basis and
-  realized PnL, plus the source event ids. Its version is `pstate-v1:` and a
-  SHA-256 over the portfolio, user, as-of date and each event's economic and
-  lineage fields in id order (numbers without trailing zeros); notes and
-  timestamps are excluded. The state is not persisted, has no route, and has no
-  exposures. Because the transaction port can delete events, a state version
-  can stop being reproducible; replay then yields a different version rather
-  than the old state.
+  including positions closed back to zero (`CLOSED`, never valued), with
+  quantity, cost basis and realized PnL, plus the source event ids, the
+  portfolio base currency, an `exposureStatus` and the `valuationInputs` used.
+  Exposures (decision D-2) use only retained prices: the latest stored close on
+  or before the as-of date, with the stored `Asset.currency` as price currency;
+  nothing is fetched from providers. An open position is valued only when the
+  price, position and base currencies are equal (no FX conversion). Currencies
+  are compared exactly (R-15): the price currency is only trimmed, never
+  case-folded, so a provider's `GBp` or `ZAc` (pence, cents) or a lower-case code
+  is a `CURRENCY_MISMATCH` against `GBP`, `ZAR` or `USD`, and the stored valuation
+  input keeps the provider's exact case. State responses write decimals without
+  trailing zeros or exponent notation, so create and replay bodies match. Its status,
+  checked in this order, is `CURRENCY_UNKNOWN` (no asset or blank currency),
+  `CURRENCY_MISMATCH`, `NO_PRICE`, `STALE_PRICE` (close older than 7 calendar
+  days; exactly 7 is current) or `PRICED`. Market value is quantity x close for
+  `PRICED` and `STALE_PRICE` only. Weights exist only when every open position
+  is `PRICED` (`COMPLETE`): market value over the total, and per
+  `PortfolioAssetType` sums, divided at 10 decimals `HALF_UP`. Any other open
+  status (or a zero total) gives `PARTIAL` with every weight null and an empty
+  `assetTypeWeights`; no open positions gives `EMPTY`. The version is
+  `pstate-v2:` and a SHA-256 over the portfolio, user, as-of date, base
+  currency, each event's economic and lineage fields in id order and, per
+  position in symbol order, its valuation status, close, price date and price
+  currency (numbers without trailing zeros); notes, timestamps and `voidedAt`
+  are excluded. `project` with explicit `ValuationInput`s and a base currency
+  reproduces a state without reading prices; the price-port path builds those
+  inputs and delegates to it. `stateAt` reads the base currency through
+  `PortfolioPort`. Because transactions are voided and never deleted, and
+  `findByIdsIncludingVoided` returns voided events, a version stays
+  reproducible from its stored event ids and valuation inputs after a later void.
+- CSV imports are staged in two tables (V12) behind `PortfolioCsvImportPort`:
+  `portfolio_csv_imports` (portfolio, user, file SHA-256, status `STAGED` or
+  `ACCEPTED`, created and accepted times; cascade with the portfolio) and
+  `portfolio_csv_import_rows` (batch, row number, raw line, nullable locator, status
+  `VALID`, `INVALID`, `DUPLICATE`, `ACCEPTED` or `REJECTED`, message, the parsed
+  values as columns, nullable accepted transaction id; unique `(batch_id,
+  row_number)`). Staging marks a row `DUPLICATE` when
+  `PortfolioTransactionPort.existsBySourceAndOriginLocator` finds its locator in the
+  ledger, voided events included. Acceptance runs `PortfolioCsvImportService.accept`
+  without an outer transaction: the `VALID` rows, in trade-date then row-number
+  order, are accepted in chunks of 200 (R-21, `ACCEPT_CHUNK_SIZE`). A chunk runs
+  `PortfolioLedgerService.inLedgerChunk` under the portfolio lock: the active ledger is
+  read once, each row is validated by `LedgerChunk.add` against running positions
+  (the same `applyTransaction` rules as `addTransaction`), and the chunk's ledger
+  inserts and row outcomes commit together; a chunk that fails rolls back whole and
+  its rows stay `VALID`. Positions are independent per symbol, so the view keeps each
+  symbol's events in replay order. A row dated on or after its symbol's latest event is
+  applied to the running position; a back-dated row (R-24) replays all of its own symbol's events (not only the later ones) with the new row in its place, with the same `applyTransaction` rules, and the replayed position replaces the running one (no second full re-seed). A randomized
+  differential test (`PortfolioLedgerChunkDifferentialTest`, fixed seed, 300 sequences
+  of BUY/SELL/DIVIDEND/FEE/CASH_DEPOSIT incl. symbol-less events, several asset types and currencies, back-dated, same-date and oversell attempts, split across several chunks) checks the
+  accept/reject decisions and final quantity, cost basis and realized PnL equal
+  sequential `addTransaction`. Rows whose locator already exists are settled after the
+  chunk commits. Measurements (single source for these figures; real PostgreSQL, developer machine, 5,000 valid rows alternating BUY/SELL over 50 symbols, `PortfolioCsvImportPerformanceTest`): appended rows accepted in 191 s with the original per-row replay and in 23.5 s chunked on an idle machine; a later run on a loaded machine gave 31.2 s and the range seen was 23.5-40 s, so the 30 s target is met only on an idle machine and is not guaranteed under load. A back-dated historical file into a portfolio holding 50 newer events accepted in 46.8 s with the first chunked version (full replay twice per row) and 27.2 s with the per-symbol replay (target 60 s). Staging took 16-23 s. A single-symbol 5,000-row back-dated file is unmeasured: it replays that one symbol's whole event list per row, so it costs more than the 50-symbol case (R-32). The backup/restore exercise takes about 50-55 s on an idle machine and up to about 85 s on a loaded one (see `operations.md`). Opt-in commands (R-25, R-30), from `backend\` in PowerShell: `.\mvnw.cmd "-Dtest=PortfolioCsvImportPerformanceTest" "-Dcsv.perf=true" test` and `.\mvnw.cmd "-Dtest=PortfolioBackupRestoreTest" "-Dbackup.restore=true" test`. The pom hard-codes `forkedProcessTimeoutInSeconds=120`, so an opt-in run longer than that reports BUILD FAILURE after the tests passed; the verdict comes from the surefire reports (`backend/target/surefire-reports`), not the Maven exit code. The 5,000-row cases run in the background for that reason. A 300-row back-dated case with a 60 s bound runs by default. Every ledger
+  addition (manual and CSV) runs its read, validation and save inside
+  `PortfolioLedgerLockPort.withPortfolioLock` (R-13): one transaction that first
+  locks the portfolio row (`SELECT ... FOR UPDATE`), so additions to one portfolio
+  are serialized, and so are voids (below), so concurrent additions and voids cannot
+  jointly oversell or leave an unreplayable ledger. Under that lock a CSV event whose
+  locator already exists throws `DuplicateOriginLocatorException`. A ledger
+  `IllegalArgumentException` marks the row `REJECTED`. When the locator already
+  exists, the service looks up the active event: if there is one in this portfolio
+  and no other row has recorded it, the row is recorded `ACCEPTED` with that event's
+  id (this repairs an interrupted accept and a concurrent accept of the same batch;
+  `portfolio_csv_import_rows.transaction_id` is unique, so a claim is exclusive);
+  if another row owns it, or only a voided event exists, the row is `DUPLICATE`. A
+  row outcome is written only while the row is still `VALID`, and a refused write is
+  re-read rather than assumed. Accepting an `ACCEPTED` batch returns it unchanged,
+  and an interrupted acceptance leaves a `STAGED` batch that resumes. `INVALID`
+  rows never reach the ledger.
+- Portfolio States are persisted append-only through `PortfolioStatePort`
+  (V11): `portfolio_states` (version, portfolio, user, as-of date, base
+  currency, exposure status, created time; unique `(portfolio_id, version)`,
+  cascade with the portfolio), `portfolio_state_events` (state id, transaction
+  id; no foreign key to transactions so voided events stay referenced) and
+  `portfolio_state_valuations` (symbol, nullable close, price date and price
+  currency). `saveIfAbsent` inserts with `ON CONFLICT DO NOTHING` and returns the
+  stored row and whether it was created; nothing is updated or deleted.
+  `PortfolioStateService.create` derives a state with `stateAt` and stores it;
+  `replay` loads the stored row, reads its events with `findByIdsIncludingVoided`,
+  re-projects with the stored inputs and base currency, and compares the
+  replayed version string with the stored one (never record equality, because a
+  database round-trip changes numeric scale). A missing event or a different
+  version throws `PortfolioStateMismatchException` (`409`).
 - Journal records may link to a portfolio/transaction, but journal decision
   history is not implicitly deleted when a position is sold.
 
@@ -145,6 +246,9 @@ Applied migrations are immutable.
 | `V7__relabel_unresolved_asset_types.sql` | Relabels `assets` rows stored as `STOCK` with `UNAVAILABLE` metadata as `UNRESOLVED` (OQ-5) |
 | `V8__manual_transaction_origin_locator.sql` | Adds `portfolio_transactions.origin_locator`, backfills `manual:legacy:<id>`, adds the manual-locator check and `(source, origin_locator)` uniqueness |
 | `V9__research_evidence_snapshots.sql` | `research_evidence_snapshots` (with the captured instrument identity) and `research_evidence_fields`: append-only evidence versions with linear revision uniqueness, a value-xor-missing-reason check, and observation-time checks; no route reads them yet |
+| `V10__void_portfolio_transactions.sql` | Adds nullable `portfolio_transactions.voided_at`; inverse is dropping the column |
+| `V11__portfolio_states.sql` | `portfolio_states`, `portfolio_state_events`, `portfolio_state_valuations`: append-only Portfolio States with unique `(portfolio_id, version)`; the event table has no foreign key to transactions; inverse is dropping the three tables |
+| `V12__portfolio_csv_imports.sql` | `portfolio_csv_imports` and `portfolio_csv_import_rows`: CSV import staging with parsed values as columns; both cascade with the portfolio; inverse is dropping the two tables |
 
 `price_history` is the canonical singular table name used by both migration and
 entity mapping.

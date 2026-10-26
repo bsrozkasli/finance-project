@@ -1,0 +1,26 @@
+{
+  "version": "pstate-v2:abc",
+  "portfolioId": 1,
+  "asOf": "2026-10-25",
+  "exposureStatus": "COMPLETE",
+  "sourceEventIds": [1, 2],
+  "positions": [
+    {
+      "symbol": "AAPL",
+      "assetType": "US_STOCK",
+      "quantity": 6,
+      "averageCost": 100,
+      "costBasis": 600,
+      "realizedPnl": 200,
+      "currency": "USD",
+      "valuationStatus": "PRICED",
+      "price": 110,
+      "priceDate": "2026-10-20",
+      "marketValue": 660,
+      "weight": 1
+    }
+  ],
+  "assetTypeWeights": {
+    "US_STOCK": 1
+  }
+}

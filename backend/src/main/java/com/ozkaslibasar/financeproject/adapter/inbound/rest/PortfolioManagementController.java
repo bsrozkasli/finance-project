@@ -28,8 +28,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 @Tag(name = "Portfolios", description = "Portfolio accounts, transaction ledger, and derived holdings")
 @RestController
@@ -99,6 +101,11 @@ public class PortfolioManagementController {
             @PathVariable Long portfolioId,
             @RequestBody PortfolioTransactionRequest request) {
         Portfolio portfolio = getPortfolio(portfolioId);
+        // R-20: CSV events need a csv: identity, which only the import route can produce.
+        if (request.source() == PortfolioTransactionSource.CSV) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "CSV transactions are created only through imports");
+        }
         try {
             PortfolioTransaction saved = ledgerService.addTransaction(new PortfolioTransaction(
                     null,
@@ -128,10 +135,14 @@ public class PortfolioManagementController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteTransaction(@PathVariable Long portfolioId, @PathVariable Long transactionId) {
         getPortfolio(portfolioId);
-        transactionPort.findByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Transaction not found: " + transactionId));
-        journalTradePort.deleteByPortfolioIdAndTransactionIdAndUserId(portfolioId, transactionId, DEFAULT_USER);
-        transactionPort.deleteByIdAndPortfolioIdAndUserId(transactionId, portfolioId, DEFAULT_USER);
+        try {
+            // The journal delete runs inside the ledger lock's transaction so it and the void commit together.
+            ledgerService.voidTransaction(portfolioId, DEFAULT_USER, transactionId, Instant.now(),
+                    () -> journalTradePort.deleteByPortfolioIdAndTransactionIdAndUserId(
+                            portfolioId, transactionId, DEFAULT_USER));
+        } catch (NoSuchElementException ex) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, ex.getMessage(), ex);
+        }
     }
 
     @GetMapping("/{portfolioId}/holdings")

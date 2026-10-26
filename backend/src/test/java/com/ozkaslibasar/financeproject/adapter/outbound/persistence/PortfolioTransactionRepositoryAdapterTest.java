@@ -43,9 +43,9 @@ class PortfolioTransactionRepositoryAdapterTest {
             return entity;
         });
         PortfolioTransaction saved = new PortfolioTransactionRepositoryAdapter(repository).save(input);
-        when(repository.findByIdAndPortfolioIdAndUserId(42L, 1L, "default"))
+        when(repository.findByIdAndPortfolioIdAndUserIdAndVoidedAtIsNull(42L, 1L, "default"))
                 .thenAnswer(invocation -> Optional.of(stored.get()));
-        when(repository.findByPortfolioIdAndUserIdOrderByTradeDateAscIdAsc(1L, "default"))
+        when(repository.findByPortfolioIdAndUserIdAndVoidedAtIsNullOrderByTradeDateAscIdAsc(1L, "default"))
                 .thenAnswer(invocation -> List.of(stored.get()));
 
         PortfolioTransactionRepositoryAdapter recreated = new PortfolioTransactionRepositoryAdapter(repository);

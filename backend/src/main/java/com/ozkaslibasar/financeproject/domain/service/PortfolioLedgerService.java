@@ -3,31 +3,186 @@ package com.ozkaslibasar.financeproject.domain.service;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioTransaction;
+import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioLedgerLockPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.Function;
 
 public class PortfolioLedgerService {
 
     private final PortfolioTransactionPort transactionPort;
+    private final PortfolioLedgerLockPort lockPort;
 
-    public PortfolioLedgerService(PortfolioTransactionPort transactionPort) {
+    public PortfolioLedgerService(PortfolioTransactionPort transactionPort, PortfolioLedgerLockPort lockPort) {
         this.transactionPort = Objects.requireNonNull(transactionPort, "transactionPort must not be null");
+        this.lockPort = Objects.requireNonNull(lockPort, "lockPort must not be null");
     }
 
+    /**
+     * Validates against the active events and saves, serialized per portfolio (R-13) so concurrent additions cannot
+     * jointly oversell a position. A CSV event whose locator already exists throws
+     * {@link DuplicateOriginLocatorException}; the check runs under the lock so the unique index is never hit.
+     */
     public PortfolioTransaction addTransaction(PortfolioTransaction transaction) {
-        List<PortfolioTransaction> existing = transactionPort.findByPortfolioIdAndUserId(
-                transaction.portfolioId(), transaction.userId());
-        validateTransaction(existing, transaction);
-        return transactionPort.save(transaction);
+        return lockPort.withPortfolioLock(transaction.portfolioId(), () -> {
+            refuseKnownCsvLocator(transaction);
+            List<PortfolioTransaction> existing = transactionPort.findByPortfolioIdAndUserId(
+                    transaction.portfolioId(), transaction.userId());
+            validateTransaction(existing, transaction);
+            return transactionPort.save(transaction);
+        });
+    }
+
+    /**
+     * Runs {@code work} under the per-portfolio lock with a {@link LedgerChunk} seeded once from the active events
+     * (R-21). Each {@link LedgerChunk#add} applies the same ledger rules as {@link #addTransaction} but validates
+     * incrementally instead of re-reading and replaying the whole ledger per event. Everything the work writes
+     * commits or rolls back together, so callers keep chunks bounded.
+     */
+    public <T> T inLedgerChunk(Long portfolioId, String userId, Function<LedgerChunk, T> work) {
+        Objects.requireNonNull(work, "work must not be null");
+        return lockPort.withPortfolioLock(portfolioId, () -> work.apply(
+                new LedgerChunk(new ArrayList<>(transactionPort.findByPortfolioIdAndUserId(portfolioId, userId)))));
+    }
+
+    private void refuseKnownCsvLocator(PortfolioTransaction transaction) {
+        if (transaction.source() == PortfolioTransactionSource.CSV && transaction.originLocator() != null
+                && transactionPort.existsBySourceAndOriginLocator(transaction.source(),
+                transaction.originLocator())) {
+            throw new DuplicateOriginLocatorException(transaction.originLocator());
+        }
+    }
+
+    /**
+     * A running view of one portfolio's active ledger, valid only inside {@link #inLedgerChunk}. Positions are
+     * independent per symbol, so the view keeps each symbol's events in replay order with its running position. An
+     * event dated on or after the symbol's latest event sorts last in {@link #chronological} and is applied to the
+     * running position directly (R-21). A back-dated event is validated by replaying only that symbol's events with
+     * the new one in its place, using the same {@link #applyTransaction} rules as {@link #addTransaction}, and the
+     * replayed position then replaces the running one (R-24); no other symbol is touched.
+     */
+    public final class LedgerChunk {
+        private final Map<String, List<PortfolioTransaction>> eventsBySymbol = new LinkedHashMap<>();
+        private final Map<String, Accumulator> positions = new LinkedHashMap<>();
+        private IllegalArgumentException unusableLedger;
+
+        private LedgerChunk(List<PortfolioTransaction> events) {
+            for (PortfolioTransaction event : chronological(events)) {
+                eventsBySymbol.computeIfAbsent(symbolKey(event), key -> new ArrayList<>()).add(event);
+            }
+            try {
+                for (PortfolioTransaction event : chronological(events)) {
+                    applyTransaction(positions, event);
+                }
+            } catch (IllegalArgumentException e) {
+                // The stored ledger no longer replays: every addition is refused with that reason, as before.
+                unusableLedger = e;
+            }
+        }
+
+        /**
+         * Validates against the view, saves and extends the view.
+         *
+         * @throws DuplicateOriginLocatorException when a CSV event with the locator already exists
+         * @throws IllegalArgumentException when the event is invalid against the ledger (the view is unchanged)
+         */
+        public PortfolioTransaction add(PortfolioTransaction transaction) {
+            refuseKnownCsvLocator(transaction);
+            if (unusableLedger != null) {
+                throw new IllegalArgumentException(unusableLedger.getMessage(), unusableLedger);
+            }
+            String key = symbolKey(transaction);
+            List<PortfolioTransaction> symbolEvents = eventsBySymbol.computeIfAbsent(key, k -> new ArrayList<>());
+            boolean appendsLast = symbolEvents.isEmpty()
+                    || !transaction.tradeDate().isBefore(symbolEvents.get(symbolEvents.size() - 1).tradeDate());
+            Map<String, Accumulator> replayed = null;
+            if (appendsLast) {
+                boolean known = positions.containsKey(key);
+                try {
+                    applyTransaction(positions, transaction);
+                } catch (IllegalArgumentException e) {
+                    if (!known) {
+                        positions.remove(key); // a refused first event must not leave an empty position behind
+                    }
+                    throw e;
+                }
+            } else {
+                replayed = new LinkedHashMap<>();
+                boolean placed = false;
+                for (PortfolioTransaction event : symbolEvents) {
+                    if (!placed && event.tradeDate().isAfter(transaction.tradeDate())) {
+                        applyTransaction(replayed, transaction);
+                        placed = true;
+                    }
+                    applyTransaction(replayed, event);
+                }
+            }
+            PortfolioTransaction saved = transactionPort.save(transaction);
+            if (appendsLast) {
+                symbolEvents.add(saved);
+            } else {
+                int at = symbolEvents.size();
+                while (at > 0 && symbolEvents.get(at - 1).tradeDate().isAfter(saved.tradeDate())) {
+                    at--;
+                }
+                symbolEvents.add(at, saved);
+                positions.remove(key);
+                positions.putAll(replayed);
+            }
+            return saved;
+        }
+
+        /** The running positions of every traded symbol, including closed ones (same shape as calculatePositions). */
+        public List<PortfolioHolding> positions() {
+            return positions.values().stream().map(Accumulator::toHolding).toList();
+        }
+
+        private String symbolKey(PortfolioTransaction event) {
+            return event.symbol() == null || event.symbol().isBlank() ? "" : event.symbol();
+        }
+    }
+
+    /**
+     * Voids one active event under the same per-portfolio lock as additions (R-17). The remaining active events are
+     * replayed first; if that is invalid nothing changes and {@link LedgerInconsistencyException} is thrown. Otherwise
+     * {@code sameTransactionWork} (for example the linked journal delete) runs and then the event is voided, all in
+     * the lock's transaction, so they commit or roll back together.
+     *
+     * @throws NoSuchElementException when the id is not an active event of the portfolio
+     */
+    public void voidTransaction(Long portfolioId, String userId, Long transactionId, Instant voidedAt,
+                                Runnable sameTransactionWork) {
+        Objects.requireNonNull(sameTransactionWork, "sameTransactionWork must not be null");
+        lockPort.withPortfolioLock(portfolioId, () -> {
+            List<PortfolioTransaction> active = transactionPort.findByPortfolioIdAndUserId(portfolioId, userId);
+            PortfolioTransaction target = active.stream()
+                    .filter(t -> Objects.equals(t.id(), transactionId))
+                    .findFirst()
+                    .orElseThrow(() -> new NoSuchElementException("Transaction not found: " + transactionId));
+            List<PortfolioTransaction> remaining = active.stream().filter(t -> t != target).toList();
+            try {
+                calculatePositions(remaining);
+            } catch (IllegalArgumentException ex) {
+                throw new LedgerInconsistencyException(target.symbol(),
+                        "Cannot delete transaction " + transactionId + " (" + target.symbol() + "): "
+                                + ex.getMessage(), ex);
+            }
+            sameTransactionWork.run();
+            transactionPort.voidByIdAndPortfolioIdAndUserId(transactionId, portfolioId, userId, voidedAt);
+            return null;
+        });
     }
 
     public List<PortfolioHolding> calculateHoldings(Long portfolioId, String userId) {

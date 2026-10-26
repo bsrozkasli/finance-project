@@ -98,6 +98,25 @@ The PRD-FR-014 ledger replay fixture is Ready; new state IDs and the recovery ta
 - [ ] Run full backend suite and timed encrypted backup/restore exercise before external evaluation.
 - [ ] Commit scoped Task 3 files and recovery evidence with feat(backend) scope.
 
+## Progress Note (2026-10-25)
+
+Exists now on `feat/epic-002-ledger-state-csv`: validated and serialized ledger void (`409` when the remaining events do
+not replay; journal delete in the same transaction, R-17), exposures and persisted Portfolio States with replay, CSV
+staging and acceptance with row identity, and the per-portfolio ledger lock pinned to `READ COMMITTED` (R-13, R-18).
+New code upper-cases with `Locale.ROOT` (R-19).
+
+Restore exercise (R-23): `PortfolioBackupRestoreTest` dumps a seeded PostgreSQL (`pg_dump -Fc`), restores it into a fresh container, starts the application on it and replays every stored state to the same version; counts, per-table digests, voided events, CSV outcomes and `flyway_schema_history` match (opt-in with `-Dbackup.restore=true`, R-30; timings in `operations.md`). It proves logical recoverability only; see `operations.md` for timings and what it does not prove.
+
+**Frontend handoff done (2026-10-25, R-26, branch `feat/epic-002-frontend`):** typed import/state API functions, the CSV
+import panel, the Portfolio State panel and the transaction-delete `409` message are implemented with Vitest + MSW tests,
+and the batch and state responses are pinned by shared fixtures checked by the backend `ContractFixtures` tests and the
+frontend zod schemas. The integrated E2E against a live stack (`npm run e2e:integrated`) has not been run locally; CI
+runs it.
+
+Still open: OQ-8 recovery targets (RPO/RTO, encryption, retention; Task 3 acceptance stays blocked on them); the integrated E2E has not been run locally (CI runs it); the 5,000-row measurements, including the ranges that miss the 30 s accept target under load, are quoted once in `domain-and-data.md`.
+
+Closed: R-21 (chunked incremental validation replaced the per-row replay; measurements and their conditions are in `domain-and-data.md`; the back-dated algorithm replays the row's whole symbol, and a single-symbol 5,000-row back-dated file is unmeasured, R-32); R-11 (the manual route posting `source=CSV` without import lineage) by R-20; that value now returns `422`.
+
 ## Plan Exit Criteria
 
 - [ ] PRD-FR-011/014 Ready verification and FR-012/013/015 implementation have fresh evidence.
