@@ -80,3 +80,25 @@ tests; its different overall-status precedence is not used). Each needs its own 
 ## Implementation rulings
 
 Rulings made while coding are appended below as `R-n`.
+
+- **R-1. A dedicated `Outcome` enum** is used instead of `WatchlistResearchStatus`, and the use case maps it to the status.
+  Why: the outcome describes one data-service call, the status describes a section; keeping them apart avoids coupling the
+  port to the presentation vocabulary. Cost if wrong: a one-line mapping.
+- **R-2. Fundamentals with null metrics are `EMPTY`; a `null` returned by a port is `FAILED`.** Why: a response without
+  metrics carries no evidence, and a port that returns `null` instead of a result broke its contract. Cost if wrong: none.
+- **R-3. Technical section: data from either call (analysis or signals) gives `OK`; with none, the more severe outcome
+  wins.** A failed half is therefore hidden when the other half has data, and a 422 on the indicators call no longer fails
+  the whole section. Why: the section is useful with either half, and this matches the earlier "either call gives a
+  summary" rule. Cost if wrong: a partial technical section reads as `OK`.
+- **R-4. The `EMPTY` section message changed** from "No data returned by provider" to "Provider returned no data" for the four
+  outcome-based sections (the price section keeps the old wording). The message is a fixed constant, defined once.
+- **R-5. Only provider-side failures count toward the circuit breaker** (corrects D-3). Why: the breaker is shared by every
+  symbol and every request for a section, so a client error about one symbol (an unknown ticker answered with 400) would open
+  it and show `STALE` to every other symbol for a minute. `FAILED` from a 4xx other than 429 keeps the `FAILED` status but
+  does not count; `FAILED` from a 5xx, an I/O error, a timeout or an unreadable body, and `RATE_LIMITED`, count.
+  `INSUFFICIENT_DATA` (422) and `EMPTY` never count. Cost if wrong: a provider that answers with 4xx when it is actually
+  failing would not open the breaker.
+- **R-6. Known limits.** The breaker key is the section, not the symbol, and its state is shared across requests (so a real
+  outage shows `STALE` for 60 seconds across the watchlist). Cached outcome entries embed record class names, so a change to
+  those record shapes needs the cache cleared or its 12-hour period to pass. The Docker-gated Redis test protects D-1 and
+  D-4 only where CI has Docker.
