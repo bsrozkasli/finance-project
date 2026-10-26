@@ -71,3 +71,18 @@ recoloured or recomputed in the browser. A missing value stays `—`.
 ## Implementation rulings
 
 Rulings made while coding are appended below as `R-n`.
+
+- **R-1. `POST` and `PUT` responses carry `priceAsOf` and `priceStatus` as `null`.** Why: the saved trade is returned as
+  written, not enriched (D-2.5 leaves create and update unchanged); the next list read enriches it, so the label appears
+  then. A `null` means unknown and the frontend shows nothing for it. Cost if wrong: a just-created trade shows no label
+  until the next read.
+- **R-2. `priceAsOf` for a persisted price is the trade's `updatedAt` converted with the JVM default time zone.** Why:
+  Hibernate fills `updatedAt` (a local date-time) from the same JVM clock and zone, so the conversion round-trips on one
+  server; no `hibernate.jdbc.time_zone` or `user.timezone` setting exists. A trade with no `updatedAt` gets a `null` time.
+  If the server zone is changed after rows were written, the time shifts. The value is documented as approximate. Cost if
+  wrong: a displaced time on the "Eski fiyat" pill for such rows.
+- **R-3. Known limits accepted after review.** (1) Stale open trades still count in the journal statistics. (2) The adapter
+  read path has no dedicated test (`JournalTradeRepositoryAdapterTest` matched no test class); the convenience constructor
+  covers it by construction. (3) Tests build `JournalTrade` with 25 positional arguments, which is brittle if the record
+  grows again. (4) The frontend duplicates the 10-line time formatter of the watchlist screen. Cost if wrong: small
+  maintenance debts, no behavior.
