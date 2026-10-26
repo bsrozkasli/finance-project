@@ -352,6 +352,19 @@ class WatchlistResearchSnapshotUseCaseTest {
         assertThat(price.data()).isNull();
     }
 
+    @Test
+    void thePriceSectionStatusIsTheSharedPriceStatusForEveryOrigin() {
+        for (PriceLookup.Origin origin : PriceLookup.Origin.values()) {
+            stubLookup(origin);
+
+            var price = row().price();
+
+            assertThat(price.status().name())
+                    .as("origin %s", origin)
+                    .isEqualTo(com.ozkaslibasar.financeproject.domain.model.PriceStatus.from(origin).name());
+        }
+    }
+
     // ---- overall status: RATE_LIMITED > FAILED > STALE > INSUFFICIENT_DATA > OK > EMPTY (R-1) ----
 
     @Test

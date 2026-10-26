@@ -6,16 +6,19 @@ import com.ozkaslibasar.financeproject.domain.model.JournalTradePage;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeStats;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeStatus;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
+import com.ozkaslibasar.financeproject.domain.model.PriceStatus;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
-import java.util.Optional;
 
 public class JournalTradeService {
 
@@ -137,26 +140,52 @@ public class JournalTradeService {
                 null);
     }
 
+    /**
+     * Open trades are priced on every read. Stats use the same enriched trades, so an open trade whose price
+     * status is not OK still counts in its aggregates (recorded limit, price staleness D-2.6).
+     */
     private List<JournalTrade> enrichOpenTrades(List<JournalTrade> trades) {
-        Map<String, Optional<BigDecimal>> latestPriceBySymbol = new HashMap<>();
+        Map<String, PriceLookup> lookupBySymbol = new HashMap<>();
         return trades.stream()
-                .map(trade -> enrichOpenTrade(trade, latestPriceBySymbol))
+                .map(trade -> enrichOpenTrade(trade, lookupBySymbol))
                 .toList();
     }
 
-    private JournalTrade enrichOpenTrade(JournalTrade trade, Map<String, Optional<BigDecimal>> latestPriceBySymbol) {
+    private JournalTrade enrichOpenTrade(JournalTrade trade, Map<String, PriceLookup> lookupBySymbol) {
         if (trade.status() != JournalTradeStatus.OPEN) {
             return trade;
         }
-        Optional<BigDecimal> latestPrice = latestPriceBySymbol.computeIfAbsent(
+        PriceLookup lookup = lookupBySymbol.computeIfAbsent(
                 trade.symbol(),
-                symbol -> priceRefreshService.getFreshLatest(symbol).map(PriceHistory::close));
-        return latestPrice
-                .map(price -> withCurrentPrice(trade, price))
-                .orElse(trade);
+                symbol -> Objects.requireNonNull(
+                        priceRefreshService.lookupFreshLatest(symbol), "price lookup must not be null"));
+        PriceStatus status = PriceStatus.from(lookup.origin());
+        if (lookup.price().isPresent()) {
+            PriceHistory price = lookup.price().get();
+            return withCurrentPrice(trade, price.close(), price.timestampAsInstant(), status);
+        }
+        if (trade.currentPrice() != null) {
+            // No price now: the persisted values stay, but they are never reported as confirmed. updatedAt is the
+            // last write of the row, an approximation of when the persisted price was recorded.
+            Instant writtenAt = trade.updatedAt() == null
+                    ? null
+                    : trade.updatedAt().atZone(ZoneId.systemDefault()).toInstant();
+            return withPriceProvenance(trade, writtenAt, PriceStatus.STALE);
+        }
+        return withPriceProvenance(trade, null, status);
     }
 
-    private JournalTrade withCurrentPrice(JournalTrade trade, BigDecimal currentPrice) {
+    private JournalTrade withPriceProvenance(JournalTrade trade, Instant priceAsOf, PriceStatus priceStatus) {
+        return new JournalTrade(
+                trade.id(), trade.userId(), trade.symbol(), trade.company(), trade.type(), trade.quantity(),
+                trade.purchasePrice(), trade.currentPrice(), trade.marketValue(), trade.commission(),
+                trade.strategy(), trade.notes(), trade.tags(), trade.openedAt(), trade.closedAt(), trade.status(),
+                trade.pnl(), trade.returnPct(), trade.holdingDays(), trade.portfolioId(), trade.transactionId(),
+                trade.createdAt(), trade.updatedAt(), priceAsOf, priceStatus);
+    }
+
+    private JournalTrade withCurrentPrice(
+            JournalTrade trade, BigDecimal currentPrice, Instant priceAsOf, PriceStatus priceStatus) {
         BigDecimal marketValue = trade.quantity().multiply(currentPrice);
         BigDecimal pnl = currentPrice.subtract(trade.purchasePrice()).multiply(trade.quantity()).subtract(trade.commission());
         BigDecimal costBasis = trade.purchasePrice().multiply(trade.quantity()).add(trade.commission());
@@ -186,7 +215,9 @@ public class JournalTradeService {
                 trade.portfolioId(),
                 trade.transactionId(),
                 trade.createdAt(),
-                trade.updatedAt());
+                trade.updatedAt(),
+                priceAsOf,
+                priceStatus);
     }
 
     private BigDecimal resolveCurrentPrice(
