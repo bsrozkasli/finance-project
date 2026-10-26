@@ -7,6 +7,8 @@ from app.models.composite import (
     CompositeScoreBreakdown,
     InvestmentGrade,
 )
+from app.errors import RateLimitedError
+from app.providers.rate_limit import merge_rate_limited
 from app.services.fundamental_analysis_service import FundamentalAnalysisService
 from app.services.valuation_service import ValuationService
 from app.services.factor_analysis_service import FactorAnalysisService
@@ -84,24 +86,32 @@ class CompositeScoreService:
         async def fetch_fundamental():
             try:
                 return await asyncio.to_thread(FundamentalAnalysisService.analyze, symbol)
+            except RateLimitedError:
+                raise
             except Exception:
                 return None
 
         async def fetch_valuation():
             try:
                 return await asyncio.to_thread(ValuationService.analyze, symbol)
+            except RateLimitedError:
+                raise
             except Exception:
                 return None
 
         async def fetch_factor():
             try:
                 return await asyncio.to_thread(FactorAnalysisService.analyze_factors, symbol)
+            except RateLimitedError:
+                raise
             except Exception:
                 return None
 
         async def fetch_risk():
             try:
                 return await asyncio.to_thread(RiskAnalyticsService.analyze, symbol)
+            except RateLimitedError:
+                raise
             except Exception:
                 return None
 
@@ -126,6 +136,10 @@ class CompositeScoreService:
             fetch_sentiment(),
             return_exceptions=True
         )
+
+        rate_limited = [result for result in results if isinstance(result, RateLimitedError)]
+        if rate_limited:
+            raise merge_rate_limited(rate_limited)
 
         fund_res, val_res, factor_res, risk_res, earn_res, sent_res = results
         fetched = {

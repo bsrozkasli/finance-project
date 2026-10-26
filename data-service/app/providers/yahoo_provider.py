@@ -20,6 +20,7 @@ from typing import Optional
 import pandas as pd
 import yfinance as yf
 
+from app.providers.rate_limit import raise_if_rate_limited
 from app.providers.base import (
     AnalystRecommendation,
     AssetInfo,
@@ -100,6 +101,7 @@ class YahooProvider:
             return bars
 
         except Exception as exc:
+            raise_if_rate_limited(exc, self._PROVIDER_NAME)
             logger.error(
                 "YahooProvider.get_ohlcv failed for symbol=%s: %s", symbol, exc
             )
@@ -199,6 +201,7 @@ class YahooProvider:
                 full_time_employees=info.get("fullTimeEmployees"),
             )
         except Exception as exc:
+            raise_if_rate_limited(exc, self._PROVIDER_NAME)
             logger.error(
                 "YahooProvider.get_asset_info failed for symbol=%s: %s", symbol, exc
             )
@@ -276,6 +279,7 @@ class YahooProvider:
                 delayed=info.get("exchangeDataDelayedBy") is not None,
             )
         except Exception as exc:
+            raise_if_rate_limited(exc, self._PROVIDER_NAME)
             logger.error("YahooProvider.get_market_quote failed for symbol=%s: %s", symbol, exc)
             return None
     # ------------------------------------------------------------------

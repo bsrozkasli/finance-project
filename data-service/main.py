@@ -10,13 +10,16 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 import logging
+import math
 import time
 from typing import Optional
 from uuid import uuid4
 
 from fastapi import FastAPI, Query, Request, Response
+from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
+from app.errors import RateLimitedError
 from app.routers.analysis import router as analysis_router
 from app.routers.assets import router as assets_router
 from app.routers.research import router as research_router
@@ -62,6 +65,13 @@ app = FastAPI(
     description="Provider-agnostic market data service (Yahoo / Tiingo / Finnhub)",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(RateLimitedError)
+async def rate_limited_handler(request: Request, exc: RateLimitedError) -> JSONResponse:
+    """A provider rate limit is a 429 with a fixed sentence, never provider text (decision 2026-10-26, D-4)."""
+    headers = {"Retry-After": str(math.ceil(exc.retry_after))} if exc.retry_after is not None else None
+    return JSONResponse(status_code=429, content={"detail": "Market data provider rate limited"}, headers=headers)
 
 
 @app.middleware("http")

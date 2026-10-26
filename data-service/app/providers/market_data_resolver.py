@@ -25,6 +25,8 @@ from typing import Optional
 
 from prometheus_client import Counter, Gauge, Histogram
 
+from app.errors import RateLimitedError
+from app.providers.rate_limit import merge_rate_limited
 from app.request_context import get_request_id
 
 from app.providers.base import (
@@ -136,6 +138,7 @@ class MarketDataResolver:
         """Try each provider in chain until non-empty OHLCV data is returned."""
         operation = "ohlcv"
         providers = self._active_providers()
+        rate_limited: list[RateLimitedError] = []
         for index, provider in enumerate(providers):
             start = time.perf_counter()
             try:
@@ -156,9 +159,13 @@ class MarketDataResolver:
                     "%s operation=ohlcv provider=%s symbol=%s result=error reason=%s",
                     _request_log_context(), provider.provider_name, symbol, exc,
                 )
+                if isinstance(exc, RateLimitedError):
+                    rate_limited.append(exc)
                 self._record_failure(provider.provider_name, operation, str(exc))
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
+        if rate_limited:
+            raise merge_rate_limited(rate_limited)
         logger.error("%s operation=ohlcv symbol=%s result=exhausted", _request_log_context(), symbol)
         return []
 
@@ -191,6 +198,7 @@ class MarketDataResolver:
         """Try each provider in chain; return first non-None asset info."""
         operation = "asset_info"
         providers = self._active_providers()
+        rate_limited: list[RateLimitedError] = []
         for index, provider in enumerate(providers):
             start = time.perf_counter()
             try:
@@ -207,15 +215,20 @@ class MarketDataResolver:
                     "%s operation=asset_info provider=%s symbol=%s result=error reason=%s",
                     _request_log_context(), provider.provider_name, symbol, exc,
                 )
+                if isinstance(exc, RateLimitedError):
+                    rate_limited.append(exc)
                 self._record_failure(provider.provider_name, operation, str(exc))
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
+        if rate_limited:
+            raise merge_rate_limited(rate_limited)
         return None
 
     def get_market_quote(self, symbol: str) -> Optional[MarketQuote]:
         """Try providers that support quote snapshots until one returns data."""
         operation = "market_quote"
         providers = self._active_providers()
+        rate_limited: list[RateLimitedError] = []
         for index, provider in enumerate(providers):
             quote_method = getattr(provider, "get_market_quote", None)
             if quote_method is None:
@@ -235,10 +248,15 @@ class MarketDataResolver:
                     "%s operation=market_quote provider=%s symbol=%s result=error reason=%s",
                     _request_log_context(), provider.provider_name, symbol, exc,
                 )
+                if isinstance(exc, RateLimitedError):
+                    rate_limited.append(exc)
                 self._record_failure(provider.provider_name, operation, str(exc))
                 self._observe_latency(provider.provider_name, operation, "error", start)
                 self._record_fallback_to_next(operation, providers, index)
+        if rate_limited:
+            raise merge_rate_limited(rate_limited)
         return None
+
     def get_news(
         self,
         symbol: str,

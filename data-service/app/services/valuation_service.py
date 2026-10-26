@@ -12,6 +12,7 @@ from typing import Any, Optional, Tuple
 
 import yfinance as yf
 
+from app.providers.rate_limit import raise_if_rate_limited
 from app.models.valuation import (
     ValuationGrade,
     ValuationMetrics,
@@ -137,7 +138,8 @@ class ValuationService:
             if info is None:
                 return {}
             return info
-        except Exception:
+        except Exception as exc:
+            raise_if_rate_limited(exc, "yahoo")
             return {}
 
     @classmethod
