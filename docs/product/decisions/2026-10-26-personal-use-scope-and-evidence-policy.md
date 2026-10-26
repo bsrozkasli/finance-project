@@ -1,9 +1,9 @@
-# Proposal for owner approval: personal-use scope and evidence policy v1
+# Decision: personal-use scope and evidence policy v1 (approved by the product owner)
 
 **Prepared:** 2026-10-26
 
-**Status: PROPOSED. Nothing in this document is in force until the product owner approves it.** Approval is recorded in the
-[Approval record](#approval-record) at the end, with the approver's words and the date. A named human approver is required by
+**Status: APPROVED by the product owner on 2026-10-26** (see the [Approval record](#approval-record) at the end, with the
+approver's words). It was first prepared as a proposal; sections 1 to 3 are unchanged from that proposal. A named human approver is required by
 the PRD for every closure artifact (PRD section 7.4). The implementing agent drafted this; it does not approve its own draft,
 and it did not take the legal, data-rights or finance-risk judgements that are the owner's.
 
@@ -123,7 +123,15 @@ Delegated on 2026-10-22 and 2026-10-25. The full records (reason, cost if wrong,
 
 ## Approval record
 
-**Not approved yet.** To approve, reply with the items you accept, for example: "scope approved; stock-v1 approved; etf-v1
-option A; rulings reviewed". Anything you amend is changed here first. On approval this section is completed with the
-approver ("the product owner"), the date and the exact words, the status above becomes `APPROVED`, and the policies are
-added as versioned data with the section 2.3 cases as tests.
+**Approved 2026-10-26.** Approver: the product owner (repository owner). Exact words: **"kararlarını onaylıyorum"**
+("I approve your decisions"), given in reply to this document after it was presented in full in the conversation.
+
+How the agent read the approval (stated so it can be corrected): the owner approved the whole package as presented, which
+is the agent's recommendation on every point: the personal-use scope (section 1), `stock-v1` (section 2.1), and for ETFs
+**Option A** of section 2.2 (the owner did not choose Option B), and the rulings in section 3 as reviewed. If the owner
+meant otherwise on any point, this record is amended first and the code that follows is changed to match.
+
+What follows from the approval: the policies `stock-v1` and `etf-v1` (Option A) become versioned data in the domain, with
+the section 2.3 cases as independent tests. This closes the policy part of OQ-3 for the personal-use scope. It does not
+approve OQ-4, any investment label, weight cap, PEG, Portfolio Fit or directional decision, or any external use. The
+deferred gates of section 1 reopen at their stated triggers.
