@@ -70,3 +70,22 @@ Finnhub, FMP and FRED rate limits; reading `Retry-After` in the backend; the leg
 ## Implementation rulings
 
 Rulings made while coding are appended below as `R-n`.
+
+- **R-1. The blacklist window still reports a rate limit** (corrects D-3.3). Why: the resolver blacklists a provider for 60
+  seconds after three failures. A rate-limit failure that caused the blacklist would be skipped during the window and the
+  chain would return empty, so the rate limit would read as "no data" again for a minute (prices `200 []`, technical `404`). The
+  resolver records why each provider was blacklisted; a provider skipped because its blacklist came from rate limits counts as
+  rate-limited, with the remaining blacklist time as its `retry_after`. A provider blacklisted for another reason is skipped as
+  before. Cost if wrong: during the window the same empty result as before.
+- **R-2. The composite score keeps degrading per component** (corrects the effect noted in D-4 for composite). Why: before this
+  change a rate-limited component became "unavailable" inside a 200, and the other components stayed in the answer. Turning the
+  whole route into a 429 makes the backend drop to its Finnhub fallback and loses that partial answer. A `RateLimitedError`
+  raised while computing one component marks that component unavailable with the reason code `provider_rate_limited` (shown by
+  the section status of the smart report) and the rest are computed as before; when every component is rate limited the
+  route answers 429. Cost if wrong: a composite built from fewer components during a rate limit, labelled as such.
+- **R-3. Interpretations accepted after review.** (1) When several providers are limited, the merged error uses the first
+  limited provider and the largest known `retry_after`. (2) `parse_retry_after` ignores negative and non-integer values, treats
+  a past HTTP date as 0, and only `RateLimitedError` clamps the final value. (3) The message fallback is a case-insensitive
+  "too many requests" match on the exception message only. (4) Direct-Yahoo 429s carry no `Retry-After` (yfinance gives no
+  headers). (5) The earnings route is covered only as a pass-through; a real Finnhub 429 is out of scope (D-6) and still ends
+  as a 500. (6) Yahoo `get_financial_statements` and `get_news` still swallow rate limits (not in D-3).
