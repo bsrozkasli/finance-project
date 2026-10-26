@@ -402,8 +402,12 @@ The per-row `overallStatus` is the worst section status in the order
 change (ruling R-1): `STALE` now takes part, so a row whose overall read `OK` (or
 `EMPTY`) because of a `STALE` price, or of a section held `STALE` by an open circuit
 breaker, now reads `STALE`; `STALE` ranks above `INSUFFICIENT_DATA`. The price
-section has no circuit breaker. The detail panel shows the price's own time
-("Fiyat zamanı") beside the observation time.
+section has no circuit breaker. The "Sağlıklı" tile counts rows whose overall
+status is `OK`, so rows with a `STALE` section no longer count as healthy. `OK` for
+`price` means the provider returned at least one row for the symbol, even when the
+stored price is newer than every returned row (the stored price is then shown); a
+provider that serves old bars is not detected and reads `OK`. The detail panel
+shows the price's own time ("Fiyat zamanı") beside the observation time.
 Decision record `docs/product/decisions/2026-10-26-price-section-status.md`.
 
 ## Evidence Anchors
