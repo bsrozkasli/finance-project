@@ -15,6 +15,8 @@ import type { WatchlistResearchRow, WatchlistResearchStatus } from '../api/clien
 import { useWatchlistResearchSnapshot } from '../hooks/useWatchlistResearchSnapshot';
 import type { Stock, Watchlist } from '../types';
 import CompanyLogo from './CompanyLogo';
+import StatusPill from './StatusPill';
+import { statusClass, statusLabel } from './sectionStatus';
 
 interface WatchlistsViewProps {
   stocks: Stock[];
@@ -25,16 +27,6 @@ interface WatchlistsViewProps {
   onOpenTradeModal: (symbol: string) => void;
   onSelectStock: (stock: Stock | null, symbol?: string, name?: string) => void;
 }
-
-const statusStyles: Record<WatchlistResearchStatus, { label: string; className: string }> = {
-  OK: { label: 'OK', className: 'border-bull-green/30 bg-bull-green/10 text-bull-green' },
-  STALE: { label: 'Eski veri', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  EMPTY: { label: 'Veri yok', className: 'border-outline-variant bg-bg-base text-text-muted' },
-  FAILED: { label: 'Yüklenemedi', className: 'border-bear-red/30 bg-bear-red/10 text-bear-red' },
-  RATE_LIMITED: { label: 'İstek sınırı', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  INSUFFICIENT_DATA: { label: 'Yetersiz geçmiş', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  PENDING_REFRESH: { label: 'Yenileniyor', className: 'border-primary/30 bg-primary/10 text-primary' },
-};
 
 const formatCurrency = (value: number | null | undefined) => {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -74,8 +66,6 @@ const formatDateTime = (value: string | null | undefined) => {
   }).format(date);
 };
 
-const statusClass = (status: WatchlistResearchStatus) => statusStyles[status]?.className ?? statusStyles.FAILED.className;
-const statusLabel = (status: WatchlistResearchStatus) => statusStyles[status]?.label ?? status;
 
 export default function WatchlistsView({
   stocks,
@@ -553,17 +543,6 @@ function SnapshotTile({ icon, label, value }: { icon: React.ReactNode; label: st
       </div>
       <div className="mt-2 truncate font-data-mono text-sm font-bold text-text-primary">{value}</div>
     </div>
-  );
-}
-
-function StatusPill({ status, title }: { status: WatchlistResearchStatus; title?: string }) {
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-1 font-data-mono text-xs font-bold ${statusClass(status)}`}
-      title={title}
-    >
-      {statusLabel(status)}
-    </span>
   );
 }
 

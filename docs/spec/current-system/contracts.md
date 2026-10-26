@@ -315,6 +315,7 @@ A component reported `available` whose score is null has `status` `null` (R-7).
 or a cache entry written before this field). Mapping and precedence are in
 `domain-and-data.md`; decision record
 `docs/product/decisions/2026-10-26-section-status-smart-report.md`.
+The Stock Detail smart-report UI renders it as a per-component status pill and reason, a "Durum bilinmiyor" note when it is absent or `null`, and an incomplete-evidence note when the overall status is not `OK` (see `architecture.md`).
 
 ### Shared contract fixtures
 
