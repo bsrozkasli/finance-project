@@ -26,7 +26,7 @@ to work without modification.
 
 | Consumer | Runtime | How it deserializes | C0a impact | Evidence |
 |---|---|---|---|---|
-| `DataServiceAgentAnalysisAdapter` | Spring (Java) | `RestTemplate` + Jackson default (`FAIL_ON_UNKNOWN_PROPERTIES=false`) | Field silently dropped | `DataServiceC0aCompatibilityTest#agentAnalysisIgnoresDecisionAvailability` — 4/4 pass 2026-10-15 |
+| `DataServiceAgentAnalysisAdapter` | Spring (Java) | `RestTemplate` + Jackson default (`FAIL_ON_UNKNOWN_PROPERTIES=false`) | Field consumed since 2026-10-26: mapped to `decision_status` (`available`→`OK`, other known statuses→`FAILED` with the placeholder decision withheld, absent/unknown→`null`); no longer dropped | `DataServiceC0aCompatibilityTest#agentAnalysisConsumesDecisionAvailabilityAndWithholdsThePlaceholder` and `DataServiceAgentAnalysisAdapterTest` (decision `2026-10-26-agent-analysis-decision-status`) |
 
 ### `GET /api/v1/research/composite/{symbol}` — new fields: `breakdown_availability`, `unavailable_components`
 
@@ -68,8 +68,8 @@ Before C0b ships:
    `ValuationResponse`, and `EarningsAnalysisResponse`.
 3. Frontend consumers of the Spring composite endpoint (`/api/v1/reports/smart/`)
    may surface `breakdown_availability` in the UI — wire it in C0b.
-4. Spring `AgentAnalysisResponseDto` may expose `decision_availability` if the
-   backend wants to relay it to the frontend.
+4. Done 2026-10-26: Spring `AgentAnalysisResponseDto` relays `decision_availability` as
+   `decision_status` (see the decision record of that date).
 
 ## Limitations
 

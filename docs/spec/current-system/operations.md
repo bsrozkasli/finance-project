@@ -138,7 +138,11 @@ tests for success, empty response, provider failure, and fallback ordering.
 
 Agent analysis uses its own serialized Redis entry with
 `agent-analysis.cache-ttl-minutes=15`. `AgentAnalysisFacade` checks it before
-computing and writes it only after successful analysis.
+computing and writes it only after a successful analysis whose
+`decision_status` is `OK`; `FAILED` and unknown-status results are not cached, so
+the next request asks the data-service again. A cached entry without
+`decision_status` (written before 2026-10-26) is treated as a miss and evicted,
+so an old placeholder verdict is never served.
 
 ### Data-service caches
 
