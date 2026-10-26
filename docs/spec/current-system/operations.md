@@ -185,16 +185,16 @@ What it covers, on two real PostgreSQL 16 Testcontainers (A and B):
   void. Re-staging the same CSV marks the voided and active rows `DUPLICATE`, so voided events still reserve their
   locator.
 
-Run it (about 55 s; it is in the default suite, so no flag is needed). From `backend/` in PowerShell, with Docker running:
+It is opt-in (R-30) because it would not fit the default suite's 120 s fork budget. From `backend/` in PowerShell, with Docker running:
 
 ```powershell
-node ..\scripts\run-with-timeout.cjs 115000 .\mvnw.cmd "-Dtest=PortfolioBackupRestoreTest" test
+node ..\scripts\run-with-timeout.cjs 115000 .\mvnw.cmd "-Dtest=PortfolioBackupRestoreTest" "-Dbackup.restore=true" test
 ```
 
 Measured on a developer machine (Windows, Docker Desktop, 2026-10-25; information only, no threshold beyond a
 110 s guard on dump plus restore plus verification): seeding 36-38 s, dump and copy out 0.4 s, copy in and restore
 0.6 s, application start on the restored database about 7 s, verification 7-8 s in total, dump 59 KB, whole test
-class 50-54 s. Both application contexts run in this JVM.
+class 50-54 s. A later run on a loaded machine took 82 s (seed 52 s, restore 4 s, start 17 s). Both application contexts run in this JVM. The pom hard-codes `forkedProcessTimeoutInSeconds=120`: a run longer than that reports BUILD FAILURE after the tests passed, so judge the result from `backend/target/surefire-reports`, not the Maven exit code (both runs here finished in under 120 s and reported success). The test also inserts one ledger event after the restore and asserts its id is above every restored id, so the sequences were restored.
 
 What this does not prove:
 
