@@ -209,6 +209,20 @@ ports with in-memory state.
 - Partial research keeps successful sections and exposes per-section evidence
   status rather than turning the whole row into invented or misleading data.
 
+### Smart report section status
+
+`SectionStatusMapper` (pure domain service) maps data-service availability to
+`WatchlistResearchStatus`: `available`→`OK`, `insufficient`→`INSUFFICIENT_DATA`,
+`unavailable`→`EMPTY`, `unparseable`→`FAILED`; any other status→`null`, never `OK`. The
+reason code passes through unchanged. Overall is `OK` only when every component is `OK`,
+else the most severe of `FAILED` > `INSUFFICIENT_DATA` > `EMPTY`; components with an
+unrecognised status cannot make it `OK`. No availability at all means `sectionStatus` is
+`null`. When the composite is missing and the Finnhub-derived score is used, every
+component and the overall are `INSUFFICIENT_DATA` with reason `fallback_source_used`.
+This slice produces no `STALE`, `RATE_LIMITED` or `PENDING_REFRESH`. The Redis
+`smartReportCache` value serializer reads `SmartReport` through its Lombok builder
+(mixins in `RedisConfig`), so entries written before `sectionStatus` load with `null`.
+
 ### Technical, valuation, and research metrics
 
 - Technical analysis requires at least 30 candles. Fewer candles produce an

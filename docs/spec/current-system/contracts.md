@@ -75,7 +75,7 @@ Every path below is relative to `/api/v1`.
 | Backtest | `GET /backtest/{symbol}` | Strategy backtest |
 | Chat | `POST /chat/ask` | Chat/insight request |
 | Reports | `GET /reports/company/{symbol}` | Company report |
-| Reports | `GET /reports/smart/{symbol}` | Smart report |
+| Reports | `GET /reports/smart/{symbol}` | Smart report; additive nullable `sectionStatus` (`overall`, `components` of `status` + `reason`) |
 | Reports | `GET /reports/test` | Diagnostic report response |
 | Fundamentals | `GET /fundamentals/{symbol}` | Fundamental series |
 | Fundamentals | `GET /fundamentals/{symbol}/ratios` | Financial ratios |
@@ -261,9 +261,12 @@ flag is `from_cache`; consumers must not silently rename it to `fromCache`.
 ### C0a availability fields (additive, 2026-10-15)
 
 C0a added a `SectionAvailability` value object to four data-service response
-bodies. These fields are **additive** — existing fields are unchanged; Spring
-adapters silently ignore them because Jackson's default
-`FAIL_ON_UNKNOWN_PROPERTIES = false` drops unknown properties.
+bodies. These fields are **additive** — existing fields are unchanged. Spring
+adapters other than the composite one still ignore them because Jackson's default
+`FAIL_ON_UNKNOWN_PROPERTIES = false` drops unknown properties. The composite
+adapter (`DataServiceResearchAdapter`) now consumes `breakdown_availability` and
+`unavailable_components` (null when an older data-service omits them) and the
+smart report exposes them as `sectionStatus` (see below).
 
 `SectionAvailability` shape:
 
@@ -301,6 +304,17 @@ still applies. Spring maps these fields as nullable `Integer`/`String`, the
 opportunity radar skips a `null` overall score without logging an error, and the
 LLM context labels unknown values "unavailable".
 
+**Smart report `sectionStatus` (additive, 2026-10-26).** `GET /reports/smart/{symbol}`
+keeps every existing field and adds `sectionStatus`:
+`{ "overall": <status|null>, "components": { "<component>": { "status": <status|null>, "reason": <string|null> } } }`.
+Component keys are the data-service `breakdown_availability` keys unchanged
+(`fundamental_score`, `valuation_score`, ... `sentiment_score`); `status` is a
+`WatchlistResearchStatus` value and `reason` is the data-service reason code unchanged.
+`sectionStatus` is `null` when the composite carried no availability (older data-service
+or a cache entry written before this field). Mapping and precedence are in
+`domain-and-data.md`; decision record
+`docs/product/decisions/2026-10-26-section-status-smart-report.md`.
+
 ### Shared contract fixtures
 
 `docs/contracts/fixtures/` holds representative Spring response bodies that both
@@ -309,7 +323,7 @@ response has the same field-path set as the fixture; frontend Vitest parses each
 fixture with a strict schema mirroring the types exported through
 `frontend/src/api/client.ts`. Fixture values
 are test data, not market data. Covered today: portfolio summary, performance,
-enriched positions, and the backend error body.
+enriched positions, the smart report, and the backend error body.
 
 ### Partial research
 
