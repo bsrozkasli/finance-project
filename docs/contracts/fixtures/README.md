@@ -30,3 +30,4 @@ non-null, add a backend shape test for the endpoint, and add a frontend schema t
 | `portfolio-state-complete.json` | `POST /portfolios/{portfolioId}/states`, `GET .../states/{version}` (`COMPLETE`, weights present) |
 | `portfolio-state-partial.json` | Same routes, `PARTIAL`: null price, price date, market value and weight; `assetTypeWeights` is `{}` |
 | `error-response.json` | Any Spring 4xx/5xx handled by `GlobalExceptionHandler` |
+| `smart-report.json` | `GET /reports/smart/{symbol}`: nullable `sectionStatus` with an `EMPTY` component and a null reason (frontend: schema-only test in `contract.test.ts`; `client.ts` type is the next change) |
