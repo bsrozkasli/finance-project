@@ -95,7 +95,7 @@ export default function TradingJournalModal({
               </p>
             </div>
           </div>
-          <button
+          <button type="button"
             onClick={onClose}
             aria-label="Kapat"
             className="p-1.5 hover:bg-bg-card rounded-lg border border-outline-variant/60 text-text-secondary hover:text-text-primary transition-colors"
@@ -256,7 +256,7 @@ export default function TradingJournalModal({
                         <td className="py-3 px-4 text-right font-data-mono font-bold text-text-primary">${totalCost.toFixed(2)}</td>
                         <td className="py-3 px-4 text-text-secondary max-w-xs truncate" title={trade.notes}>{trade.notes}</td>
                         <td className="py-3 px-4 text-center">
-                          <button
+                          <button type="button"
                             onClick={async () => {
                               if (!confirm('Bu işlem silinsin mi? Portföy pozisyonu yeniden hesaplanır.')) return;
                               setRemoveError('');
@@ -286,7 +286,7 @@ export default function TradingJournalModal({
         </div>
 
         <div className="p-4 border-t border-outline-variant bg-bg-card/45 flex justify-end shrink-0">
-          <button
+          <button type="button"
             onClick={onClose}
             className="px-5 py-2 bg-primary-container text-on-primary-container hover:opacity-95 text-xs font-bold rounded-lg shadow-md transition-all uppercase"
           >

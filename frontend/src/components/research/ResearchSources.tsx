@@ -21,7 +21,7 @@ export default function ResearchSources({open, wide, symbol, onClose}: Props) {
         <div className="desk-panel-head"><h2 ref={wide ? heading : undefined} tabIndex={-1}
                                              id={wide ? 'source-aside-title' : 'source-dialog-title'}>Kaynak
             ayrıntıları</h2>
-            <button className="desk-icon-button" aria-label="Kaynak ayrıntılarını kapat" onClick={onClose}>×</button>
+            <button type="button" className="desk-icon-button" aria-label="Kaynak ayrıntılarını kapat" onClick={onClose}>×</button>
         </div>
         <div className="desk-source-body"><p>Bu görünüm {symbol ?? 'seçilen varlık'} için kayıtlı finansal kanıtı sunar.
             Eksik kaynak bilgisi tamamlanmış gibi gösterilmez.</p>

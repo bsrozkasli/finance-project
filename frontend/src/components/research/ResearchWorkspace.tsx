@@ -107,7 +107,7 @@ export default function ResearchWorkspace({
                 <label className="desk-visually-labelled">İzleme listesi<select value={selectedList?.id ?? ''}
                                                                                 onChange={event => setListId(event.target.value)}>{watchlists.map(item =>
                     <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>}{onAddToWatchlist &&
-                <button className="desk-button" disabled={!effectiveSymbol || !selectedList || watched || adding}
+                <button type="button" className="desk-button" disabled={!effectiveSymbol || !selectedList || watched || adding}
                         onClick={async () => {
                             if (!effectiveSymbol || !selectedList) return;
                             setAdding(true);
@@ -126,7 +126,7 @@ export default function ResearchWorkspace({
             {onAddToWatchlist&&watchlists.length===0&&<p className="desk-help">Eklemek için önce <Link to="/watchlist" className="desk-link">bir izleme listesi oluştur</Link>.</p>}{message &&
                 <p role="status" className="desk-notice">{message}</p>}
                 <div className="desk-tabs" role="tablist" aria-label="Araştırma bölümleri"
-                     ref={strip}>{tabs.map(([key, label], index) => <button role="tab" key={key}
+                     ref={strip}>{tabs.map(([key, label], index) => <button type="button" role="tab" key={key}
                                                                             id={`research-tab-${key}`}
                                                                             aria-controls="research-content"
                                                                             aria-selected={key === tab}
@@ -143,7 +143,7 @@ export default function ResearchWorkspace({
                 <div className="desk-source-strip"><p>Kaynak: kayıtlı finansal ve fiyat verileri
                     · {effectiveSymbol ?? 'Sembol seçilmedi'}<br/><span>Finansal dönem ve birim kapsamı ilgili tabloda; eksik kanıt “—” olarak gösterilir.</span>
                 </p>
-                    <button ref={sourceButton} className="desk-button" aria-expanded={sourceOpen}
+                    <button type="button" ref={sourceButton} className="desk-button" aria-expanded={sourceOpen}
                             aria-controls={wide ? 'research-source-aside' : 'research-source-dialog'}
                             onClick={() => sourceOpen ? closeSource() : setSourceOpen(true)}><FileText size={16}/>Kaynak
                         ayrıntıları
@@ -176,7 +176,7 @@ export default function ResearchWorkspace({
                                         {!evidence.loading && <ResearchHistoryChart data={evidence.fundamentals}/>}<p
                                         className="desk-footnote">Birim ve para birimi bildirilmedi. Şirket finansalları
                                         kaynaklı değerlerdir; fiyat veya portföy getirisi değildir.</p>
-                                        <button className="desk-button desk-text-button"
+                                        <button type="button" className="desk-button desk-text-button"
                                                 onClick={() => setTab('financials')}>Finansalları aç →
                                         </button>
                                     </section>
@@ -190,7 +190,7 @@ export default function ResearchWorkspace({
                                                 metrikleri ayrı kanıt gerektirir.</p></div>
                                         <div className="desk-evidence-row"><h3>AI raporu</h3><p>Hazırlanmış kanıtı
                                             değerlendiren altı analist.</p>
-                                            <button className="desk-link" onClick={() => setTab('ai')}>AI raporunu aç
+                                            <button type="button" className="desk-link" onClick={() => setTab('ai')}>AI raporunu aç
                                                 →
                                             </button>
                                         </div>

@@ -301,7 +301,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
 
         {/* Tab Selection Bar */}
         <div className="px-6 py-3 border-b border-outline-variant bg-bg-base flex flex-wrap gap-2 shrink-0">
-          <button
+          <button type="button"
             onClick={() => setActiveTab('overview')}
             className={`px-3 py-1.5 font-sans font-bold text-xs rounded-lg transition-all ${
               activeTab === 'overview'
@@ -311,7 +311,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
           >
             Genel bakış
           </button>
-          <button
+          <button type="button"
             onClick={() => setActiveTab('technical')}
             className={`px-3 py-1.5 font-sans font-bold text-xs rounded-lg transition-all ${
               activeTab === 'technical'
@@ -321,7 +321,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
           >
             Teknik
           </button>
-          <button
+          <button type="button"
             onClick={() => setActiveTab('analyst')}
             className={`px-3 py-1.5 font-sans font-bold text-xs rounded-lg transition-all ${
               activeTab === 'analyst'
@@ -331,7 +331,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
           >
             Analist görüşü
           </button>
-          <button
+          <button type="button"
             onClick={() => setActiveTab('ai')}
             className={`px-3 py-1.5 font-sans font-bold text-xs rounded-lg transition-all ${
               activeTab === 'ai'
@@ -597,7 +597,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                   </div>
 
                   {!aiReport && !isLoading && (
-                    <button
+                    <button type="button"
                       onClick={handleGenerateReport}
                       className="bg-primary hover:bg-primary-container text-bg-base font-sans font-bold text-[10px] px-3 py-1.5 rounded border border-primary/20 shadow-md transition-all uppercase"
                     >
@@ -618,7 +618,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
                     <AlertTriangle className="w-4 h-4 text-bear-red shrink-0 mt-0.5" />
                     <div className="text-xs text-bear-red font-sans">
                       <strong>Rapor oluşturulamadı:</strong> {errorMessage}
-                      <button
+                      <button type="button"
                         onClick={handleGenerateReport}
                         className="underline block mt-1 font-bold text-[10px] uppercase"
                       >
@@ -634,7 +634,7 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
 
                     <div className="mt-4 pt-3 border-t border-outline-variant/20 flex justify-between items-center text-[9px] text-text-muted font-data-mono">
                       <span>KAYNAK: BACKEND AKILLI RAPOR</span>
-                      <button
+                      <button type="button"
                         onClick={handleGenerateReport}
                         className="text-primary hover:underline flex items-center gap-1 font-bold"
                       >
@@ -654,13 +654,13 @@ export default function StockDetailModal({ stock, symbol, name, onClose, onOpenT
 
         {/* Modal CTA footer actions */}
         <div className="p-5 border-t border-outline-variant bg-bg-card/40 flex justify-end gap-3 shrink-0">
-          <button
+          <button type="button"
             onClick={onClose}
             className="px-4 py-2 border border-outline-variant hover:border-text-secondary rounded-lg font-sans text-xs font-bold text-text-secondary hover:text-text-primary transition-all"
           >
             Pencereyi kapat
           </button>
-          <button
+          <button type="button"
             onClick={() => {
               onOpenTradeModal(effectiveSymbol);
               onClose();

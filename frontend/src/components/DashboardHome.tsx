@@ -654,7 +654,7 @@ export default function DashboardHome({
                 {comparisonBenchmarks.map((benchmark) => {
                   const active = selectedBenchmarks.includes(benchmark.id);
                   return (
-                    <button
+                    <button type="button"
                       key={benchmark.id}
                       onClick={() => toggleBenchmark(benchmark.id)}
                       className={`rounded-md border px-2 py-1 transition-colors ${active ? 'border-primary/45 bg-primary/15 text-text-primary' : 'border-outline-variant/40 text-text-secondary hover:text-text-primary'}`}
@@ -666,7 +666,7 @@ export default function DashboardHome({
               </div>
               <div className="flex flex-wrap gap-1 bg-bg-base p-1 rounded-lg border border-outline-variant/40">
                 {comparisonPeriods.map((period) => (
-                  <button
+                  <button type="button"
                     key={period.id}
                     onClick={() => setComparisonPeriod(period.id)}
                     className={`px-2 py-0.5 rounded font-label-caps text-xs font-bold tracking-wider transition-all ${comparisonPeriod === period.id
@@ -685,7 +685,7 @@ export default function DashboardHome({
             {portfolios.map((portfolio) => {
               const active = selectedComparisonPortfolioIds.includes(portfolio.id);
               return (
-                <button
+                <button type="button"
                   key={portfolio.id}
                   onClick={() => toggleComparisonPortfolio(portfolio.id)}
                   className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${active ? 'border-primary/50 bg-primary/15 text-text-primary' : 'border-outline-variant/35 text-text-secondary hover:text-text-primary'}`}
@@ -828,7 +828,7 @@ export default function DashboardHome({
             </div>
             <div className="flex rounded-lg border border-outline-variant/35 bg-bg-base p-1">
               {allocationModes.map((mode) => (
-                <button
+                <button type="button"
                   key={mode.id}
                   onClick={() => setAllocationMode(mode.id)}
                   className={`rounded px-2 py-1 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary text-bg-base' : 'text-text-secondary hover:text-text-primary'}`}
@@ -847,7 +847,7 @@ export default function DashboardHome({
             ) : (
               <div className="grid h-full min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-3">
                 {allocationData.map((item, index) => (
-                  <button
+                  <button type="button"
                     key={item.symbol}
                     onClick={() => {
                       const matchedStock = stockMap[item.symbol];
@@ -882,7 +882,7 @@ export default function DashboardHome({
           <div className="space-y-4">
             {/* Header Tabs */}
             <div className="flex border-b border-outline-variant/35 pb-2 text-xs font-sans font-bold">
-              <button
+              <button type="button"
                 onClick={() => setBottomTab('news')}
                 className={`flex-1 pb-2 border-b-2 text-center transition-all ${bottomTab === 'news'
                     ? 'border-primary text-primary font-extrabold'
@@ -891,7 +891,7 @@ export default function DashboardHome({
               >
                 Haber akışı
               </button>
-              <button
+              <button type="button"
                 onClick={() => setBottomTab('calendar')}
                 className={`flex-1 pb-2 border-b-2 text-center transition-all ${bottomTab === 'calendar'
                     ? 'border-primary text-primary font-extrabold'
@@ -938,7 +938,7 @@ export default function DashboardHome({
                   );
                 })}
 
-                <button
+                <button type="button"
                   onClick={onNavigateToNews}
                   className="w-full py-2 border border-outline-variant/50 hover:border-primary/40 rounded-lg text-center text-xs font-bold text-primary hover:text-text-primary transition-all flex items-center justify-center gap-1.5"
                 >
@@ -1083,7 +1083,7 @@ export default function DashboardHome({
             <span className="text-xs text-text-muted font-sans">
               Bir satır seçerek o varlığın AI analizini ve teknik grafik ayrıntılarını açın.
             </span>
-            <button
+            <button type="button"
               onClick={onOpenTradingJournal}
               className="text-xs font-bold text-primary hover:text-text-primary flex items-center gap-1.5 transition-colors font-sans"
             >
