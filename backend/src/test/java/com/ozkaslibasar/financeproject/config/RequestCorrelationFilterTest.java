@@ -10,6 +10,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestTemplate;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
@@ -32,7 +34,7 @@ class RequestCorrelationFilterTest {
 
     @Test
     void restTemplatePropagatesRequestIdFromMdc() {
-        RestTemplate restTemplate = new WebConfig().restTemplate();
+        RestTemplate restTemplate = new WebConfig().restTemplate(Duration.ofSeconds(3), Duration.ofSeconds(60));
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         server.expect(requestTo("http://data-service.test/api/v1/prices/AAPL"))
                 .andExpect(header(RequestCorrelationFilter.REQUEST_ID_HEADER, "phase3-outbound"))
