@@ -151,6 +151,10 @@ computing and writes it only after successful analysis.
 
 - Backend Hikari defaults: maximum pool size 10, minimum idle 2, connection
   timeout 30 seconds.
+- Outbound `RestTemplate`: connect timeout 3 s, read timeout 60 s, configurable
+  via `data-service.http.connect-timeout` / `data-service.http.read-timeout`;
+  timeouts surface as `ResourceAccessException` and adapters report the data as
+  unavailable.
 - Finnhub Resilience4j configuration uses 30 calls per one-second period,
   three retry attempts with exponential backoff, a 10-call circuit window with
   50% failure threshold, 30-second open state, and bulkhead maximum 10.
