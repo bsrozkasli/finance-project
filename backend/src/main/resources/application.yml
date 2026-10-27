@@ -47,6 +47,9 @@ server:
 # FastAPI data-service base URL (yfinance/Tiingo/Finnhub proxy)
 data-service:
   base-url: ${DATA_SERVICE_URL:http://localhost:8000}
+  http:
+    connect-timeout: 3s
+    read-timeout: 60s
 
 tiingo:
   api-key: ${TIINGO_API_KEY:}
