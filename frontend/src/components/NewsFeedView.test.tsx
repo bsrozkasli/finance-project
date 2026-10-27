@@ -47,6 +47,21 @@ describe('NewsFeedView', () => {
     expect(screen.getByPlaceholderText('Başlık, sembol veya kaynakta ara…')).toBeInTheDocument();
   });
 
+  it('shows stock news under the asset tab and hides it under the macro tab', async () => {
+    render(
+      <NewsFeedView
+        activePortfolio={null}
+        news={[newsItem({ title: 'Apple supply update', category: 'stock', symbol: 'AAPL' })]}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Varlık haberleri' }));
+    expect(screen.getByText('Apple supply update')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Makroekonomi' }));
+    expect(screen.queryByText('Apple supply update')).not.toBeInTheDocument();
+  });
+
   it('explains an empty result without inventing headlines', async () => {
     render(<NewsFeedView activePortfolio={null} news={[newsItem({})]} />);
 
