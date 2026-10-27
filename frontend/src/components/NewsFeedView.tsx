@@ -102,7 +102,7 @@ export default function NewsFeedView({ activePortfolio, news }: NewsFeedViewProp
             { id: 'stock', label: 'Varlık haberleri' },
             { id: 'tech', label: 'Teknoloji ve sektör' },
           ].map((tab) => (
-            <button
+            <button type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id as 'all' | 'macro' | 'stock' | 'tech')}
               className={`px-3 py-1.5 rounded-lg font-sans font-bold transition-all ${

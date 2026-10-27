@@ -19,8 +19,8 @@ export default function ResearchFinancials({data, loading, isFund}: {
         <div className="desk-table-controls"><p className="desk-help">Birim ve para birimi sağlayıcı yanıtında
             bildirilmedi. EPS hisse başına değerdir.</p>
             <div className="desk-segment" aria-label="Tablo yoğunluğu">
-                <button aria-pressed={!compact} onClick={() => setCompact(false)}>Rahat</button>
-                <button aria-pressed={compact} onClick={() => setCompact(true)}>Kompakt</button>
+                <button type="button" aria-pressed={!compact} onClick={() => setCompact(false)}>Rahat</button>
+                <button type="button" aria-pressed={compact} onClick={() => setCompact(true)}>Kompakt</button>
             </div>
         </div>
         {loading ? <p role="status" className="desk-empty">Finansallar yükleniyor…</p> : years.length === 0 ?

@@ -604,7 +604,7 @@ export default function PortfolioManagerView({
           </div>
           <div className="flex rounded-md border border-outline-variant/35 bg-bg-base p-1">
             {performanceRanges.map((range) => (
-              <button
+              <button type="button"
                 key={range}
                 onClick={() => setPerformanceRange(range)}
                 className={`min-w-16 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${performanceRange === range ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
@@ -678,7 +678,7 @@ export default function PortfolioManagerView({
             </div>
             <div className="flex rounded-md border border-outline-variant/35 bg-bg-base p-1">
               {allocationModes.map((mode) => (
-                <button
+                <button type="button"
                   key={mode.id}
                   onClick={() => setAllocationMode(mode.id)}
                   className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
@@ -719,13 +719,13 @@ export default function PortfolioManagerView({
 
         <div className="bg-bg-card border border-outline-variant rounded-md overflow-hidden ">
           <div className="flex border-b border-outline-variant/30 bg-bg-card/45 px-5">
-            <button
+            <button type="button"
               onClick={() => setActiveTab('holdings')}
               className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'holdings' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
             >
               Pozisyonlar
             </button>
-            <button
+            <button type="button"
               onClick={() => setActiveTab('transactions')}
               className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'transactions' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
             >
@@ -888,7 +888,7 @@ export default function PortfolioManagerView({
                   {activePortfolio?.name || 'Portfolio'}
                 </span>
               </div>
-              <button onClick={() => setMonthlyModalOpen(false)} className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary">
+              <button type="button" onClick={() => setMonthlyModalOpen(false)} className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary">
                 <X className="h-4 w-4" />
               </button>
             </div>
