@@ -117,6 +117,48 @@ describe('app market-data hooks', () => {
     expect(result.current.error).toBe('Failed to load economic events');
   });
 
+  const stubNews = (portfolio: unknown[], macro: unknown[]) => {
+    // Mock Spring news and calendar endpoints so category mapping is independent of external providers.
+    server.use(
+      http.get(apiUrl('/news/portfolio'), () => HttpResponse.json(portfolio)),
+      http.get(apiUrl('/news/macro'), () => HttpResponse.json(macro)),
+      http.get(apiUrl('/calendar/economic-events'), () => HttpResponse.json([])),
+      http.get(apiUrl('/calendar'), () => HttpResponse.json({ earnings: [], economicEvents: [] })),
+    );
+  };
+  const categorizedNews = (category: string, relatedSymbols: string[] = []) => ({
+    id: 11,
+    datetime: 1_783_600_000,
+    headline: `${category} headline`,
+    image: '',
+    related: '',
+    source: 'Wire',
+    summary: 'Mocked summary.',
+    url: 'https://example.test/news/11',
+    category,
+    relatedSymbols,
+  });
+
+  it.each(['PORTFOLIO', 'WATCHLIST'])('maps %s news to the stock category', async (category) => {
+    stubNews([categorizedNews(category, ['AAPL'])], []);
+
+    const { result } = renderHook(() => useMarketContext());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.news[0].category).toBe('stock');
+  });
+
+  it('keeps ECONOMY news as macro and TECHNOLOGY news as tech', async () => {
+    stubNews([categorizedNews('TECHNOLOGY', ['AAPL'])], [{ ...categorizedNews('ECONOMY'), id: 12 }]);
+
+    const { result } = renderHook(() => useMarketContext());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.news.map((item) => item.category)).toEqual(['tech', 'macro']);
+  });
+
   it('maps successful economic events into the shell contract', async () => {
     // Mock both Spring endpoints so event mapping is independent of external providers.
     server.use(

@@ -1,7 +1,14 @@
 import { useEffect, useState } from 'react';
 import type { CategorizedNewsItem } from '../api/client';
 import { fetchEconomicEvents, fetchMarketCalendar, fetchMacroNews, fetchPortfolioNews } from '../api/client';
+import type { NewsCategory } from '../api/news';
 import type { CalendarEvent, News } from '../types';
+
+const mapNewsCategory = (category?: NewsCategory): News['category'] => {
+  if (category === 'TECHNOLOGY' || category === 'AI') return 'tech';
+  if (category === 'PORTFOLIO' || category === 'WATCHLIST') return 'stock';
+  return category ? 'macro' : 'market';
+};
 
 const mapNews = (item: CategorizedNewsItem): News => ({
   id: String(item.id),
@@ -9,7 +16,7 @@ const mapNews = (item: CategorizedNewsItem): News => ({
   source: item.source,
   time: new Date(item.datetime > 10_000_000_000 ? item.datetime : item.datetime * 1000).toLocaleString('tr-TR'),
   summary: item.summary || undefined,
-  category: item.category === 'TECHNOLOGY' || item.category === 'AI' ? 'tech' : item.category ? 'macro' : 'market',
+  category: mapNewsCategory(item.category),
   symbol: item.relatedSymbols?.[0] || item.related?.split(',')[0]?.trim() || undefined,
   url: item.url,
 });
