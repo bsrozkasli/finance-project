@@ -2,7 +2,7 @@ import {render, screen, within} from '@testing-library/react';
 import {describe, expect, it} from 'vitest';
 import type {FinancialHistory, FinancialHistoryPoint} from '../../../api/client';
 import {FONT, TrendChart, VIEWBOX_WIDTH} from './TrendChart';
-import {CHAR_WIDTH, formatCell, M} from './trendModel';
+import {CHAR_WIDTH, M} from './trendModel';
 
 const point = (overrides: Partial<FinancialHistoryPoint> = {}): FinancialHistoryPoint => ({
     fiscalYear: 2023,
@@ -32,12 +32,12 @@ const point = (overrides: Partial<FinancialHistoryPoint> = {}): FinancialHistory
 
 const history = (points: FinancialHistoryPoint[]): FinancialHistory => ({
     symbol: 'AAPL',
-    status: 'OK',
+    status: 'AVAILABLE',
     currency: 'USD',
     periodType: 'annual',
     retrievedAt: null,
     points,
-} as FinancialHistory);
+});
 
 const base = {title: 'Likidite', basis: 'Yıllık, raporlanan', unit: 'ratio' as const, kind: 'line' as const};
 
@@ -141,7 +141,8 @@ describe('TrendChart', () => {
             const {container} = render(<TrendChart {...base} history={five} series={cr}/>);
             const labels = Array.from(container.querySelectorAll('svg text')).map((t) => t.textContent ?? '').filter((t) => /^\d{4}$/.test(t));
             expect(labels).toEqual(['2020', '2021', '2022', '2023', '2024']);
-            const band = (VIEWBOX_WIDTH - M.left - M.right) / labels.length;
+            const leftTickX = Math.min(...Array.from(container.querySelectorAll('svg line')).map((l) => Number(l.getAttribute('x1'))));
+            const band = (VIEWBOX_WIDTH - leftTickX - M.right) / labels.length;
             expect(labels[0].length * CHAR_WIDTH).toBeLessThanOrEqual(band);
         });
 
@@ -167,15 +168,66 @@ describe('TrendChart', () => {
             expect(screen.queryByText(/Para birimi/)).toBeNull();
         });
 
-        it('sizes the left margin for the longest tick of each unit', () => {
-            const probe = point();
-            const samples = [
-                formatCell({...probe, netIncome: -250000000, notMeaningful: []}, 'netIncome', 'money', null),
-                formatCell({...probe, netIncome: -1200000000000, notMeaningful: []}, 'netIncome', 'money', null),
-                formatCell({...probe, currentRatio: -12.5, notMeaningful: []}, 'currentRatio', 'ratio', null),
-                formatCell({...probe, roe: -1, notMeaningful: []}, 'roe', 'percent', null),
+        it('derives the left margin from the longest tick so large and negative ticks stay inside the viewBox', () => {
+            const cases = [
+                {unit: 'percent' as const, key: 'netIncomeGrowth' as const, values: [-50, 50]},
+                {unit: 'ratio' as const, key: 'debtToEquity' as const, values: [-1500.5, 1500.5]},
+                {unit: 'money' as const, key: 'netIncome' as const, values: [-1200000000000, 400000000000]},
             ];
-            for (const text of samples) expect(M.left).toBeGreaterThanOrEqual(text.length * CHAR_WIDTH + 6);
+            for (const c of cases) {
+                const h = history(c.values.map((v, i) => point({fiscalYear: 2022 + i, fiscalYearEnd: `${2022 + i}-12-31`, [c.key]: v})));
+                const {container, unmount} = render(<TrendChart {...base} unit={c.unit} kind="line" history={h} series={[{key: c.key, label: 'X'}]}/>);
+                const ticks = Array.from(container.querySelectorAll('svg text')).filter((t) => t.getAttribute('text-anchor') === 'end');
+                expect(ticks.length).toBeGreaterThan(1);
+                const longest = Math.max(...ticks.map((t) => (t.textContent ?? '').length));
+                for (const t of ticks) {
+                    // text is end-anchored at x: its estimated start must stay inside the viewBox
+                    expect(Number(t.getAttribute('x')) - (t.textContent ?? '').length * CHAR_WIDTH).toBeGreaterThanOrEqual(0);
+                }
+                const left = Math.min(...Array.from(container.querySelectorAll('svg line')).map((l) => Number(l.getAttribute('x1'))));
+                expect(left).toBeGreaterThanOrEqual(longest * CHAR_WIDTH);
+                const negative = ticks.find((t) => (t.textContent ?? '').startsWith('-'));
+                expect(negative).toBeDefined();
+                expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe(`0 0 ${VIEWBOX_WIDTH} 240`);
+                unmount();
+            }
+        });
+
+        it('uses compact percent ticks (no decimals) while the table keeps one decimal', () => {
+            const h = history([
+                point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31', netIncomeGrowth: -50.5}),
+                point({netIncomeGrowth: 50.5}),
+            ]);
+            const {container} = render(<TrendChart {...base} unit="percent" history={h} series={[{key: 'netIncomeGrowth', label: 'Net kâr büyümesi'}]}/>);
+            const ticks = Array.from(container.querySelectorAll('svg text')).filter((t) => t.getAttribute('text-anchor') === 'end').map((t) => t.textContent ?? '');
+            expect(ticks.every((t) => !/,/.test(t))).toBe(true);
+            expect(within(screen.getByRole('table')).getByText('%5.050,0')).toBeInTheDocument();
+        });
+
+        it('keeps two points with the same fiscalYear distinct by period end', () => {
+            const h = history([
+                point({fiscalYear: 2023, fiscalYearEnd: '2023-01-01', currentRatio: 1.1}),
+                point({fiscalYear: 2023, fiscalYearEnd: '2023-12-31', currentRatio: 2.2}),
+            ]);
+            const {container} = render(<TrendChart {...base} history={h} series={[{key: 'currentRatio', label: 'Cari oran'}]}/>);
+            const cells = within(screen.getByRole('table')).getAllByRole('cell').map((c) => c.textContent);
+            expect(cells).toEqual(['1,10x', '2,20x']);
+            const titles = Array.from(container.querySelectorAll('svg title')).map((t) => t.textContent);
+            expect(titles).toEqual(['FY2023 (2023-01-01) Cari oran: 1,10x', 'FY2023 (2023-12-31) Cari oran: 2,20x']);
+            const aria = screen.getByRole('figure').getAttribute('aria-label') ?? '';
+            expect(aria).toContain('2023 (2023-01-01): Cari oran 1,10x');
+            expect(aria).toContain('2023 (2023-12-31): Cari oran 2,20x');
+        });
+
+        it('says so in place of the plot when no year is meaningful', () => {
+            const h = history([
+                point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31', notMeaningful: ['currentRatio']}),
+                point({notMeaningful: ['currentRatio']}),
+            ]);
+            const {container} = render(<TrendChart {...base} history={h} series={[{key: 'currentRatio', label: 'Cari oran'}]}/>);
+            expect(screen.getByText('Hiçbir yılda anlamlı değer yok')).toBeInTheDocument();
+            expect(container.querySelector('svg')).toBeNull();
+            expect(screen.getByRole('table')).toBeInTheDocument();
         });
 
         it('draws negative bars below the zero line and hides the svg from assistive tech', () => {

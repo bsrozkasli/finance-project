@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import type {FinancialHistory, FinancialHistoryPoint} from '../../../api/client';
-import {cellState, chartRows, formatCell, hasAnyValue, viewState} from './trendModel';
+import {cellState, chartRows, formatCell, formatTick, hasAnyValue, leftMargin, sortedPoints, viewState, CHAR_WIDTH} from './trendModel';
 
 const point = (overrides: Partial<FinancialHistoryPoint> = {}): FinancialHistoryPoint => ({
     fiscalYear: 2023,
@@ -85,7 +85,7 @@ describe('chartRows', () => {
         ]);
     });
     it('sorts unordered input ascending', () => {
-        const h = history({points: [point({fiscalYear: 2024}), point({fiscalYear: 2022})]});
+        const h = history({points: [point({fiscalYear: 2024, fiscalYearEnd: '2024-12-31'}), point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31'})]});
         expect(chartRows(h, ['roe']).map((r) => r.year)).toEqual([2022, 2024]);
     });
 });
@@ -113,5 +113,29 @@ describe('viewState', () => {
         expect(viewState(history({status: 'AVAILABLE', points: []}), false)).toBe('empty');
         expect(viewState(history({status: 'AVAILABLE'}), false)).toBe('ready');
         expect(viewState(history({status: 'PARTIAL'}), false)).toBe('ready');
+    });
+});
+
+describe('axis ticks and margin', () => {
+    it('formats compact ticks by unit and step', () => {
+        expect(formatTick(-5000, 'percent', 1000)).toBe('-%500.000');
+        expect(formatTick(0.5, 'percent', 0.25)).toBe('%50');
+        expect(formatTick(0.005, 'percent', 0.005)).toBe('%0,5');
+        expect(formatTick(1000.5, 'ratio', 500)).toBe('1.000,5x');
+        expect(formatTick(0.05, 'ratio', 0.05)).toBe('0,05x');
+        expect(formatTick(-250000000, 'money', 1)).toMatch(/^-/);
+    });
+
+    it('sizes the margin to at least the longest tick estimate with a floor', () => {
+        expect(leftMargin(['0'])).toBeGreaterThanOrEqual(44);
+        const ticks = ['-%5.000', '%5.000'];
+        expect(leftMargin(ticks)).toBeGreaterThanOrEqual(7 * CHAR_WIDTH);
+    });
+
+    it('orders points by period end and keeps same-fiscalYear points apart', () => {
+        const h = {symbol: 'X', status: 'AVAILABLE', currency: null, periodType: 'annual', retrievedAt: null,
+            points: [point({fiscalYear: 2023, fiscalYearEnd: '2023-12-31'}), point({fiscalYear: 2023, fiscalYearEnd: '2023-01-01'})]} as FinancialHistory;
+        expect(sortedPoints(h).map((p) => p.fiscalYearEnd)).toEqual(['2023-01-01', '2023-12-31']);
+        expect(chartRows(h, ['revenue']).map((r) => r.end)).toEqual(['2023-01-01', '2023-12-31']);
     });
 });

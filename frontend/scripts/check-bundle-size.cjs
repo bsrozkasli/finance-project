@@ -8,7 +8,8 @@ const distAssetsDir = path.join(process.cwd(), 'dist', 'assets');
 const maxTotalJsBytes = 725 * 1024;
 // Total across all chunks, including lazily loaded routes. The research-desk
 // redesign code-splits every page (~100 KiB gzipped on first load) at the cost
-// of ~214 KiB in total, so the gzip budget keeps ~10 KiB of headroom.
+// of ~214 KiB in total; after the financial trends work the gzip budget keeps only
+// about 2 KiB of headroom (227.8 of 230 KiB), so check the numbers before adding code.
 const maxTotalJsGzipBytes = 230 * 1024;
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;

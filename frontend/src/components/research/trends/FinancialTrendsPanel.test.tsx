@@ -91,7 +91,10 @@ describe('FinancialTrendsPanel', () => {
 
     it('shows the reported currency or the missing-currency note', () => {
         const {rerender} = render(<FinancialTrendsPanel {...props}/>);
-        expect(screen.getAllByText('Para birimi: USD').length).toBeGreaterThan(0);
+        const notes = screen.getAllByText('Para birimi: USD');
+        // three money charts each state it once, plus exactly one panel-level note outside any figure
+        expect(notes).toHaveLength(4);
+        expect(notes.filter((note) => note.closest('figure') === null)).toHaveLength(1);
         rerender(<FinancialTrendsPanel {...props} history={history({currency: null})}/>);
         expect(screen.getByText('Para birimi bildirilmedi. Değerler dönüştürülmedi.')).toBeInTheDocument();
     });
@@ -106,6 +109,16 @@ describe('FinancialTrendsPanel', () => {
         expect(within(pb).getByText('—')).toBeInTheDocument();
         expect(screen.getByText('1.23%')).toBeInTheDocument();
         expect(screen.getAllByText('Güncel değer · geçmiş seri yok')).toHaveLength(5);
+    });
+
+    it('keeps same-fiscalYear points as separate columns with their own values', () => {
+        const dup = history({points: [
+            point({fiscalYear: 2023, fiscalYearEnd: '2023-01-01', currentRatio: 1.1}),
+            point({fiscalYear: 2023, fiscalYearEnd: '2023-12-31', currentRatio: 2.2}),
+        ]});
+        render(<FinancialTrendsPanel {...props} history={dup}/>);
+        const figure = screen.getByRole('heading', {name: 'Cari oran'}).closest('figure') as HTMLElement;
+        expect(within(figure).getAllByRole('cell').map((c) => c.textContent)).toEqual(['1,10x', '2,20x']);
     });
 
     it('does not imply healthy or unhealthy', () => {

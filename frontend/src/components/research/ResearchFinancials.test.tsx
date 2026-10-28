@@ -71,6 +71,33 @@ describe('ResearchFinancials', () => {
         expect(screen.getByRole('columnheader', {name: 'FY2021'})).toBeInTheDocument();
     });
 
+    it('shows distinct values for two points that share a fiscalYear and states the reported currency', () => {
+        const h = history({points: [
+            point({fiscalYear: 2023, fiscalYearEnd: '2023-01-01', revenue: 1000}),
+            point({fiscalYear: 2023, fiscalYearEnd: '2023-12-31', revenue: 2000}),
+        ]});
+        render(<ResearchFinancials data={fundamentals} history={h} loading={false} isFund={false}/>);
+        const table = screen.getByRole('table', {name: 'Yıllık finansallar'});
+        const row = within(table).getByRole('row', {name: /^Toplam gelir/});
+        expect(within(row).getAllByRole('cell').map(c => c.textContent)).toEqual([
+            formatCell(h.points[0], 'revenue', 'money', 'USD'), formatCell(h.points[1], 'revenue', 'money', 'USD')]);
+        expect(within(row).getAllByRole('cell')[0]).not.toHaveTextContent(formatCell(h.points[1], 'revenue', 'money', 'USD'));
+        expect(screen.getByText(/Para birimi: USD/)).toBeInTheDocument();
+        expect(screen.queryByText(/Birim ve para birimi sağlayıcı yanıtında/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/dönem bitiş tarihi/)).not.toBeInTheDocument();
+    });
+
+    it('keeps the unreported unit and period-end copy in legacy mode', () => {
+        render(<ResearchFinancials data={fundamentals} history={null} loading={false} isFund={false}/>);
+        expect(screen.getByText(/Birim ve para birimi sağlayıcı yanıtında/)).toBeInTheDocument();
+        expect(screen.getByText(/dönem bitiş tarihi/)).toBeInTheDocument();
+    });
+
+    it('says the currency was not reported when history has none', () => {
+        render(<ResearchFinancials data={fundamentals} history={history({currency: null})} loading={false} isFund={false}/>);
+        expect(screen.getByText(/Para birimi bildirilmedi\./)).toBeInTheDocument();
+    });
+
     it('falls back when history is null', () => {
         render(<ResearchFinancials data={fundamentals} history={null} loading={false} isFund={false}/>);
         expect(rowNames()).not.toContain('Serbest nakit akışı');

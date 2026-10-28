@@ -49,8 +49,9 @@ export const formatCell = (
     }
 };
 
-const sortedPoints = (history: FinancialHistory): FinancialHistoryPoint[] =>
-    [...history.points].sort((a, b) => a.fiscalYear - b.fiscalYear);
+// Points are identified by fiscalYearEnd: two fiscal years can share a fiscalYear label.
+export const sortedPoints = (history: FinancialHistory): FinancialHistoryPoint[] =>
+    [...history.points].sort((a, b) => a.fiscalYearEnd.localeCompare(b.fiscalYearEnd));
 
 export const chartRows = (history: FinancialHistory, keys: MetricKey[]): ChartRow[] =>
     sortedPoints(history).map((point) => {
@@ -71,7 +72,34 @@ export const viewState = (history: FinancialHistory | null, loading: boolean): V
     return 'ready';
 };
 
+const tickPercent = [0, 1].map((digits) => new Intl.NumberFormat('tr-TR', {
+    style: 'percent',
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+}));
+const tickRatio = [1, 2].map((digits) => new Intl.NumberFormat('tr-TR', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+}));
+
+/** Compact y-axis tick text; tooltips and tables keep full precision. `step` is the tick spacing. */
+export const formatTick = (value: number, unit: Unit, step: number): string => {
+    switch (unit) {
+        case 'percent':
+            return tickPercent[step * 100 >= 1 ? 0 : 1].format(value);
+        case 'ratio':
+            return `${tickRatio[step >= 0.1 ? 0 : 1].format(value)}x`;
+        case 'money':
+            return moneyFormat.format(value);
+    }
+};
+
 // Estimated rendered width of one tick character at FONT units.
 export const CHAR_WIDTH = 8.5;
-// Fits the widest realistic tick without currency code (for example -250 Mn, -1,2 Mr, -%100,0, -12,50x).
-export const M = {top: 12, right: 10, bottom: 30, left: 68};
+export const MIN_LEFT = 44;
+const TICK_GAP = 8;
+export const M = {top: 12, right: 10, bottom: 30};
+
+/** Left margin sized from the longest formatted tick so no tick (or its minus sign) is clipped. */
+export const leftMargin = (tickTexts: string[]): number =>
+    Math.max(MIN_LEFT, Math.ceil(Math.max(0, ...tickTexts.map((t) => t.length)) * CHAR_WIDTH + TICK_GAP));

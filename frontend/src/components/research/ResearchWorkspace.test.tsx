@@ -86,6 +86,20 @@ describe('ResearchWorkspace', () => {
         render(desk());
         expect(await screen.findByRole('heading', {name: 'Gelir ve net kâr'})).toBeInTheDocument();
     });
+    it('says the history is unavailable, not empty, when the backend reports UNAVAILABLE', async () => {
+        server.use(http.get(`${base}/fundamentals/:symbol/history`, ({params}) => HttpResponse.json({symbol: params.symbol, status: 'UNAVAILABLE', currency: null, periodType: 'annual', retrievedAt: null, points: []})));
+        render(desk());
+        expect(await screen.findByText('Finansal geçmiş şu an alınamıyor. Lütfen daha sonra yeniden deneyin.')).toBeInTheDocument();
+        expect(screen.queryByText('Grafik için raporlanan finansal dönem bulunamadı.')).not.toBeInTheDocument();
+        expect(screen.queryByRole('heading', {name: 'Gelir ve net kâr'})).not.toBeInTheDocument();
+    });
+    it('states the reported currency on the overview instead of claiming it is unreported when a chart renders', async () => {
+        server.use(http.get(`${base}/fundamentals/:symbol/history`, ({params}) => HttpResponse.json(availableHistory(String(params.symbol)))));
+        render(desk());
+        await screen.findByRole('heading', {name: 'Gelir ve net kâr'});
+        expect(screen.getByText('Para birimi: USD')).toBeInTheDocument();
+        expect(screen.queryByText(/Birim ve para birimi bildirilmedi/)).not.toBeInTheDocument();
+    });
     it('shows the empty chart copy on the overview when history is unusable', async () => {
         render(desk());
         expect(await screen.findByText('Grafik için raporlanan finansal dönem bulunamadı.')).toBeInTheDocument();

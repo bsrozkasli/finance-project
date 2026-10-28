@@ -198,14 +198,27 @@ test('has no critical accessibility violations on the dashboard', async ({ page 
 });
 
 test('dark research desk keeps evidence, source focus and six tasks usable', async ({ page }, testInfo) => {
+  const availableHistory = {
+    symbol: 'AAPL', status: 'AVAILABLE', currency: 'USD', periodType: 'annual', retrievedAt: null,
+    points: [2023, 2024, 2025].map((year, i) => ({
+      fiscalYear: year, fiscalYearEnd: `${year}-09-28`, revenue: 380e9 + i * 10e9, netIncome: 95e9 + i * 2e9,
+      operatingCashFlow: 110e9, capitalExpenditure: 10e9, freeCashFlow: 100e9, totalAssets: 350e9, totalLiabilities: 290e9,
+      totalEquity: 60e9, totalDebt: 100e9, cash: 30e9, netDebt: 70e9, debtToEquity: 1.67, currentRatio: 0.9 + i / 10,
+      roe: 1.5, roa: 0.27, netMargin: 0.25, fcfMargin: 0.26, revenueGrowth: i === 0 ? null : 0.03, netIncomeGrowth: i === 0 ? null : 0.02,
+      notMeaningful: [],
+    })),
+  };
+  await page.route(`${API_BASE}/fundamentals/AAPL/history`, route => route.fulfill({ json: availableHistory }));
   await page.route(`${API_BASE}/fundamentals/AAPL`,route=>route.fulfill({json:{symbol:'AAPL',revenue:[{year:2024,value:1000},{year:2025,value:1200}],netIncome:[{year:2025,value:0}],eps:[],freeCashFlow:[]}}));
   await page.goto('/workspace/AAPL');
   await expect(page.getByRole('tab',{name:'Genel bakış',exact:true})).toHaveAttribute('aria-selected','true');
   await expect(page.getByRole('heading',{name:'Apple Inc.',exact:true})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Gelir ve net kâr',exact:true})).toBeVisible();
   const colors=await page.locator('.desk-app').evaluate(node=>getComputedStyle(node).backgroundColor);
   expect(colors).toBe('rgb(14, 18, 24)');
   await page.getByRole('tab',{name:'Finansallar',exact:true}).click();
-  await expect(page.getByRole('table',{name:'Yıllık finansallar'})).toContainText('1.200');
+  await expect(page.getByRole('heading',{name:'Gelir ve net kâr',exact:true})).toBeVisible();
+  await expect(page.getByRole('table',{name:'Yıllık finansallar'})).toBeVisible();
   await page.getByRole('button',{name:'Kompakt',exact:true}).click();
   await expect(page.getByRole('table',{name:'Yıllık finansallar'})).toHaveClass(/is-compact/);
   await page.getByRole('button',{name:'Kaynak ayrıntıları',exact:true}).click();
