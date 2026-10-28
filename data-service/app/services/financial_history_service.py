@@ -72,6 +72,8 @@ class FinancialHistoryService:
             mapping: dict = {}
             if cls._usable(df):
                 for label in df.columns:
+                    if pd.isna(label):
+                        continue
                     try:
                         iso = pd.Timestamp(label).date().isoformat()
                     except Exception:  # noqa: BLE001

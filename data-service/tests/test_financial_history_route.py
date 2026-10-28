@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from main import app
 from app.models.financial_history import SERIES_KEYS
-from test_financial_history_service import (
+from financial_history_helpers import (
     D23,
     D24,
     FakeTicker,
