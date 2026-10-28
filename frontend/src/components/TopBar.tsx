@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BookOpen, Search, Settings } from 'lucide-react';
 import type { Asset } from '../api/types';
-import type { Stock } from '../types';
+import type { CompanyLogoSource, Stock } from '../types';
 import CompanyLogo from './CompanyLogo';
 import { fetchMarketSessions, type MarketSession } from '../api/client';
 
 interface TopBarProps {
   stocks: Stock[];
+  logoSources?: Record<string, CompanyLogoSource>;
   assets?: Asset[];
   onSelectStock: (stock: Stock) => void;
   onSelectAsset?: (asset: Asset) => void;
@@ -19,6 +20,7 @@ interface TopBarProps {
 
 export default function TopBar({
   stocks,
+  logoSources = {},
   assets = [],
   onSelectStock,
   onSelectAsset,
@@ -126,7 +128,7 @@ export default function TopBar({
                 }}
                 className={`desk-search-result ${index===activeIndex?'is-active':''}`}
               >
-                <span className="flex min-w-0 items-center gap-3"><CompanyLogo symbol={asset.symbol} logoUrl={asset.stock?.logoUrl} className="h-8 w-8" /><span className="min-w-0"><strong className="font-data-mono text-primary mr-2">{asset.symbol}</strong><span className="text-text-secondary text-sm truncate">{asset.name}</span></span></span>
+                <span className="flex min-w-0 items-center gap-3"><CompanyLogo symbol={asset.symbol} logoUrl={asset.stock?.logoUrl ?? logoSources[asset.symbol]?.logoUrl} website={asset.stock?.website ?? logoSources[asset.symbol]?.website} className="h-8 w-8" /><span className="min-w-0"><strong className="font-data-mono text-primary mr-2">{asset.symbol}</strong><span className="text-text-secondary text-sm truncate">{asset.name}</span></span></span>
                 <span className="shrink-0 font-data-mono text-xs text-text-muted">{asset.stock ? `$${asset.stock.price.toFixed(2)}` : 'Fiyat yok'}</span>
               </button>
             ))}</div>

@@ -63,10 +63,13 @@ export interface Stock {
   } | null;
   alerts: string[];
   logoUrl?: string | null;
+  website?: string | null;
   priceUpdatedAt?: string | null;
   marketState?: string | null;
   priceDelayed?: boolean | null;
 }
+
+export type CompanyLogoSource = Pick<Stock, 'logoUrl' | 'website'>;
 
 export interface Holding {
   symbol: string;
