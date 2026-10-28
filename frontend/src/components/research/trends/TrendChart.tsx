@@ -1,4 +1,3 @@
-import {Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import type {FinancialHistory} from '../../../api/client';
 import {cellState, chartRows, formatCell, type MetricKey, type Unit} from './trendModel';
 
@@ -14,7 +13,33 @@ type Props = {
 };
 
 const COLORS = ['#7fa6ff', '#61bdb8', '#e8a54b', '#c792ea'];
-const AXIS_TICK = {fill: '#a7b4c5', fontSize: 12};
+const W = 360;
+const H = 240;
+const FONT = 14;
+const M = {top: 12, right: 10, bottom: 30, left: 74};
+const PLOT_W = W - M.left - M.right;
+const PLOT_H = H - M.top - M.bottom;
+
+const niceStep = (range: number, count: number): number => {
+    const raw = range / count;
+    const pow = 10 ** Math.floor(Math.log10(raw));
+    const f = raw / pow;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * pow;
+};
+
+const niceTicks = (min: number, max: number): number[] => {
+    if (min === max) {
+        const pad = Math.abs(min) || 1;
+        min -= pad;
+        max += pad;
+    }
+    const step = niceStep(max - min, 4);
+    const lo = Math.floor(min / step) * step;
+    const hi = Math.ceil(max / step) * step;
+    const ticks: number[] = [];
+    for (let v = lo; v <= hi + step / 2; v += step) ticks.push(Math.round(v / step) * step);
+    return ticks;
+};
 
 const sortedPoints = (history: FinancialHistory) =>
     [...history.points].sort((a, b) => a.fiscalYear - b.fiscalYear);
@@ -39,36 +64,83 @@ export function TrendChart({title, basis, history, series, unit, kind}: Props) {
 
     const keys = series.map((s) => s.key);
     const rows = chartRows(history, keys);
-    const hasNegative = rows.some((r) => keys.some((k) => (r[k] ?? 0) < 0));
+    const values = rows.flatMap((r) => keys.map((k) => r[k]).filter((v): v is number => typeof v === 'number'));
+    const hasNegative = values.some((v) => v < 0);
     const ariaLabel = `${title}. ` + points
         .map((p) => `${p.fiscalYear}: ` + series.map((s) => `${s.label} ${formatCell(p, s.key, unit, history.currency)}`).join(', '))
         .join('; ');
-    const format = (value: unknown, key: MetricKey): string => {
+    const format = (value: number, key: MetricKey): string => {
         const probe = points[0];
-        if (typeof value !== 'number' || !probe) return '—';
         return formatCell({...probe, [key]: value, notMeaningful: []}, key, unit, history.currency);
     };
-    const tickFormat = (value: number): string =>
-        format(value, series[0].key);
     const colorOf = (key: MetricKey) => COLORS[series.findIndex((s) => s.key === key) % COLORS.length];
-    const single = rows.length === 1;
 
-    const common = (
-        <>
-            <CartesianGrid stroke="#303e50" strokeDasharray="3 3" vertical={false}/>
-            <XAxis dataKey="year" tick={AXIS_TICK} tickFormatter={(y: number) => `FY${y}`} stroke="#48628b"/>
-            <YAxis tick={AXIS_TICK} tickFormatter={tickFormat} stroke="#48628b" width={64}/>
-            <Tooltip
-                contentStyle={{background: '#171e27', border: '1px solid #303e50', fontSize: 12}}
-                labelStyle={{color: '#e6edf6'}}
-                labelFormatter={(_label, payload) => payload?.[0]?.payload?.end ?? ''}
-                formatter={(value, name) => {
-                    const s = series.find((x) => x.key === name);
-                    return [format(value, (s?.key ?? series[0].key)), s?.label ?? String(name)];
-                }}
-            />
-            {hasNegative && <ReferenceLine y={0} stroke="#a7b4c5"/>}
-        </>
+    const extra = kind === 'bar' ? [0] : [];
+    const ticks = values.length ? niceTicks(Math.min(...values, ...extra), Math.max(...values, ...extra)) : [0, 1];
+    const lo = ticks[0];
+    const hi = ticks[ticks.length - 1];
+    const y = (v: number) => M.top + PLOT_H - ((v - lo) / (hi - lo || 1)) * PLOT_H;
+    const band = PLOT_W / rows.length;
+    const cx = (i: number) => M.left + band * (i + 0.5);
+    const hover = (i: number, s: TrendSeries) =>
+        `FY${rows[i].year} (${rows[i].end}) ${s.label}: ${cell(rows[i].year, s.key)}`;
+
+    const lineParts = (s: TrendSeries): string[] => {
+        const parts: string[] = [];
+        let current = '';
+        rows.forEach((r, i) => {
+            const v = r[s.key];
+            if (typeof v === 'number') {
+                current += `${current ? 'L' : 'M'}${cx(i).toFixed(1)} ${y(v).toFixed(1)}`;
+            } else if (current) {
+                parts.push(current);
+                current = '';
+            }
+        });
+        if (current) parts.push(current);
+        return parts;
+    };
+
+    const barGroup = Math.min(band * 0.7, 48);
+    const barW = barGroup / series.length;
+
+    const plot = values.length === 0 ? null : (
+        <svg className="desk-trend-svg" viewBox={`0 0 ${W} ${H}`} width="100%" style={{display: 'block', width: '100%', height: 'auto'}}
+             fontSize={FONT} aria-hidden="true" focusable="false">
+            {ticks.map((t) => (
+                <g key={t}>
+                    <line x1={M.left} x2={W - M.right} y1={y(t)} y2={y(t)} stroke="#303e50" strokeDasharray="3 3"/>
+                    <text x={M.left - 6} y={y(t)} fill="#a7b4c5" textAnchor="end" dominantBaseline="middle">{format(t, series[0].key)}</text>
+                </g>
+            ))}
+            {rows.map((r, i) => (
+                <text key={r.year} x={cx(i)} y={H - 8} fill="#a7b4c5" textAnchor="middle">FY<tspan>{r.year}</tspan></text>
+            ))}
+            {hasNegative && <line className="desk-trend-zero" x1={M.left} x2={W - M.right} y1={y(0)} y2={y(0)} stroke="#a7b4c5"/>}
+            {kind === 'line' ? series.map((s) => (
+                <g key={s.key} data-series={s.key}>
+                    {lineParts(s).map((d) => <path key={d} d={d} fill="none" stroke={colorOf(s.key)} strokeWidth={2}/>)}
+                    {rows.map((r, i) => typeof r[s.key] === 'number' && (
+                        <circle key={r.year} cx={cx(i)} cy={y(r[s.key] as number)} r={rows.length === 1 ? 5 : 3.5} fill={colorOf(s.key)}>
+                            <title>{hover(i, s)}</title>
+                        </circle>
+                    ))}
+                </g>
+            )) : series.map((s, si) => (
+                <g key={s.key} data-series={s.key}>
+                    {rows.map((r, i) => {
+                        const v = r[s.key];
+                        if (typeof v !== 'number') return null;
+                        return (
+                            <rect key={r.year} x={cx(i) - barGroup / 2 + si * barW} y={Math.min(y(v), y(0))} width={Math.max(barW - 2, 2)}
+                                  height={Math.max(Math.abs(y(v) - y(0)), 1)} rx={2} fill={colorOf(s.key)}>
+                                <title>{hover(i, s)}</title>
+                            </rect>
+                        );
+                    })}
+                </g>
+            ))}
+        </svg>
     );
 
     return (
@@ -80,26 +152,7 @@ export function TrendChart({title, basis, history, series, unit, kind}: Props) {
                 ))}
             </ul>
             <div className="desk-trend-plot" aria-hidden="true">
-                <ResponsiveContainer width="100%" height={240}>
-                    {kind === 'line' ? (
-                        <LineChart data={rows} margin={{top: 8, right: 12, bottom: 4, left: 0}}>
-                            {common}
-                            {series.map((s) => (
-                                <Line key={s.key} type="monotone" dataKey={s.key} name={s.key} stroke={colorOf(s.key)}
-                                      strokeWidth={2} connectNulls={false} isAnimationActive={false}
-                                      dot={single ? {r: 5} : {r: 3}} activeDot={{r: 5}}/>
-                            ))}
-                        </LineChart>
-                    ) : (
-                        <BarChart data={rows} margin={{top: 8, right: 12, bottom: 4, left: 0}}>
-                            {common}
-                            {series.map((s) => (
-                                <Bar key={s.key} dataKey={s.key} name={s.key} fill={colorOf(s.key)}
-                                     radius={[2, 2, 0, 0]} isAnimationActive={false}/>
-                            ))}
-                        </BarChart>
-                    )}
-                </ResponsiveContainer>
+                {plot}
             </div>
             <figcaption className="desk-help desk-trend-basis">{basis}</figcaption>
             <details className="desk-trend-details">

@@ -26,6 +26,15 @@ beforeEach(() => server.use(
     http.get(`${base}/fundamentals/:symbol/history`, ({params}) => HttpResponse.json({symbol: params.symbol, status: 'EMPTY', currency: null, periodType: 'annual', retrievedAt: null, points: []})),
     http.get(`${base}/news/:symbol`, () => HttpResponse.json([])),
 ));
+const availableHistory = (symbol: string) => ({
+    symbol, status: 'AVAILABLE', currency: 'USD', periodType: 'annual', retrievedAt: null,
+    points: [2023, 2024].map(year => ({
+        fiscalYear: year, fiscalYearEnd: `${year}-12-31`, revenue: 1000 * (year - 2022), netIncome: 100, operatingCashFlow: 150,
+        capitalExpenditure: 50, freeCashFlow: 100, totalAssets: null, totalLiabilities: null, totalEquity: 10, totalDebt: 30, cash: 4,
+        netDebt: null, debtToEquity: 3, currentRatio: 1.2, roe: 0.1, roa: 0.05, netMargin: 0.1, fcfMargin: null,
+        revenueGrowth: 0.05, netIncomeGrowth: 0.02, notMeaningful: []
+    }))
+});
 const desk = (symbol = 'AAA') => <MemoryRouter><ResearchWorkspace {...props} symbol={symbol}/></MemoryRouter>;
 
 describe('ResearchWorkspace', () => {
@@ -52,6 +61,35 @@ describe('ResearchWorkspace', () => {
         expect(screen.getByText(/Birim.*bildirilmedi/)).toBeInTheDocument();
         await user().click(screen.getByRole('button', {name: 'Kompakt'}));
         expect(table).toHaveClass('is-compact');
+    });
+    it('shows the trends panel headings on the Finansallar tab after the lazy chunk resolves', async () => {
+        server.use(http.get(`${base}/fundamentals/:symbol/history`, ({params}) => HttpResponse.json(availableHistory(String(params.symbol)))));
+        render(desk());
+        await user().click(screen.getByRole('tab', {name: 'Finansallar'}));
+        expect(await screen.findByRole('heading', {name: 'Büyüme ve kârlılık'})).toBeInTheDocument();
+        expect(screen.getByRole('heading', {name: 'Nakit akışı'})).toBeInTheDocument();
+        expect(screen.getByRole('table', {name: 'Yıllık finansallar'})).toBeInTheDocument();
+    });
+    it('does not request financial history for a fund', async () => {
+        const requested = vi.fn();
+        server.use(http.get(`${base}/fundamentals/:symbol/history`, () => {
+            requested();
+            return HttpResponse.json(availableHistory('SPY'));
+        }));
+        render(<MemoryRouter><ResearchWorkspace {...props} assets={[{symbol: 'SPY', name: 'Spdr', type: 'ETF'}]} symbol="SPY"/></MemoryRouter>);
+        await user().click(screen.getByRole('tab', {name: 'Finansallar'}));
+        expect(await screen.findAllByText('Fonlar için şirket gelir tablosu uygulanmaz.')).not.toHaveLength(0);
+        expect(requested).not.toHaveBeenCalled();
+    });
+    it('shows the revenue and net income trend chart on the overview', async () => {
+        server.use(http.get(`${base}/fundamentals/:symbol/history`, ({params}) => HttpResponse.json(availableHistory(String(params.symbol)))));
+        render(desk());
+        expect(await screen.findByRole('heading', {name: 'Gelir ve net kâr'})).toBeInTheDocument();
+    });
+    it('shows the empty chart copy on the overview when history is unusable', async () => {
+        render(desk());
+        expect(await screen.findByText('Grafik için raporlanan finansal dönem bulunamadı.')).toBeInTheDocument();
+        expect(screen.queryByRole('heading', {name: 'Gelir ve net kâr'})).not.toBeInTheDocument();
     });
     it('retains successful financial evidence when a separate provider section fails', async () => {
         server.use(http.get(`${base}/fundamentals/:symbol/ratios`, () => new HttpResponse(null, {status: 503})));

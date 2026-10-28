@@ -1,16 +1,29 @@
 import {useState} from 'react';
-import type {AnnualMetric, FundamentalsData} from '../../api/client';
+import type {AnnualMetric, FinancialHistory, FundamentalsData} from '../../api/client';
 import {metric} from './formatResearchMetric';
+import {formatCell, type MetricKey} from './trends/trendModel';
 
-const series: [keyof Pick<FundamentalsData, 'revenue' | 'netIncome' | 'eps' | 'freeCashFlow'>, string][] = [['revenue', 'Toplam gelir'], ['netIncome', 'Net kâr'], ['eps', 'Hisse başına kazanç (EPS)'], ['freeCashFlow', 'Serbest nakit akışı']];
+type LegacyKey = keyof Pick<FundamentalsData, 'revenue' | 'netIncome' | 'eps' | 'freeCashFlow'>;
+// The legacy freeCashFlow field carries operating cash flow, so it is labelled as such.
+const legacySeries: [LegacyKey, string][] = [['revenue', 'Toplam gelir'], ['netIncome', 'Net kâr'], ['eps', 'Hisse başına kazanç (EPS)'], ['freeCashFlow', 'Faaliyet nakit akışı']];
+const historyRows: [MetricKey | 'eps', string][] = [['revenue', 'Toplam gelir'], ['netIncome', 'Net kâr'], ['operatingCashFlow', 'Faaliyet nakit akışı'], ['freeCashFlow', 'Serbest nakit akışı'], ['eps', 'Hisse başına kazanç (EPS)']];
 
-export default function ResearchFinancials({data, loading, isFund}: {
+export default function ResearchFinancials({data, history, loading, isFund}: {
     data: FundamentalsData | null;
+    history: FinancialHistory | null;
     loading: boolean;
     isFund: boolean
 }) {
     const [compact, setCompact] = useState(false);
-    const years = [...new Set(series.flatMap(([key]) => (data?.[key] ?? []).map(point => point.year)))].sort((a, b) => a - b);
+    const useHistory = history !== null && (history.status === 'AVAILABLE' || history.status === 'PARTIAL') && history.points.length > 0;
+    const points = useHistory ? [...history.points].sort((a, b) => a.fiscalYear - b.fiscalYear) : [];
+    const years = useHistory ? points.map(point => point.fiscalYear) : [...new Set(legacySeries.flatMap(([key]) => (data?.[key] ?? []).map(point => point.year)))].sort((a, b) => a - b);
+    const legacyCell = (key: LegacyKey, year: number) => metric((data?.[key] as AnnualMetric[] | undefined)?.find(point => point.year === year)?.value, key === 'eps' ? 2 : 0);
+    const historyCell = (key: MetricKey | 'eps', year: number) => {
+        if (key === 'eps') return legacyCell('eps', year);
+        const point = points.find(item => item.fiscalYear === year);
+        return point ? formatCell(point, key, 'money', history?.currency ?? null) : '—';
+    };
     return <section className="desk-panel">
         <div className="desk-panel-head">
             <div><h2>Gelir ve nakit akışı</h2><p className="desk-help">Raporlanan yıllık değerler · ölçek
@@ -34,10 +47,12 @@ export default function ResearchFinancials({data, loading, isFund}: {
                         <th scope="col">Gösterge</th>
                         {years.map(year => <th key={year} scope="col">FY{year}</th>)}</tr>
                     </thead>
-                    <tbody>{series.map(([key, label]) => <tr key={key}>
+                    <tbody>{useHistory ? historyRows.map(([key, label]) => <tr key={key}>
                         <th scope="row">{label}</th>
-                        {years.map(year => <td
-                            key={year}>{metric((data?.[key] as AnnualMetric[] | undefined)?.find(point => point.year === year)?.value, key === 'eps' ? 2 : 0)}</td>)}
+                        {years.map(year => <td key={year}>{historyCell(key, year)}</td>)}
+                    </tr>) : legacySeries.map(([key, label]) => <tr key={key}>
+                        <th scope="row">{label}</th>
+                        {years.map(year => <td key={year}>{legacyCell(key, year)}</td>)}
                     </tr>)}</tbody>
                 </table>
             </div>}

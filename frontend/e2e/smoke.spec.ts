@@ -52,6 +52,12 @@ test.beforeEach(async ({ page }) => {
       return;
     }
 
+    if (method === 'GET' && /^\/fundamentals\/[^/]+\/history$/.test(path)) {
+      const symbol = path.split('/')[2];
+      await route.fulfill({ json: { symbol, status: 'EMPTY', currency: null, periodType: 'annual', retrievedAt: null, points: [] } });
+      return;
+    }
+
     if (method === 'GET' && path.endsWith('/history')) {
       await route.fulfill({ json: priceBars });
       return;

@@ -98,4 +98,48 @@ describe('TrendChart', () => {
         expect(cell.textContent).toMatch(/^[-−]/);
         expect(screen.getByRole('figure').getAttribute('aria-label')).toMatch(/[-−]1,5/);
     });
+
+    describe('svg drawing', () => {
+        const cr = [{key: 'currentRatio' as const, label: 'Cari oran'}];
+        const three = (mid: number | null) => history([
+            point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31', currentRatio: 1.2}),
+            point({fiscalYear: 2023, currentRatio: mid}),
+            point({fiscalYear: 2024, fiscalYearEnd: '2024-12-31', currentRatio: 1.8}),
+        ]);
+
+        it('breaks a line at a missing cell instead of drawing through it', () => {
+            const {container} = render(<TrendChart {...base} history={three(null)} series={cr}/>);
+            expect(container.querySelectorAll('svg path')).toHaveLength(2);
+            expect(container.querySelectorAll('svg circle')).toHaveLength(2);
+        });
+
+        it('draws one connected path when no cell is missing', () => {
+            const {container} = render(<TrendChart {...base} history={three(1.5)} series={cr}/>);
+            expect(container.querySelectorAll('svg path')).toHaveLength(1);
+        });
+
+        it('shows a dot for a single-year line series', () => {
+            const {container} = render(<TrendChart {...base} history={history([point({currentRatio: 2})])} series={cr}/>);
+            expect(container.querySelectorAll('svg circle')).toHaveLength(1);
+        });
+
+        it('draws negative bars below the zero line and hides the svg from assistive tech', () => {
+            const h = history([
+                point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31', netIncome: 500000}),
+                point({fiscalYear: 2023, netIncome: -400000}),
+            ]);
+            const {container} = render(<TrendChart {...base} unit="money" kind="bar" history={h} series={[{key: 'netIncome', label: 'Net kâr'}]}/>);
+            const zero = Number(container.querySelector('.desk-trend-zero')?.getAttribute('y1'));
+            const [positive, negative] = Array.from(container.querySelectorAll('svg rect'));
+            expect(Number(positive.getAttribute('y')) + Number(positive.getAttribute('height'))).toBeCloseTo(zero, 1);
+            expect(Number(negative.getAttribute('y'))).toBeCloseTo(zero, 1);
+            expect(container.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+        });
+
+        it('puts the formatted value in the native hover title', () => {
+            const {container} = render(<TrendChart {...base} history={three(1.5)} series={cr}/>);
+            const titles = Array.from(container.querySelectorAll('svg title')).map(t => t.textContent);
+            expect(titles).toContain('FY2023 (2023-12-31) Cari oran: 1,50x');
+        });
+    });
 });
