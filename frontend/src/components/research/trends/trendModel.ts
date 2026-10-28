@@ -70,3 +70,8 @@ export const viewState = (history: FinancialHistory | null, loading: boolean): V
     if (history.status === 'EMPTY' || history.points.length === 0) return 'empty';
     return 'ready';
 };
+
+// Estimated rendered width of one tick character at FONT units.
+export const CHAR_WIDTH = 8.5;
+// Fits the widest realistic tick without currency code (for example -250 Mn, -1,2 Mr, -%100,0, -12,50x).
+export const M = {top: 12, right: 10, bottom: 30, left: 68};

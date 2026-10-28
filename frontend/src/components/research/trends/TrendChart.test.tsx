@@ -2,6 +2,7 @@ import {render, screen, within} from '@testing-library/react';
 import {describe, expect, it} from 'vitest';
 import type {FinancialHistory, FinancialHistoryPoint} from '../../../api/client';
 import {FONT, TrendChart, VIEWBOX_WIDTH} from './TrendChart';
+import {CHAR_WIDTH, formatCell, M} from './trendModel';
 
 const point = (overrides: Partial<FinancialHistoryPoint> = {}): FinancialHistoryPoint => ({
     fiscalYear: 2023,
@@ -132,6 +133,49 @@ describe('TrendChart', () => {
         it('shows a dot for a single-year line series', () => {
             const {container} = render(<TrendChart {...base} history={history([point({currentRatio: 2})])} series={cr}/>);
             expect(container.querySelectorAll('svg circle')).toHaveLength(1);
+        });
+
+        it('fits five year labels within their bands', () => {
+            const five = history([2020, 2021, 2022, 2023, 2024].map((year) =>
+                point({fiscalYear: year, fiscalYearEnd: `${year}-12-31`, currentRatio: 1 + (year - 2020) / 10})));
+            const {container} = render(<TrendChart {...base} history={five} series={cr}/>);
+            const labels = Array.from(container.querySelectorAll('svg text')).map((t) => t.textContent ?? '').filter((t) => /^\d{4}$/.test(t));
+            expect(labels).toEqual(['2020', '2021', '2022', '2023', '2024']);
+            const band = (VIEWBOX_WIDTH - M.left - M.right) / labels.length;
+            expect(labels[0].length * CHAR_WIDTH).toBeLessThanOrEqual(band);
+        });
+
+        it('omits the currency code from money ticks but keeps it in the hover title and table', () => {
+            const h = history([point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31', netIncome: 500000000}), point({netIncome: -250000000})]);
+            const {container} = render(<TrendChart {...base} unit="money" kind="bar" history={h} series={[{key: 'netIncome', label: 'Net kâr'}]}/>);
+            const texts = Array.from(container.querySelectorAll('svg text')).map((t) => t.textContent ?? '');
+            expect(texts.some((t) => t.includes('USD'))).toBe(false);
+            expect(texts.some((t) => t.includes('Mn'))).toBe(true);
+            expect(Array.from(container.querySelectorAll('svg title')).every((t) => (t.textContent ?? '').includes('USD'))).toBe(true);
+            expect(within(screen.getByRole('table')).getAllByRole('cell').every((c) => (c.textContent ?? '').includes('USD'))).toBe(true);
+        });
+
+        it('states the currency once for money charts only', () => {
+            const money = {...base, unit: 'money' as const, kind: 'bar' as const, series: [{key: 'netIncome' as const, label: 'Net kâr'}]};
+            const {rerender} = render(<TrendChart {...money} history={history([point({netIncome: 5})])}/>);
+            expect(screen.getByText('Para birimi: USD')).toBeInTheDocument();
+            rerender(<TrendChart {...money} history={{...history([point({netIncome: 5})]), currency: null}}/>);
+            expect(screen.getByText('Para birimi bildirilmedi.')).toBeInTheDocument();
+            rerender(<TrendChart {...base} history={history([point({currentRatio: 5})])} series={cr}/>);
+            expect(screen.queryByText(/Para birimi/)).toBeNull();
+            rerender(<TrendChart {...base} unit="percent" history={history([point({roe: 0.1})])} series={[{key: 'roe', label: 'ROE'}]}/>);
+            expect(screen.queryByText(/Para birimi/)).toBeNull();
+        });
+
+        it('sizes the left margin for the longest tick of each unit', () => {
+            const probe = point();
+            const samples = [
+                formatCell({...probe, netIncome: -250000000, notMeaningful: []}, 'netIncome', 'money', null),
+                formatCell({...probe, netIncome: -1200000000000, notMeaningful: []}, 'netIncome', 'money', null),
+                formatCell({...probe, currentRatio: -12.5, notMeaningful: []}, 'currentRatio', 'ratio', null),
+                formatCell({...probe, roe: -1, notMeaningful: []}, 'roe', 'percent', null),
+            ];
+            for (const text of samples) expect(M.left).toBeGreaterThanOrEqual(text.length * CHAR_WIDTH + 6);
         });
 
         it('draws negative bars below the zero line and hides the svg from assistive tech', () => {

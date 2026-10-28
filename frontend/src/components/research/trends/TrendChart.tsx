@@ -1,5 +1,5 @@
 import type {FinancialHistory} from '../../../api/client';
-import {cellState, chartRows, formatCell, type MetricKey, type Unit} from './trendModel';
+import {cellState, chartRows, formatCell, M, type MetricKey, type Unit} from './trendModel';
 
 export type TrendSeries = {key: MetricKey; label: string};
 
@@ -17,7 +17,6 @@ export const VIEWBOX_WIDTH = 320;
 const W = VIEWBOX_WIDTH;
 const H = 240;
 export const FONT = 14;
-const M = {top: 12, right: 10, bottom: 30, left: 84};
 const PLOT_W = W - M.left - M.right;
 const PLOT_H = H - M.top - M.bottom;
 
@@ -70,9 +69,10 @@ export function TrendChart({title, basis, history, series, unit, kind}: Props) {
     const ariaLabel = `${title}. ` + points
         .map((p) => `${p.fiscalYear}: ` + series.map((s) => `${s.label} ${formatCell(p, s.key, unit, history.currency)}`).join(', '))
         .join('; ');
+    // Axis ticks omit the currency code; it is stated once under the chart.
     const format = (value: number, key: MetricKey): string => {
         const probe = points[0];
-        return formatCell({...probe, [key]: value, notMeaningful: []}, key, unit, history.currency);
+        return formatCell({...probe, [key]: value, notMeaningful: []}, key, unit, null);
     };
     const colorOf = (key: MetricKey) => COLORS[series.findIndex((s) => s.key === key) % COLORS.length];
 
@@ -115,7 +115,7 @@ export function TrendChart({title, basis, history, series, unit, kind}: Props) {
                 </g>
             ))}
             {rows.map((r, i) => (
-                <text key={r.year} x={cx(i)} y={H - 8} fill="#a7b4c5" textAnchor="middle">FY<tspan>{r.year}</tspan></text>
+                <text key={r.year} x={cx(i)} y={H - 8} fill="#a7b4c5" textAnchor="middle">{r.year}</text>
             ))}
             {hasNegative && <line className="desk-trend-zero" x1={M.left} x2={W - M.right} y1={y(0)} y2={y(0)} stroke="#a7b4c5"/>}
             {kind === 'line' ? series.map((s) => (
@@ -156,6 +156,11 @@ export function TrendChart({title, basis, history, series, unit, kind}: Props) {
                 {plot}
             </div>
             <figcaption className="desk-help desk-trend-basis">{basis}</figcaption>
+            {unit === 'money' && (
+                <p className="desk-help desk-trend-currency">
+                    {history.currency ? `Para birimi: ${history.currency}` : 'Para birimi bildirilmedi.'}
+                </p>
+            )}
             <details className="desk-trend-details">
                 <summary>Veri tablosu</summary>
                 <div className="desk-trend-table-wrap">

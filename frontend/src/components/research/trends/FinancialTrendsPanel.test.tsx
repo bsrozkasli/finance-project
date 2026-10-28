@@ -91,7 +91,7 @@ describe('FinancialTrendsPanel', () => {
 
     it('shows the reported currency or the missing-currency note', () => {
         const {rerender} = render(<FinancialTrendsPanel {...props}/>);
-        expect(screen.getByText('Para birimi: USD')).toBeInTheDocument();
+        expect(screen.getAllByText('Para birimi: USD').length).toBeGreaterThan(0);
         rerender(<FinancialTrendsPanel {...props} history={history({currency: null})}/>);
         expect(screen.getByText('Para birimi bildirilmedi. Değerler dönüştürülmedi.')).toBeInTheDocument();
     });
