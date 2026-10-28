@@ -1,6 +1,6 @@
 import {Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
 import type {FinancialHistory} from '../../../api/client';
-import {cellState, chartRows, formatCell, hasAnyValue, type MetricKey, type Unit} from './trendModel';
+import {cellState, chartRows, formatCell, type MetricKey, type Unit} from './trendModel';
 
 export type TrendSeries = {key: MetricKey; label: string};
 
@@ -21,13 +21,13 @@ const sortedPoints = (history: FinancialHistory) =>
 
 export function TrendChart({title, basis, history, series, unit, kind}: Props) {
     const points = sortedPoints(history);
-    const visible = series.filter((s) => hasAnyValue(history, s.key));
+    const hasContent = series.some((s) => points.some((p) => cellState(p, s.key) !== 'missing'));
     const cell = (year: number, key: MetricKey) => {
         const p = points.find((x) => x.fiscalYear === year);
         return p ? formatCell(p, key, unit, history.currency) : '—';
     };
 
-    if (visible.length === 0) {
+    if (!hasContent) {
         return (
             <figure className="desk-panel desk-trend">
                 <h3 className="desk-trend-title">{title}</h3>

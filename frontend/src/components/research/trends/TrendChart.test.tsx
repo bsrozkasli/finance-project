@@ -74,6 +74,16 @@ describe('TrendChart', () => {
         expect(screen.queryByRole('table')).toBeNull();
     });
 
+    it('shows a fully not-meaningful series with its table instead of the no-data card', () => {
+        const h = history([
+            point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31', notMeaningful: ['currentRatio']}),
+            point({fiscalYear: 2023, notMeaningful: ['currentRatio']}),
+        ]);
+        render(<TrendChart {...base} history={h} series={[{key: 'currentRatio', label: 'Cari oran'}]}/>);
+        expect(screen.queryByText('Bu gösterge için raporlanan veri yok')).toBeNull();
+        expect(within(screen.getByRole('table')).getAllByText('anlamlı değil')).toHaveLength(2);
+    });
+
     it('renders a single-year history', () => {
         render(<TrendChart {...base} kind="bar" history={history([point({currentRatio: 2})])}
                            series={[{key: 'currentRatio', label: 'Cari oran'}]}/>);

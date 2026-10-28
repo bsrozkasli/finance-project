@@ -81,6 +81,14 @@ describe('FinancialTrendsPanel', () => {
         expect(screen.getAllByText('anlamlı değil').length).toBeGreaterThan(0);
     });
 
+    it('shows not-meaningful D/E cells in the table when every year is not meaningful', () => {
+        render(<FinancialTrendsPanel {...props}/>);
+        const figure = screen.getByRole('heading', {name: 'Borç / özsermaye'}).closest('figure') as HTMLElement;
+        const cells = within(within(figure).getByRole('table')).getAllByRole('cell');
+        expect(cells.map((c) => c.textContent)).toContain('anlamlı değil');
+        expect(within(figure).queryByText('Bu gösterge için raporlanan veri yok')).toBeNull();
+    });
+
     it('shows the reported currency or the missing-currency note', () => {
         const {rerender} = render(<FinancialTrendsPanel {...props}/>);
         expect(screen.getByText('Para birimi: USD')).toBeInTheDocument();
