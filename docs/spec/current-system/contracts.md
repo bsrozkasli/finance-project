@@ -177,6 +177,7 @@ controller contracts change.
 | Analysis | `POST /api/v1/decision-support` | Decision-support report |
 | Agent analysis | `POST /api/v1/agent-analysis` | Metrics-only sequential multi-agent analysis |
 | Research | `GET /api/v1/research/fundamental/{symbol}` | Fundamental analysis |
+| Research | `GET /api/v1/research/financial-history/{symbol}` | Multi-year annual statement history (`FinancialHistoryResponse`: `symbol`, `status`, `currency`, `period_type`, `fiscal_year_ends`, `series`, `retrieved_at`); fiscal years ascending, series aligned to `fiscal_year_ends`, missing values are JSON `null` (never `0`); `EMPTY` is a 200 with empty lists; 503 when every statement read fails |
 | Research | `GET /api/v1/research/valuation/{symbol}` | Valuation metrics including nullable PEG |
 | Research | `GET /api/v1/research/risk/{symbol}` | Risk analytics |
 | Research | `GET /api/v1/research/earnings/{symbol}` | Earnings analysis |
