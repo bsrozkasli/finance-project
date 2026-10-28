@@ -60,6 +60,8 @@ def _valuation_score(val_res) -> tuple[int | None, SectionAvailability]:
     if metrics.valuation_grade is None:
         return None, SectionAvailability.insufficient("valuation_grade_missing")
     grade_str = getattr(metrics.valuation_grade, "value", str(metrics.valuation_grade)).upper()
+    if grade_str == "UNAVAILABLE":
+        return None, SectionAvailability.insufficient("valuation_grade_unavailable")
     for keyword, score in _VALUATION_GRADE_SCORES:
         if keyword in grade_str:
             return score, SectionAvailability.available()

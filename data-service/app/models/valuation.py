@@ -13,6 +13,7 @@ class ValuationGrade(str, Enum):
     FAIR = "Fair"
     EXPENSIVE = "Expensive"
     VERY_EXPENSIVE = "Very Expensive"
+    UNAVAILABLE = "Unavailable"
 
 
 class ValuationMetrics(BaseModel):
@@ -25,7 +26,7 @@ class ValuationMetrics(BaseModel):
     price_to_sales: Optional[float] = None
     dividend_yield: Optional[float] = None
     fcf_yield: Optional[float] = None
-    valuation_grade: ValuationGrade = ValuationGrade.FAIR
+    valuation_grade: ValuationGrade = ValuationGrade.UNAVAILABLE
 
 
 class ValuationResponse(BaseModel):

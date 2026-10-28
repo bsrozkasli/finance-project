@@ -256,9 +256,11 @@ This slice produces no `STALE`, `RATE_LIMITED` or `PENDING_REFRESH`. The Redis
   `pegRatio`, scores it only when present, and leaves PEG `null` when evidence is
   missing. PEG complements rather than replaces earnings quality, leverage, cash
   flow, risk, and other growth evidence.
-- The current aggregate valuation algorithm returns `FAIR` when every ratio is
-  absent. That default is a known semantic gap, not positive fair-value evidence;
-  consumers must inspect the nullable metrics until the contract is corrected.
+- When every valuation ratio is absent, the aggregate valuation grade is
+  `Unavailable` (`ValuationGrade.UNAVAILABLE`), never `Fair`. `ValuationMetrics`
+  defaults to `Unavailable`, and the composite score reports the valuation
+  component as `insufficient` (`valuation_grade_unavailable`) with a `null`
+  score. Decision: `docs/product/decisions/2026-10-28-valuation-unavailable-grade.md`.
 - AI summaries interpret prepared metrics. Deterministic values remain the
   authoritative evidence and are not overwritten by narrative output.
 
