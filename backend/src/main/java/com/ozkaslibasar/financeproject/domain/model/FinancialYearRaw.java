@@ -18,4 +18,15 @@ public record FinancialYearRaw(
         BigDecimal cash,
         BigDecimal currentAssets,
         BigDecimal currentLiabilities) {
+
+    /**
+     * Fiscal-year label for a fiscal-year-end date. 52/53-week companies end their year in the first days
+     * of January (standard convention: Jan 1-7 belongs to the previous fiscal year); every other date uses
+     * its calendar year.
+     */
+    public static int fiscalYearOf(LocalDate fiscalYearEnd) {
+        return fiscalYearEnd.getMonthValue() == 1 && fiscalYearEnd.getDayOfMonth() <= 7
+                ? fiscalYearEnd.getYear() - 1
+                : fiscalYearEnd.getYear();
+    }
 }

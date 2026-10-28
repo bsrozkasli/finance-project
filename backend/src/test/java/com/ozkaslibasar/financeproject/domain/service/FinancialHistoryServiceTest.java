@@ -162,4 +162,35 @@ class FinancialHistoryServiceTest {
         FinancialHistory h = derive(empty(2021), empty(2022), empty(2023));
         assertThat(h.points()).extracting(FinancialHistoryPoint::fiscalYear).containsExactly(2021, 2022, 2023);
     }
+
+    @Test
+    void unavailableSnapshotWithYears_stillYieldsNoPoints() {
+        FinancialHistory h = FinancialHistoryService.derive(new FinancialHistorySnapshot(
+                "AAPL", FinancialHistoryStatus.UNAVAILABLE, null, null,
+                List.of(empty(2022), empty(2023))));
+        assertThat(h.status()).isEqualTo(FinancialHistoryStatus.UNAVAILABLE);
+        assertThat(h.points()).isEmpty();
+    }
+
+    @Test
+    void fiscalYearOf_followsFiftyTwoFiftyThreeWeekConvention() {
+        assertThat(FinancialYearRaw.fiscalYearOf(LocalDate.of(2022, 1, 2))).isEqualTo(2021);
+        assertThat(FinancialYearRaw.fiscalYearOf(LocalDate.of(2023, 1, 1))).isEqualTo(2022);
+        assertThat(FinancialYearRaw.fiscalYearOf(LocalDate.of(2023, 1, 7))).isEqualTo(2022);
+        assertThat(FinancialYearRaw.fiscalYearOf(LocalDate.of(2023, 1, 8))).isEqualTo(2023);
+        assertThat(FinancialYearRaw.fiscalYearOf(LocalDate.of(2023, 12, 31))).isEqualTo(2023);
+        assertThat(FinancialYearRaw.fiscalYearOf(LocalDate.of(2024, 2, 3))).isEqualTo(2024);
+    }
+
+    @Test
+    void dpzStylePair_growthComputedForRealFy2023AgainstFy2022() {
+        FinancialYearRaw fy2022 = new FinancialYearRaw(FinancialYearRaw.fiscalYearOf(LocalDate.of(2023, 1, 1)),
+                LocalDate.of(2023, 1, 1), bd("100"), bd("10"), null, null, null, null, null, null, null, null, null);
+        FinancialYearRaw fy2023 = new FinancialYearRaw(FinancialYearRaw.fiscalYearOf(LocalDate.of(2023, 12, 31)),
+                LocalDate.of(2023, 12, 31), bd("150"), bd("20"), null, null, null, null, null, null, null, null, null);
+        FinancialHistory h = derive(fy2022, fy2023);
+        assertThat(h.points()).extracting(FinancialHistoryPoint::fiscalYear).containsExactly(2022, 2023);
+        assertThat(last(h).revenueGrowth()).isEqualByComparingTo("0.5");
+        assertThat(last(h).netIncomeGrowth()).isEqualByComparingTo("1");
+    }
 }

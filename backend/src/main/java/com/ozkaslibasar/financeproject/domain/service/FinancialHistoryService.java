@@ -3,6 +3,7 @@ package com.ozkaslibasar.financeproject.domain.service;
 import com.ozkaslibasar.financeproject.domain.model.FinancialHistory;
 import com.ozkaslibasar.financeproject.domain.model.FinancialHistoryPoint;
 import com.ozkaslibasar.financeproject.domain.model.FinancialHistorySnapshot;
+import com.ozkaslibasar.financeproject.domain.model.FinancialHistoryStatus;
 import com.ozkaslibasar.financeproject.domain.model.FinancialYearRaw;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialHistoryPort;
 
@@ -32,7 +33,10 @@ public class FinancialHistoryService {
     public static FinancialHistory derive(FinancialHistorySnapshot snapshot) {
         List<FinancialHistoryPoint> points = new ArrayList<>();
         FinancialYearRaw previous = null;
-        for (FinancialYearRaw year : snapshot.years()) {
+        // UNAVAILABLE never carries points, even if a caller supplied years.
+        List<FinancialYearRaw> years = snapshot.status() == FinancialHistoryStatus.UNAVAILABLE
+                ? List.of() : snapshot.years();
+        for (FinancialYearRaw year : years) {
             points.add(toPoint(year, previous));
             previous = year;
         }

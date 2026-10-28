@@ -45,9 +45,9 @@ public class DataServiceFinancialHistoryAdapter implements FinancialHistoryPort 
 
     @Override
     public FinancialHistorySnapshot fetchHistory(String symbol) {
-        String url = dataServiceBaseUrl + "/api/v1/research/financial-history/" + symbol;
+        String url = dataServiceBaseUrl + "/api/v1/research/financial-history/{symbol}";
         try {
-            HistoryResponse response = restTemplate.getForObject(url, HistoryResponse.class);
+            HistoryResponse response = restTemplate.getForObject(url, HistoryResponse.class, symbol);
             if (response == null) {
                 return unavailable(symbol, "empty response");
             }
@@ -71,7 +71,7 @@ public class DataServiceFinancialHistoryAdapter implements FinancialHistoryPort 
         for (int i = 0; i < size; i++) {
             LocalDate end = LocalDate.parse(dates.get(i));
             years.add(new FinancialYearRaw(
-                    end.getYear(), end,
+                    FinancialYearRaw.fiscalYearOf(end), end,
                     value(series, "revenue", i),
                     value(series, "net_income", i),
                     value(series, "operating_cash_flow", i),

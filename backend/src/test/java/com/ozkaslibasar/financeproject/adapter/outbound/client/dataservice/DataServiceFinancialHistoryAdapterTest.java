@@ -74,6 +74,33 @@ class DataServiceFinancialHistoryAdapterTest {
     }
 
     @Test
+    void fiftyTwoFiftyThreeWeekYearEnds_getDistinctFiscalYearLabels() {
+        server.expect(requestTo(URL)).andRespond(withSuccess("""
+                {"status":"AVAILABLE","currency":"USD","period_type":"annual",
+                 "fiscal_year_ends":["2022-01-02","2023-01-01","2023-12-31","2024-02-03"],
+                 "series":{"revenue":[1.0,2.0,3.0,4.0]},
+                 "retrieved_at":"2026-10-28T10:15:30Z"}
+                """, APPLICATION_JSON));
+
+        FinancialHistorySnapshot snap = adapter.fetchHistory("AAPL");
+
+        assertThat(snap.years()).extracting(FinancialYearRaw::fiscalYear)
+                .containsExactly(2021, 2022, 2023, 2024);
+    }
+
+    @Test
+    void reservedCharacterInSymbol_isEncodedAsPathSegment() {
+        server.expect(requestTo("http://data-service.test/api/v1/research/financial-history/A%2FB%3Fx=1"))
+                .andRespond(withSuccess(body("AVAILABLE", "[\"2023-09-30\",\"2024-09-28\"]",
+                        "[1.0,2.0]", ""), APPLICATION_JSON));
+
+        FinancialHistorySnapshot snap = adapter.fetchHistory("A/B?x=1");
+
+        assertThat(snap.status()).isEqualTo(FinancialHistoryStatus.AVAILABLE);
+        server.verify();
+    }
+
+    @Test
     void jsonNullStaysNull() {
         server.expect(requestTo(URL))
                 .andRespond(withSuccess(body("PARTIAL", "[\"2023-09-30\",\"2024-09-28\"]",
