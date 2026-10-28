@@ -262,6 +262,23 @@ This slice produces no `STALE`, `RATE_LIMITED` or `PENDING_REFRESH`. The Redis
 - AI summaries interpret prepared metrics. Deterministic values remain the
   authoritative evidence and are not overwritten by narrative output.
 
+### Multi-year financial history
+
+- `FinancialHistoryService` derives ratios in `BigDecimal` from annual statement values at
+  fiscal-year end (year-end basis, no averaging). Ratios use scale 6, `HALF_UP`. A fiscal year is
+  labelled by the calendar year of its fiscal-year end; points ascend by fiscal year.
+- Formulas: `freeCashFlow = operatingCashFlow - capitalExpenditure`; `netDebt = totalDebt - cash`;
+  `debtToEquity = totalDebt / totalEquity`; `currentRatio = currentAssets / currentLiabilities`;
+  `roe = netIncome / totalEquity`; `roa = netIncome / totalAssets`; `netMargin = netIncome / revenue`;
+  `fcfMargin = freeCashFlow / revenue`; `revenueGrowth = (revenue - prevRevenue) / prevRevenue`;
+  `netIncomeGrowth = (netIncome - prevNetIncome) / prevNetIncome`.
+- Units: `debtToEquity` and `currentRatio` are plain ratios (1.5 = 1.5x); `roe`, `roa`, `netMargin`,
+  `fcfMargin`, `revenueGrowth` and `netIncomeGrowth` are fractions (0.25 = 25 %).
+- Missing versus not meaningful: a null input yields a null result that is not listed in
+  `notMeaningful`. A non-positive denominator (equity, liabilities, assets, revenue, or previous
+  growth base) yields null and lists the ratio field name in `notMeaningful`. Growth is null
+  (and not listed) when the previous point is not exactly `fiscalYear - 1`.
+
 ## Persistence Ownership
 
 ### Flyway-managed schema

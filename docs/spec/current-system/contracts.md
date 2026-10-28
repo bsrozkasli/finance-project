@@ -82,6 +82,7 @@ Every path below is relative to `/api/v1`.
 | Fundamentals | `GET /fundamentals/{symbol}/earnings?periods=` | Earnings history |
 | Fundamentals | `GET /fundamentals/{symbol}/insider` | Insider activity |
 | Fundamentals | `GET /fundamentals/{symbol}/institutional` | Institutional ownership/scores |
+| Fundamentals | `GET /fundamentals/{symbol}/history` | Multi-year annual financial history (`FinancialHistoryResponse`: `symbol`, `status` `AVAILABLE`/`PARTIAL`/`EMPTY`/`UNAVAILABLE`, `currency`, `periodType` fixed `annual`, `retrievedAt`, `points`); always HTTP 200, the business state is in `status`; `points` ascend by `fiscalYear`; each point has `fiscalYear`, `fiscalYearEnd` (ISO date string), `revenue`, `netIncome`, `operatingCashFlow`, `capitalExpenditure`, `freeCashFlow`, `totalAssets`, `totalLiabilities`, `totalEquity`, `totalDebt`, `cash`, `netDebt`, `debtToEquity`, `currentRatio`, `roe`, `roa`, `netMargin`, `fcfMargin`, `revenueGrowth`, `netIncomeGrowth` (all nullable numbers, `null` never `0`) and `notMeaningful` (array of ratio field names whose denominator was not positive; always present) |
 | News | `GET /news?category=&page=&size=&symbols=` | Categorized news page |
 | News | `GET /news/portfolio` | Portfolio-related news |
 | News | `GET /news/macro` | Macro news |
