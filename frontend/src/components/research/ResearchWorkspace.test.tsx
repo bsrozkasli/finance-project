@@ -23,6 +23,7 @@ beforeEach(() => server.use(
         freeCashFlow: []
     })),
     http.get(`${base}/fundamentals/:symbol/ratios`, () => HttpResponse.json({pe: null})),
+    http.get(`${base}/fundamentals/:symbol/history`, ({params}) => HttpResponse.json({symbol: params.symbol, status: 'EMPTY', currency: null, periodType: 'annual', retrievedAt: null, points: []})),
     http.get(`${base}/news/:symbol`, () => HttpResponse.json([])),
 ));
 const desk = (symbol = 'AAA') => <MemoryRouter><ResearchWorkspace {...props} symbol={symbol}/></MemoryRouter>;

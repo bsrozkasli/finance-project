@@ -29,6 +29,7 @@ import {
   fetchEconomicEvents,
   fetchEnrichedPositions,
   fetchFinancialRatios,
+  fetchFinancialHistory,
   fetchFundamentals,
   fetchInsiderActivity,
   fetchInstitutionalOwnership,
@@ -340,6 +341,9 @@ describe('api client contract', () => {
       respondJson('GET', '/fundamentals/AAPL/institutional', institutional),
     );
 
+    const history = { symbol: 'AAPL', status: 'AVAILABLE', currency: 'USD', periodType: 'annual', retrievedAt: null, points: [] };
+    server.use(respondJson('GET', '/fundamentals/AAPL/history', history));
+    await expect(fetchFinancialHistory('AAPL')).resolves.toEqual(history);
     await expect(fetchFundamentals('AAPL')).resolves.toEqual(fundamentals);
     await expect(fetchFinancialRatios('AAPL')).resolves.toEqual(ratios);
     await expect(fetchEarnings('AAPL', 4)).resolves.toEqual(earnings);

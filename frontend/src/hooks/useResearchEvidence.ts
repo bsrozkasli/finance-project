@@ -1,17 +1,18 @@
 import {useEffect, useState} from 'react';
-import {fetchFinancialRatios, fetchFundamentals, fetchNews} from '../api/client';
-import type {FinancialRatios, FundamentalsData, NewsItem} from '../api/client';
+import {fetchFinancialHistory, fetchFinancialRatios, fetchFundamentals, fetchNews} from '../api/client';
+import type {FinancialHistory, FinancialRatios, FundamentalsData, NewsItem} from '../api/client';
 
 interface Evidence {
     symbol: string | null;
     fundamentals: FundamentalsData | null;
     ratios: FinancialRatios | null;
+    history: FinancialHistory | null;
     news: NewsItem[];
     loading: boolean;
     failed: string[];
 }
 
-const empty: Evidence = {symbol: null, fundamentals: null, ratios: null, news: [], loading: false, failed: []};
+const empty: Evidence = {symbol: null, fundamentals: null, ratios: null, history: null, news: [], loading: false, failed: []};
 
 export function useResearchEvidence(symbol: string | null, isFund: boolean) {
     const [state, setState] = useState<Evidence>(empty);
@@ -22,15 +23,17 @@ export function useResearchEvidence(symbol: string | null, isFund: boolean) {
             isFund ? Promise.resolve(null) : fetchFundamentals(symbol),
             isFund ? Promise.resolve(null) : fetchFinancialRatios(symbol),
             fetchNews(symbol),
-        ]).then(([financials, ratios, news]) => {
+            isFund ? Promise.resolve(null) : fetchFinancialHistory(symbol),
+        ]).then(([financials, ratios, news, history]) => {
             if (cancelled) return;
             setState({
                 symbol,
                 fundamentals: financials.status === 'fulfilled' ? financials.value : null,
                 ratios: ratios.status === 'fulfilled' ? ratios.value : null,
+                history: history.status === 'fulfilled' ? history.value : null,
                 news: news.status === 'fulfilled' && Array.isArray(news.value) ? news.value : [],
                 loading: false,
-                failed: [financials.status === 'rejected' ? 'Finansallar' : '', ratios.status === 'rejected' ? 'Oranlar' : '', news.status === 'rejected' ? 'Haberler' : ''].filter(Boolean),
+                failed: [financials.status === 'rejected' ? 'Finansallar' : '', ratios.status === 'rejected' ? 'Oranlar' : '', news.status === 'rejected' ? 'Haberler' : '', history.status === 'rejected' ? 'Finansal geçmiş' : ''].filter(Boolean),
             });
         });
         return () => {
