@@ -266,7 +266,9 @@ This slice produces no `STALE`, `RATE_LIMITED` or `PENDING_REFRESH`. The Redis
 
 - `FinancialHistoryService` derives ratios in `BigDecimal` from annual statement values at
   fiscal-year end (year-end basis, no averaging). Ratios use scale 6, `HALF_UP`. A fiscal year is
-  labelled by the calendar year of its fiscal-year end; points ascend by fiscal year.
+  labelled by the calendar year of its fiscal-year end, except that an end falling on January 1-7 belongs to
+  the previous fiscal year (52/53-week convention); points ascend by fiscal-year end and the UI identifies them by
+  `fiscalYearEnd`.
 - Formulas: `freeCashFlow = operatingCashFlow - capitalExpenditure`; `netDebt = totalDebt - cash`;
   `debtToEquity = totalDebt / totalEquity`; `currentRatio = currentAssets / currentLiabilities`;
   `roe = netIncome / totalEquity`; `roa = netIncome / totalAssets`; `netMargin = netIncome / revenue`;
