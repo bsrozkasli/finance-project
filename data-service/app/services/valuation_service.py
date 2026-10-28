@@ -244,7 +244,8 @@ class ValuationService:
             total_weight += weight
 
         if total_weight == 0:
-            return ValuationGrade.FAIR
+            # No scoreable evidence: never fabricate a FAIR grade.
+            return ValuationGrade.UNAVAILABLE
 
         avg = weighted_sum / total_weight
 
