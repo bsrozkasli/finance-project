@@ -5,6 +5,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetDetailDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialHistoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
@@ -25,6 +26,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
 import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
+import com.ozkaslibasar.financeproject.domain.service.FinancialHistoryService;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
@@ -161,5 +163,10 @@ public class DomainConfig {
             SmartReportScorePort smartReportScorePort,
             SmartReportMarketDataPort smartReportMarketDataPort) {
         return new SmartReportUseCase(smartReportScorePort, smartReportMarketDataPort);
+    }
+
+    @Bean
+    public FinancialHistoryService financialHistoryService(FinancialHistoryPort financialHistoryPort) {
+        return new FinancialHistoryService(financialHistoryPort);
     }
 }
