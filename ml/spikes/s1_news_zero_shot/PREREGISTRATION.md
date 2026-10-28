@@ -101,7 +101,73 @@ Aggregate evidence only: `docs/product/evidence/s1-news-zero-shot-recommendation
 with counts, metrics, CIs, confusion matrices, model ids and pinned revisions with
 license decisions, and the recommendation.
 
+## Amendment 1 (2026-10-23) — public labelled sets replace owner labels
+
+The owner declined headline labelling (D-5). The sections above stay as written. They
+describe the owner-labelled design, which was never run: no headline was labelled and no
+prediction exists. From here on, this amendment governs. It is committed before any
+prediction on the public sets.
+
+**Question narrowed.** Do the approved pretrained models classify public, labelled finance
+news tweets by event type and tone well enough without training? This is a proxy. It does
+not measure our Finnhub headlines, so a positive result is weaker evidence than the original
+design would have given.
+
+**Data.** Only the validation splits are used, in full, with no sampling. Revisions are
+pinned in `public_benchmark.DATASETS`.
+
+| Head | Dataset | Revision | Split | License |
+|---|---|---|---|---|
+| `event_type` | `zeroshot/twitter-financial-news-topic` | `acbc8af2a35ccf0916124efcbe9e6cf25f191012` | `topic_valid.csv` (4117 rows) | MIT |
+| `tone` | `zeroshot/twitter-financial-news-sentiment` | `ccbe24de388e287beb92dd393a335c376b350ac3` | `sent_valid.csv` (2388 rows) | MIT |
+
+The tweets were collected through the Twitter API. The MIT dataset license may not settle
+rights in the underlying tweet text, so the data stays local under `ml/datasets/s1/public/`,
+is never committed, and is never used for training.
+
+**Contamination check.** In the model author's training-data list
+(`MoritzLaurer/zeroshot-classifier`, `v1_human_data/datasets_overview.csv`), both datasets
+are marked `used_in_v1.1 = FALSE`. Financial PhraseBank is marked `TRUE` and is also FinBERT's
+training set, so it is not used.
+
+**Preprocessing.** Remove every `http(s)://` token and collapse whitespace. Drop rows that are
+empty afterwards. Deduplicate by normalized text, keeping the first row.
+
+**Mapping.** Implemented in `public_benchmark.TOPIC_TO_EVENT` and `SENTIMENT_TO_TONE`.
+
+| Source label | S1 label |
+|---|---|
+| Analyst Update | `analyst_action` |
+| Company \| Product News | `product_operations` |
+| Dividend; IPO | `capital_return_financing` |
+| Earnings | `earnings` |
+| Legal \| Regulation | `litigation_regulatory` |
+| M&A \| Investments | `m_and_a` |
+| Fed \| Central Banks; Energy \| Oil; Currencies; Gold \| Metals \| Materials; Macro; Markets; Politics | `macro_sector` |
+| General News \| Opinion; Personnel Change; Stock Commentary; Stock Movement | `other` |
+| Treasuries \| Corporate Debt; Financials | excluded: each mixes two S1 event types |
+| Bearish / Neutral / Bullish | `negative` / `neutral` / `positive` |
+
+`guidance` has no source class. It reaches no support and is shown only in the confusion matrix.
+
+**Models and hypotheses.** These are unchanged: the approved entries in `models.lock.json` and the
+hypotheses above. Each model runs only on the heads it has that a public set measures.
+
+**Metrics.** These are unchanged: macro-F1 over labels with support ≥ 10, a 95% bootstrap CI, and the
+full confusion matrix. Materiality has no public label and is reported as `not_measured`.
+Intra-rater kappa does not apply. The source datasets do not document their annotation
+process, and this is reported as a limitation.
+
+**Decision rule (replaces the rule above).**
+
+1. `approach_not_viable` if fewer than 5 event types reach the support floor.
+2. Otherwise `zero_shot_adequate` if best event macro-F1 ≥ 0.70 **and** best tone macro-F1 ≥ 0.70.
+3. Otherwise `fine_tune_needed`.
+
+Whatever the result, materiality remains unvalidated, and any Phase 2 C3 plan must say so.
+
 ## Change log
 
 | Date | Change | Reason |
 |---|---|---|
+| 2026-10-23 | Amendment 1: public labelled sets replace owner labels; materiality and kappa dropped; decision rule narrowed to event type and tone | Owner declined labelling (D-5) and chose a public labelled benchmark; recorded before any prediction |
