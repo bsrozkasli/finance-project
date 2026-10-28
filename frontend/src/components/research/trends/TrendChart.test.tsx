@@ -1,7 +1,7 @@
 import {render, screen, within} from '@testing-library/react';
 import {describe, expect, it} from 'vitest';
 import type {FinancialHistory, FinancialHistoryPoint} from '../../../api/client';
-import {TrendChart} from './TrendChart';
+import {FONT, TrendChart, VIEWBOX_WIDTH} from './TrendChart';
 
 const point = (overrides: Partial<FinancialHistoryPoint> = {}): FinancialHistoryPoint => ({
     fiscalYear: 2023,
@@ -100,6 +100,17 @@ describe('TrendChart', () => {
     });
 
     describe('svg drawing', () => {
+        it('keeps rendered text at least 12px at the narrowest realistic plot width', () => {
+            // Worst case: a 360px viewport leaves roughly 300px of plot width inside the padded, bordered figure.
+            const WORST_CASE_PLOT_WIDTH = 300;
+            expect(FONT * WORST_CASE_PLOT_WIDTH / VIEWBOX_WIDTH).toBeGreaterThanOrEqual(12);
+            const {container} = render(<TrendChart {...base} history={history([point({currentRatio: 2})])}
+                                                   series={[{key: 'currentRatio', label: 'Cari oran'}]}/>);
+            const svg = container.querySelector('svg') as SVGElement;
+            expect(svg.getAttribute('viewBox')).toBe(`0 0 ${VIEWBOX_WIDTH} 240`);
+            expect(svg.getAttribute('font-size')).toBe(String(FONT));
+        });
+
         const cr = [{key: 'currentRatio' as const, label: 'Cari oran'}];
         const three = (mid: number | null) => history([
             point({fiscalYear: 2022, fiscalYearEnd: '2022-12-31', currentRatio: 1.2}),

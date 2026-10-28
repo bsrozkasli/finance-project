@@ -13,10 +13,11 @@ type Props = {
 };
 
 const COLORS = ['#7fa6ff', '#61bdb8', '#e8a54b', '#c792ea'];
-const W = 360;
+export const VIEWBOX_WIDTH = 320;
+const W = VIEWBOX_WIDTH;
 const H = 240;
-const FONT = 14;
-const M = {top: 12, right: 10, bottom: 30, left: 74};
+export const FONT = 14;
+const M = {top: 12, right: 10, bottom: 30, left: 84};
 const PLOT_W = W - M.left - M.right;
 const PLOT_H = H - M.top - M.bottom;
 
