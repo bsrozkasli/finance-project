@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { CalendarEvent, News, Portfolio, Stock } from '../types';
 import { API_BASE_URL as API_BASE } from '../api/config';
 import { server } from '../test/server';
+import { redesignFixtureHandlers } from '../test/redesignHandlers';
 import DashboardHome from './DashboardHome';
 
 
@@ -258,5 +259,70 @@ describe('DashboardHome portfolio return comparison', () => {
     await waitFor(() => {
       expect(benchmarkQueries).toContain('SP500,GOLD');
     });
+  });
+});
+
+describe('DashboardHome v2 analytic panels', () => {
+  it('shows "Veri alınamadı" for unimplemented panels and never invents numbers', async () => {
+    installPositionPerformanceHandler();
+    renderDashboard();
+
+    await waitFor(() => expect(screen.getAllByText('Veri alınamadı').length).toBeGreaterThanOrEqual(8));
+    expect(screen.getByRole('region', { name: 'Getiri ısı haritası' })).toHaveTextContent('Veri alınamadı');
+    expect(screen.getByRole('region', { name: 'Pozisyon dağılımının zaman içindeki değişimi' })).toHaveTextContent('Veri alınamadı');
+    expect(screen.queryByRole('img', { name: /halka grafiği/ })).not.toBeInTheDocument();
+  });
+
+  it('renders every panel from valid fixtures with accessible chart equivalents', async () => {
+    server.use(...redesignFixtureHandlers());
+    installPositionPerformanceHandler();
+    const onSelectStock = vi.fn();
+    render(
+      <DashboardHome
+        stocks={[stock('HS1', 60)]}
+        portfolios={portfolios}
+        activePortfolioId="1"
+        onSelectPortfolioId={vi.fn()}
+        onSelectStock={onSelectStock}
+        onOpenTradingJournal={vi.fn()}
+        onNavigateToNews={vi.fn()}
+        news={[]}
+        calendarEvents={[]}
+      />,
+    );
+
+    const heatmap = await screen.findByRole('region', { name: 'Getiri ısı haritası' });
+    await waitFor(() => expect(heatmap).toHaveTextContent('+10,00%'));
+    expect(heatmap).toHaveTextContent('1G');
+
+    expect(await screen.findByRole('button', { name: 'Test Portföy portföyünü seç' })).toBeInTheDocument();
+    expect(await screen.findByText('Gerçekleşen K/Z (YBB)')).toBeInTheDocument();
+    expect(await screen.findByText('Test karar toplantısı')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Merkez bankası' })).toHaveAttribute('aria-pressed', 'false');
+    expect(await screen.findByRole('img', { name: /halka grafiği/ })).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: /yığılmış alan grafiği/ })).toBeInTheDocument();
+    expect(screen.getByText('Veri tablosunu göster')).toBeInTheDocument();
+
+    const positions = await screen.findByRole('region', { name: 'Pozisyonlar ve ağırlıklar' });
+    await waitFor(() => expect(positions).toHaveTextContent('Test Sektör'));
+    await userEvent.click(screen.getAllByRole('button', { name: 'HS1' })[0]);
+    expect(onSelectStock).toHaveBeenCalledTimes(1);
+  });
+
+  it('toggles the calendar filter and requests the category', async () => {
+    const categories: Array<string | null> = [];
+    server.use(
+      http.get(`${API_BASE}/calendar/events`, ({ request }) => {
+        categories.push(new URL(request.url).searchParams.get('category'));
+        return HttpResponse.json({ status: 'EMPTY', asOf: '2026-07-09T09:00:00Z', items: [] });
+      }),
+      ...redesignFixtureHandlers(),
+    );
+    installPositionPerformanceHandler();
+    renderDashboard();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Bilanço' }));
+    await waitFor(() => expect(categories).toContain('EARNINGS'));
+    expect(await screen.findByText('Bu filtre için yaklaşan olay yok')).toBeInTheDocument();
   });
 });

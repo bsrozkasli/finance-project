@@ -1,18 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Briefcase, HelpCircle, LayoutList, Search, Settings, SlidersHorizontal, House } from 'lucide-react';
+import { HelpCircle, Settings, SlidersHorizontal } from 'lucide-react';
+import { NAV_GROUPS, matchesPath } from './shell/navigation';
 
 interface LeftNavProps {
   onOpenSettings: () => void;
   onOpenManageAssets: () => void;
 }
-
-const items = [
-  { path: '/dashboard', label: 'Bugün', icon: House, matches: ['/dashboard'] },
-  { path: '/workspace', label: 'Araştır', icon: Search, matches: ['/workspace', '/news', '/reports'] },
-  { path: '/watchlist', label: 'İzleme Listem', icon: LayoutList, matches: ['/watchlist'] },
-  { path: '/portfolio', label: 'Portföy', icon: Briefcase, matches: ['/portfolio'] },
-  { path: '/journal', label: 'Günlük', icon: BookOpen, matches: ['/journal', '/transactions'] },
-];
 
 export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavProps) {
   const { pathname } = useLocation();
@@ -21,21 +14,23 @@ export default function LeftNav({ onOpenSettings, onOpenManageAssets }: LeftNavP
       <div>
         <Link to="/dashboard" className="desk-brand" aria-label="Mercek ana sayfa"><span aria-hidden="true">m</span>mercek<span className="desk-brand-dot">.</span></Link>
         <div className="desk-nav-caption">YATIRIM ARAŞTIRMA ALANI</div>
-        <nav className="flex md:flex-col md:gap-1" aria-label="Ana menü">
-          {items.map(({ path, label, icon: Icon, matches }) => {
-            const active = matches.some((match) => pathname === match || pathname.startsWith(`${match}/`));
-            return (
-              <Link
-                key={path}
-                to={path}
-                aria-current={active ? 'page' : undefined}
-                className="desk-nav-item"
-              >
-                <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
-                <span>{label}</span>
-              </Link>
-            );
-          })}
+        <nav className="desk-nav" aria-label="Ana menü">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} role="group" aria-label={group.label} className="desk-nav-group">
+              <div className="desk-nav-group-label" aria-hidden="true">{group.label}</div>
+              {group.items.map(({ path, label, icon: Icon }) => (
+                <Link
+                  key={path}
+                  to={path}
+                  aria-current={matchesPath(pathname, path) ? 'page' : undefined}
+                  className="desk-nav-item"
+                >
+                  <Icon className="w-5 h-5 shrink-0" aria-hidden="true" />
+                  <span>{label}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
         </nav>
       </div>
       <div className="desk-sidebar-tools">

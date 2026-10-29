@@ -24,6 +24,7 @@ beforeEach(() => server.use(
     })),
     http.get(`${base}/fundamentals/:symbol/ratios`, () => HttpResponse.json({pe: null})),
     http.get(`${base}/news/:symbol`, () => HttpResponse.json([])),
+    http.get(`${base}/assets/:symbol/detail`, () => HttpResponse.json({symbol: 'AAA', generatedAt: 'x', profile: {status: 'EMPTY', source: 's', data: null, message: null, observedAt: 'x'}, market: {status: 'EMPTY', source: 's', data: null, message: null, observedAt: 'x'}})),
 ));
 const desk = (symbol = 'AAA') => <MemoryRouter><ResearchWorkspace {...props} symbol={symbol}/></MemoryRouter>;
 

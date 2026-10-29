@@ -9,6 +9,9 @@ import {metric} from './formatResearchMetric';
 import {assetTypeLabel} from '../../utils/formatters';
 import ResearchSources from './ResearchSources';
 import ResearchHistoryChart from './ResearchHistoryChart';
+import CompanyHeaderStats from '../company/CompanyHeaderStats';
+
+const CompanyAnalysisSection = lazy(() => import('../company/CompanyAnalysisSection'));
 
 const ChartWorkspace = lazy(() => import('../ChartWorkspace'));
 const ResearchAgentReport = lazy(() => import('./ResearchAgentReport'));
@@ -123,7 +126,7 @@ export default function ResearchWorkspace({
                         }}>{watched ? <Check size={16}/> : <Plus
                     size={16}/ >}{watched ? 'İzleme listemde' : adding ? 'Ekleniyor…' : 'İzleme listesine ekle'}</button>}<Link
                     className="desk-link" to="/journal">Günlüğe geç <ArrowUpRight size={16}/></Link></div></div>
-            {onAddToWatchlist&&watchlists.length===0&&<p className="desk-help">Eklemek için önce <Link to="/watchlist" className="desk-link">bir izleme listesi oluştur</Link>.</p>}{message &&
+            {effectiveSymbol && <CompanyHeaderStats symbol={effectiveSymbol}/>}{onAddToWatchlist&&watchlists.length===0&&<p className="desk-help">Eklemek için önce <Link to="/watchlist" className="desk-link">bir izleme listesi oluştur</Link>.</p>}{message &&
                 <p role="status" className="desk-notice">{message}</p>}
                 <div className="desk-tabs" role="tablist" aria-label="Araştırma bölümleri"
                      ref={strip}>{tabs.map(([key, label], index) => <button role="tab" key={key}
@@ -227,6 +230,7 @@ export default function ResearchWorkspace({
                                                             <p>{item.summary}</p></article>)}</section> : <Suspense
                                                 fallback={<p role="status">Rapor yükleniyor…</p>}><ResearchAgentReport
                                                 symbol={effectiveSymbol}/></Suspense>}
+                        {effectiveSymbol && tab === 'overview' && <Suspense fallback={<p role="status">Şirket analizi yükleniyor…</p>}><CompanyAnalysisSection symbol={effectiveSymbol}/></Suspense>}
                         {evidence.failed.map(name => <p className="desk-help desk-section-link"
                                                         key={name}>{name} kullanılamıyor; diğer bölümlerdeki kanıtlar
                             korunur.</p>)}

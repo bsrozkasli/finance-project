@@ -2,6 +2,10 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import type { News } from '../types';
+import { http, HttpResponse } from 'msw';
+import { API_BASE_URL } from '../api/config';
+import { server } from '../test/server';
+import { fixtureNewsItems, fixturePortfolioNewsImpact, fixtureSectorImpact, fixtureTopics } from '../test/redesignFixtures';
 import NewsFeedView from './NewsFeedView';
 
 const newsItem = (overrides: Partial<News>): News => ({
@@ -54,5 +58,42 @@ describe('NewsFeedView', () => {
 
     expect(screen.getByText('Veri yok: aramayla eşleşen haber bulunamadı.')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Akıştaki kaynaklar' })).toHaveTextContent('Test Wire');
+  });
+});
+
+describe('NewsFeedView redesign panels', () => {
+  it('renders API items with impact badge only when level is provided', async () => {
+    const get = (path: string, body: unknown) => http.get(`${API_BASE_URL}${path}`, () => HttpResponse.json(body as Record<string, unknown>));
+    server.use(
+      get('/news/items', {
+        ...fixtureNewsItems,
+        total: 2,
+        counts: { MACRO: 2 },
+        items: [
+          { ...fixtureNewsItems.items[0], id: 'a', title: 'Etkili haber', impact: { level: 'HIGH', source: 'RULE', classifierVersion: 'v1' }, affected: [{ symbol: 'THYAO', direction: 'POSITIVE', inPortfolio: true }] },
+          { ...fixtureNewsItems.items[0], id: 'b', title: 'Etkisiz haber' },
+        ],
+      }),
+      get('/news/topics', fixtureTopics),
+      get('/news/sector-impact', fixtureSectorImpact),
+      get('/news/portfolio-impact', fixturePortfolioNewsImpact),
+    );
+    render(<NewsFeedView activePortfolio={null} news={[newsItem({})]} />);
+
+    expect(await screen.findByText('Etkili haber')).toBeInTheDocument();
+    expect(screen.getByText('Etki: Yüksek · Kural')).toBeInTheDocument();
+    expect(screen.getAllByText(/^Etki: /).filter((node) => node.tagName === 'SPAN')).toHaveLength(1);
+    expect(screen.getByText(/THYAO/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Makro (2)' })).toBeInTheDocument();
+    expect(await screen.findByText('faiz')).toBeInTheDocument();
+    expect(await screen.findByText('Test Sektör')).toBeInTheDocument();
+    expect(await screen.findByText('HS1')).toBeInTheDocument();
+  });
+
+  it('keeps the existing feed and shows unavailable side panels by default', async () => {
+    render(<NewsFeedView activePortfolio={null} news={[newsItem({})]} />);
+    expect(screen.getByText('Breadth improves')).toBeInTheDocument();
+    expect((await screen.findAllByText('Veri alınamadı')).length).toBeGreaterThanOrEqual(3);
+    expect(screen.getByText('Breadth improves')).toBeInTheDocument();
   });
 });
