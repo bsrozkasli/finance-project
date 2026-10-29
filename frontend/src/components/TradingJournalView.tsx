@@ -15,6 +15,10 @@ import {
 import { createPortfolioTransaction } from '../api/client';
 import type { Portfolio, Stock } from '../types';
 import { useJournalTrades } from '../hooks/useJournalTrades';
+import BulkTextPanel from './transactions/BulkTextPanel';
+import DecisionJournal from './transactions/DecisionJournal';
+import ImportPanel from './transactions/ImportPanel';
+import RecentAdditions from './transactions/RecentAdditions';
 import PriceFreshness from './PriceFreshness';
 
 interface TradingJournalViewProps {
@@ -25,6 +29,13 @@ interface TradingJournalViewProps {
 
 type TradeSide = 'BUY' | 'SELL';
 type EntryMode = 'AMOUNT' | 'QUANTITY';
+type InputMode = 'QUICK' | 'TEXT' | 'IMPORT';
+
+const INPUT_MODES: { value: InputMode; label: string }[] = [
+  { value: 'QUICK', label: 'Hızlı form' },
+  { value: 'TEXT', label: 'Toplu metin' },
+  { value: 'IMPORT', label: 'CSV / ekstre' },
+];
 
 const asNumber = (value: string): number | undefined => {
   if (!value.trim()) return undefined;
@@ -70,6 +81,9 @@ export default function TradingJournalView({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteCandidateId, setDeleteCandidateId] = useState<number | null>(null);
+  const [inputMode, setInputMode] = useState<InputMode>('QUICK');
+  const [refreshKey, setRefreshKey] = useState(0);
+  const bumpRefresh = () => setRefreshKey((key) => key + 1);
 
   const normalizedSymbol = symbolInput.trim().toUpperCase();
   const stockBySymbol = useMemo(() => new Map(stocks.map((stock) => [stock.symbol, stock])), [stocks]);
@@ -183,6 +197,7 @@ export default function TradingJournalView({
       setAmountInput('');
       setQuantityInput('');
       void reload();
+      bumpRefresh();
     } catch (err) {
       console.error('Failed to save journal trade', err);
       setFormError('İşlem kaydedilemedi. Seçili portföyü ve sembolü kontrol edip tekrar deneyin.');
@@ -207,7 +222,7 @@ export default function TradingJournalView({
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">İşlem kayıtları</div>
-          <h2 className="mt-1 font-headline text-2xl font-bold tracking-tight text-text-primary">İşlem günlüğü</h2>
+          <h2 className="mt-1 font-headline text-2xl font-bold tracking-tight text-text-primary">İşlem Ekle</h2>
           <p className="mt-1 max-w-2xl text-sm text-text-secondary">
             İşlemleri günlüğe kaydedin veya portföy defterine bağlayın; miktar ve maliyet kayıtlı işlemlerden hesaplanır.
           </p>
@@ -248,6 +263,28 @@ export default function TradingJournalView({
             </span>
           </div>
 
+          <div role="group" aria-label="Giriş yöntemi" className="mb-4 grid grid-cols-3 gap-2">
+            {INPUT_MODES.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={inputMode === option.value}
+                onClick={() => setInputMode(option.value)}
+                className={`min-h-11 rounded-md border px-2 text-sm font-bold ${inputMode === option.value ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+
+          {inputMode === 'TEXT' ? (
+            <BulkTextPanel portfolios={portfolios} portfolioNames={portfolioNameById} onSaved={() => { bumpRefresh(); void reload(); }} />
+          ) : null}
+          {inputMode === 'IMPORT' ? (
+            <ImportPanel portfolios={portfolios} portfolioNames={portfolioNameById} onChanged={() => { bumpRefresh(); void reload(); }} />
+          ) : null}
+
+          {inputMode === 'QUICK' ? (
           <form onSubmit={handleSubmit} className="space-y-4 text-sm">
             <div>
               <label className="mb-1 block text-xs font-label-caps uppercase tracking-wide text-text-muted">Sembol</label>
@@ -365,12 +402,13 @@ export default function TradingJournalView({
             <button
               type="submit"
               disabled={saving}
-              className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-bg-base  disabled:opacity-60"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-bold text-bg-base  disabled:opacity-60"
             >
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {saving ? 'Kaydediliyor…' : canLinkPortfolio ? 'Portföy defterine kaydet' : 'Günlüğe kaydet'}
             </button>
           </form>
+          ) : null}
         </section>
 
         <section className="min-w-0 rounded-md border border-outline-variant bg-bg-card p-4 ">
@@ -511,6 +549,11 @@ export default function TradingJournalView({
           </div>
         </section>
       </div>
+
+      <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-2">
+        <RecentAdditions refreshKey={refreshKey} onUndone={() => { bumpRefresh(); void reload(); }} />
+        <DecisionJournal refreshKey={refreshKey} />
+      </div>
     </div>
   );
 }
@@ -533,7 +576,7 @@ function SideButton({ active, tone, onClick, children }: { active: boolean; tone
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md border py-2 font-bold ${active ? activeClass : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
+      className={`min-h-11 rounded-md border py-2 font-bold ${active ? activeClass : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
     >
       {children}
     </button>
@@ -545,7 +588,7 @@ function ModeButton({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md border py-2 font-bold ${active ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
+      className={`min-h-11 rounded-md border py-2 font-bold ${active ? 'border-primary bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary hover:text-text-primary'}`}
     >
       {children}
     </button>

@@ -15,6 +15,9 @@ import { fetchPortfolioPositionsPerformance, fetchPortfolioTransactions } from '
 import type { PriceStatus } from '../api/types';
 import PriceFreshness, { PricingStatusNote } from './PriceFreshness';
 
+const PortfolioCards = lazy(() => import('./portfolio/PortfolioCards'));
+const PortfolioPanels = lazy(() => import('./portfolio/PortfolioPanels'));
+
 interface PortfolioManagerViewProps {
   stocks: Stock[];
   portfolios: Portfolio[];
@@ -504,6 +507,9 @@ export default function PortfolioManagerView({
     : null;
   return (
     <div className="flex-1 overflow-y-auto bg-bg-primary p-4 md:p-6 space-y-6">
+      <Suspense fallback={null}>
+        <PortfolioCards activePortfolioId={activeInvestmentPortfolioId} onSelect={(id) => onSelectPortfolioId(String(id))} />
+      </Suspense>
       <section className="bg-bg-card border border-outline-variant rounded-md overflow-hidden ">
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_560px] gap-6 p-5 md:p-6 items-center">
           <div className="flex items-center gap-8">
@@ -610,6 +616,11 @@ export default function PortfolioManagerView({
         <MetricCard label="En büyük ağırlık" value={healthMetrics.largest ? `${healthMetrics.largest.symbol} ${healthMetrics.largest.weight.toFixed(1)}%` : '-'} tone={portfolioSummary.largestWeight > 25 ? 'warning' : 'neutral'} />
       </section>
 
+      {activeInvestmentPortfolioId !== undefined && (
+        <Suspense fallback={null}>
+          <PortfolioPanels portfolioId={activeInvestmentPortfolioId} />
+        </Suspense>
+      )}
 
       <section className="bg-bg-card border border-outline-variant rounded-md p-6 ">
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

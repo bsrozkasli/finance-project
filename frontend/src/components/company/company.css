@@ -1,0 +1,29 @@
+.company-analysis{display:grid;gap:16px;margin-top:16px}
+.company-grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+.company-panel-body{padding:0 20px 18px;display:grid;gap:12px}
+.company-panel .desk-segment{flex-wrap:wrap;justify-self:start}
+.company-panel .desk-segment button{min-height:44px}
+.company-verdict{display:inline-block;padding:3px 8px;border-radius:4px;font-size:12px;background:#232734;color:#B4BACB}
+.company-verdict-cheaper,.company-verdict-stronger{background:#12281D;color:#4ADE80}
+.company-verdict-more_expensive,.company-verdict-weaker{background:#2B2414;color:#FBBF24}
+.company-score{display:flex;align-items:baseline;gap:4px;font-size:40px;font-weight:700;font-variant-numeric:tabular-nums}
+.company-score span{font-size:16px;color:#9097A8;font-weight:400}
+.company-bars{display:grid;gap:10px;list-style:none;padding:0;margin:0}
+.company-bars li{display:grid;grid-template-columns:100px 1fr 32px;gap:10px;align-items:center;font-size:13px}
+.company-bar{display:block;height:8px;border-radius:4px;background:#232734;overflow:hidden}
+.company-bar i{display:block;height:100%;background:#2563EB}
+.company-chart{width:100%;height:auto;max-height:260px}
+.company-chart-axis{stroke:#2A2F3D}
+.company-chart-text{fill:#B4BACB;font-size:11px}
+.company-line-main{stroke:#60A5FA;fill:#60A5FA}
+.company-line-sector{stroke:#9097A8}
+.company-bar-revenue{fill:#7fa6ff}
+.company-bar-income{fill:#61bdb8}
+.company-details summary{min-height:44px;display:flex;align-items:center;cursor:pointer;color:#60A5FA;font-size:12px}
+.company-header-stats{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;padding:0 20px 12px}
+.company-header-stats dl{display:flex;flex-wrap:wrap;gap:24px;margin:0}
+.company-header-stats dt{font-size:12px;color:#9097A8}
+.company-header-stats dd{margin:0;font-size:14px;font-variant-numeric:tabular-nums}
+.company-header-stats small{color:#9097A8;font-size:12px}
+.company-up{color:#4ADE80}.company-down{color:#F87171}
+.company-report-link{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 14px}

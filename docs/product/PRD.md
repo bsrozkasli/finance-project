@@ -199,6 +199,14 @@ The decision horizons are:
 - Daily summaries and bounded high-priority alerts.
 - Graceful provider and LLM degradation.
 
+> **Scope extension requested 2026-10-29 (proposed, not implemented).** The
+> product owner's UI redesign v2 adds multiple and pinned portfolios, stop
+> levels, rule-based risk alerts, benchmark comparison, gain analysis, bulk
+> transaction entry and report exports. It is recorded in the
+> [UI redesign v2 decision](decisions/2026-10-29-ui-redesign-v2.md) and specified
+> in `../spec/proposed/ui-redesign-v2.md`. It does not relax §3.4 (no order
+> creation, routing or automatic rebalancing) or the open gates OQ-1 and OQ-2.
+
 ### 3.4 Explicitly Out of Scope for Value MVP
 
 - Trade creation, routing, execution, or automatic rebalancing.

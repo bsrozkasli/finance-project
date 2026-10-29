@@ -3,6 +3,8 @@ import { BookOpen, Search, Settings } from 'lucide-react';
 import type { Asset } from '../api/types';
 import type { CompanyLogoSource, Stock } from '../types';
 import CompanyLogo from './CompanyLogo';
+import MarketToggle from './shell/MarketToggle';
+import NotificationBell from './shell/NotificationBell';
 import { fetchMarketSessions, type MarketSession } from '../api/client';
 
 interface TopBarProps {
@@ -26,7 +28,7 @@ export default function TopBar({
   onSelectAsset,
   onOpenTradingJournal,
   onOpenSettings,
-  pageTitle='Araştır',
+  pageTitle='Panel',
   focusMode=false,
   onToggleFocus,
 }: TopBarProps) {
@@ -145,6 +147,10 @@ export default function TopBar({
           </span>
         ))}
       </div>
+
+      <MarketToggle />
+      <NotificationBell />
+      <div className="desk-profile" role="img" aria-label="Profil: yerel kullanıcı"><span aria-hidden="true">Y</span></div>
 
       <button type="button" onClick={onOpenTradingJournal} aria-label="Günlük" className="hidden sm:flex items-center gap-2 min-h-10 px-3 rounded-lg border border-outline-variant text-text-secondary hover:text-text-primary hover:bg-bg-card focus-visible:outline-2 focus-visible:outline-primary text-sm">
         <BookOpen className="w-4 h-4" /> Günlük

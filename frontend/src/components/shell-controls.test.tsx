@@ -119,13 +119,17 @@ describe('LeftNav', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('link', { name: 'Bugün' })).toHaveAttribute('href', '/dashboard');
-    expect(screen.getByRole('link', { name: 'Araştır' })).toHaveAttribute('href', '/workspace');
-    expect(screen.getByRole('link', { name: 'İzleme Listem' })).toHaveAttribute('href', '/watchlist');
-    expect(screen.getByRole('link', { name: 'Portföy' })).toHaveAttribute('href', '/portfolio');
-    expect(screen.getByRole('link', { name: 'Günlük' })).toHaveAttribute('href', '/journal');
+    expect(screen.getByRole('link', { name: 'Panel' })).toHaveAttribute('href', '/dashboard');
+    expect(screen.getByRole('link', { name: 'Karşılaştırma' })).toHaveAttribute('href', '/compare');
+    expect(screen.getByRole('link', { name: 'Haberler' })).toHaveAttribute('href', '/news');
+    expect(screen.getByRole('link', { name: 'İzleme Listeleri' })).toHaveAttribute('href', '/watchlist');
+    expect(screen.getByRole('link', { name: 'Şirket Analizi' })).toHaveAttribute('href', '/workspace');
+    expect(screen.getByRole('link', { name: 'Raporlar' })).toHaveAttribute('href', '/reports');
+    expect(screen.getByRole('link', { name: 'Portföylerim' })).toHaveAttribute('href', '/portfolio');
+    expect(screen.getByRole('link', { name: 'İşlem Ekle' })).toHaveAttribute('href', '/journal');
+    expect(screen.getByRole('link', { name: 'Kazanç Analizi' })).toHaveAttribute('href', '/transactions');
 
-    await user().click(screen.getByRole('link', { name: 'İzleme Listem' }));
+    await user().click(screen.getByRole('link', { name: 'İzleme Listeleri' }));
     expect(screen.getByTestId('location-path')).toHaveTextContent('/watchlist');
   });
 

@@ -3,14 +3,12 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 
 const distAssetsDir = path.join(process.cwd(), 'dist', 'assets');
-// 725 KiB (was 710, financial trends; 700 before that, EPIC-002 R-29): the trend charts, panel and model
-// added about 10 KiB; charts are hand-rolled SVG because a chart library alone added about 380 KiB raw.
-const maxTotalJsBytes = 725 * 1024;
-// Total across all chunks, including lazily loaded routes. The research-desk
-// redesign code-splits every page (~100 KiB gzipped on first load) at the cost
-// of ~214 KiB in total; after the financial trends work the gzip budget keeps only
-// about 2 KiB of headroom (227.8 of 230 KiB), so check the numbers before adding code.
-const maxTotalJsGzipBytes = 230 * 1024;
+// Raised in steps: 700 (EPIC-002 R-29), 710/725 (financial trends, hand-rolled SVG charts), then 860/270 for
+// UI redesign v2 (nine screens, 55 typed endpoints; docs/product/decisions/2026-10-29-ui-redesign-v2.md decision 17).
+const maxTotalJsBytes = 880 * 1024;
+// Total across all chunks, including lazily loaded routes. The first-load chunk is unchanged in kind;
+// the budget keeps a few KiB of headroom, so check the numbers before adding code.
+const maxTotalJsGzipBytes = 275 * 1024;
 
 const formatKiB = (bytes) => `${(bytes / 1024).toFixed(1)} KiB`;
 

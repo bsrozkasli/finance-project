@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Şirket Analizi</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:#0E1015;color:#E7E9F0}
+a{color:#60A5FA}a:hover{color:#93C5FD}
+.app{display:flex;flex-wrap:wrap;min-height:900px}
+.side{flex:1 1 232px;background:#12141A;border-right:1px solid #1E222C;padding:18px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;padding:2px 10px 8px;color:#fff}
+.mark{width:32px;height:32px;border-radius:9px;background:#2563EB;display:flex;align-items:center;justify-content:center;flex:none}
+.grp{font-size:11px;font-weight:800;letter-spacing:.07em;color:#E7E9F0;padding:16px 12px 6px;text-transform:uppercase}
+.side a{display:flex;align-items:center;gap:12px;color:#B4BACB;text-decoration:none;padding:0 12px;min-height:44px;border-radius:10px;font-size:14px;font-weight:500}
+.side a:hover{background:#1A1E28;color:#fff}
+.side a.on{background:#172238;color:#60A5FA;font-weight:700}
+.side svg{width:19px;height:19px;flex:none}
+.body{flex:999 1 560px;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid #1E222C;background:#0E1015}
+.srch{display:flex;align-items:center;gap:10px;flex:0 1 380px;min-width:220px;min-height:44px;padding:0 14px;border:1px solid #232734;border-radius:12px;background:#12141A;color:#9097A8;box-sizing:border-box}
+.srch input{flex:1;min-width:0;border:0;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;outline:none;min-height:42px}
+.srch input::placeholder{color:#7C8395}
+.mkt{display:inline-flex;background:#12141A;border:1px solid #232734;border-radius:999px;padding:2px}
+.mkt button{min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:#9097A8;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.mkt button.on{background:#232A3B;color:#fff}
+.ib{position:relative;width:44px;height:44px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.ib svg{width:19px;height:19px}
+.badge{position:absolute;top:5px;right:5px;min-width:16px;height:16px;border-radius:8px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.av{width:44px;height:44px;border-radius:50%;border:0;background:#2563EB;color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.main{padding:28px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:#161922;border:1px solid #232734;border-radius:16px;padding:20px;box-sizing:border-box}
+.card h2{margin:0;font-size:16px;font-weight:700}
+.sub{font-size:13px;color:#9097A8;margin-top:4px}
+.hd{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start}
+.lbl{font-size:12px;color:#9097A8;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:0 16px;border-radius:12px;border:1px solid #2A2F3D;background:#1A1E28;color:#E7E9F0;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#222736;color:#fff}
+.btn.pri{background:#2563EB;border-color:#2563EB;color:#fff}
+.btn.pri:hover{background:#1D4ED8}
+.seg{display:inline-flex;flex-wrap:wrap;background:#12141A;border:1px solid #232734;border-radius:12px;padding:3px;gap:2px}
+.seg button{min-height:40px;min-width:44px;padding:0 14px;border:0;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:#9097A8;cursor:pointer}
+.seg button.on{background:#232A3B;color:#fff}
+.co{display:inline-flex;align-items:center;gap:10px;min-height:52px;padding:0 14px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+.co:hover{background:#1A1E28;color:#fff}
+.co.on{background:#172238;border-color:#3B82F6;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid #2A2F3D;background:#12141A;font:inherit;font-size:13px;font-weight:700;color:#9097A8;cursor:pointer;box-sizing:border-box}
+.chip.on{border-color:#3B82F6;background:#172238;color:#fff}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.up{color:#4ADE80;background:rgba(34,197,94,.14)}.dn{color:#F87171;background:rgba(248,113,113,.14)}.wr{color:#FBBF24;background:rgba(251,191,36,.14)}.nt{color:#B4BACB;background:#232734}.na{color:#9097A8;background:#1C1F29}
+.t-up{color:#4ADE80;font-weight:700}.t-dn{color:#F87171;font-weight:700}.t-na{color:#9097A8;font-weight:500}
+.fld{min-height:44px;padding:0 14px;border:1px solid #2A2F3D;border-radius:12px;background:#12141A;color:#E7E9F0;font:inherit;font-size:14px;box-sizing:border-box}
+.fld::placeholder{color:#7C8395}
+.row2{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.vt{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.vti{background:#12141A;border:1px solid #1F2330;border-radius:12px;padding:14px}
+.vti .v{font-size:22px;font-weight:800;margin-top:6px;letter-spacing:-.01em}
+.ylab{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:#9097A8;text-align:right;width:52px;flex:none}
+.gt{overflow-x:auto}
+.gr{display:grid;grid-template-columns:var(--cols);gap:10px;align-items:center;padding:12px;border-bottom:1px solid #1F2330;font-size:14px}
+.gh{background:#12141A;font-size:12px;font-weight:700;color:#9097A8;padding:10px 12px;border-bottom:0;border-radius:10px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.bar{height:10px;background:#232734;border-radius:6px;overflow:hidden;display:block}
+.bar i{display:block;height:100%;border-radius:6px}
+.qcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.demo{font-size:12px;color:#9097A8;background:#1A1E28;border:1px solid #232734;padding:4px 10px;border-radius:999px}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Ana menü">
+<div class="brand"><span class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 3 7-8"/></svg></span>Finans Paneli</div>
+<div class="grp">Genel</div>
+<a href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Panel</a>
+<a href="Compare.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V10M11 20V4M17 20v-7M21 20H3"/></svg>Karşılaştırma</a>
+<div class="grp">Piyasa</div>
+<a href="News.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>Haberler</a>
+<a href="Watchlist.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>İzleme Listeleri</a>
+<div class="grp">Hisseler</div>
+<a class="on" href="Workspace.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15M9 21v-4h6v4M8 9h2M14 9h2M8 13h2M14 13h2"/></svg>Şirket Analizi</a>
+<a href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h5"/></svg>Raporlar</a>
+<div class="grp">Portföy</div>
+<a href="Portfolio.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>Portföylerim</a>
+<a href="Journal.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>İşlem Ekle</a>
+<a href="Transactions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9"/><path d="M15 6h5v5"/></svg>Kazanç Analizi</a>
+</nav>
+<div class="body">
+<header class="top">
+<label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Hisse, ticker veya portföy ara" placeholder="Hisse, ticker veya portföy ara"></label>
+<div style="display:flex;gap:10px;align-items:center">
+<div class="mkt" role="group" aria-label="Piyasa"><button type="button" class="on" aria-pressed="true">BIST</button><button type="button" aria-pressed="false">ABD</button></div>
+<button type="button" class="ib" aria-label="Bildirimler, 3 yeni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg><span class="badge">3</span></button>
+<button type="button" class="av" aria-label="Hesap">B</button>
+</div>
+</header>
+<main class="main">
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+<div><h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">Şirket Analizi</h1>
+<div style="color:#9097A8;font-size:14px;margin-top:4px">Bilanço, gelir tablosu, nakit akışı ve değerleme rasyoları; sektör ortalamasıyla birlikte</div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="demo">Örnek veri</span><input class="fld" style="width:240px;max-width:100%" aria-label="Şirket ara" placeholder="Şirket veya ticker ara" value="{{q}}" onChange="{{onQ}}"></div>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap" role="group" aria-label="Şirket seç">
+<sc-for list="{{coTabs}}" as="c" hint-placeholder-count="4"><button type="button" class="{{c.cls}}" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}"><b>{{c.code}}</b><span style="font-size:12px;color:#9097A8">{{c.sector}}</span></button></sc-for>
+</div>
+
+<section class="card" style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;justify-content:space-between">
+<div style="display:flex;gap:14px;align-items:center"><span style="width:52px;height:52px;border-radius:14px;background:#172238;color:#93C5FD;display:flex;align-items:center;justify-content:center;font-weight:800">{{c.code}}</span><div><div style="font-weight:800;font-size:20px">{{c.name}}</div><div style="font-size:13px;color:#9097A8;margin-top:2px">{{c.code}} · {{c.sector}} · BIST</div></div></div>
+<div style="display:flex;align-items:baseline;gap:12px"><span style="font-size:30px;font-weight:800">{{c.price}}</span><span class="tag {{c.d1Cls}}">{{c.d1}}</span></div>
+<div style="display:flex;gap:24px;flex-wrap:wrap">
+<div><div class="lbl">Piyasa değeri</div><div style="font-weight:800;margin-top:4px">{{c.mcap}}</div></div>
+<div style="min-width:200px"><div class="lbl">52 haftalık aralık</div><div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;color:#9097A8"><span>{{c.lo52}}</span><span style="position:relative;flex:1;height:6px;background:#232734;border-radius:3px"><span style="{{c.pos52}}"></span></span><span>{{c.hi52}}</span></div></div>
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="Watchlist.dc.html">☆ İzlemeye ekle</a><a class="btn pri" href="Reports.dc.html">Rapor oluştur</a></div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:3 1 520px;min-width:0">
+<div class="hd"><div><h2>Fiyat</h2><div class="sub">{{c.code}} · dönem getirisi <b class="{{px.rCls}}">{{px.r}}</b></div></div>
+<div class="seg" role="group" aria-label="Dönem"><sc-for list="{{pTabs}}" as="t" hint-placeholder-count="4"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div>
+<div style="display:flex;gap:8px;margin-top:14px">
+<div class="ylab" style="height:240px"><span>{{px.hi}}</span><span>{{px.mid}}</span><span>{{px.lo}}</span></div>
+<svg viewBox="0 0 640 240" preserveAspectRatio="none" style="flex:1;min-width:0;height:240px" role="img" aria-label="Seçili dönem için hisse fiyatı alan grafiği">
+<g stroke="#232734"><line x1="0" y1="1" x2="640" y2="1" vector-effect="non-scaling-stroke"/><line x1="0" y1="120" x2="640" y2="120" vector-effect="non-scaling-stroke"/><line x1="0" y1="239" x2="640" y2="239" vector-effect="non-scaling-stroke"/></g>
+<path d="{{px.area}}" fill="{{px.col}}" fill-opacity=".12"/>
+<path d="{{px.line}}" fill="none" stroke="{{px.col}}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+</svg></div>
+</div>
+
+<div class="card" style="flex:2 1 400px;min-width:0">
+<h2>Değerleme ve kârlılık</h2><div class="sub">Son 12 ay (TTM) · sektör ortalamasıyla</div>
+<div class="vt" style="margin-top:14px">
+<sc-for list="{{val}}" as="v" hint-placeholder-count="8"><div class="vti"><div class="lbl">{{v.lbl}}</div><div class="v {{v.vCls}}">{{v.v}}</div><div style="font-size:12px;color:#9097A8;margin-top:2px">Sektör {{v.avg}}</div><div style="margin-top:8px"><span class="tag {{v.bCls}}">{{v.badge}}</span></div></div></sc-for>
+</div>
+</div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:3 1 520px;min-width:0">
+<div class="hd"><div><h2>Rasyo geçmişi</h2><div class="sub">Son 9 çeyrek · kesikli çizgi sektör ortalaması</div></div></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px" role="group" aria-label="Rasyo seç"><sc-for list="{{rTabs}}" as="t" hint-placeholder-count="5"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div>
+<sc-if value="{{rh.ok}}" hint-placeholder-val="{{true}}">
+<div style="display:flex;gap:8px;margin-top:14px">
+<div class="ylab" style="height:220px"><span>{{rh.hi}}</span><span>{{rh.mid}}</span><span>{{rh.lo}}</span></div>
+<svg viewBox="0 0 640 220" preserveAspectRatio="none" style="flex:1;min-width:0;height:220px" role="img" aria-label="Seçili rasyonun çeyreklik geçmişi ve sektör ortalaması">
+<g stroke="#232734"><line x1="0" y1="1" x2="640" y2="1" vector-effect="non-scaling-stroke"/><line x1="0" y1="110" x2="640" y2="110" vector-effect="non-scaling-stroke"/><line x1="0" y1="219" x2="640" y2="219" vector-effect="non-scaling-stroke"/></g>
+<path d="{{rh.avg}}" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-dasharray="6 5" vector-effect="non-scaling-stroke"/>
+<path d="{{rh.line}}" fill="none" stroke="#60A5FA" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+</svg></div>
+<div style="display:flex;justify-content:space-between;font-size:11px;color:#9097A8;margin:6px 0 0 60px"><sc-for list="{{rh.labels}}" as="l" hint-placeholder-count="9"><span>{{l}}</span></sc-for></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><span class="tag nt">Şu an {{rh.now}}</span><span class="tag nt">9Ç ortalama {{rh.mean}}</span><span class="tag nt">Sektör {{rh.sec}}</span></div>
+</sc-if>
+<sc-if value="{{rh.none}}" hint-placeholder-val="{{false}}"><div style="height:220px;display:flex;align-items:center;justify-content:center;color:#9097A8;font-size:28px;font-weight:800;margin-top:14px;background:#12141A;border-radius:12px">N/A</div></sc-if>
+</div>
+
+<div class="card" style="flex:2 1 400px;min-width:0">
+<h2>Finansal sağlık skoru</h2><div class="sub">0–100 · kârlılık, büyüme, borçluluk, değerleme ve temettü</div>
+<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:16px">
+<div role="img" aria-label="Genel finansal sağlık skoru" style="{{hs.ring}}"><div style="position:absolute;inset:14px;background:#161922;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:28px">{{hs.total}}</b><span style="font-size:12px;color:#9097A8">/ 100</span></div></div>
+<div style="flex:1 1 200px;display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{hs.items}}" as="h" hint-placeholder-count="5"><div><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>{{h.name}}</span><b class="{{h.tCls}}">{{h.v}}</b></div><span class="bar"><i style="{{h.bar}}"></i></span></div></sc-for>
+</div></div>
+</div>
+</section>
+
+<section class="card">
+<div class="hd"><div><h2>Gelir ve kârlılık trendi</h2><div class="sub">Son 12 çeyrek · mn ₺ · çizgi net kâr marjı</div></div>
+<div style="display:flex;gap:14px;font-size:13px;flex-wrap:wrap"><span style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:3px;background:#3B82F6"></span>Hasılat</span><span style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;border-radius:3px;background:#2DD4BF"></span>Net kâr</span><span style="display:flex;gap:6px;align-items:center"><span style="width:14px;height:3px;border-radius:2px;background:#F59E0B"></span>Net marj</span></div></div>
+<div style="position:relative;margin-top:16px">
+<div style="display:flex;gap:6px;height:220px;align-items:flex-end;border-bottom:1px solid #2A2F3D">
+<sc-for list="{{trend.cols}}" as="q" hint-placeholder-count="12"><div style="flex:1;display:flex;gap:3px;align-items:flex-end;justify-content:center;height:100%"><i style="{{q.rev}}"></i><i style="{{q.net}}"></i></div></sc-for>
+</div>
+<svg viewBox="0 0 120 220" preserveAspectRatio="none" style="position:absolute;left:0;top:0;width:100%;height:220px;pointer-events:none" aria-hidden="true"><path d="{{trend.margin}}" fill="none" stroke="#F59E0B" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
+<div style="display:flex;gap:6px;margin-top:6px"><sc-for list="{{trend.cols}}" as="q" hint-placeholder-count="12"><div class="qcol"><span style="font-size:11px;color:#9097A8">{{q.l}}</span><span style="font-size:11px;font-weight:700;color:#FBBF24">{{q.m}}</span></div></sc-for></div>
+</div>
+</section>
+
+<section class="card">
+<div class="hd"><div><h2>Finansal tablolar</h2><div class="sub">Son 5 çeyrek · mn ₺ · son sütun yıllık değişim</div></div>
+<div class="seg" role="group" aria-label="Tablo"><sc-for list="{{fTabs}}" as="t" hint-placeholder-count="3"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div>
+<div class="gt" style="margin-top:14px"><div style="min-width:820px">
+<div class="gr gh" style="--cols:1.6fr repeat(5,1fr) .9fr"><span>Kalem</span><sc-for list="{{ft.heads}}" as="h" hint-placeholder-count="5"><span class="num">{{h}}</span></sc-for><span class="num">Yıllık Δ</span></div>
+<sc-for list="{{ft.rows}}" as="r" hint-placeholder-count="6"><div class="gr" style="--cols:1.6fr repeat(5,1fr) .9fr"><span style="{{r.nameStyle}}">{{r.name}}</span><sc-for list="{{r.vals}}" as="v" hint-placeholder-count="5"><span class="num {{v.cls}}">{{v.t}}</span></sc-for><span class="num {{r.yCls}}">{{r.y}}</span></div></sc-for>
+</div></div>
+</section>
+
+<section class="card">
+<h2>Benzer şirketlerle kıyas</h2><div class="sub">Seçili şirket vurgulu · rasyolar TTM</div>
+<div class="gt" style="margin-top:14px"><div style="min-width:820px">
+<div class="gr gh" style="--cols:1.5fr 1fr repeat(6,.9fr)"><span>Şirket</span><span>Sektör</span><span class="num">F/K</span><span class="num">PD/DD</span><span class="num">FD/FAVÖK</span><span class="num">ROE</span><span class="num">Net marj</span><span class="num">1Y getiri</span></div>
+<sc-for list="{{peers}}" as="p" hint-placeholder-count="4"><div class="gr" style="{{p.style}}"><span><b>{{p.code}}</b> <span style="color:#9097A8;font-size:12px">{{p.name}}</span></span><span>{{p.sector}}</span><span class="num {{p.fkC}}">{{p.fk}}</span><span class="num">{{p.pd}}</span><span class="num {{p.fdC}}">{{p.fd}}</span><span class="num">{{p.roe}}</span><span class="num">{{p.nm}}</span><span class="num {{p.rC}}">{{p.r}}</span></div></sc-for>
+</div></div>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":2300}}'>
+class Component extends DCLogic {
+  model() {
+    if (this._m) return this._m;
+    const N = 253, Q = 12;
+    const rng = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+    const gs = (r) => { const u1 = r() || 1e-9, u2 = r(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    const walk = (seed, n, mu, sd, end) => { const r = rng(seed); const p = [1]; for (let i = 1; i < n; i++) p.push(p[i - 1] * (1 + mu + sd * gs(r))); const k = end / p[n - 1]; return p.map((v) => v * k); };
+    const C = [
+      { code: 'HSA', name: 'Hisse A', sector: 'Teknoloji', sh: 220, price: 182.4, mu: 0.0011, sd: 0.019, seed: 11, rev0: 2400, g: 0.045, gm: 0.42, em: 0.24, nm: 0.14, eq0: 9000, nd0: 1500, lev: 1.8, cur: 1.6, dy: 0.012, avg: { fk: 22, pd: 4.2, fd: 13, roe: 0.19, nm: 0.12, fs: 3.2 } },
+      { code: 'HSB', name: 'Hisse B', sector: 'Bankacılık', sh: 4200, price: 46.1, mu: 0.0006, sd: 0.017, seed: 12, rev0: 38000, g: 0.05, gm: null, em: null, nm: 0.22, eq0: 120000, nd0: null, lev: 9, cur: null, dy: 0.045, avg: { fk: 5.5, pd: 1.1, fd: null, roe: 0.24, nm: 0.2, fs: 1.0 } },
+      { code: 'HSC', name: 'Hisse C', sector: 'Enerji', sh: 900, price: 96.1, mu: 0.0004, sd: 0.021, seed: 13, rev0: 21000, g: 0.02, gm: 0.18, em: 0.13, nm: 0.06, eq0: 52000, nd0: 18000, lev: 2.2, cur: 1.2, dy: 0.035, avg: { fk: 9, pd: 1.4, fd: 6, roe: 0.14, nm: 0.07, fs: 0.8 } },
+      { code: 'HSE', name: 'Hisse E', sector: 'Sanayi', sh: 1800, price: 28.04, mu: 0.0004, sd: 0.014, seed: 15, rev0: 6500, g: 0.03, gm: 0.25, em: 0.16, nm: 0.08, eq0: 21000, nd0: 4200, lev: 1.9, cur: 1.4, dy: 0.052, avg: { fk: 12, pd: 1.8, fd: 8, roe: 0.15, nm: 0.09, fs: 1.1 } }
+    ];
+    C.forEach((c) => {
+      const r = rng(c.seed * 7 + 3);
+      c.px = walk(c.seed, N, c.mu, c.sd, c.price);
+      c.qp = walk(c.seed + 500, Q, 0.03, 0.12, c.price);
+      c.q = [];
+      let eq = c.eq0;
+      for (let i = 0; i < Q; i++) {
+        const rev = c.rev0 * Math.pow(1 + c.g, i) * (1 + 0.05 * gs(r));
+        const gm = c.gm == null ? null : c.gm + 0.015 * gs(r);
+        const em = c.em == null ? null : c.em + 0.015 * gs(r);
+        const nm = c.nm + 0.02 * gs(r);
+        const net = rev * nm;
+        eq += net * 0.7;
+        c.q.push({ rev: rev, gross: gm == null ? null : rev * gm, ebitda: em == null ? null : rev * em, net: net, eq: eq, assets: eq * c.lev, nd: c.nd0 == null ? null : c.nd0 * (1 - i * 0.025), cfo: em == null ? null : rev * em * 0.75, capex: em == null ? null : rev * 0.06, cur: c.cur == null ? null : c.cur + 0.05 * gs(r) });
+      }
+    });
+    this._m = { N: N, Q: Q, C: C };
+    return this._m;
+  }
+
+  renderVals() {
+    const md = this.model();
+    const N = md.N, Q = md.Q, C = md.C;
+    const st = this.state || {};
+    const code = st.code || 'HSA';
+    const per = st.per || '1Y';
+    const ratio = st.ratio || 'fk';
+    const ftab = st.ftab || 'is';
+    const q = st.q || '';
+    const set = (o) => () => this.setState(o);
+    const tabs = (list, cur, key) => list.map((x) => ({ label: x[1], cls: x[0] === cur ? 'on' : '', pressed: x[0] === cur ? 'true' : 'false', pick: set({ [key]: x[0] }) }));
+    const ok = (v) => v != null && isFinite(v);
+    const th = (n) => String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const mn = (v) => ok(v) ? (v < 0 ? '−' : '') + th(v) : 'N/A';
+    const pct = (v) => ok(v) ? (v >= 0 ? '+' : '−') + '%' + Math.abs(v * 100).toFixed(1).replace('.', ',') : 'N/A';
+    const pctU = (v) => ok(v) ? '%' + (v * 100).toFixed(1).replace('.', ',') : 'N/A';
+    const xx = (v) => ok(v) && v > 0 ? v.toFixed(1).replace('.', ',') + 'x' : 'N/A';
+    const money = (v) => ok(v) ? '₺' + v.toFixed(2).replace('.', ',') : 'N/A';
+    const txtCls = (v) => ok(v) ? (v >= 0 ? 't-up' : 't-dn') : 't-na';
+    const QL = ['23/9', '23/12', '24/3', '24/6', '24/9', '24/12', '25/3', '25/6', '25/9', '25/12', '26/3', '26/6'];
+
+    const ttm = (c, i, k) => { let s = 0; for (let j = i - 3; j <= i; j++) { const v = c.q[j][k]; if (v == null) return null; s += v; } return s; };
+    const ratios = (c, i, price) => {
+      const mcap = price * c.sh;
+      const net = ttm(c, i, 'net'), eb = ttm(c, i, 'ebitda'), rev = ttm(c, i, 'rev');
+      const nd = c.q[i].nd;
+      return { fk: mcap / net, pd: mcap / c.q[i].eq, fd: eb == null || nd == null ? null : (mcap + nd) / eb, roe: net / c.q[i].eq, nm: net / rev, fs: mcap / rev, nde: eb == null || nd == null ? null : nd / eb, mcap: mcap };
+    };
+
+    const ql = q.toLocaleLowerCase('tr');
+    const coTabs = C.filter((c) => !ql || c.code.toLocaleLowerCase('tr').indexOf(ql) >= 0 || c.name.toLocaleLowerCase('tr').indexOf(ql) >= 0 || c.sector.toLocaleLowerCase('tr').indexOf(ql) >= 0).map((c) => ({ code: c.code, sector: c.name + ' · ' + c.sector, cls: c.code === code ? 'co on' : 'co', pressed: c.code === code ? 'true' : 'false', pick: set({ code: c.code }) }));
+    const c = C.filter((x) => x.code === code)[0];
+    const R = ratios(c, Q - 1, c.price);
+    const d1 = c.px[N - 1] / c.px[N - 2] - 1;
+    const lo52 = Math.min.apply(null, c.px), hi52 = Math.max.apply(null, c.px);
+    const head = {
+      code: c.code, name: c.name, sector: c.sector, price: money(c.price), d1: (d1 >= 0 ? '▲ ' : '▼ ') + pct(d1), d1Cls: d1 >= 0 ? 'up' : 'dn',
+      mcap: '₺' + (R.mcap / 1000).toFixed(1).replace('.', ',') + ' mr', lo52: money(lo52), hi52: money(hi52),
+      pos52: 'position:absolute;top:-3px;width:12px;height:12px;border-radius:50%;background:#60A5FA;border:2px solid #161922;left:calc(' + ((c.price - lo52) / (hi52 - lo52) * 100).toFixed(1) + '% - 7px)'
+    };
+
+    const K = { '1A': 21, '3A': 63, '6A': 126, '1Y': 252 }[per];
+    const a = c.px.slice(N - 1 - K);
+    const lo = Math.min.apply(null, a), hi = Math.max.apply(null, a);
+    const pad = (hi - lo) * 0.08 || 1;
+    const H0 = hi + pad, L0 = lo - pad;
+    const pr = a[a.length - 1] / a[0] - 1;
+    const line = a.map((v, i) => (i ? 'L' : 'M') + (i / (a.length - 1) * 640).toFixed(1) + ' ' + ((H0 - v) / (H0 - L0) * 240).toFixed(1)).join(' ');
+    const px = { line: line, area: line + ' L640 240 L0 240 Z', col: pr >= 0 ? '#4ADE80' : '#F87171', r: pct(pr), rCls: txtCls(pr), hi: money(H0), mid: money((H0 + L0) / 2), lo: money(L0) };
+
+    const cmp = (v, avg, lowerBetter) => {
+      if (!ok(v) || !ok(avg)) return ['N/A', 'na'];
+      const r0 = v / avg;
+      if (lowerBetter) return r0 < 0.9 ? ['Sektöre göre ucuz', 'up'] : r0 > 1.1 ? ['Sektöre göre pahalı', 'dn'] : ['Sektöre yakın', 'nt'];
+      return r0 > 1.1 ? ['Sektörden güçlü', 'up'] : r0 < 0.9 ? ['Sektörden zayıf', 'dn'] : ['Sektöre yakın', 'nt'];
+    };
+    const VD = [
+      ['F/K', R.fk, c.avg.fk, xx, true], ['PD/DD', R.pd, c.avg.pd, xx, true], ['FD/FAVÖK', R.fd, c.avg.fd, xx, true], ['F/S', R.fs, c.avg.fs, xx, true],
+      ['Özkaynak kârlılığı (ROE)', R.roe, c.avg.roe, pctU, false], ['Net kâr marjı', R.nm, c.avg.nm, pctU, false], ['Temettü verimi', c.dy, null, pctU, false], ['Net borç / FAVÖK', R.nde, null, xx, true]
+    ];
+    const val = VD.map((d) => { const b = cmp(d[1], d[2], d[4]); const vv = d[3](d[1]); return { lbl: d[0], v: vv, vCls: vv === 'N/A' ? 't-na' : '', avg: ok(d[2]) ? d[3](d[2]) : 'N/A', badge: b[0], bCls: b[1] }; });
+
+    const RK = { fk: ['F/K', xx], pd: ['PD/DD', xx], fd: ['FD/FAVÖK', xx], roe: ['ROE', pctU], nm: ['Net marj', pctU] };
+    const hist = []; for (let i = 3; i < Q; i++) hist.push(ratios(c, i, c.qp[i])[ratio]);
+    const secAvg = c.avg[ratio];
+    const rok = hist.every(ok) && ok(secAvg);
+    let rh = { ok: rok, none: !rok };
+    if (rok) {
+      const avgs = hist.map((v, i) => secAvg * (1 + 0.04 * Math.sin(i * 1.3)));
+      const all = hist.concat(avgs);
+      const mn0 = Math.min.apply(null, all), mx0 = Math.max.apply(null, all);
+      const pd0 = (mx0 - mn0) * 0.12 || 1; const h1 = mx0 + pd0, l1 = mn0 - pd0;
+      const pth = (arr) => arr.map((v, i) => (i ? 'L' : 'M') + (i / (arr.length - 1) * 640).toFixed(1) + ' ' + ((h1 - v) / (h1 - l1) * 220).toFixed(1)).join(' ');
+      const f = RK[ratio][1];
+      rh = { ok: true, none: false, line: pth(hist), avg: pth(avgs), hi: f(h1), mid: f((h1 + l1) / 2), lo: f(l1), labels: QL.slice(3), now: f(hist[hist.length - 1]), mean: f(hist.reduce((x, y) => x + y, 0) / hist.length), sec: f(secAvg) };
+    }
+    const rTabs = Object.keys(RK).map((k) => ({ label: RK[k][0], cls: k === ratio ? 'chip on' : 'chip', pressed: k === ratio ? 'true' : 'false', pick: set({ ratio: k }) }));
+
+    const clamp = (v) => Math.max(0, Math.min(100, Math.round(v)));
+    const yoy = c.q[Q - 1].rev / c.q[Q - 5].rev - 1;
+    const HSI = [
+      ['Kârlılık', clamp(R.roe / 0.3 * 100)],
+      ['Büyüme', clamp((yoy + 0.05) / 0.35 * 100)],
+      ['Borçluluk', ok(R.nde) ? clamp(100 - R.nde * 25) : null],
+      ['Değerleme', clamp(50 + (c.avg.fk - R.fk) / c.avg.fk * 100)],
+      ['Temettü', clamp(c.dy / 0.06 * 100)]
+    ];
+    const sc = HSI.filter((h) => h[1] != null).map((h) => h[1]);
+    const total = Math.round(sc.reduce((x, y) => x + y, 0) / sc.length);
+    const colOf = (v) => v >= 70 ? '#22C55E' : v >= 40 ? '#F59E0B' : '#EF4444';
+    const hs = {
+      total: total,
+      ring: 'width:132px;height:132px;border-radius:50%;position:relative;flex:none;background:conic-gradient(' + colOf(total) + ' 0 ' + total + '%, #232734 ' + total + '% 100%)',
+      items: HSI.map((h) => ({ name: h[0], v: h[1] == null ? 'N/A' : String(h[1]), tCls: h[1] == null ? 't-na' : '', bar: 'width:' + (h[1] || 0) + '%;background:' + (h[1] == null ? '#232734' : colOf(h[1])) }))
+    };
+
+    const revMax = Math.max.apply(null, c.q.map((x) => x.rev));
+    const nms = c.q.map((x) => x.net / x.rev);
+    const mMin = Math.min.apply(null, nms) - 0.02, mMax = Math.max.apply(null, nms) + 0.02;
+    const trend = {
+      cols: c.q.map((x, i) => ({ l: QL[i], m: pctU(nms[i]), rev: 'display:block;width:42%;max-width:22px;background:#3B82F6;border-radius:4px 4px 0 0;height:' + (x.rev / revMax * 100).toFixed(1) + '%', net: 'display:block;width:42%;max-width:22px;background:#2DD4BF;border-radius:4px 4px 0 0;height:' + (Math.max(0, x.net) / revMax * 100).toFixed(1) + '%' })),
+      margin: nms.map((v, i) => (i ? 'L' : 'M') + ((i + 0.5) / Q * 120).toFixed(2) + ' ' + (10 + (mMax - v) / (mMax - mMin) * 80).toFixed(1)).join(' ')
+    };
+
+    const last = [7, 8, 9, 10, 11];
+    const row = (name, k, fmt, strong) => {
+      const vals = last.map((i) => { const v = typeof k === 'function' ? k(c.q[i]) : c.q[i][k]; return { t: fmt(v), cls: ok(v) ? '' : 't-na', raw: v }; });
+      const a0 = vals[0].raw, b0 = vals[4].raw;
+      const y = ok(a0) && ok(b0) && a0 !== 0 ? (fmt === pctU ? (b0 - a0) : b0 / Math.abs(a0) - (a0 < 0 ? -1 : 1)) : null;
+      const yTxt = !ok(y) ? 'N/A' : fmt === pctU ? (y >= 0 ? '+' : '−') + Math.abs(y * 100).toFixed(1).replace('.', ',') + ' puan' : pct(y);
+      return { name: name, nameStyle: strong ? 'font-weight:800' : 'color:#B4BACB;padding-left:12px', vals: vals, y: yTxt, yCls: txtCls(y) };
+    };
+    const FT = {
+      is: [row('Hasılat', 'rev', mn, true), row('Brüt kâr', 'gross', mn, true), row('Brüt marj', (x) => x.gross == null ? null : x.gross / x.rev, pctU), row('FAVÖK', 'ebitda', mn, true), row('FAVÖK marjı', (x) => x.ebitda == null ? null : x.ebitda / x.rev, pctU), row('Net kâr', 'net', mn, true), row('Net marj', (x) => x.net / x.rev, pctU)],
+      bs: [row('Toplam varlıklar', 'assets', mn, true), row('Özkaynaklar', 'eq', mn, true), row('Toplam yükümlülükler', (x) => x.assets - x.eq, mn, true), row('Net borç', 'nd', mn, true), row('Borç / özkaynak', (x) => (x.assets - x.eq) / x.eq, xx), row('Cari oran', 'cur', xx)],
+      cf: [row('İşletme faaliyetlerinden nakit', 'cfo', mn, true), row('Yatırım harcaması', (x) => x.capex == null ? null : -x.capex, mn, true), row('Serbest nakit akışı', (x) => x.cfo == null ? null : x.cfo - x.capex, mn, true), row('FCF marjı', (x) => x.cfo == null ? null : (x.cfo - x.capex) / x.rev, pctU)]
+    };
+    const ft = { heads: last.map((i) => '20' + QL[i]), rows: FT[ftab] };
+
+    const peers = C.map((p) => { const r0 = ratios(p, Q - 1, p.price); const y1 = p.px[N - 1] / p.px[0] - 1; return { code: p.code, name: p.name, sector: p.sector, fk: xx(r0.fk), fkC: ok(r0.fk) ? '' : 't-na', pd: xx(r0.pd), fd: xx(r0.fd), fdC: ok(r0.fd) ? '' : 't-na', roe: pctU(r0.roe), nm: pctU(r0.nm), r: pct(y1), rC: txtCls(y1), style: '--cols:1.5fr 1fr repeat(6,.9fr)' + (p.code === code ? ';background:#172238;border-radius:10px' : '') }; });
+
+    return {
+      q: q, onQ: (e) => this.setState({ q: e.target.value }),
+      coTabs: coTabs, c: head, px: px,
+      pTabs: tabs([['1A', '1A'], ['3A', '3A'], ['6A', '6A'], ['1Y', '1Y']], per, 'per'),
+      val: val, rTabs: rTabs, rh: rh, hs: hs, trend: trend,
+      fTabs: tabs([['is', 'Gelir tablosu'], ['bs', 'Bilanço'], ['cf', 'Nakit akışı']], ftab, 'ftab'),
+      ft: ft, peers: peers
+    };
+  }
+}
+</script>
+</body>
+</html>

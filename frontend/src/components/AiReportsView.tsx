@@ -5,6 +5,7 @@ import type { Holding, Stock } from '../types';
 import { useSmartReport } from '../hooks/useSmartReport';
 import { useBacktest } from '../hooks/useBacktest';
 import { valuePortfolio } from '../utils/portfolioValuation';
+import ReportsCenter from './reports/ReportsCenter';
 
 interface AiReportsViewProps {
   holdings: Holding[];
@@ -36,6 +37,8 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
           <h1 className="text-3xl font-headline font-bold tracking-tight mt-2">Kanıta dayalı analiz</h1>
           <p className="text-text-secondary mt-2">Mevcut sembol raporları ve geçmiş senaryolar. Sonuçlar yatırım kararı yerine geçmez.</p>
         </div>
+
+        <ReportsCenter />
 
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-5">
           <section className="rounded-md border border-outline-variant bg-bg-card p-5 md:p-7" aria-labelledby="smart-report-title">

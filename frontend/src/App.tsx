@@ -15,17 +15,21 @@ import { useJournalTrades } from './hooks/useJournalTrades';
 // Component Imports
 import TopBar from './components/TopBar';
 import LeftNav from './components/LeftNav';
+import MarketScopeProvider from './context/MarketScopeProvider';
+import { routeTitle } from './components/shell/navigation';
 
 // Modals & Drawers
 import SettingsModal from './components/SettingsModal';
 
 const DashboardHome = lazy(() => import('./components/DashboardHome'));
 const ResearchWorkspace = lazy(() => import('./components/research/ResearchWorkspace'));
+const CompareView = lazy(() => import('./components/CompareView'));
 const WatchlistsView = lazy(() => import('./components/WatchlistsView'));
 const NewsFeedView = lazy(() => import('./components/NewsFeedView'));
 const AiReportsView = lazy(() => import('./components/AiReportsView'));
 const PortfolioManagerView = lazy(() => import('./components/PortfolioManagerView'));
 const TradingJournalView = lazy(() => import('./components/TradingJournalView'));
+const EarningsAnalysisView = lazy(() => import('./components/EarningsAnalysisView'));
 const StockDetailModal = lazy(() => import('./components/StockDetailModal'));
 const ManageAssetsDrawer = lazy(() => import('./components/ManageAssetsDrawer'));
 const TradeActionModal = lazy(() => import('./components/TradeActionModal'));
@@ -110,7 +114,7 @@ export default function App() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [focusMode,setFocusMode]=useState(false);
-  const pageTitle=pathname.startsWith('/portfolio')?'Portföy':pathname.startsWith('/watchlist')?'İzleme Listem':pathname.startsWith('/journal')||pathname.startsWith('/transactions')?'Günlük':pathname.startsWith('/dashboard')?'Bugün':'Araştır';
+  const pageTitle = routeTitle(pathname);
 
   // Core Persistent States
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
@@ -142,6 +146,8 @@ export default function App() {
     createList: createApiWatchlist,
     addSymbol: addApiWatchlistSymbol,
     removeSymbol: removeApiWatchlistSymbol,
+    removeList: removeApiWatchlist,
+    reload: reloadApiWatchlists,
   } = useWatchlists();
   const liveMarketSymbols = useMemo(() => {
     const symbols = new Set<string>();
@@ -274,6 +280,12 @@ export default function App() {
     return created.id.toString();
   };
 
+  const handleDeleteWatchlist = async (watchlistId: string) => {
+    const numericWatchlistId = Number(watchlistId);
+    if (!Number.isFinite(numericWatchlistId)) return;
+    await removeApiWatchlist(numericWatchlistId);
+  };
+
   const handleRemoveStockFromWatchlist = async (watchlistId: string, symbol: string) => {
     const numericWatchlistId = Number(watchlistId);
     if (!Number.isFinite(numericWatchlistId)) return;
@@ -376,6 +388,7 @@ export default function App() {
   // renderView is replaced by Routes
 
   return (
+    <MarketScopeProvider>
     <div className={`desk-app ${focusMode ? 'desk-focus-mode' : ''}`}>
       <a className="desk-skip" href="#main-content" onClick={event=>{event.preventDefault();document.getElementById('main-content')?.focus();}}>İçeriğe geç</a>
 
@@ -421,6 +434,7 @@ export default function App() {
                 calendarEvents={calendarEvents}
               />
             } />
+            <Route path="/compare" element={<CompareView />} />
             <Route path="/charts" element={<Navigate to="/workspace" replace />} />
             <Route path="/workspace" element={
               <ResearchRoute
@@ -448,6 +462,8 @@ export default function App() {
                 onAddStockToWatchlist={handleAddStockToWatchlist}
                 onRemoveStockFromWatchlist={handleRemoveStockFromWatchlist}
                 onAddWatchlist={handleAddWatchlist}
+                onDeleteWatchlist={handleDeleteWatchlist}
+                onWatchlistsChanged={reloadApiWatchlists}
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
                 onSelectStock={(s, symbol, name) => openStockDetails(s, symbol, name)}
               />
@@ -484,8 +500,7 @@ export default function App() {
               />
             } />
             <Route path="/transactions" element={
-              <TradingJournalView
-                stocks={stocks}
+              <EarningsAnalysisView
                 portfolios={portfolios}
                 onOpenTradeModal={(sym: string) => setTradeModalSymbol(sym)}
               />
@@ -583,6 +598,7 @@ export default function App() {
       /></Suspense>
 
     </div>
+    </MarketScopeProvider>
   );
 }
 

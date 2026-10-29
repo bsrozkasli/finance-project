@@ -25,6 +25,7 @@ beforeEach(() => server.use(
     http.get(`${base}/fundamentals/:symbol/ratios`, () => HttpResponse.json({pe: null})),
     http.get(`${base}/fundamentals/:symbol/history`, ({params}) => HttpResponse.json({symbol: params.symbol, status: 'EMPTY', currency: null, periodType: 'annual', retrievedAt: null, points: []})),
     http.get(`${base}/news/:symbol`, () => HttpResponse.json([])),
+    http.get(`${base}/assets/:symbol/detail`, () => HttpResponse.json({symbol: 'AAA', generatedAt: 'x', profile: {status: 'EMPTY', source: 's', data: null, message: null, observedAt: 'x'}, market: {status: 'EMPTY', source: 's', data: null, message: null, observedAt: 'x'}})),
 ));
 const availableHistory = (symbol: string) => ({
     symbol, status: 'AVAILABLE', currency: 'USD', periodType: 'annual', retrievedAt: null,

@@ -9,13 +9,18 @@ import {
   RefreshCw,
   Search,
   Trash2,
+  ArrowDown,
+  ArrowUp,
   TrendingUp,
 } from 'lucide-react';
 import type { WatchlistResearchRow, WatchlistResearchStatus } from '../api/client';
+import { updateWatchlist } from '../api/redesign';
 import { useWatchlistResearchSnapshot } from '../hooks/useWatchlistResearchSnapshot';
 import type { CompanyLogoSource, Stock, Watchlist } from '../types';
 import { formatDateTime } from '../utils/formatters';
 import CompanyLogo from './CompanyLogo';
+import WatchlistPerformancePanel from './watchlist/WatchlistPerformancePanel';
+import './watchlist/watchlist.css';
 import StatusPill from './StatusPill';
 import { statusClass, statusLabel } from './sectionStatus';
 
@@ -28,6 +33,10 @@ interface WatchlistsViewProps {
   onAddWatchlist: (name: string) => void | Promise<string | void>;
   onOpenTradeModal: (symbol: string) => void;
   onSelectStock: (stock: Stock | null, symbol?: string, name?: string) => void;
+  /** Deletes a whole list; the delete button is only shown when this is provided. */
+  onDeleteWatchlist?: (watchlistId: string) => void | Promise<void>;
+  /** Called after a rename or reorder was saved so the host can refetch its lists. */
+  onWatchlistsChanged?: () => void | Promise<void>;
 }
 
 const formatCurrency = (value: number | null | undefined) => {
@@ -66,6 +75,8 @@ export default function WatchlistsView({
   onAddWatchlist,
   onOpenTradeModal,
   onSelectStock,
+  onDeleteWatchlist,
+  onWatchlistsChanged,
 }: WatchlistsViewProps) {
   const [activeWatchlistId, setActiveWatchlistId] = useState(watchlists[0]?.id ?? '');
   const [selectedSymbol, setSelectedSymbol] = useState('');
@@ -76,13 +87,25 @@ export default function WatchlistsView({
   const [removingSymbol, setRemovingSymbol] = useState<string | null>(null);
   const [creatingWatchlist, setCreatingWatchlist] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [nameOverrides, setNameOverrides] = useState<Record<string, string>>({});
+  const [orderOverrides, setOrderOverrides] = useState<Record<string, string[]>>({});
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [savingList, setSavingList] = useState(false);
 
   const activeWatchlist = useMemo(
     () => watchlists.find((watchlist) => watchlist.id === activeWatchlistId) ?? watchlists[0] ?? null,
     [watchlists, activeWatchlistId],
   );
 
-  const activeSymbols = activeWatchlist?.symbols ?? [];
+  const activeSymbols = useMemo(() => {
+    const base = activeWatchlist?.symbols ?? [];
+    const order = activeWatchlist ? orderOverrides[activeWatchlist.id] : undefined;
+    if (!order) return base;
+    return [...order.filter((symbol) => base.includes(symbol)), ...base.filter((symbol) => !order.includes(symbol))];
+  }, [activeWatchlist, orderOverrides]);
+  const listName = (watchlist: Watchlist) => nameOverrides[watchlist.id] ?? watchlist.name;
   const activeWatchlistNumericId = activeWatchlist ? Number(activeWatchlist.id) : Number.NaN;
   const {
     snapshot: researchSnapshot,
@@ -175,7 +198,64 @@ export default function WatchlistsView({
       setRemovingSymbol(null);
     }
   };
+  const handleRename = async () => {
+    const name = renameValue.trim();
+    if (!activeWatchlist || !name) return;
+    setSavingList(true);
+    setActionError(null);
+    try {
+      await updateWatchlist(Number(activeWatchlist.id), { name });
+      setNameOverrides((current) => ({ ...current, [activeWatchlist.id]: name }));
+      setRenaming(false);
+      await onWatchlistsChanged?.();
+    } catch (error) {
+      console.error('Failed to rename watchlist', error);
+      setActionError('Liste yeniden adlandırılamadı.');
+    } finally {
+      setSavingList(false);
+    }
+  };
+
+  const handleMove = async (symbol: string, delta: -1 | 1) => {
+    if (!activeWatchlist || savingList) return;
+    const from = activeSymbols.indexOf(symbol);
+    const to = from + delta;
+    if (from < 0 || to < 0 || to >= activeSymbols.length) return;
+    const next = [...activeSymbols];
+    [next[from], next[to]] = [next[to], next[from]];
+    setSavingList(true);
+    setActionError(null);
+    try {
+      await updateWatchlist(Number(activeWatchlist.id), { symbols: next });
+      setOrderOverrides((current) => ({ ...current, [activeWatchlist.id]: next }));
+      await onWatchlistsChanged?.();
+    } catch (error) {
+      console.error('Failed to reorder watchlist', error);
+      setActionError('Sıralama kaydedilemedi.');
+    } finally {
+      setSavingList(false);
+    }
+  };
+
+  const handleDeleteList = async () => {
+    if (!activeWatchlist || !onDeleteWatchlist) return;
+    setSavingList(true);
+    setActionError(null);
+    try {
+      await Promise.resolve(onDeleteWatchlist(activeWatchlist.id));
+      setConfirmingDelete(false);
+      setActiveWatchlistId('');
+    } catch (error) {
+      console.error('Failed to delete watchlist', error);
+      setActionError(`${listName(activeWatchlist)} silinemedi.`);
+    } finally {
+      setSavingList(false);
+    }
+  };
+
   const handleSelectWatchlist = (watchlistId: string) => {
+    setRenaming(false);
+    setConfirmingDelete(false);
     setActiveWatchlistId(watchlistId);
     setSelectedSymbol('');
     setSearchTerm('');
@@ -267,10 +347,44 @@ export default function WatchlistsView({
             >
               {watchlists.map((watchlist) => (
                 <option key={watchlist.id} value={watchlist.id}>
-                  {watchlist.name}
+                  {listName(watchlist)}
                 </option>
               ))}
             </select>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              {renaming ? (
+                <>
+                  <input
+                    value={renameValue}
+                    onChange={(event) => setRenameValue(event.target.value)}
+                    aria-label="Yeni liste adı"
+                    maxLength={60}
+                    className="min-h-11 min-w-0 flex-1 rounded-lg border border-outline-variant bg-bg-base px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+                  />
+                  <button type="button" className="wl-tool" disabled={savingList || !renameValue.trim()} onClick={() => void handleRename()}>Kaydet</button>
+                  <button type="button" className="wl-tool" onClick={() => setRenaming(false)}>Vazgeç</button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="wl-tool"
+                  onClick={() => { setRenameValue(activeWatchlist ? listName(activeWatchlist) : ''); setRenaming(true); }}
+                >
+                  Yeniden adlandır
+                </button>
+              )}
+              {onDeleteWatchlist ? (
+                confirmingDelete ? (
+                  <>
+                    <button type="button" className="wl-tool text-bear-red" disabled={savingList} onClick={() => void handleDeleteList()}>Silmeyi onayla</button>
+                    <button type="button" className="wl-tool" onClick={() => setConfirmingDelete(false)}>Vazgeç</button>
+                  </>
+                ) : (
+                  <button type="button" className="wl-tool" onClick={() => setConfirmingDelete(true)}>Listeyi sil</button>
+                )
+              ) : null}
+            </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               <SummaryTile label="Sembol" value={String(activeSymbols.length)} />
@@ -362,13 +476,33 @@ export default function WatchlistsView({
                           </span>
                         </div>
                       </button>
+                      <div className="flex shrink-0 flex-col border-l border-outline-variant/30">
+                        <button
+                          type="button"
+                          onClick={() => void handleMove(symbol, -1)}
+                          disabled={savingList || activeSymbols.indexOf(symbol) === 0}
+                          aria-label={`${symbol} sembolünü yukarı taşı`}
+                          className="flex min-h-11 min-w-11 flex-1 items-center justify-center text-text-muted hover:text-primary disabled:opacity-40"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleMove(symbol, 1)}
+                          disabled={savingList || activeSymbols.indexOf(symbol) === activeSymbols.length - 1}
+                          aria-label={`${symbol} sembolünü aşağı taşı`}
+                          className="flex min-h-11 min-w-11 flex-1 items-center justify-center text-text-muted hover:text-primary disabled:opacity-40"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
+                      </div>
                       <button
                         type="button"
                         onClick={() => void handleRemoveTicker(symbol)}
                         disabled={removingSymbol !== null}
                         aria-label={`${symbol} sembolünü listeden kaldır`}
                         title={`${symbol} sembolünü kaldır`}
-                        className="flex w-10 shrink-0 items-center justify-center border-l border-outline-variant/30 text-text-muted hover:text-bear-red disabled:opacity-50"
+                        className="flex min-h-11 w-11 shrink-0 items-center justify-center border-l border-outline-variant/30 text-text-muted hover:text-bear-red disabled:opacity-50"
                       >
                         {removingSymbol === symbol ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       </button>
@@ -386,7 +520,7 @@ export default function WatchlistsView({
               <div>
                 <div className="text-xs font-label-caps uppercase tracking-wider text-text-muted">Araştırma özeti</div>
                 <h3 className="mt-1 font-headline text-xl font-bold text-text-primary">
-                  {activeWatchlist?.name ?? 'İzleme listesi'} kapsamı
+                  {activeWatchlist ? listName(activeWatchlist) : 'İzleme listesi'} kapsamı
                 </h3>
               </div>
 
@@ -501,6 +635,12 @@ export default function WatchlistsView({
               </div>
             )}
           </section>
+
+          <WatchlistPerformancePanel
+            watchlistId={Number.isFinite(activeWatchlistNumericId) ? activeWatchlistNumericId : null}
+            search={normalizedSearch}
+            refreshKey={activeSymbols.join(',')}
+          />
 
           <SelectedInstrumentPanel
             row={selectedResearchRow}

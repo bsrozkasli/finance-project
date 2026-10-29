@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp,
   Search,
@@ -16,6 +16,11 @@ import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerform
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
 import { valuePortfolio } from '../utils/portfolioValuation';
 import CompanyLogo from './CompanyLogo';
+import PanelState from './ui/PanelState';
+
+// The v2 analytic panels are split out so the dashboard route chunk stays small.
+const DashboardTop = lazy(() => import('./dashboard/DashboardTop'));
+const DashboardPanels = lazy(() => import('./dashboard/DashboardPanels'));
 import PriceFreshness from './PriceFreshness';
 
 interface DashboardHomeProps {
@@ -438,6 +443,14 @@ export default function DashboardHome({
     return { label: firstPortfolio.label, returnPct: lastPoint.returnPct };
   }, [visibleComparisonSeries]);
 
+  // Alpha = portfolio return minus BIST 100 return over the same loaded period; only when both series exist.
+  const alphaVsBist = useMemo(() => {
+    const portfolio = visibleComparisonSeries.find((series) => series.type === 'PORTFOLIO' && series.points.length > 0);
+    const bist = visibleComparisonSeries.find((series) => series.type === 'BENCHMARK' && series.id === 'BIST100' && series.points.length > 0);
+    if (!portfolio || !bist) return null;
+    return portfolio.points[portfolio.points.length - 1].returnPct - bist.points[bist.points.length - 1].returnPct;
+  }, [visibleComparisonSeries]);
+
   const hoveredComparisonSnapshot = useMemo(() => {
     if (!hoveredComparisonDate) return null;
     const dateIndex = comparisonChart.allDates.indexOf(hoveredComparisonDate);
@@ -521,13 +534,25 @@ export default function DashboardHome({
           <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-text-secondary">
             <span>Aktif portföy:</span>
             <span className="text-primary font-sans font-extrabold">{activePortfolio ? activePortfolio.name : 'Seçili portföy yok'}</span>
+            {portfolios.length > 0 && (
+              <select
+                aria-label="Portföy seç"
+                value={activePortfolio?.id ?? ''}
+                onChange={(event) => onSelectPortfolioId(event.target.value)}
+                className="min-h-11 rounded-lg border border-outline-variant/40 bg-bg-card px-2 text-sm font-bold text-text-primary"
+              >
+                {portfolios.map((portfolio) => (
+                  <option key={portfolio.id} value={portfolio.id}>{portfolio.name}</option>
+                ))}
+              </select>
+            )}
             <div className="flex items-center gap-1 bg-surface-container-low border border-outline-variant/30 rounded-lg p-1 shrink-0">
               <button
                 type="button"
                 onClick={handlePrevPortfolio}
                 aria-label="Önceki portföy"
                 title="Önceki portföy"
-                className="p-1 hover:bg-primary/10 rounded text-text-secondary hover:text-primary transition-colors cursor-pointer"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center hover:bg-primary/10 rounded text-text-secondary hover:text-primary transition-colors cursor-pointer"
               >
                 <ChevronUp className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -536,7 +561,7 @@ export default function DashboardHome({
                 onClick={handleNextPortfolio}
                 aria-label="Sonraki portföy"
                 title="Sonraki portföy"
-                className="p-1 hover:bg-primary/10 rounded text-text-secondary hover:text-primary transition-colors cursor-pointer"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center hover:bg-primary/10 rounded text-text-secondary hover:text-primary transition-colors cursor-pointer"
               >
                 <ChevronDown className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -545,6 +570,10 @@ export default function DashboardHome({
         </div>
         <button type="button" onClick={onNavigateToResearch} className="desk-button">Varlık araştır →</button>
       </header>
+
+      <Suspense fallback={<PanelState state="loading" label="Portföy göstergeleri" />}>
+        <DashboardTop portfolioId={activeInvestmentPortfolioId} onSelectPortfolioId={onSelectPortfolioId} />
+      </Suspense>
 
       {/* Portfolio summary: current value, cost and price coverage come first (design council D11). */}
       <div role="group" aria-label="Portföy özeti" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -648,6 +677,11 @@ export default function DashboardHome({
                   {comparisonSummary ? `${comparisonSummary.label}: ${comparisonSummary.returnPct >= 0 ? '+' : ''}${comparisonSummary.returnPct.toFixed(2)}%` : 'Kümülatif getiri'}
                 </span>
               </div>
+              {alphaVsBist != null && (
+                <div className={`mt-1 text-xs font-data-mono font-semibold ${returnColor(alphaVsBist)}`}>
+                  BIST 100'e göre alfa: {alphaVsBist >= 0 ? '+' : ''}{alphaVsBist.toFixed(2)} pp
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col gap-2 xl:items-end">
@@ -656,10 +690,11 @@ export default function DashboardHome({
                 {comparisonBenchmarks.map((benchmark) => {
                   const active = selectedBenchmarks.includes(benchmark.id);
                   return (
-                    <button type="button"
+                    <button
                       key={benchmark.id}
+                      type="button"
                       onClick={() => toggleBenchmark(benchmark.id)}
-                      className={`rounded-md border px-2 py-1 transition-colors ${active ? 'border-primary/45 bg-primary/15 text-text-primary' : 'border-outline-variant/40 text-text-secondary hover:text-text-primary'}`}
+                      className={`min-h-11 min-w-11 rounded-md border px-2 py-1 transition-colors ${active ? 'border-primary/45 bg-primary/15 text-text-primary' : 'border-outline-variant/40 text-text-secondary hover:text-text-primary'}`}
                     >
                       {benchmark.label}
                     </button>
@@ -668,10 +703,11 @@ export default function DashboardHome({
               </div>
               <div className="flex flex-wrap gap-1 bg-bg-base p-1 rounded-lg border border-outline-variant/40">
                 {comparisonPeriods.map((period) => (
-                  <button type="button"
+                  <button
                     key={period.id}
+                    type="button"
                     onClick={() => setComparisonPeriod(period.id)}
-                    className={`px-2 py-0.5 rounded font-label-caps text-xs font-bold tracking-wider transition-all ${comparisonPeriod === period.id
+                    className={`min-h-11 min-w-11 px-2 py-0.5 rounded font-label-caps text-xs font-bold tracking-wider transition-all ${comparisonPeriod === period.id
                         ? 'bg-primary text-bg-base font-extrabold'
                         : 'text-text-secondary hover:text-text-primary'
                       }`}
@@ -687,10 +723,11 @@ export default function DashboardHome({
             {portfolios.map((portfolio) => {
               const active = selectedComparisonPortfolioIds.includes(portfolio.id);
               return (
-                <button type="button"
+                <button
                   key={portfolio.id}
+                  type="button"
                   onClick={() => toggleComparisonPortfolio(portfolio.id)}
-                  className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${active ? 'border-primary/50 bg-primary/15 text-text-primary' : 'border-outline-variant/35 text-text-secondary hover:text-text-primary'}`}
+                  className={`flex min-h-11 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-bold transition-colors ${active ? 'border-primary/50 bg-primary/15 text-text-primary' : 'border-outline-variant/35 text-text-secondary hover:text-text-primary'}`}
                 >
                   <span className={`h-2 w-2 rounded-full ${active ? 'bg-primary' : 'bg-outline-variant'}`} />
                   <span>{portfolio.name}</span>
@@ -830,10 +867,11 @@ export default function DashboardHome({
             </div>
             <div className="flex rounded-lg border border-outline-variant/35 bg-bg-base p-1">
               {allocationModes.map((mode) => (
-                <button type="button"
+                <button
                   key={mode.id}
+                  type="button"
                   onClick={() => setAllocationMode(mode.id)}
-                  className={`rounded px-2 py-1 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary text-bg-base' : 'text-text-secondary hover:text-text-primary'}`}
+                  className={`min-h-11 min-w-11 rounded px-2 py-1 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary text-bg-base' : 'text-text-secondary hover:text-text-primary'}`}
                 >
                   {mode.label}
                 </button>
@@ -849,8 +887,9 @@ export default function DashboardHome({
             ) : (
               <div className="grid h-full min-h-72 grid-cols-2 auto-rows-fr gap-1.5 sm:grid-cols-3">
                 {allocationData.map((item, index) => (
-                  <button type="button"
+                  <button
                     key={item.symbol}
+                    type="button"
                     onClick={() => {
                       const matchedStock = stockMap[item.symbol];
                       if (matchedStock) onSelectStock(matchedStock);
@@ -876,6 +915,17 @@ export default function DashboardHome({
         </div>
       </div>
 
+      <Suspense fallback={<PanelState state="loading" label="Analiz panelleri" skeletonRows={4} />}>
+        <DashboardPanels
+          portfolioId={activeInvestmentPortfolioId}
+          portfolioIds={portfolios.map((portfolio) => Number(portfolio.id)).filter((id) => Number.isFinite(id))}
+          onSelectSymbol={(symbol) => {
+            const matched = stockMap[symbol];
+            if (matched) onSelectStock(matched);
+          }}
+        />
+      </Suspense>
+
       {/* Bottom Layout: Tabbed News/Calendar Block on the Left, Holdings Positions Table on the Right */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -884,7 +934,8 @@ export default function DashboardHome({
           <div className="space-y-4">
             {/* Header Tabs */}
             <div className="flex border-b border-outline-variant/35 pb-2 text-xs font-sans font-bold">
-              <button type="button"
+              <button
+                type="button"
                 onClick={() => setBottomTab('news')}
                 className={`flex-1 pb-2 border-b-2 text-center transition-all ${bottomTab === 'news'
                     ? 'border-primary text-primary font-extrabold'
@@ -893,7 +944,8 @@ export default function DashboardHome({
               >
                 Haber akışı
               </button>
-              <button type="button"
+              <button
+                type="button"
                 onClick={() => setBottomTab('calendar')}
                 className={`flex-1 pb-2 border-b-2 text-center transition-all ${bottomTab === 'calendar'
                     ? 'border-primary text-primary font-extrabold'
@@ -940,7 +992,8 @@ export default function DashboardHome({
                   );
                 })}
 
-                <button type="button"
+                <button
+                  type="button"
                   onClick={onNavigateToNews}
                   className="w-full py-2 border border-outline-variant/50 hover:border-primary/40 rounded-lg text-center text-xs font-bold text-primary hover:text-text-primary transition-all flex items-center justify-center gap-1.5"
                 >
@@ -1085,7 +1138,8 @@ export default function DashboardHome({
             <span className="text-xs text-text-muted font-sans">
               Bir satır seçerek o varlığın AI analizini ve teknik grafik ayrıntılarını açın.
             </span>
-            <button type="button"
+            <button
+              type="button"
               onClick={onOpenTradingJournal}
               className="text-xs font-bold text-primary hover:text-text-primary flex items-center gap-1.5 transition-colors font-sans"
             >

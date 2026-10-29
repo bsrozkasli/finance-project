@@ -1,6 +1,10 @@
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { API_BASE_URL } from '../api/config';
+import { server } from '../test/server';
+import { redesignFixtureHandlers } from '../test/redesignHandlers';
 import type { WatchlistResearchSnapshot } from '../api/client';
 import type { Stock, Watchlist } from '../types';
 import { useWatchlistResearchSnapshot } from '../hooks/useWatchlistResearchSnapshot';
@@ -302,5 +306,51 @@ describe('WatchlistsView', () => {
 
     expect(screen.getByText('AAPL kaldırılamadı.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'AAPL sembolünü listeden kaldır' })).toBeInTheDocument();
+  });
+
+  it('shows Veri alınamadı for the performance panel while the endpoint has no data', async () => {
+    renderView();
+
+    const panel = screen.getByRole('region', { name: 'Liste performansı' });
+    expect(await within(panel).findByText('Veri alınamadı')).toBeInTheDocument();
+    expect(within(panel).queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('renders averages, breadth, table and heatmap from /watchlists/{id}/performance', async () => {
+    server.use(...redesignFixtureHandlers());
+    const user = userEvent.setup();
+    renderView();
+
+    const panel = screen.getByRole('region', { name: 'Liste performansı' });
+    const table = await within(panel).findByRole('table', { name: 'Liste getiri tablosu' });
+    expect(within(table).getByText('HS1')).toBeInTheDocument();
+    expect(within(table).getAllByText('+1.00%').length).toBeGreaterThan(0);
+    expect(within(panel).getByText('1A en iyi')).toBeInTheDocument();
+    expect(within(panel).getByRole('img', { name: 'HS1 3 aylık fiyat eğilimi' })).toBeInTheDocument();
+
+    await user.click(within(panel).getByRole('button', { name: 'Isı haritası' }));
+    expect(within(panel).getByRole('list', { name: /Isı haritası/ })).toBeInTheDocument();
+    expect(within(panel).queryByRole('table')).not.toBeInTheDocument();
+  });
+
+  it('renames a list and reorders symbols through PUT /watchlists/{id}', async () => {
+    const bodies: unknown[] = [];
+    server.use(http.put(`${API_BASE_URL}/watchlists/:id`, async ({ request }) => {
+      bodies.push(await request.json());
+      return new HttpResponse(null, { status: 200 });
+    }));
+    const user = userEvent.setup();
+    renderView();
+
+    await user.click(screen.getByRole('button', { name: 'Yeniden adlandır' }));
+    const input = screen.getByRole('textbox', { name: 'Yeni liste adı' });
+    await user.clear(input);
+    await user.type(input, 'Büyüme');
+    await user.click(screen.getByRole('button', { name: 'Kaydet' }));
+    await waitFor(() => expect(bodies).toContainEqual({ name: 'Büyüme' }));
+    expect(await screen.findByRole('heading', { name: 'Büyüme kapsamı' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'AAPL sembolünü aşağı taşı' }));
+    await waitFor(() => expect(bodies).toContainEqual({ symbols: ['MSFT', 'AAPL'] }));
   });
 });
