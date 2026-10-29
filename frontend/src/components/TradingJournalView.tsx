@@ -19,6 +19,7 @@ import BulkTextPanel from './transactions/BulkTextPanel';
 import DecisionJournal from './transactions/DecisionJournal';
 import ImportPanel from './transactions/ImportPanel';
 import RecentAdditions from './transactions/RecentAdditions';
+import PriceFreshness from './PriceFreshness';
 
 interface TradingJournalViewProps {
   stocks: Stock[];
@@ -497,6 +498,7 @@ export default function TradingJournalView({
                           <td className="px-3 py-4 font-data-mono">
                             <div className={trade.pnl == null ? 'text-text-muted' : trade.pnl >= 0 ? 'text-bull-green' : 'text-bear-red'}>{formatCurrency(trade.pnl)}</div>
                             <div className={trade.returnPct == null ? 'text-text-muted' : trade.returnPct >= 0 ? 'text-bull-green' : 'text-bear-red'}>{trade.returnPct == null ? '—' : `${trade.returnPct.toFixed(2)}%`}</div>
+                            <PriceFreshness status={trade.priceStatus} asOf={trade.priceAsOf} />
                           </td>
                           <td className="px-3 py-4">
                             <span className={`rounded-full border px-2 py-1 text-xs font-bold ${trade.status === 'OPEN' ? 'border-primary/30 bg-primary/10 text-primary' : 'border-outline-variant bg-bg-base text-text-secondary'}`}>

@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.model;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -29,8 +30,23 @@ public record JournalTrade(
         Long portfolioId,
         Long transactionId,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        Instant priceAsOf,
+        PriceStatus priceStatus
 ) {
+    /** Convenience constructor without price provenance (both new fields null), for persistence reads and tests. */
+    public JournalTrade(
+            Long id, String userId, String symbol, String company, JournalTradeType type,
+            BigDecimal quantity, BigDecimal purchasePrice, BigDecimal currentPrice, BigDecimal marketValue,
+            BigDecimal commission, String strategy, String notes, List<String> tags, LocalDate openedAt,
+            LocalDate closedAt, JournalTradeStatus status, BigDecimal pnl, BigDecimal returnPct,
+            Long holdingDays, Long portfolioId, Long transactionId, LocalDateTime createdAt,
+            LocalDateTime updatedAt) {
+        this(id, userId, symbol, company, type, quantity, purchasePrice, currentPrice, marketValue, commission,
+                strategy, notes, tags, openedAt, closedAt, status, pnl, returnPct, holdingDays, portfolioId,
+                transactionId, createdAt, updatedAt, null, null);
+    }
+
     public JournalTrade {
         if (userId == null || userId.isBlank()) {
             userId = "default";

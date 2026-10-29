@@ -179,6 +179,47 @@ export const fetchFundamentals = async (symbol: string): Promise<FundamentalsDat
   return response.data;
 };
 
+export type FinancialHistoryStatus = 'AVAILABLE' | 'PARTIAL' | 'EMPTY' | 'UNAVAILABLE';
+
+export interface FinancialHistoryPoint {
+  fiscalYear: number;
+  fiscalYearEnd: string;
+  revenue: number | null;
+  netIncome: number | null;
+  operatingCashFlow: number | null;
+  capitalExpenditure: number | null;
+  freeCashFlow: number | null;
+  totalAssets: number | null;
+  totalLiabilities: number | null;
+  totalEquity: number | null;
+  totalDebt: number | null;
+  cash: number | null;
+  netDebt: number | null;
+  debtToEquity: number | null;
+  currentRatio: number | null;
+  roe: number | null;
+  roa: number | null;
+  netMargin: number | null;
+  fcfMargin: number | null;
+  revenueGrowth: number | null;
+  netIncomeGrowth: number | null;
+  notMeaningful: string[];
+}
+
+export interface FinancialHistory {
+  symbol: string;
+  status: FinancialHistoryStatus;
+  currency: string | null;
+  periodType: 'annual';
+  retrievedAt: string | null;
+  points: FinancialHistoryPoint[];
+}
+
+export const fetchFinancialHistory = async (symbol: string): Promise<FinancialHistory> => {
+  const response = await apiClient.get<FinancialHistory>(`/fundamentals/${symbol}/history`);
+  return response.data;
+};
+
 export const fetchFinancialRatios = async (symbol: string): Promise<FinancialRatios> => {
   const response = await apiClient.get<FinancialRatios>(`/fundamentals/${symbol}/ratios`);
   return response.data;

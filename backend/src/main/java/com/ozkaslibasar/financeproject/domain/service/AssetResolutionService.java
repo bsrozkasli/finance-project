@@ -29,11 +29,13 @@ public class AssetResolutionService {
 
         String canonicalSymbol = rawSymbol.trim().toUpperCase(Locale.ROOT);
         Optional<SymbolMapping> mapping = symbolMappingPort.findBestMapping(canonicalSymbol, YAHOO_PROVIDER)
+                .filter(candidate -> candidate.canonicalSymbol().equalsIgnoreCase(canonicalSymbol))
+                .filter(candidate -> candidate.provider().equalsIgnoreCase(YAHOO_PROVIDER))
                 .filter(SymbolMapping::canUseForResolution);
         String providerSymbol = mapping.map(SymbolMapping::providerSymbol).orElse(canonicalSymbol);
 
         Optional<Asset> providerAsset = priceChartClientPort.fetchAssetInfo(providerSymbol);
-        if (providerAsset.isPresent()) {
+        if (providerAsset.filter(asset -> hasRequestedIdentity(asset, providerSymbol)).isPresent()) {
             Asset asset = providerAsset.get();
             return withResolutionMetadata(canonicalSymbol, providerSymbol, asset, mapping, AssetMetadataStatus.VERIFIED);
         }
@@ -60,6 +62,11 @@ public class AssetResolutionService {
                 null,
                 canonicalSymbol,
                 AssetMetadataStatus.UNAVAILABLE);
+    }
+
+    private boolean hasRequestedIdentity(Asset asset, String requestedProviderSymbol) {
+        return asset.symbol().equalsIgnoreCase(requestedProviderSymbol)
+                && asset.providerSymbol().equalsIgnoreCase(requestedProviderSymbol);
     }
 
     private Asset withResolutionMetadata(

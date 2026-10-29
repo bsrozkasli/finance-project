@@ -1,6 +1,10 @@
 package com.ozkaslibasar.financeproject.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.ozkaslibasar.financeproject.domain.model.SmartReport;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.context.annotation.Bean;
@@ -20,10 +24,44 @@ import java.util.Map;
 @EnableCaching
 public class RedisConfig {
 
+    /**
+     * SmartReport is a framework-free Lombok-builder class with no Jackson creator, so the cache
+     * reads it back through its builder; this keeps Jackson annotations out of the domain.
+     * Unknown properties are ignored so entries written by another version still load.
+     */
+    static GenericJackson2JsonRedisSerializer cacheValueSerializer() {
+        return new GenericJackson2JsonRedisSerializer()
+                .configure(objectMapper -> {
+                    objectMapper.registerModule(new JavaTimeModule());
+                    objectMapper.addMixIn(SmartReport.class, BuilderBackedMixIn.class);
+                    objectMapper.addMixIn(SmartReport.ScoreBreakdown.class, ScoreBreakdownMixIn.class);
+                    objectMapper.addMixIn(SmartReport.PeerComparison.class, PeerComparisonMixIn.class);
+                    objectMapper.addMixIn(SmartReport.SmartReportBuilder.class, BuilderMixIn.class);
+                    objectMapper.addMixIn(SmartReport.ScoreBreakdown.ScoreBreakdownBuilder.class, BuilderMixIn.class);
+                    objectMapper.addMixIn(SmartReport.PeerComparison.PeerComparisonBuilder.class, BuilderMixIn.class);
+                });
+    }
+
+    @JsonDeserialize(builder = SmartReport.SmartReportBuilder.class)
+    abstract static class BuilderBackedMixIn {
+    }
+
+    @JsonDeserialize(builder = SmartReport.ScoreBreakdown.ScoreBreakdownBuilder.class)
+    abstract static class ScoreBreakdownMixIn {
+    }
+
+    @JsonDeserialize(builder = SmartReport.PeerComparison.PeerComparisonBuilder.class)
+    abstract static class PeerComparisonMixIn {
+    }
+
+    @JsonPOJOBuilder(withPrefix = "")
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    abstract static class BuilderMixIn {
+    }
+
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        GenericJackson2JsonRedisSerializer valueSerializer = new GenericJackson2JsonRedisSerializer()
-                .configure(objectMapper -> objectMapper.registerModule(new JavaTimeModule()));
+        GenericJackson2JsonRedisSerializer valueSerializer = cacheValueSerializer();
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(60))

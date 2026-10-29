@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Portfolio, Stock } from '../types';
 import { API_BASE_URL as API_BASE } from '../api/config';
-import { deleteInvestmentPortfolio } from '../api/client';
+import { deleteInvestmentPortfolio, fetchPortfolioHoldings } from '../api/client';
 import { server } from '../test/server';
 import PortfolioManagerView from './PortfolioManagerView';
 
@@ -52,7 +53,7 @@ const portfolio: Portfolio = {
   ],
 };
 
-const installPortfolioHandlers = () => {
+const installPortfolioHandlers = (secondSource = 'MANUAL') => {
   server.use(
     http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([
       {
@@ -103,6 +104,7 @@ const installPortfolioHandlers = () => {
         fxRateToBase: 1,
         tradeDate: '2026-01-02T10:00:00Z',
         source: 'MANUAL',
+        originLocator: 'manual:00000000-0000-4000-8000-000000000010',
         notes: 'Initial buy',
       },
       {
@@ -118,7 +120,7 @@ const installPortfolioHandlers = () => {
         fee: 0,
         fxRateToBase: 1,
         tradeDate: '2026-02-05T10:00:00Z',
-        source: 'MANUAL',
+        source: secondSource,
         notes: 'Trimmed position',
       },
     ])),
@@ -198,8 +200,30 @@ describe('PortfolioManagerView', () => {
     expect(screen.getByRole('columnheader', { name: 'İşlem tutarı' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Ortalama maliyet' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'İşlem fiyatı' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Kaynak' })).toBeInTheDocument();
+    const manualRow = screen.getByText('Initial buy').closest('tr');
+    expect(manualRow).not.toBeNull();
+    expect(within(manualRow!).getByText('Elle')).toBeInTheDocument();
+    expect(within(manualRow!).getByText('manual:00000000-0000-4000-8000-000000000010')).toBeInTheDocument();
+    const missingLocatorRow = screen.getByText('Trimmed position').closest('tr');
+    expect(missingLocatorRow).not.toBeNull();
+    expect(within(missingLocatorRow!).getByText('Köken kaydı yok')).toBeInTheDocument();
     expect(screen.getByText('Trimmed position')).toBeInTheDocument();
     expect(screen.getAllByText('02 Oca 2026').length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ['CSV', 'CSV'],
+    ['BROKER', 'Kaynak bilinmiyor'],
+  ])('shows %s transaction source as %s', async (source, label) => {
+    installPortfolioHandlers(source);
+    const user = userEvent.setup();
+    renderPortfolio();
+
+    await user.click(screen.getByRole('button', { name: 'İşlem geçmişi' }));
+    const row = (await screen.findByText('Trimmed position')).closest('tr');
+    expect(row).not.toBeNull();
+    expect(within(row!).getByText(label)).toBeInTheDocument();
   });
 
   it('enforces portfolio create and delete rules in the UI', async () => {
@@ -325,5 +349,102 @@ describe('PortfolioManagerView', () => {
 
     expect(await screen.findByText('Portfolio cannot be deleted while it has active holdings')).toBeInTheDocument();
     expect(onSelectPortfolioId).not.toHaveBeenCalled();
+  });
+
+  it('offers the CSV import and Portfolio State panels for the active portfolio and reloads after accept', async () => {
+    installPortfolioHandlers();
+    let transactionLoads = 0;
+    server.use(
+      http.get(apiUrl('/portfolios/:portfolioId/transactions'), () => {
+        transactionLoads += 1;
+        return HttpResponse.json([]);
+      }),
+      http.post(apiUrl('/portfolios/1/imports'), () => HttpResponse.json({
+        batchId: 9,
+        portfolioId: 1,
+        status: 'STAGED',
+        fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z',
+        acceptedAt: null,
+        counts: { valid: 1, invalid: 0, duplicate: 0, accepted: 0, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'VALID', message: null, originLocator: 'csv:abc', transactionId: null }],
+      }, { status: 201 })),
+      http.post(apiUrl('/portfolios/1/imports/9/accept'), () => HttpResponse.json({
+        batchId: 9,
+        portfolioId: 1,
+        status: 'ACCEPTED',
+        fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z',
+        acceptedAt: '2026-10-25T10:05:00Z',
+        counts: { valid: 0, invalid: 0, duplicate: 0, accepted: 1, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'ACCEPTED', message: null, originLocator: 'csv:abc', transactionId: 5 }],
+      })),
+    );
+    const user = userEvent.setup();
+
+    renderPortfolio();
+
+    expect(await screen.findByRole('heading', { name: 'CSV ile işlem içe aktar' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Portföy durumu' })).toBeInTheDocument();
+    await waitFor(() => expect(transactionLoads).toBe(1));
+    await user.upload(screen.getByLabelText('CSV dosyası'), new File(['a,b'], 'x.csv', { type: 'text/csv' }));
+    await user.click(screen.getByRole('button', { name: 'Yükle' }));
+    await user.click(await screen.findByRole('button', { name: 'Kabul et' }));
+
+    await waitFor(() => expect(transactionLoads).toBe(2));
+  });
+
+  it('refreshes the application holdings after a CSV accept so quantities are not stale', async () => {
+    installPortfolioHandlers();
+    let holdingsLoads = 0;
+    server.use(
+      http.get(apiUrl('/portfolio/positions/performance'), () => HttpResponse.json([])),
+      http.get(apiUrl('/portfolios/1/holdings'), () => {
+        holdingsLoads += 1;
+        return HttpResponse.json([{ symbol: 'AAPL', quantity: 5, avgCostPrice: 100 }]);
+      }),
+      http.post(apiUrl('/portfolios/1/imports'), () => HttpResponse.json({
+        batchId: 9, portfolioId: 1, status: 'STAGED', fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z', acceptedAt: null,
+        counts: { valid: 1, invalid: 0, duplicate: 0, accepted: 0, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'VALID', message: null, originLocator: 'csv:abc', transactionId: null }],
+      }, { status: 201 })),
+      http.post(apiUrl('/portfolios/1/imports/9/accept'), () => HttpResponse.json({
+        batchId: 9, portfolioId: 1, status: 'ACCEPTED', fileSha256: 'f'.repeat(64),
+        createdAt: '2026-10-25T10:00:00Z', acceptedAt: '2026-10-25T10:05:00Z',
+        counts: { valid: 0, invalid: 0, duplicate: 0, accepted: 1, rejected: 0 },
+        rows: [{ rowNumber: 1, status: 'ACCEPTED', message: null, originLocator: 'csv:abc', transactionId: 5 }],
+      })),
+    );
+    const user = userEvent.setup();
+    // Stands in for App: the ledger-changed signal reloads the application-level holdings.
+    function Host() {
+      const [holdings, setHoldings] = useState(portfolio.holdings);
+      return (
+        <PortfolioManagerView
+          stocks={[makeStock('AAPL', 210), makeStock('MSFT', 160)]}
+          portfolios={[{ ...portfolio, holdings }]}
+          activePortfolioId="1"
+          onSelectPortfolioId={vi.fn()}
+          onExecuteTrade={vi.fn()}
+          onLedgerChanged={async () => {
+            const fresh = await fetchPortfolioHoldings(1);
+            setHoldings(fresh.map((holding) => ({
+              symbol: holding.symbol, quantity: holding.quantity, costPrice: holding.averageCost,
+            })));
+          }}
+        />
+      );
+    }
+    render(<Host />);
+
+    await waitFor(() => expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('$580.00'));
+    expect(holdingsLoads).toBe(0);
+    await user.upload(await screen.findByLabelText('CSV dosyası'), new File(['a,b'], 'x.csv', { type: 'text/csv' }));
+    await user.click(screen.getByRole('button', { name: 'Yükle' }));
+    await user.click(await screen.findByRole('button', { name: 'Kabul et' }));
+
+    await waitFor(() => expect(holdingsLoads).toBe(1));
+    await waitFor(() => expect(screen.getByText('Güncel değer').parentElement).toHaveTextContent('$1,050.00'));
   });
 });

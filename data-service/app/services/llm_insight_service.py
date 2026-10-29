@@ -53,8 +53,15 @@ class LlmInsightService:
         
         comp = context.get("composite")
         if comp:
-            lines.append(f"=== COMPOSITE SCORE: {comp.overall_score}/100 | Grade: {comp.grade.value} | Rec: {comp.recommendation} ===")
-            lines.append(f"Breakdown: Fundamental {comp.breakdown.fundamental_score}, Valuation {comp.breakdown.valuation_score}, Quality {comp.breakdown.quality_score}, Growth {comp.breakdown.growth_score}, Momentum {comp.breakdown.momentum_score}, Risk {comp.breakdown.risk_score}, Sentiment {comp.breakdown.sentiment_score}\n")
+            def known(value):
+                return "unavailable" if value is None else value
+
+            if comp.overall_score is None:
+                lines.append("=== COMPOSITE SCORE: unavailable (insufficient evidence) ===")
+            else:
+                lines.append(f"=== COMPOSITE SCORE: {comp.overall_score}/100 | Grade: {comp.grade.value} | Rec: {comp.recommendation} ===")
+            b = comp.breakdown
+            lines.append(f"Breakdown: Fundamental {known(b.fundamental_score)}, Valuation {known(b.valuation_score)}, Quality {known(b.quality_score)}, Growth {known(b.growth_score)}, Momentum {known(b.momentum_score)}, Risk {known(b.risk_score)}, Sentiment {known(b.sentiment_score)}\n")
 
         fund = context.get("fundamental")
         if fund:

@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import com.ozkaslibasar.financeproject.domain.model.PriceStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -35,4 +36,12 @@ public class PriceResponseDto {
 
     @Schema(description = "Candle timestamp", example = "2026-06-26T20:00:00Z")
     private Instant timestamp;
+
+    @Schema(description = "Candle time of the price that was used (same as timestamp); null when there is no price. "
+            + "Set by the latest-price endpoint only", example = "2026-06-26T20:00:00Z", nullable = true)
+    private Instant priceAsOf;
+
+    @Schema(description = "OK when confirmed by a provider refresh, STALE when a stored price could not be confirmed. "
+            + "Set by the latest-price endpoint only", nullable = true)
+    private PriceStatus priceStatus;
 }

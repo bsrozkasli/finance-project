@@ -1,5 +1,6 @@
 package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 
+import com.ozkaslibasar.financeproject.contract.ContractFixtures;
 import com.ozkaslibasar.financeproject.domain.model.Portfolio;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioHolding;
 import com.ozkaslibasar.financeproject.domain.model.PortfolioAssetType;
@@ -9,8 +10,10 @@ import com.ozkaslibasar.financeproject.domain.model.PortfolioTransactionSource;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
+import com.ozkaslibasar.financeproject.domain.service.LedgerInconsistencyException;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.http.MediaType;
@@ -18,15 +21,21 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,9 +59,35 @@ class PortfolioManagementControllerTest {
     private JournalTradePort journalTradePort;
 
     @Test
+    void listedTransactionsMatchSharedLineageContract() throws Exception {
+        PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
+        PortfolioTransaction csv = withVoidedAt(new PortfolioTransaction(
+                11L, 1L, "default", "NVDA", PortfolioAssetType.US_STOCK,
+                PortfolioTransactionAction.SELL, BigDecimal.ONE, new BigDecimal("130"),
+                "USD", BigDecimal.ZERO, BigDecimal.ONE, LocalDate.parse("2026-07-01"),
+                PortfolioTransactionSource.CSV, null, null, null));
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(transactionPort.findByPortfolioIdAndUserId(1L, "default")).thenReturn(List.of(saved, csv));
+
+        String body = mockMvc.perform(get("/api/v1/portfolios/1/transactions"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].source").value("MANUAL"))
+                .andExpect(jsonPath("$[0].originLocator").value(saved.originLocator()))
+                .andExpect(jsonPath("$[1].source").value("CSV"))
+                .andExpect(jsonPath("$[1].originLocator").value(nullValue()))
+                // voidedAt is internal: absent even when the domain object carries it (second event is voided).
+                .andExpect(jsonPath("$[0].voidedAt").doesNotExist())
+                .andExpect(jsonPath("$[1].voidedAt").doesNotExist())
+                .andReturn().getResponse().getContentAsString();
+
+        ContractFixtures.assertSameShape("portfolio-transactions.json", body);
+    }
+
+    @Test
     void shouldCreateTransactionAndLinkedJournalEntryWhenJournalNotesExist() throws Exception {
         Portfolio portfolio = portfolio();
-        PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
+        PortfolioTransaction saved = withVoidedAt(
+                transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120"));
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio));
         when(ledgerService.addTransaction(any(PortfolioTransaction.class))).thenReturn(saved);
 
@@ -73,9 +108,43 @@ class PortfolioManagementControllerTest {
                 .andExpect(jsonPath("$.id").value(10))
                 .andExpect(jsonPath("$.symbol").value("NVDA"))
                 .andExpect(jsonPath("$.source").value("MANUAL"))
-                .andExpect(jsonPath("$.originLocator").isNotEmpty());
+                .andExpect(jsonPath("$.originLocator").isNotEmpty())
+                .andExpect(jsonPath("$.voidedAt").doesNotExist());
 
         verify(journalTradePort).save(any());
+    }
+
+    @Test
+    void refusesCsvSourceOnManualCreateWith422AndStandardBody() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+
+        mockMvc.perform(post("/api/v1/portfolios/1/transactions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"symbol":"NVDA","assetType":"US_STOCK","action":"BUY","quantity":5,"price":120,
+                                 "currency":"USD","source":"CSV"}
+                                """))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.status").value(422))
+                .andExpect(jsonPath("$.message").value("CSV transactions are created only through imports"));
+
+        verify(ledgerService, never()).addTransaction(any(PortfolioTransaction.class));
+        verify(journalTradePort, never()).save(any());
+    }
+
+    @Test
+    void manualAndOmittedSourceStillCreateTransactions() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        when(ledgerService.addTransaction(any(PortfolioTransaction.class)))
+                .thenReturn(transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120"));
+
+        for (String sourceField : List.of("\"source\":\"MANUAL\",", "")) {
+            mockMvc.perform(post("/api/v1/portfolios/1/transactions")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{" + sourceField + "\"symbol\":\"NVDA\",\"assetType\":\"US_STOCK\","
+                                    + "\"action\":\"BUY\",\"quantity\":5,\"price\":120,\"currency\":\"USD\"}"))
+                    .andExpect(status().isCreated());
+        }
     }
 
     @Test
@@ -101,15 +170,53 @@ class PortfolioManagementControllerTest {
 
     @Test
     void shouldDeleteLinkedJournalEntryWhenTransactionIsDeleted() throws Exception {
-        PortfolioTransaction saved = transaction(10L, PortfolioTransactionAction.BUY, "NVDA", "5", "120");
         when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
-        when(transactionPort.findByIdAndPortfolioIdAndUserId(10L, 1L, "default")).thenReturn(Optional.of(saved));
 
         mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
                 .andExpect(status().isNoContent());
 
+        ArgumentCaptor<Runnable> sameTransactionWork = ArgumentCaptor.forClass(Runnable.class);
+        verify(ledgerService).voidTransaction(eq(1L), eq("default"), eq(10L), any(Instant.class),
+                sameTransactionWork.capture());
+        // The journal delete is handed to the service so it runs inside the ledger lock's transaction.
+        verify(journalTradePort, never()).deleteByPortfolioIdAndTransactionIdAndUserId(any(), any(), any());
+        sameTransactionWork.getValue().run();
         verify(journalTradePort).deleteByPortfolioIdAndTransactionIdAndUserId(1L, 10L, "default");
-        verify(transactionPort).deleteByIdAndPortfolioIdAndUserId(10L, 1L, "default");
+    }
+
+    @Test
+    void shouldReturn404WhenTransactionIsUnknownOrAlreadyVoided() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        doThrow(new NoSuchElementException("Transaction not found: 10"))
+                .when(ledgerService).voidTransaction(eq(1L), eq("default"), eq(10L), any(Instant.class), any());
+
+        mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
+                .andExpect(status().isNotFound());
+
+        verify(journalTradePort, never()).deleteByPortfolioIdAndTransactionIdAndUserId(any(), any(), any());
+    }
+
+    @Test
+    void shouldReturn404WhenThePortfolioIsUnknownOnDelete() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.empty());
+
+        mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
+                .andExpect(status().isNotFound());
+
+        verify(ledgerService, never()).voidTransaction(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void shouldReturn409NamingTheSymbolWhenTheVoidWouldBreakTheLedger() throws Exception {
+        when(portfolioPort.findByIdAndUserId(1L, "default")).thenReturn(Optional.of(portfolio()));
+        doThrow(new LedgerInconsistencyException("AAPL",
+                "sell quantity exceeds current holding for AAPL"))
+                .when(ledgerService).voidTransaction(eq(1L), eq("default"), eq(10L), any(Instant.class), any());
+
+        mockMvc.perform(delete("/api/v1/portfolios/1/transactions/10"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("AAPL")));
     }
 
     @Test
@@ -150,6 +257,13 @@ class PortfolioManagementControllerTest {
                 qty.multiply(avg),
                 BigDecimal.ZERO,
                 "USD");
+    }
+
+    private static PortfolioTransaction withVoidedAt(PortfolioTransaction t) {
+        return new PortfolioTransaction(t.id(), t.portfolioId(), t.userId(), t.symbol(), t.assetType(), t.action(),
+                t.quantity(), t.price(), t.currency(), t.fee(), t.fxRateToBase(), t.tradeDate(), t.source(),
+                t.notes(), t.createdAt(), t.updatedAt(), t.originLocator(),
+                java.time.Instant.parse("2026-10-25T09:00:00Z"));
     }
 
     private PortfolioTransaction transaction(

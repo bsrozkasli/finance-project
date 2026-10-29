@@ -3,6 +3,7 @@ package com.ozkaslibasar.financeproject.adapter.inbound.rest;
 import com.ozkaslibasar.financeproject.adapter.inbound.rest.mapper.RestMapper;
 import com.ozkaslibasar.financeproject.domain.model.AssetMarketBatch;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
 import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import org.junit.jupiter.api.Test;
@@ -65,8 +66,8 @@ class PriceControllerTest {
 
     @Test
     void shouldReturnCompleteLatestPriceContract() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL"))
-                .thenReturn(Optional.of(candle("AAPL", "190.12000000", "193.42000000", "194.25000000", "189.50000000", "53120000", CANDLE_TIME)));
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.fresh(candle("AAPL", "190.12000000", "193.42000000", "194.25000000", "189.50000000", "53120000", CANDLE_TIME)));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
                 .andExpect(status().isOk())
@@ -78,53 +79,57 @@ class PriceControllerTest {
                 .andExpect(jsonPath("$.close").value(193.42))
                 .andExpect(jsonPath("$.volume").value(53120000))
                 .andExpect(jsonPath("$.timestamp").value("2026-06-26T20:00:00Z"))
+                .andExpect(jsonPath("$.priceAsOf").value("2026-06-26T20:00:00Z"))
+                .andExpect(jsonPath("$.priceStatus").value("OK"))
                 .andExpect(jsonPath("$.symbol").doesNotExist())
                 .andExpect(jsonPath("$.ticker").doesNotExist())
                 .andExpect(jsonPath("$.asset").doesNotExist())
                 .andExpect(jsonPath("$.date").doesNotExist())
                 .andExpect(jsonPath("$.time").doesNotExist());
 
-        verify(priceRefreshService, times(1)).getFreshLatest("AAPL");
+        verify(priceRefreshService, times(1)).lookupFreshLatest("AAPL");
         verify(restMapper, times(1)).toPriceResponseDto(any(PriceHistory.class));
     }
 
     @Test
     void shouldNormalizeLowercaseAndMixedCaseSymbolBeforeDelegatingLatest() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL"))
-                .thenReturn(Optional.of(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.fresh(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/aapl/latest")).andExpect(status().isOk());
         mockMvc.perform(get(BASE_PRICES_PATH + "/AaPl/latest")).andExpect(status().isOk());
 
-        verify(priceRefreshService, times(2)).getFreshLatest("AAPL");
+        verify(priceRefreshService, times(2)).lookupFreshLatest("AAPL");
     }
 
     @Test
     void shouldDelegateWhitespaceSymbolAsUppercaseWithoutTrimming() throws Exception {
-        when(priceRefreshService.getFreshLatest(" AAPL "))
-                .thenReturn(Optional.of(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
+        when(priceRefreshService.lookupFreshLatest(" AAPL "))
+                .thenReturn(PriceLookups.fresh(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/{symbol}/latest", " aapl "))
                 .andExpect(status().isOk());
 
-        verify(priceRefreshService).getFreshLatest(" AAPL ");
+        verify(priceRefreshService).lookupFreshLatest(" AAPL ");
     }
 
     @Test
     void shouldReturn404WhenLatestPriceDoesNotExist() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.empty());
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_EMPTY));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.message").value("Price not found"));
 
-        verify(priceRefreshService).getFreshLatest("AAPL");
+        verify(priceRefreshService).lookupFreshLatest("AAPL");
         verify(restMapper, never()).toPriceResponseDto(any(PriceHistory.class));
     }
 
     @Test
     void shouldReturnStableErrorShapeWhenLatestPriceDoesNotExist() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.empty());
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_EMPTY));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
                 .andExpect(status().isNotFound())
@@ -137,7 +142,7 @@ class PriceControllerTest {
 
     @Test
     void shouldMapLatestServiceValidationFailureTo400() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL"))
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
                 .thenThrow(new IllegalArgumentException("symbol must not be blank"));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
@@ -148,7 +153,7 @@ class PriceControllerTest {
 
     @Test
     void shouldMapLatestDependencyFailureTo503() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL"))
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
                 .thenThrow(new RuntimeException("Price data unavailable"));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
@@ -159,15 +164,15 @@ class PriceControllerTest {
 
     @Test
     void shouldMapLatestMapperFailureTo500() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL"))
-                .thenReturn(Optional.of(candle("AAPL", "190.12000000", "193.42000000", "194.25000000", "189.50000000", "53120000", CANDLE_TIME)));
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.fresh(candle("AAPL", "190.12000000", "193.42000000", "194.25000000", "189.50000000", "53120000", CANDLE_TIME)));
         doThrow(new RuntimeException("mapping failed"))
                 .when(restMapper).toPriceResponseDto(any(PriceHistory.class));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
                 .andExpect(status().isInternalServerError());
 
-        verify(priceRefreshService).getFreshLatest("AAPL");
+        verify(priceRefreshService).lookupFreshLatest("AAPL");
     }
 
     @Test
@@ -351,20 +356,20 @@ class PriceControllerTest {
 
     @Test
     void shouldSupportJsonContentNegotiation() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL"))
-                .thenReturn(Optional.of(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.fresh(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON));
 
-        verify(priceRefreshService).getFreshLatest("AAPL");
+        verify(priceRefreshService).lookupFreshLatest("AAPL");
     }
 
     @Test
     void shouldRejectUnsupportedAcceptTypeForLatest() throws Exception {
-        when(priceRefreshService.getFreshLatest("AAPL"))
-                .thenReturn(Optional.of(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.fresh(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
 
         mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept("text/csv"))
                 .andExpect(status().isNotAcceptable());
@@ -397,6 +402,62 @@ class PriceControllerTest {
         assertThat(historyCache.value()).containsExactly("priceCache");
         assertThat(latestCache.key()).contains("#symbol.toUpperCase()");
         assertThat(historyCache.key()).contains("hist:").contains("#interval").contains("#range");
+    }
+
+    @Test
+    void shouldLabelStoredPriceAfterFailedRefreshStaleKeepingCandleTime() throws Exception {
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.stored(
+                        candle("AAPL", "1", "193.42", "1", "1", "1", CANDLE_TIME),
+                        PriceLookup.Origin.STORED_REFRESH_FAILED));
+
+        mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.close").value(193.42))
+                .andExpect(jsonPath("$.timestamp").value("2026-06-26T20:00:00Z"))
+                .andExpect(jsonPath("$.priceAsOf").value("2026-06-26T20:00:00Z"))
+                .andExpect(jsonPath("$.priceStatus").value("STALE"));
+    }
+
+    @Test
+    void shouldLabelStoredPriceAfterEmptyRefreshStale() throws Exception {
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.stored(
+                        candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME),
+                        PriceLookup.Origin.STORED_REFRESH_EMPTY));
+
+        mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.priceStatus").value("STALE"));
+    }
+
+    @Test
+    void shouldKeep404WhenNoPriceAtAllAfterFailedRefresh() throws Exception {
+        when(priceRefreshService.lookupFreshLatest("AAPL"))
+                .thenReturn(PriceLookups.none(PriceLookup.Origin.NONE_REFRESH_FAILED));
+
+        mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/latest").accept(APPLICATION_JSON))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.message").value("Price not found"));
+    }
+
+    @Test
+    void historyEndpointDoesNotCarryPriceProvenance() throws Exception {
+        when(priceRefreshService.getFreshHistory("AAPL", "1d", "1mo"))
+                .thenReturn(List.of(candle("AAPL", "1", "1", "1", "1", "1", CANDLE_TIME)));
+
+        mockMvc.perform(get(BASE_PRICES_PATH + "/AAPL/history").accept(APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].priceStatus").value(org.hamcrest.Matchers.nullValue()))
+                .andExpect(jsonPath("$[0].priceAsOf").value(org.hamcrest.Matchers.nullValue()));
+    }
+
+    @Test
+    void latestCacheableStoresOnlyOkAnswers() throws Exception {
+        var latest = PriceController.class.getMethod("getLatestPrice", String.class);
+        var cacheable = latest.getAnnotation(org.springframework.cache.annotation.Cacheable.class);
+
+        assertThat(cacheable.unless()).contains("priceStatus").contains("'OK'");
     }
 
     @Test

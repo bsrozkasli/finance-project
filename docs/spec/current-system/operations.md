@@ -92,15 +92,38 @@ tests for success, empty response, provider failure, and fallback ordering.
   explicit status metadata, or dependency errors according to the public endpoint
   contract.
 - `PriceRefreshService` may return existing persisted rows when a refresh fails.
-  Price DTOs expose timestamps but no explicit stale flag, so consumers can only
-  infer freshness from time. This is a current contract gap; documentation and UI
-  must not claim that fallback price rows carry explicit stale metadata.
+  History price DTOs (`/prices/{symbol}/history`) expose timestamps but no explicit stale
+  flag, so consumers can only infer freshness from time; documentation and UI must not
+  claim that fallback history rows carry explicit stale metadata. Latest-price consumers
+  listed below carry `priceStatus`/`priceAsOf`.
+- `PriceRefreshService.lookupFreshLatest` returns the newest price with its origin:
+  `FRESH` (the provider returned a row for the symbol), `STORED_REFRESH_FAILED` (the
+  provider call threw, only a stored price), `STORED_REFRESH_EMPTY` (null, empty or
+  only other symbols' rows, only a stored price), `NONE_REFRESH_FAILED`,
+  `NONE_REFRESH_EMPTY`. It shares the fetch-and-persist path with `getFreshLatest`;
+  failure is told from empty by the exception, never by message text. Only the
+  watchlist research snapshot (price section status), the journal's open-trade
+  enrichment, the portfolio dashboard (`PortfolioDashboardController`: summary,
+  `positions/enriched`, `positions/performance`, `allocation`) and
+  `GET /prices/{symbol}/latest` use it (see `contracts.md`); all map the origin through the single
+  `PriceStatus.from` (`FRESH`=`OK`, `STORED_*`=`STALE`, `NONE_REFRESH_FAILED`=`FAILED`,
+  `NONE_REFRESH_EMPTY`=`EMPTY`). A dashboard lookup that throws is treated as no price with
+  status `FAILED`, never `OK`. Decision record
+  `docs/product/decisions/2026-10-26-price-staleness.md`.
 - Asset metadata uses `VERIFIED`, `PARTIAL`, or `UNAVAILABLE`.
 - Technical analysis rejects fewer than 30 candles and leaves long-lookback
   indicators nullable when history is insufficient.
 - Macro snapshot fields are independently nullable. The Spring endpoint returns
   503 when every macro field is unavailable.
 - FMP calendar failure or missing key returns empty lists, not fabricated events.
+- Financial history (`GET /api/v1/research/financial-history/{symbol}`) degrades per cell: missing
+  values are `null` and the status is `PARTIAL`. When no statement has data the response is a 200
+  with `status` `EMPTY` and empty lists; only when all three statement reads fail does it
+  return 503. No values are synthesised.
+- Spring financial history (`GET /api/v1/fundamentals/{symbol}/history`) is always HTTP 200. Data-service
+  timeout, refusal, 5xx, malformed JSON, unequal series lengths, or an unknown status become
+  `status` `UNAVAILABLE` with no points. `UNAVAILABLE` is never cached (`fundamentalCache`, 24 hours),
+  so recovery is visible on the next request; `AVAILABLE`, `PARTIAL` and `EMPTY` are cached.
 - Extended-hours quotes are provider-backed and nullable. The UI shows provider
   timestamps and delay state, and prefers `UNKNOWN` market state over a local
   market-hours guess. Batch quote/profile reads degrade per symbol; no paid logo
@@ -121,7 +144,7 @@ tests for success, empty response, provider failure, and fallback ordering.
 | Cache | TTL |
 |---|---:|
 | default | 60 minutes |
-| `latestPriceCache` | 30 seconds |
+| `latestPriceCache` | 30 seconds; caches only `OK` answers (`unless` on `PriceController.getLatestPrice`), so a `STALE` answer is looked up again on the next call |
 | `marketQuoteCache` | 30 seconds |
 | `assetProfileCache` | 24 hours |
 | `priceCache` | 5 minutes |
@@ -138,7 +161,51 @@ tests for success, empty response, provider failure, and fallback ordering.
 
 Agent analysis uses its own serialized Redis entry with
 `agent-analysis.cache-ttl-minutes=15`. `AgentAnalysisFacade` checks it before
-computing and writes it only after successful analysis.
+computing and writes it only after a successful analysis whose
+`decision_status` is `OK`; `FAILED` and unknown-status results are not cached, so
+the next request asks the data-service again. A cached entry without
+`decision_status` (written before 2026-10-26) is treated as a miss and evicted,
+so an old placeholder verdict is never served.
+
+`researchCache` does not store an empty result (empty `Optional` or empty list)
+for fundamentals, valuation, earnings, institutional scores or the composite
+score, because the adapter cannot tell "no data exists" from a swallowed failure
+on that path; the data-service has its own caches. Non-empty results keep the
+12 hour TTL. The outcome-returning methods used by the watchlist research
+snapshot are cached in `researchCache` under their own keys
+(`fundamental-result:`, `earnings-result:`, `institutional-result:`) only when
+the outcome is `OK`; `FAILED`, `RATE_LIMITED`, `INSUFFICIENT_DATA` and `EMPTY` are
+never cached. The technical outcome methods are not cached. Earnings lists are
+returned as mutable lists because an immutable list cannot be read back from the
+Redis serializer. Cached outcome entries embed record class names, so a change to
+those record shapes needs the cache cleared or its 12 hours to pass.
+
+Watchlist research snapshot circuit breaker: one breaker per section
+(`technical`, `fundamentals`, `earnings`, `institutional`; the `price` section has
+none), shared across symbols
+and requests. Three provider-side failures (`RATE_LIMITED`, or `FAILED` from a
+5xx, I/O error, timeout, unreadable body or other exception) open it for 60
+seconds and the section reads `STALE` meanwhile. A `FAILED` from a 4xx other than
+429, `EMPTY` and `INSUFFICIENT_DATA` do not count, and an `OK`, `EMPTY` or
+`INSUFFICIENT_DATA` answer resets the count (a `FAILED` from a 4xx neither counts nor
+resets it). A real provider outage therefore shows `STALE` for that section
+across the whole watchlist for up to 60 seconds. The per-row overall status
+includes this `STALE` (order `RATE_LIMITED`, `FAILED`, `STALE`,
+`INSUFFICIENT_DATA`, `OK`, `EMPTY`), so rows that read `OK` during an outage now
+read `STALE`: a behavior change, see `contracts.md`.
+
+`RATE_LIMITED` now arises from provider limits: the data-service answers 429 with
+`Retry-After` when Yahoo or Tiingo rate limits and no provider returned data
+(`contracts.md`), the backend maps it to `RATE_LIMITED`, and it counts toward the
+breaker, so a Yahoo rate limit can open the technical or fundamentals breaker
+where it used to read `EMPTY`. The data-service resolver also counts the rate
+limit toward its provider blacklist (three failures, 60 seconds) and remembers
+whether the failure that completed the threshold was a rate limit: during that
+window the skipped provider still counts as rate limited, with the remaining
+blacklist time as `Retry-After`, so the limit is not reported as "no data"
+(a blacklist from other failures stays silent). Unchanged: the
+legacy Spring adapters (price, asset detail, metadata) swallow every error, and
+the backend does not read `Retry-After`.
 
 ### Data-service caches
 
@@ -151,6 +218,10 @@ computing and writes it only after successful analysis.
 
 - Backend Hikari defaults: maximum pool size 10, minimum idle 2, connection
   timeout 30 seconds.
+- Outbound `RestTemplate`: connect timeout 3 s, read timeout 60 s, configurable
+  via `data-service.http.connect-timeout` / `data-service.http.read-timeout`;
+  timeouts surface as `ResourceAccessException` and adapters report the data as
+  unavailable.
 - Finnhub Resilience4j configuration uses 30 calls per one-second period,
   three retry attempts with exponential backoff, a 10-call circuit window with
   50% failure threshold, 30-second open state, and bulkhead maximum 10.
@@ -163,6 +234,52 @@ computing and writes it only after successful analysis.
   and profiles are not part of this loop.
 - Watchlist research provider calls are bounded by per-provider timeouts and
   circuit behavior so one section does not erase other evidence.
+
+### Logical backup and restore exercise
+
+`PortfolioBackupRestoreTest` (R-23) is a repeatable proof that EPIC-002 data survives a logical PostgreSQL backup. It
+is evidence, not a target: it sets no recovery objective, encryption, retention or access-control requirement.
+
+What it covers, on two real PostgreSQL 16 Testcontainers (A and B):
+
+- Container A is filled through the application's own beans: a portfolio; assets and daily closes (AAPL and MSFT
+  priced in USD, SAP priced in EUR against a USD ledger, so its position is `CURRENCY_MISMATCH`); ledger events (a BUY
+  later partly sold, a dividend, a manual event and a CSV-imported event that are then voided); three CSV batches
+  (accepted with an `INVALID` row, a second accepted with `DUPLICATE` rows including one whose event is voided, and one
+  left `STAGED`); two persisted Portfolio States, a `COMPLETE` one stored before the void and a `PARTIAL` one after.
+- `pg_dump -Fc` runs inside A; the file is copied out and into B; `pg_restore --no-owner --exit-on-error` restores it
+  into an empty database there.
+- The application starts against the restored database, so Flyway validates the restored `flyway_schema_history`
+  (same rows, checksums and success flags as in A). Row counts and an `md5` digest of every public table equal A's.
+  Active and voided event counts, CSV batch statuses and per-row outcomes, and holdings equal A's. Every stored state
+  replays through `PortfolioStateService.replay` to the same version hash, including the state stored before the
+  void. Re-staging the same CSV marks the voided and active rows `DUPLICATE`, so voided events still reserve their
+  locator.
+
+It is opt-in (R-30) because it would not fit the default suite's 120 s fork budget. From `backend/` in PowerShell, with Docker running:
+
+```powershell
+node ..\scripts\run-with-timeout.cjs 115000 .\mvnw.cmd "-Dtest=PortfolioBackupRestoreTest" "-Dbackup.restore=true" test
+```
+
+Measured on a developer machine (Windows, Docker Desktop, 2026-10-25; information only, no threshold beyond a
+110 s guard on dump plus restore plus verification): seeding 36-38 s, dump and copy out 0.4 s, copy in and restore
+0.6 s, application start on the restored database about 7 s, verification 7-8 s in total, dump 59 KB, whole test
+class 50-54 s. A later run on a loaded machine took 82 s (seed 52 s, restore 4 s, start 17 s). Both application contexts run in this JVM. The pom hard-codes `forkedProcessTimeoutInSeconds=120`: a run longer than that reports BUILD FAILURE after the tests passed, so judge the result from `backend/target/surefire-reports`, not the Maven exit code (both runs here finished in under 120 s and reported success). The test also inserts one ledger event after the restore and asserts its id is above every restored id, so the sequences were restored.
+
+What this does not prove:
+
+- No RPO, RTO or backup schedule.
+- No encryption of dumps or of at-rest storage.
+- No retention period.
+- No access control on dumps or on the dump file's location.
+- No point-in-time recovery (WAL archiving); the dump is one logical snapshot.
+- No restore across PostgreSQL or application versions; both sides use `postgres:16-alpine` and the same build.
+- No restore of Redis or data-service state; only the Spring PostgreSQL database is dumped.
+- No production-size data; the dataset is a few dozen rows.
+
+OQ-8 (recovery objectives, encryption, retention) is still open and owned by the operations/security lead; Task 3
+acceptance stays blocked on it.
 
 ## Security Boundary
 

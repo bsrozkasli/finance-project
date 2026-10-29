@@ -7,6 +7,8 @@ import com.ozkaslibasar.financeproject.domain.model.JournalTradeStats;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeStatus;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeType;
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
+import com.ozkaslibasar.financeproject.domain.model.PriceStatus;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -17,6 +19,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -49,7 +53,7 @@ class JournalTradeServiceTest {
     @Test
     void shouldEnrichOpenTradesWithFreshLatestPrice() {
         when(tradePort.findByUserId("default")).thenReturn(List.of(openTrade("AAPL", "2", "90", "100")));
-        when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.of(price("AAPL", "110")));
+        when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(lookup(PriceLookup.Origin.FRESH, "AAPL", "110"));
 
         JournalTradePage page = service.list("default", 0, 50);
 
@@ -58,6 +62,78 @@ class JournalTradeServiceTest {
         assertThat(trade.marketValue()).isEqualByComparingTo("220");
         assertThat(trade.pnl()).isEqualByComparingTo("40");
         assertThat(trade.returnPct()).isEqualByComparingTo("22.2222");
+        assertThat(trade.priceStatus()).isEqualTo(PriceStatus.OK);
+        assertThat(trade.priceAsOf()).isEqualTo(CANDLE_TIME);
+    }
+
+    @Test
+    void shouldRecomputeFromStoredPriceAndMarkItStaleWhenRefreshFailed() {
+        shouldRecomputeStale(PriceLookup.Origin.STORED_REFRESH_FAILED);
+    }
+
+    @Test
+    void shouldRecomputeFromStoredPriceAndMarkItStaleWhenRefreshWasEmpty() {
+        shouldRecomputeStale(PriceLookup.Origin.STORED_REFRESH_EMPTY);
+    }
+
+    private void shouldRecomputeStale(PriceLookup.Origin origin) {
+        when(tradePort.findByUserId("default")).thenReturn(List.of(openTrade("AAPL", "2", "90", "100")));
+        when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(lookup(origin, "AAPL", "105"));
+
+        JournalTrade trade = service.list("default", 0, 50).content().get(0);
+
+        assertThat(trade.currentPrice()).isEqualByComparingTo("105");
+        assertThat(trade.marketValue()).isEqualByComparingTo("210");
+        assertThat(trade.pnl()).isEqualByComparingTo("30");
+        assertThat(trade.priceStatus()).isEqualTo(PriceStatus.STALE);
+        assertThat(trade.priceAsOf()).isEqualTo(CANDLE_TIME);
+    }
+
+    @Test
+    void shouldKeepPersistedValuesAndMarkStaleWithUpdatedAtWhenNoPriceIsFound() {
+        for (PriceLookup.Origin origin : List.of(
+                PriceLookup.Origin.NONE_REFRESH_FAILED, PriceLookup.Origin.NONE_REFRESH_EMPTY)) {
+            when(tradePort.findByUserId("default")).thenReturn(List.of(openTrade("AAPL", "2", "90", "100")));
+            when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(lookup(origin, "AAPL", null));
+
+            JournalTrade trade = service.list("default", 0, 50).content().get(0);
+
+            assertThat(trade.currentPrice()).isEqualByComparingTo("100");
+            assertThat(trade.marketValue()).isEqualByComparingTo("200");
+            assertThat(trade.pnl()).isEqualByComparingTo("20");
+            assertThat(trade.returnPct()).isEqualByComparingTo("11.1111");
+            assertThat(trade.priceStatus()).isEqualTo(PriceStatus.STALE);
+            assertThat(trade.priceAsOf()).isEqualTo(UPDATED_AT.atZone(ZoneId.systemDefault()).toInstant());
+        }
+    }
+
+    @Test
+    void shouldReportLookupStatusAndNoTimeWhenNeitherLookupNorTradeHasAPrice() {
+        assertNoPrice(PriceLookup.Origin.NONE_REFRESH_FAILED, PriceStatus.FAILED);
+        assertNoPrice(PriceLookup.Origin.NONE_REFRESH_EMPTY, PriceStatus.EMPTY);
+    }
+
+    private void assertNoPrice(PriceLookup.Origin origin, PriceStatus expected) {
+        when(tradePort.findByUserId("default")).thenReturn(List.of(openTradeWithoutPrice("AAPL")));
+        when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(lookup(origin, "AAPL", null));
+
+        JournalTrade trade = service.list("default", 0, 50).content().get(0);
+
+        assertThat(trade.currentPrice()).isNull();
+        assertThat(trade.pnl()).isNull();
+        assertThat(trade.priceStatus()).isEqualTo(expected);
+        assertThat(trade.priceAsOf()).isNull();
+    }
+
+    @Test
+    void shouldLeaveClosedTradesWithoutPriceProvenance() {
+        when(tradePort.findByUserId("default")).thenReturn(List.of(closedTrade("MSFT", "1", "200", "225")));
+
+        JournalTrade trade = service.list("default", 0, 50).content().get(0);
+
+        assertThat(trade.priceStatus()).isNull();
+        assertThat(trade.priceAsOf()).isNull();
+        assertThat(trade.currentPrice()).isEqualByComparingTo("225");
     }
 
     @Test
@@ -65,12 +141,12 @@ class JournalTradeServiceTest {
         when(tradePort.findByUserId("default")).thenReturn(List.of(
                 openTrade("AAPL", "2", "90", "100"),
                 openTrade("AAPL", "1", "95", "100")));
-        when(priceRefreshService.getFreshLatest("AAPL")).thenReturn(Optional.of(price("AAPL", "110")));
+        when(priceRefreshService.lookupFreshLatest("AAPL")).thenReturn(lookup(PriceLookup.Origin.FRESH, "AAPL", "110"));
 
         JournalTradePage page = service.list("default", 0, 50);
 
         assertThat(page.content()).hasSize(2);
-        verify(priceRefreshService, times(1)).getFreshLatest("AAPL");
+        verify(priceRefreshService, times(1)).lookupFreshLatest("AAPL");
     }
 
     @Test
@@ -268,7 +344,21 @@ class JournalTradeServiceTest {
                 null,
                 null,
                 null,
-                null);
+                UPDATED_AT);
+    }
+
+    private static final Instant CANDLE_TIME = Instant.parse("2026-10-20T20:00:00Z");
+    private static final LocalDateTime UPDATED_AT = LocalDateTime.of(2026, 10, 21, 9, 30);
+
+    private PriceLookup lookup(PriceLookup.Origin origin, String symbol, String close) {
+        return new PriceLookup(close == null ? Optional.empty() : Optional.of(price(symbol, close)), origin);
+    }
+
+    private JournalTrade openTradeWithoutPrice(String symbol) {
+        return new JournalTrade(1L, "default", symbol, symbol, JournalTradeType.BUY, BigDecimal.ONE,
+                BigDecimal.valueOf(100), null, null, BigDecimal.ZERO, "Momentum", "", List.of(),
+                LocalDate.now().minusDays(10), null, JournalTradeStatus.OPEN, null, null, null, null, null,
+                null, UPDATED_AT);
     }
 
     private PriceHistory price(String symbol, String close) {
@@ -280,6 +370,6 @@ class JournalTradeServiceTest {
                 value,
                 value,
                 BigDecimal.valueOf(1000),
-                Instant.now());
+                CANDLE_TIME);
     }
 }

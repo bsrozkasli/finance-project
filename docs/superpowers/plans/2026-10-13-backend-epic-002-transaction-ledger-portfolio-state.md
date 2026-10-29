@@ -10,8 +10,11 @@
 **Focused tests:** Task 1 PortfolioLedgerServiceTest; Task 2 PortfolioCsvImportServiceTest; Task 3 PortfolioStateServiceTest and PortfolioStateRepositoryAdapterTest.
 
 **Plan Set:** 2 of 10 in 2026-10-13-backend-epic-delivery-plan-set.md.
-**Execution status (2026-10-15):** Blocked for full delivery. The PRD-FR-011/014 verification slices may proceed against the available product contract; EPIC-001 stable identity and the OQ-5/OQ-8 CSV, state, and recovery decisions are absent.
-**Verification progress (2026-10-17):** PRD-FR-011 fixture `PortfolioTransactionLineageTest` (stable id, MANUAL source, holdings after commit and readback) and PRD-FR-014 holdings/basis/realized replay fixture `PortfolioLedgerReplayTest` pass with Testcontainers active; no production change was needed. Exposure replay and the origin-locator field are not covered (no exposure model exists; Task 3 remains Blocked).
+**Execution status (2026-10-26):** Merged to `main` on 2026-10-26 via PR #70 and PR #71: voided (not deleted) ledger events, exposure valuation (`pstate-v2`), persisted and replayable Portfolio State with its two routes, CSV import (schema v1, staging, idempotent accept) with its three routes, the per-portfolio ledger lock, the frontend panels, and a logical backup/restore proof (opt-in test). Acceptance is not claimed and the plan is not release-ready. Still blocking acceptance: the OQ-8 recovery targets (Task 3), the remaining OQ-5 contract dispositions, the EPIC-001 stable identity dependency (OQ-2) for Task 1, and the integrated E2E, which has not been run locally. Decisions and follow-ups: `docs/product/decisions/2026-10-25-epic-002-ledger-state-and-csv.md` (R-23 to R-33). Earlier status (2026-10-15): Blocked for full delivery; the PRD-FR-011/014 verification slices could proceed against the available product contract.
+**Verification progress (2026-10-17):** PRD-FR-011 fixture `PortfolioTransactionLineageTest` (stable id, MANUAL source, holdings after commit and readback) and PRD-FR-014 holdings/basis/realized replay fixture `PortfolioLedgerReplayTest` pass with Testcontainers active; no production change was needed. At that date, exposure replay and the origin-locator field were not covered (no exposure model exists; Task 3 remains Blocked).
+**Lineage update (2026-10-23):** Manual `originLocator` is now persisted through V8 and covered by `PortfolioTransactionLineagePersistenceTest` and the POST controller test. A shared GET response fixture now pins the backend JSON shape and frontend parser. The frontend transaction history displays the existing response's source and locator and marks an absent locator explicitly; no backend route or DTO field changed in this slice. Task 1 still depends on EPIC-001 stable identity, and CSV/state/recovery tasks remain gated by their named decisions.
+**Verification re-run (2026-10-24):** `.\mvnw.cmd -Dtest="PortfolioTransactionLineageTest,PortfolioLedgerReplayTest" test` from `backend/` with Docker active: 2 run, 0 failures, 0 skipped (BUILD SUCCESS). Local Docker 29 needed `api.version=1.44` in `~/.docker-java.properties` for Testcontainers 1.20.6; no repository change. Scope unchanged: exposure replay remains uncovered and Task 3 stays Blocked; the origin locator is covered separately by the 2026-10-23 lineage update.
+**Task 3 preparation (2026-10-25):** `PortfolioState`, `PortfolioStateService` (`project` and `stateAt`) and `PortfolioLedgerService.calculatePositions` derive positions, cost basis, realized activity (closed positions kept) and source event ids from accepted events, named by a content-addressed `pstate-v1` version; `DomainConfig` registers the service. `PortfolioStateServiceTest` (11 tests) failed to compile before implementation. Reordered and rescaled events give the same version; an added or changed event gives a new one, and the prior events still replay the prior state. Removing scale normalization, id ordering, or the price field from the hash each failed one test. `PortfolioStateRestartReplayTest` derives the same state and version from a new application context on the same PostgreSQL (same JVM, not a new process). Portfolio, wiring and architecture tests: 153 passed, 0 skipped. Not done: exposures (no formula or price evidence contract), state persistence and a state route (OQ-5), and OQ-8 backup/restore. Events can still be deleted through the transaction port, so a version is detectable but not guaranteed reproducible. Story order puts CSV staging (STORY-002-02) first, so this is preparation; Task 3 is not accepted.
 **Depends On:** EPIC-001 identity; approved CSV/state contract and OQ-5/8 decisions where applicable.
 **Produces:** Source-linked ledger events, staged idempotent CSV import, versioned Portfolio State and recovery evidence.
 **Spec:** docs/product/epics/EPIC-002-transaction-ledger-portfolio-state.md; docs/product/PRD.md §9.2.
@@ -94,6 +97,25 @@ The PRD-FR-014 ledger replay fixture is Ready; new state IDs and the recovery ta
 - [ ] Implement deterministic projection and state persistence through ports; document OQ-8 approved recovery procedure.
 - [ ] Run full backend suite and timed encrypted backup/restore exercise before external evaluation.
 - [ ] Commit scoped Task 3 files and recovery evidence with feat(backend) scope.
+
+## Progress Note (2026-10-25)
+
+Exists now on `feat/epic-002-ledger-state-csv`: validated and serialized ledger void (`409` when the remaining events do
+not replay; journal delete in the same transaction, R-17), exposures and persisted Portfolio States with replay, CSV
+staging and acceptance with row identity, and the per-portfolio ledger lock pinned to `READ COMMITTED` (R-13, R-18).
+New code upper-cases with `Locale.ROOT` (R-19).
+
+Restore exercise (R-23): `PortfolioBackupRestoreTest` dumps a seeded PostgreSQL (`pg_dump -Fc`), restores it into a fresh container, starts the application on it and replays every stored state to the same version; counts, per-table digests, voided events, CSV outcomes and `flyway_schema_history` match (opt-in with `-Dbackup.restore=true`, R-30; timings in `operations.md`). It proves logical recoverability only; see `operations.md` for timings and what it does not prove.
+
+**Frontend handoff done (2026-10-25, R-26, branch `feat/epic-002-frontend`):** typed import/state API functions, the CSV
+import panel, the Portfolio State panel and the transaction-delete `409` message are implemented with Vitest + MSW tests,
+and the batch and state responses are pinned by shared fixtures checked by the backend `ContractFixtures` tests and the
+frontend zod schemas. The integrated E2E against a live stack (`npm run e2e:integrated`) has not been run locally; CI
+runs it.
+
+Still open: OQ-8 recovery targets (RPO/RTO, encryption, retention; Task 3 acceptance stays blocked on them); the integrated E2E has not been run locally (CI runs it); the 5,000-row measurements, including the ranges that miss the 30 s accept target under load, are quoted once in `domain-and-data.md`.
+
+Closed: R-21 (chunked incremental validation replaced the per-row replay; measurements and their conditions are in `domain-and-data.md`; the back-dated algorithm replays the row's whole symbol, and a single-symbol 5,000-row back-dated file is unmeasured, R-32); R-11 (the manual route posting `source=CSV` without import lineage) by R-20; that value now returns `422`.
 
 ## Plan Exit Criteria
 

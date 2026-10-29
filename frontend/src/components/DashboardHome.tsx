@@ -11,7 +11,7 @@ import {
   ChevronUp,
   ChevronDown
 } from 'lucide-react';
-import type { CalendarEvent, News, Stock, Portfolio } from '../types';
+import type { CalendarEvent, News, Stock, Portfolio, CompanyLogoSource } from '../types';
 import type { MacroSnapshot, PortfolioComparisonSeries, PortfolioPositionPerformance } from '../api/client';
 import { fetchMacroSnapshot, fetchPortfolioPerformanceComparison, fetchPortfolioPositionsPerformance } from '../api/client';
 import { valuePortfolio } from '../utils/portfolioValuation';
@@ -21,9 +21,11 @@ import PanelState from './ui/PanelState';
 // The v2 analytic panels are split out so the dashboard route chunk stays small.
 const DashboardTop = lazy(() => import('./dashboard/DashboardTop'));
 const DashboardPanels = lazy(() => import('./dashboard/DashboardPanels'));
+import PriceFreshness from './PriceFreshness';
 
 interface DashboardHomeProps {
   stocks: Stock[];
+  logoSources?: Record<string, CompanyLogoSource>;
   portfolios: Portfolio[];
   activePortfolioId: string;
   onSelectPortfolioId: (id: string) => void;
@@ -37,6 +39,7 @@ interface DashboardHomeProps {
 
 export default function DashboardHome({
   stocks,
+  logoSources = {},
   portfolios,
   activePortfolioId,
   onSelectPortfolioId,
@@ -192,6 +195,9 @@ export default function DashboardHome({
       return {
         ...position,
         currentPrice: stock.price,
+        // The price is live market data here, so the API's staleness label does not apply.
+        priceAsOf: null,
+        priceStatus: null,
         marketValue,
         dailyReturn: stock.changePercent,
         totalReturn: position.costPrice > 0 ? ((stock.price - position.costPrice) / position.costPrice) * 100 : position.totalReturn,
@@ -1099,7 +1105,7 @@ export default function DashboardHome({
                         </td>
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-3">
-                            <CompanyLogo symbol={pos.symbol} logoUrl={matchedStock?.logoUrl} className="h-8 w-8" />
+                            <CompanyLogo symbol={pos.symbol} logoUrl={matchedStock?.logoUrl ?? logoSources[pos.symbol]?.logoUrl} website={matchedStock?.website ?? logoSources[pos.symbol]?.website} className="h-8 w-8" />
                             <div>
                               <div className="font-data-mono font-bold text-text-primary group-hover:text-primary transition-colors text-xs">
                                 {pos.symbol}
@@ -1111,7 +1117,7 @@ export default function DashboardHome({
                           </div>
                         </td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-secondary">{formatCurrency(pos.costPrice)}</td>
-                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}</td>
+                        <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{formatCurrency(pos.currentPrice)}<PriceFreshness status={pos.priceStatus} asOf={pos.priceAsOf} /></td>
                         <td className="py-3 px-3 text-right font-data-mono text-xs text-text-primary font-bold">{pos.weight == null ? '-' : `${pos.weight.toFixed(2)}%`}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.dailyReturn)}`}>{formatReturn(pos.dailyReturn)}</td>
                         <td className={`py-3 px-3 text-right font-data-mono text-xs font-bold ${returnColor(pos.weeklyReturn)}`}>{formatReturn(pos.weeklyReturn)}</td>

@@ -16,8 +16,8 @@
 |---|---|
 | Plan set | Local Model Decision-Support Phase 1 |
 | Total plans | 5 |
-| Overall status | Plans 1, 2, 5 complete (2026-10-17); ADR-0007 accepted 2026-10-22 (owner delegation); Plan 3 Tasks 1–6 complete, Task 7 awaits owner; Plan 4 Task 1 complete, Task 2 awaits license decisions |
-| Current executable plan | Plan 3 Task 7 (owner gate: read-only role on the real database and verdict review) and Plan 4 (Task 2 license decisions; Tasks 3–5 wait for owner labels) |
+| Overall status | Plans 1, 2, 3, 5 complete; ADR-0007 accepted 2026-10-22; D-3 review candidates only and D-4 four-week shadow duration decided 2026-10-23; Plan 4 Tasks 1–2 complete (license decisions 2026-10-23); D-5 declined 2026-10-23, so Tasks 3–5 run as Amendment 1 on public labelled sets |
+| Current executable plan | Plan 4 Amendment 1: `public_benchmark prepare`, `predict`, `evaluate`, then the evidence record |
 | Runtime scope | `data-service/` (Plan 1), `backend/src/test/` only (Plan 1), new `ml/` (Plans 2–5), `docs/adr/`, `docs/spec/current-system/contracts.md`, `docs/product/evidence/`, `.gitignore` |
 | Product discussion language | Turkish |
 | Product artifact language | English |
@@ -54,7 +54,7 @@ Plan 1 does **not** fix the paths, because the spec requires C0a to keep every e
 |---|---|---|---|
 | D-6 | Fix PF-1 now as a separate `fix(data-service)` change (values of `breakdown`, `overall_score`, `grade`, `recommendation` change; types do not), or fold it into C0b | Owner | Nothing in Phase 1; C0b disposition of composite fields |
 
-Spec decisions still apply: D-1 (usage scope), D-2 (C0b disposition), D-3 (C1 semantics, after Plan 3 Task 7), D-4 (shadow duration), D-5 (owner labeling time, blocks Plan 4 Task 3).
+Spec decisions still apply: D-1 (usage scope), D-2 (C0b disposition). D-3 (C1 review candidates only) and D-4 (four-week internal shadow period) were decided by the owner on 2026-10-23 from the Plan 3 Task 7 evidence. D-5 (owner labeling time) was declined on 2026-10-23; Plan 4 runs as Amendment 1.
 
 ## Execution Preconditions
 
@@ -102,8 +102,8 @@ Plan 1 and Plan 2 may run in parallel. Plans 3, 4, and 5 need Plan 2's `ml/.venv
 |---:|---|---|---|
 | 1 | [`2026-10-15-local-model-01-c0a-explicit-section-status.md`](2026-10-15-local-model-01-c0a-explicit-section-status.md) | `SectionAvailability` on sentiment, enhanced sentiment, composite, and agent responses; backend tolerance tests; C0b compatibility matrix | Complete (2026-10-15, 161 passed, 1 xfailed) |
 | 2 | [`2026-10-15-local-model-02-adr-0007-ml-foundation.md`](2026-10-15-local-model-02-adr-0007-ml-foundation.md) | ADR-0007 `Proposed`; `ml/` venv and layout; gitignore guard test; content-addressed snapshot writer/loader | Complete (2026-10-17, `ml` 26 passed; commits `ea665dc`, `17c1f58`, `e0def1a`) |
-| 3 | [`2026-10-15-local-model-03-c1-price-dq-scanner.md`](2026-10-15-local-model-03-c1-price-dq-scanner.md) | Read-only export runbook; nine fault-class scanner; fixture suite meeting recall ≥ 95% and false flags < 1%; replayable report; reviewed real-snapshot record | Tasks 1–6 complete (2026-10-17, `ml` 64 passed; recall 1.00 per class, false-flag rate 0.006); Task 7 awaits owner |
-| 4 | [`2026-10-15-local-model-04-s1-news-zero-shot-spike.md`](2026-10-15-local-model-04-s1-news-zero-shot-spike.md) | Pre-registered protocol; license record; owner-labeled set; zero-shot macro-F1 and confusion matrices; written recommendation | Task 1 complete (2026-10-17, 14 spike tests passed, protocol pre-registered); Task 2 metadata pinned, license decisions pending owner; Tasks 3–5 not started |
+| 3 | [`2026-10-15-local-model-03-c1-price-dq-scanner.md`](2026-10-15-local-model-03-c1-price-dq-scanner.md) | Read-only export runbook; nine fault-class scanner; fixture suite meeting recall ≥ 95% and false flags < 1%; replayable report; reviewed real-snapshot record | Complete (2026-10-23): `ml` 64 passed; snapshot `price_history-e719d96805fa2bc5`, 6 symbols, 1 `unsure` finding, byte-identical replay; D-3/D-4 decided; record `docs/product/evidence/c1-dq-real-snapshot-review.md` |
+| 4 | [`2026-10-15-local-model-04-s1-news-zero-shot-spike.md`](2026-10-15-local-model-04-s1-news-zero-shot-spike.md) | Pre-registered protocol; license record; owner-labeled set; zero-shot macro-F1 and confusion matrices; written recommendation | Task 1 complete (2026-10-17, 14 spike tests passed, protocol pre-registered); Task 2 complete (2026-10-23, both candidates `use` for owner-local, non-commercial evaluation only); D-5 declined 2026-10-23; Tasks 3–5 replaced by Amendment 1 (`public_benchmark.py`, public labelled tweet sets, materiality not measured) |
 | 5 | [`2026-10-15-local-model-05-c6-sandbox-lesson-1.md`](2026-10-15-local-model-05-c6-sandbox-lesson-1.md) | Sandbox scaffold and import guard; GARCH(1,1) simulation, EWMA and GARCH fits, walk-forward QLIKE, parameter recovery | Complete (2026-10-17, `ml` 39 passed after Plan 2) |
 
 ## Plan Set Locked Decisions

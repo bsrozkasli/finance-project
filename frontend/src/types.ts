@@ -56,17 +56,20 @@ export interface Stock {
   technicals: TechnicalIndicators | null;
   analystRating: {
     consensus: 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL';
-    targetPrice: number;
+    targetPrice: number | null;
     buyPercent: number;
     holdPercent: number;
     sellPercent: number;
   } | null;
   alerts: string[];
   logoUrl?: string | null;
+  website?: string | null;
   priceUpdatedAt?: string | null;
   marketState?: string | null;
   priceDelayed?: boolean | null;
 }
+
+export type CompanyLogoSource = Pick<Stock, 'logoUrl' | 'website'>;
 
 export interface Holding {
   symbol: string;

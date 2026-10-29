@@ -40,8 +40,14 @@ public class AgentAnalysisFacade {
         sample.stop(meterRegistry.timer("agent.execution.time"));
 
         fresh.ifPresent(result -> {
-            cacheService.put(result);
-            persist(result);
+            // D-2.1: only an OK decision is cached; FAILED and unknown (null) are recomputed next time.
+            if (result.decisionStatus() != null && result.decisionStatus().isOk()) {
+                cacheService.put(result);
+            }
+            // The history table requires a decision; a FAILED result has none and is not recorded.
+            if (result.decision() != null && result.confidence() != null) {
+                persist(result);
+            }
         });
         return fresh;
     }

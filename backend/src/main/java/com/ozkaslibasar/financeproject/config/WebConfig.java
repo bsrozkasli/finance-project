@@ -1,11 +1,15 @@
 package com.ozkaslibasar.financeproject.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.time.Duration;
 
 /**
  * Global Web MVC configuration.
@@ -29,10 +33,21 @@ public class WebConfig implements WebMvcConfigurer {
 
     /**
      * Shared {@link RestTemplate} used by the data-service client adapter.
+     *
+     * <p>Outbound connect and read timeouts are always bounded and configurable through
+     * {@code data-service.http.connect-timeout} and {@code data-service.http.read-timeout}.
+     * Timeouts surface as {@link org.springframework.web.client.ResourceAccessException}.</p>
      */
     @Bean
-    public RestTemplate restTemplate() {
-        RestTemplate restTemplate = new RestTemplate();
+    public RestTemplate restTemplate(
+            @Value("${data-service.http.connect-timeout:3s}") Duration connectTimeout,
+            @Value("${data-service.http.read-timeout:60s}") Duration readTimeout) {
+        requirePositive(connectTimeout, "data-service.http.connect-timeout");
+        requirePositive(readTimeout, "data-service.http.read-timeout");
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(connectTimeout);
+        requestFactory.setReadTimeout(readTimeout);
+        RestTemplate restTemplate = new RestTemplate(requestFactory);
         restTemplate.getInterceptors().add((request, body, execution) -> {
             String requestId = MDC.get(RequestCorrelationFilter.REQUEST_ID_MDC_KEY);
             if (requestId != null && !requestId.isBlank()) {
@@ -41,5 +56,11 @@ public class WebConfig implements WebMvcConfigurer {
             return execution.execute(request, body);
         });
         return restTemplate;
+    }
+
+    private static void requirePositive(Duration value, String property) {
+        if (value == null || value.isZero() || value.isNegative()) {
+            throw new IllegalArgumentException(property + " must be a positive duration but was " + value);
+        }
     }
 }

@@ -77,7 +77,7 @@ export default function TradeActionModal({
               İşlem kaydı ({symbol})
             </h3>
           </div>
-          <button
+          <button type="button"
             onClick={onClose}
             aria-label="Kapat"
             className="p-1.5 hover:bg-bg-card rounded-lg border border-outline-variant/60 text-text-secondary hover:text-text-primary transition-colors"

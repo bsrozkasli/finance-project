@@ -84,10 +84,14 @@ change together when API routing changes.
 - Browser routes and backend endpoints are separate contracts. Adding or changing
   a browser route does not implicitly rename an `/api/v1` endpoint.
 - Styling uses the CSS variables defined in `frontend/src/index.css`.
+- Company icons use the profile logo when available, then the HTTPS website's
+  `/favicon.ico`; failed or absent images fall back to the symbol initials.
+  Profiles are requested for tracked assets, holdings, and watchlist symbols.
 - The five primary Turkish navigation tasks are Bugün (`/dashboard`), Araştır
   (`/workspace`), İzleme Listem (`/watchlist`), Portföy (`/portfolio`), and
   Günlük (`/journal`). Existing deep links remain routable. Route views and
   larger dialogs load on demand through React `lazy` and `Suspense`.
+- The Finansallar tab composes the financial trends panel (`components/research/trends/`: `FinancialTrendsPanel`, `TrendChart`, `ValuationSnapshot`, pure `trendModel`) above the annual table. The panel loads as a lazy chunk, uses `desk-trend-*` styles, and draws hand-rolled SVG charts with no chart library because the bundle budget counts lazy chunks too. The frontend only formats backend `/fundamentals/{symbol}/history` figures and never recomputes financial figures.
 - `/workspace/:symbol` selects the requested symbol when priced history is
   available. A missing symbol or history produces an explicit empty state.
 - Araştır composes six tabs in a fixed order: Genel bakış, Grafik,
@@ -108,10 +112,74 @@ change together when API routing changes.
   close with Escape; validation and save results appear inside the dialog
   rather than through browser `alert`/`confirm`/`prompt`. Dates use the `tr-TR`
   locale (for example `9 Tem 2026`); money keeps the `$1,234.56` USD format.
+- The seven-value research status vocabulary (`WatchlistResearchStatus`) has one
+  UI home: `components/sectionStatus.ts` (labels, styles, `isKnownStatus`) and
+  `components/StatusPill.tsx`, shared by `WatchlistsView` and the smart report.
+  `StockDetailModal` renders `SmartReportEvidenceNote` above the generated smart
+  report body (R-9) and `SmartReportStatusPanel` ("Veri durumu") under it. When the
+  overall status is not `OK` or is unknown, the note (`role="note"`) says the score
+  rests on incomplete evidence, so it precedes grade and recommendation, which stay
+  visible; an absent or `null` `sectionStatus` adds a "Durum bilinmiyor" line and is
+  never treated as `OK`. The panel lists per score component the score or "Veri yok",
+  the status pill from `sectionStatus.components["<x>_score"]` (camelCase breakdown
+  keys map to snake_case `*_score` keys), and the reason code with a visible Turkish
+  explanation. Components reported only by `sectionStatus` are listed too, also when
+  the breakdown is null. `OK` carries no warning styling; a `null` or unrecognised
+  component status shows "Durum bilinmiyor". The status is a data label: not an
+  investment signal and never added into the score. A missing analyst price target
+  stays `null` (`—`), an absent candle series shows `— mum`, a missing price change
+  is neutral-coloured, and the analyst bar is hidden without analyst data.
+- `ResearchAgentReport` (AI raporu) reads `decision_status` from `GET /agent-analysis/{ticker}` and shows, inside the
+  "Portföy Yöneticisi" section, a `role="note"` only when the status is not `OK`: `FAILED` says "Karar çıktısı
+  ayrıştırılamadı; karar gösterilmiyor" with the reason code as small text; an absent, `null` or unrecognised status says
+  "Durum bilinmiyor" and is never treated as `OK`. The raw manager text stays visible. `decision` and `confidence` are
+  nullable in `AgentAnalysis` and are not rendered; nothing shows them when the status is not `OK`. The status is a data
+  label, not an investment signal.
+- `TradingJournalView` reads the nullable `priceStatus` and `priceAsOf` of each trade
+  (price staleness D-3). `STALE` shows an "Eski fiyat" pill (shared `StatusPill`
+  with a local `label`) and the `tr-TR` formatted `priceAsOf` under the profit/loss
+  ("—" when the time is missing or invalid); `FAILED`/`EMPTY` show "Fiyat yok"; `OK`,
+  `null` or an absent field show nothing extra. Profit/loss and return are rendered
+  as sent, never recoloured or recomputed in the browser. The pill is a data label,
+  not an investment signal.
+- `PortfolioManagerView` and `DashboardHome` render the same pill through the shared
+  `components/PriceFreshness.tsx` (also used by the journal) for rows whose API price is
+  shown (`priceStatus`/`priceAsOf` of `GET /portfolio/positions/performance`; price staleness
+  R-7): `STALE` shows "Eski fiyat" with the formatted `priceAsOf`, `FAILED`/`EMPTY` show
+  "Fiyat yok", `OK`, `null` or absent show nothing. A row whose price the dashboard replaces
+  with live market data (`stock.price`) carries no pill. On
+  `PortfolioManagerView` only, the summary `pricingStatus` (`STALE` or `FAILED` only) adds
+  one `role="note"` beside the total ("Bazı fiyatlar doğrulanamadı; toplam eski fiyatlar
+  içerebilir."); `DashboardHome` shows no summary note because its header total is computed
+  from live market data (R-14). Numbers are never recoloured, recomputed
+  or hidden, and `pricingComplete` logic is unchanged.
 - `frontend/src/utils/portfolioValuation.ts` keeps a portfolio total unknown
   when any holding lacks a valid current price. Priced subtotal and coverage
   remain visible as partial evidence; acquisition cost is never substituted
   for a current price.
+- The Portföy screen hosts two EPIC-002 panels (`components/portfolio/`), both
+  scoped to the active portfolio and calling the Spring API only (R-26):
+  - `PortfolioImportPanel` ("CSV ile işlem içe aktar"): choose a `.csv` file,
+    upload it as `text/csv` (raw bytes), review the staged counts and the row
+    table (row number, status, message, identity), then press "Kabul et". The
+    ledger changes only on accept; the button is disabled while the request runs
+    and after the batch is `ACCEPTED`. Backend rejections show the `ApiError`
+    message; an accepted batch makes the screen reload positions and
+    transactions.
+  - `PortfolioStatePanel` ("Portföy durumu"): the as-of date input is capped at
+    today (UTC) and a later date disables "Durum oluştur". The result shows the
+    version (short form, full value in the tooltip), the exposure status, the
+    positions with Turkish valuation labels, and the asset-type weights only
+    when `exposureStatus` is `COMPLETE`. A `null` price, price date, market
+    value or weight renders as `—` with the accessible name and tooltip
+    "bilinmiyor", never `0`. `PARTIAL` adds a note that weights are
+    withheld because some positions have no usable price or matching currency.
+    The version is an identifier, not an investment signal, and no Fit or
+    decision flow uses it.
+  - The transaction delete flow in `TradingJournalModal` shows the backend `409`
+    message (via `ApiError.message`) instead of the generic failure text.
+  - Response shapes are pinned by `docs/contracts/fixtures/portfolio-import-batch.json`,
+    `portfolio-state-complete.json` and `portfolio-state-partial.json`.
 
 Frontend API access goes through domain modules under `frontend/src/api`
 (`assets`, `journal`, `market`, `news`, `portfolio`, `research`, `watchlists`).
@@ -185,10 +253,15 @@ matching results, and returns existing real rows when refresh fails.
 
 1. Normalize the canonical symbol.
 2. Read the best usable Yahoo symbol mapping when one exists.
-3. Ask `PriceChartClientPort` for provider metadata.
-4. Persist `VERIFIED` metadata when the provider succeeds.
-5. Persist mapped `PARTIAL` metadata when only a mapping is usable.
-6. Otherwise persist a minimal `STOCK` asset with `UNAVAILABLE` metadata status.
+3. Ask `PriceChartClientPort` for provider metadata and accept it only when both
+   its symbol and provider symbol match the requested provider symbol, ignoring
+   case (including Yahoo aliases such as `BRK.B` → `BRK-B`).
+4. Persist `VERIFIED` metadata when the provider identity matches.
+5. For mismatched or missing provider metadata, persist mapped `PARTIAL`
+   metadata only when the mapping's canonical symbol matches the request, its
+   provider is Yahoo, and its status is usable.
+6. Otherwise persist a minimal `UNRESOLVED` asset with `UNAVAILABLE` metadata
+   status. Mismatched provider metadata is never copied into the resolved asset.
 
 Unavailable metadata is explicit evidence, not permission to invent exchange,
 currency, name, or provider values.

@@ -5,6 +5,8 @@ import com.ozkaslibasar.financeproject.domain.model.JournalTradePage;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeStats;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeStatus;
 import com.ozkaslibasar.financeproject.domain.model.JournalTradeType;
+import com.ozkaslibasar.financeproject.domain.model.PriceStatus;
+import com.ozkaslibasar.financeproject.contract.ContractFixtures;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -51,6 +54,51 @@ class JournalControllerTest {
                 .andExpect(jsonPath("$.totalElements").value(1))
                 .andExpect(jsonPath("$.totalPages").value(1))
                 .andExpect(jsonPath("$.number").value(0));
+    }
+
+    @Test
+    void shouldSerializePriceProvenanceOnAStaleOpenTrade() throws Exception {
+        JournalTrade base = trade("AAPL", "2", "90", "110", JournalTradeStatus.OPEN);
+        JournalTrade stale = withProvenance(base, Instant.parse("2026-10-20T20:00:00Z"), PriceStatus.STALE);
+        when(journalTradeService.list("default", 0, 50)).thenReturn(new JournalTradePage(List.of(stale), 1, 1, 0));
+
+        String body = mockMvc.perform(get("/api/v1/journal/trades"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].priceAsOf").value("2026-10-20T20:00:00Z"))
+                .andExpect(jsonPath("$.content[0].priceStatus").value("STALE"))
+                .andExpect(jsonPath("$.content[0].currentPrice").value(110))
+                .andExpect(jsonPath("$.content[0].marketValue").value(220))
+                .andExpect(jsonPath("$.content[0].pnl").value(40))
+                .andExpect(jsonPath("$.content[0].status").value("OPEN"))
+                .andReturn().getResponse().getContentAsString();
+
+        ContractFixtures.assertSameShape("journal-trade.json", new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(body).get("content").get(0).toString());
+    }
+
+    @Test
+    void shouldSerializeAbsentPriceProvenanceAsJsonNull() throws Exception {
+        JournalTrade closed = trade("MSFT", "1", "200", "225", JournalTradeStatus.CLOSED);
+        when(journalTradeService.list("default", 0, 50)).thenReturn(new JournalTradePage(List.of(closed), 1, 1, 0));
+
+        String body = mockMvc.perform(get("/api/v1/journal/trades"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].currentPrice").value(225))
+                .andReturn().getResponse().getContentAsString();
+
+        com.fasterxml.jackson.databind.JsonNode first = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(body).get("content").get(0);
+        org.assertj.core.api.Assertions.assertThat(first.has("priceAsOf")).isTrue();
+        org.assertj.core.api.Assertions.assertThat(first.get("priceAsOf").isNull()).isTrue();
+        org.assertj.core.api.Assertions.assertThat(first.has("priceStatus")).isTrue();
+        org.assertj.core.api.Assertions.assertThat(first.get("priceStatus").isNull()).isTrue();
+    }
+
+    private JournalTrade withProvenance(JournalTrade t, Instant asOf, PriceStatus priceStatus) {
+        return new JournalTrade(t.id(), t.userId(), t.symbol(), t.company(), t.type(), t.quantity(),
+                t.purchasePrice(), t.currentPrice(), t.marketValue(), t.commission(), t.strategy(), t.notes(),
+                t.tags(), t.openedAt(), t.closedAt(), t.status(), t.pnl(), t.returnPct(), t.holdingDays(),
+                t.portfolioId(), t.transactionId(), t.createdAt(), t.updatedAt(), asOf, priceStatus);
     }
 
     @Test

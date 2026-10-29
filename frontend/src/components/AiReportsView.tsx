@@ -59,7 +59,9 @@ export default function AiReportsView({ holdings, stocks }: AiReportsViewProps) 
                     <div className="rounded-md border border-outline-variant bg-bg-base p-5">
                       <p className="text-xs uppercase tracking-wider text-text-muted">Backend rapor puanı</p>
                       <div className="font-data-mono text-3xl font-bold mt-2">{formatMetric(report.overallScore, ' / 100')}</div>
-                      <p className="text-sm text-text-secondary mt-2">{report.grade} · {report.recommendation}</p>
+                      <p className="text-sm text-text-secondary mt-2">{report.grade && report.recommendation
+                        ? `${report.grade} · ${report.recommendation}`
+                        : 'Kısmi veri: genel değerlendirme için yeterli kanıt yok.'}</p>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                       {Object.entries(report.breakdown ?? {}).map(([key, value]) => <div key={key} className="rounded-lg border border-outline-variant p-3"><div className="text-xs text-text-muted break-all">{key}</div><div className="font-data-mono text-lg mt-1">{formatMetric(value)}</div></div>)}

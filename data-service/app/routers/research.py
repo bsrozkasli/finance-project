@@ -3,9 +3,10 @@ from typing import NoReturn
 
 from fastapi import APIRouter, HTTPException
 
-from app.errors import DependencyUnavailableError, InsufficientDataError
+from app.errors import DependencyUnavailableError, InsufficientDataError, RateLimitedError
 
 from app.models.fundamental import FundamentalAnalysisResponse
+from app.models.financial_history import FinancialHistoryResponse
 from app.models.valuation import ValuationResponse
 from app.models.risk import RiskAnalyticsResponse
 from app.models.earnings import EarningsAnalysisResponse
@@ -13,6 +14,7 @@ from app.models.factors import FactorAnalysisResponse, InstitutionalScoreRespons
 from app.models.composite import CompositeInvestmentScore
 
 from app.services.fundamental_analysis_service import FundamentalAnalysisService
+from app.services.financial_history_service import FinancialHistoryService
 from app.services.valuation_service import ValuationService
 from app.services.risk_analytics_service import RiskAnalyticsService
 from app.services.earnings_analysis_service import EarningsAnalysisService
@@ -24,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 def _raise_research_error(section: str, symbol: str, exc: Exception) -> NoReturn:
+    if isinstance(exc, RateLimitedError):
+        raise exc  # translated to 429 by the app-level handler
     if isinstance(exc, InsufficientDataError):
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     if isinstance(exc, DependencyUnavailableError):
@@ -41,6 +45,14 @@ def get_fundamental_analysis(symbol: str) -> FundamentalAnalysisResponse:
         return FundamentalAnalysisService.analyze(symbol)
     except Exception as exc:
         _raise_research_error("fundamental", symbol, exc)
+
+
+@router.get("/financial-history/{symbol}", response_model=FinancialHistoryResponse)
+def get_financial_history(symbol: str) -> FinancialHistoryResponse:
+    try:
+        return FinancialHistoryService.get(symbol)
+    except Exception as exc:
+        _raise_research_error("financial-history", symbol, exc)
 
 
 @router.get("/valuation/{symbol}", response_model=ValuationResponse)

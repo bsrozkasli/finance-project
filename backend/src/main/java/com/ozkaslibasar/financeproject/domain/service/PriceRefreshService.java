@@ -1,6 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.PriceHistory;
+import com.ozkaslibasar.financeproject.domain.model.PriceLookup;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 
@@ -40,6 +41,25 @@ public class PriceRefreshService {
         return newestOf(normalizedSymbol, latest, fetched);
     }
 
+    public PriceLookup lookupFreshLatest(String symbol) {
+        String normalizedSymbol = normalizeSymbol(symbol);
+        PriceHistory latest = priceRepository.findLatestByAssetId(normalizedSymbol).orElse(null);
+
+        FetchResult fetch = fetchAndPersistResult(normalizedSymbol, "1d", LIVE_PRICE_RANGE);
+        Optional<PriceHistory> newest = newestOf(normalizedSymbol, latest, fetch.rows());
+        if (!fetch.rows().isEmpty()) {
+            return new PriceLookup(newest, PriceLookup.Origin.FRESH);
+        }
+        if (newest.isPresent()) {
+            return new PriceLookup(newest, fetch.failed()
+                    ? PriceLookup.Origin.STORED_REFRESH_FAILED
+                    : PriceLookup.Origin.STORED_REFRESH_EMPTY);
+        }
+        return new PriceLookup(Optional.empty(), fetch.failed()
+                ? PriceLookup.Origin.NONE_REFRESH_FAILED
+                : PriceLookup.Origin.NONE_REFRESH_EMPTY);
+    }
+
     public List<PriceHistory> getFreshHistory(String symbol, String interval, String range) {
         String normalizedSymbol = normalizeSymbol(symbol);
         String safeInterval = interval == null || interval.isBlank() ? "1d" : interval;
@@ -61,23 +81,34 @@ public class PriceRefreshService {
     }
 
     private List<PriceHistory> fetchAndPersist(String symbol, String interval, String range) {
+        return fetchAndPersistResult(symbol, interval, range).rows();
+    }
+
+    /**
+     * The one fetch-and-persist path. A provider call that throws is {@code failed}; a null, empty or
+     * no-matching-row answer is plain empty. Both give no rows, so the list-only callers behave as before.
+     */
+    private FetchResult fetchAndPersistResult(String symbol, String interval, String range) {
         List<PriceHistory> fetched;
         try {
             fetched = financialDataPort.fetchPriceHistory(symbol, interval, range);
         } catch (RuntimeException ex) {
-            return List.of();
+            return new FetchResult(List.of(), true);
         }
         if (fetched == null || fetched.isEmpty()) {
-            return List.of();
+            return new FetchResult(List.of(), false);
         }
         List<PriceHistory> matchingRows = fetched.stream()
                 .filter(row -> matchesRequestedSymbol(symbol, row))
                 .toList();
         if (matchingRows.isEmpty()) {
-            return List.of();
+            return new FetchResult(List.of(), false);
         }
         priceRepository.saveAll(matchingRows);
-        return matchingRows;
+        return new FetchResult(matchingRows, false);
+    }
+
+    private record FetchResult(List<PriceHistory> rows, boolean failed) {
     }
 
     private Optional<PriceHistory> newestOf(String requestedSymbol, PriceHistory existing, List<PriceHistory> fetched) {

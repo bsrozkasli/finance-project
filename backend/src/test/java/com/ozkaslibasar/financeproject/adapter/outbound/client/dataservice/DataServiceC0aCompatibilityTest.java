@@ -18,9 +18,10 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 /**
- * Proves that the four data-service consumer adapters silently ignore the additive
- * C0a availability fields and return populated domain results (spec §5 P1.1 C0a,
- * spec §9 "existing suites run unchanged").
+ * Proves that the data-service consumer adapters tolerate the additive C0a availability
+ * fields and return populated domain results (spec §5 P1.1 C0a, spec §9 "existing
+ * suites run unchanged"). The composite adapter now also consumes its fields; see
+ * DataServiceCompositeAvailabilityTest.
  *
  * RestTemplate's default MappingJackson2HttpMessageConverter uses Jackson with
  * FAIL_ON_UNKNOWN_PROPERTIES=false, so unknown fields are dropped without error.
@@ -28,7 +29,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class DataServiceC0aCompatibilityTest {
 
     @Test
-    void agentAnalysisIgnoresDecisionAvailability() {
+    void agentAnalysisConsumesDecisionAvailabilityAndWithholdsThePlaceholder() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         DataServiceAgentAnalysisAdapter adapter = new DataServiceAgentAnalysisAdapter(restTemplate, new SimpleMeterRegistry());
@@ -61,13 +62,18 @@ class DataServiceC0aCompatibilityTest {
                 adapter.runAnalysis("AAPL", metrics, null);
 
         assertThat(result).isPresent();
-        assertThat(result.get().decision()).isEqualTo("SELL");
-        assertThat(result.get().confidence()).isEqualTo(70);
+        // The unparseable placeholder (SELL/70) is no longer passed on; the status carries the reason.
+        assertThat(result.get().decision()).isNull();
+        assertThat(result.get().confidence()).isNull();
+        assertThat(result.get().decisionStatus().status())
+                .isEqualTo(com.ozkaslibasar.financeproject.domain.model.WatchlistResearchStatus.FAILED);
+        assertThat(result.get().decisionStatus().reason()).isEqualTo("pm_response_not_json_keyword_fallback");
+        assertThat(result.get().portfolioManagerReasoning()).isEqualTo("Reduce position.");
         server.verify();
     }
 
     @Test
-    void compositeIgnoresBreakdownAvailability() {
+    void compositeStillMapsScoresWhenBreakdownAvailabilityIsPresent() {
         RestTemplate restTemplate = new RestTemplate();
         MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
         DataServiceResearchAdapter adapter = new DataServiceResearchAdapter(restTemplate);
@@ -108,6 +114,48 @@ class DataServiceC0aCompatibilityTest {
         assertThat(result).isPresent();
         assertThat(result.get().overallScore()).isEqualTo(51);
         assertThat(result.get().recommendation()).isEqualTo("Reduce");
+        server.verify();
+    }
+
+    @Test
+    void compositeWithoutEnoughEvidenceKeepsUnknownValuesNull() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        DataServiceResearchAdapter adapter = new DataServiceResearchAdapter(restTemplate);
+        ReflectionTestUtils.setField(adapter, "baseUrl", "http://data-service.test");
+
+        server.expect(requestTo("http://data-service.test/api/v1/research/composite/AAPL"))
+                .andRespond(withSuccess("""
+                        {
+                          "symbol": "AAPL",
+                          "overall_score": null,
+                          "grade": null,
+                          "recommendation": null,
+                          "breakdown": {
+                            "fundamental_score": null,
+                            "valuation_score": null,
+                            "quality_score": null,
+                            "growth_score": null,
+                            "momentum_score": null,
+                            "risk_score": null,
+                            "earnings_score": null,
+                            "sentiment_score": 70
+                          },
+                          "confidence": 0.17,
+                          "calculated_at": "2026-10-23T10:00:00Z",
+                          "breakdown_availability": {},
+                          "unavailable_components": ["fundamental", "valuation", "factor", "risk", "earnings"]
+                        }
+                        """, APPLICATION_JSON));
+
+        var result = adapter.fetchCompositeScore("AAPL");
+
+        assertThat(result).isPresent();
+        assertThat(result.get().overallScore()).isNull();
+        assertThat(result.get().grade()).isNull();
+        assertThat(result.get().recommendation()).isNull();
+        assertThat(result.get().breakdown().valuationScore()).isNull();
+        assertThat(result.get().breakdown().sentimentScore()).isEqualTo(70);
         server.verify();
     }
 

@@ -1,4 +1,5 @@
 import { apiClient } from './http';
+import type { PriceStatus } from './types';
 
 export interface PortfolioPosition {
   id: number;
@@ -47,6 +48,8 @@ export interface PortfolioSummary {
   totalPnL: number | null;
   totalReturn: number | null;
   pricingComplete: boolean;
+  /** Worst status of the priced positions; null/absent when unknown. */
+  pricingStatus?: PriceStatus | null;
 }
 
 export interface PortfolioPerformancePoint {
@@ -96,6 +99,8 @@ export interface PortfolioPositionPerformance {
   sixMonthReturn?: number | null;
   oneYearReturn?: number | null;
   totalReturn: number | null;
+  priceAsOf?: string | null;
+  priceStatus?: PriceStatus | null;
 }
 export interface AllocationSlice {
   name: string;
@@ -122,6 +127,8 @@ export interface EnrichedPosition {
   dailyReturn: number | null;
   totalReturn: number | null;
   unrealizedPnL: number | null;
+  priceAsOf?: string | null;
+  priceStatus?: PriceStatus | null;
 }
 
 
@@ -261,7 +268,7 @@ export interface PortfolioTransaction {
   id: number;
   portfolioId: number;
   userId: string;
-  symbol?: string;
+  symbol?: string | null;
   assetType: PortfolioAssetType;
   action: PortfolioTransactionAction;
   quantity: number;
@@ -271,9 +278,10 @@ export interface PortfolioTransaction {
   fxRateToBase: number;
   tradeDate: string;
   source: PortfolioTransactionSource;
-  notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  originLocator: string | null;
+  notes?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface CreatePortfolioTransactionRequest {
@@ -286,7 +294,8 @@ export interface CreatePortfolioTransactionRequest {
   fee?: number;
   fxRateToBase?: number;
   tradeDate?: string;
-  source?: PortfolioTransactionSource;
+  /** Only MANUAL is accepted; CSV events are created through imports (R-20). */
+  source?: 'MANUAL';
   notes?: string;
   journalNotes?: string;
 }
@@ -366,5 +375,102 @@ export const checkPortfolioRebalance = async (
   request: RebalanceCheckRequest
 ): Promise<RebalanceCheckResponse> => {
   const response = await apiClient.post<RebalanceCheckResponse>('/portfolio/rebalance-check', request);
+  return response.data;
+};
+
+// CSV import batches (EPIC-002 D-4) and Portfolio State (EPIC-002 D-3)
+
+export type PortfolioImportBatchStatus = 'STAGED' | 'ACCEPTED';
+export type PortfolioImportRowStatus = 'VALID' | 'INVALID' | 'DUPLICATE' | 'ACCEPTED' | 'REJECTED';
+
+export interface PortfolioImportCounts {
+  valid: number;
+  invalid: number;
+  duplicate: number;
+  accepted: number;
+  rejected: number;
+}
+
+export interface PortfolioImportRow {
+  rowNumber: number;
+  status: PortfolioImportRowStatus;
+  message: string | null;
+  originLocator: string | null;
+  transactionId: number | null;
+}
+
+export interface PortfolioImportBatch {
+  batchId: number;
+  portfolioId: number;
+  status: PortfolioImportBatchStatus;
+  fileSha256: string;
+  createdAt: string;
+  acceptedAt: string | null;
+  counts: PortfolioImportCounts;
+  rows: PortfolioImportRow[];
+}
+
+export type PortfolioStateExposureStatus = 'COMPLETE' | 'PARTIAL' | 'EMPTY';
+export type PortfolioStateValuationStatus =
+  | 'PRICED'
+  | 'STALE_PRICE'
+  | 'NO_PRICE'
+  | 'CURRENCY_UNKNOWN'
+  | 'CURRENCY_MISMATCH'
+  | 'CLOSED';
+
+export interface PortfolioStatePosition {
+  symbol: string;
+  assetType: PortfolioAssetType;
+  quantity: number;
+  averageCost: number | null;
+  costBasis: number | null;
+  realizedPnl: number | null;
+  currency: string | null;
+  valuationStatus: PortfolioStateValuationStatus;
+  price: number | null;
+  priceDate: string | null;
+  marketValue: number | null;
+  weight: number | null;
+}
+
+export interface PortfolioState {
+  version: string;
+  portfolioId: number;
+  asOf: string;
+  exposureStatus: PortfolioStateExposureStatus;
+  sourceEventIds: number[];
+  positions: PortfolioStatePosition[];
+  assetTypeWeights: Partial<Record<PortfolioAssetType, number>>;
+}
+
+/** Uploads the CSV file bytes unchanged (no text decoding) so the backend file hash matches the file. */
+export const uploadPortfolioImport = async (portfolioId: number, file: Blob): Promise<PortfolioImportBatch> => {
+  const bytes = await file.arrayBuffer();
+  const response = await apiClient.post<PortfolioImportBatch>(`/portfolios/${portfolioId}/imports`, bytes, {
+    headers: { 'Content-Type': 'text/csv' },
+  });
+  return response.data;
+};
+
+export const fetchPortfolioImport = async (portfolioId: number, batchId: number): Promise<PortfolioImportBatch> => {
+  const response = await apiClient.get<PortfolioImportBatch>(`/portfolios/${portfolioId}/imports/${batchId}`);
+  return response.data;
+};
+
+export const acceptPortfolioImport = async (portfolioId: number, batchId: number): Promise<PortfolioImportBatch> => {
+  const response = await apiClient.post<PortfolioImportBatch>(`/portfolios/${portfolioId}/imports/${batchId}/accept`);
+  return response.data;
+};
+
+export const createPortfolioState = async (portfolioId: number, asOf: string): Promise<PortfolioState> => {
+  const response = await apiClient.post<PortfolioState>(`/portfolios/${portfolioId}/states`, { asOf });
+  return response.data;
+};
+
+export const fetchPortfolioState = async (portfolioId: number, version: string): Promise<PortfolioState> => {
+  const response = await apiClient.get<PortfolioState>(
+    `/portfolios/${portfolioId}/states/${encodeURIComponent(version)}`,
+  );
   return response.data;
 };

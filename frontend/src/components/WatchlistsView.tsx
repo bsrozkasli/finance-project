@@ -16,13 +16,17 @@ import {
 import type { WatchlistResearchRow, WatchlistResearchStatus } from '../api/client';
 import { updateWatchlist } from '../api/redesign';
 import { useWatchlistResearchSnapshot } from '../hooks/useWatchlistResearchSnapshot';
-import type { Stock, Watchlist } from '../types';
+import type { CompanyLogoSource, Stock, Watchlist } from '../types';
+import { formatDateTime } from '../utils/formatters';
 import CompanyLogo from './CompanyLogo';
 import WatchlistPerformancePanel from './watchlist/WatchlistPerformancePanel';
 import './watchlist/watchlist.css';
+import StatusPill from './StatusPill';
+import { statusClass, statusLabel } from './sectionStatus';
 
 interface WatchlistsViewProps {
   stocks: Stock[];
+  logoSources?: Record<string, CompanyLogoSource>;
   watchlists: Watchlist[];
   onAddStockToWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
   onRemoveStockFromWatchlist: (watchlistId: string, symbol: string) => void | Promise<void>;
@@ -34,16 +38,6 @@ interface WatchlistsViewProps {
   /** Called after a rename or reorder was saved so the host can refetch its lists. */
   onWatchlistsChanged?: () => void | Promise<void>;
 }
-
-const statusStyles: Record<WatchlistResearchStatus, { label: string; className: string }> = {
-  OK: { label: 'OK', className: 'border-bull-green/30 bg-bull-green/10 text-bull-green' },
-  STALE: { label: 'Eski veri', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  EMPTY: { label: 'Veri yok', className: 'border-outline-variant bg-bg-base text-text-muted' },
-  FAILED: { label: 'Yüklenemedi', className: 'border-bear-red/30 bg-bear-red/10 text-bear-red' },
-  RATE_LIMITED: { label: 'İstek sınırı', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  INSUFFICIENT_DATA: { label: 'Yetersiz geçmiş', className: 'border-warning-amber/30 bg-warning-amber/10 text-warning-amber' },
-  PENDING_REFRESH: { label: 'Yenileniyor', className: 'border-primary/30 bg-primary/10 text-primary' },
-};
 
 const formatCurrency = (value: number | null | undefined) => {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -71,23 +65,10 @@ const formatVolume = (value: number | null | undefined) => {
   return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 };
 
-const formatDateTime = (value: string | null | undefined) => {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  return new Intl.DateTimeFormat('tr-TR', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
-};
-
-const statusClass = (status: WatchlistResearchStatus) => statusStyles[status]?.className ?? statusStyles.FAILED.className;
-const statusLabel = (status: WatchlistResearchStatus) => statusStyles[status]?.label ?? status;
 
 export default function WatchlistsView({
   stocks,
+  logoSources = {},
   watchlists,
   onAddStockToWatchlist,
   onRemoveStockFromWatchlist,
@@ -476,7 +457,7 @@ export default function WatchlistsView({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex min-w-0 items-center gap-2">
-                            <CompanyLogo symbol={symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
+                            <CompanyLogo symbol={symbol} logoUrl={stock?.logoUrl ?? logoSources[symbol]?.logoUrl} website={stock?.website ?? logoSources[symbol]?.website} className="h-8 w-8" />
                             <div className="min-w-0">
                               <div className="font-data-mono text-sm font-bold text-text-primary">{symbol}</div>
                               <div className="truncate text-xs text-text-muted">
@@ -619,7 +600,7 @@ export default function WatchlistsView({
                         >
                           <td className="px-4 py-4">
                             <div className="flex items-center gap-2">
-                              <CompanyLogo symbol={row.symbol} logoUrl={stock?.logoUrl} className="h-8 w-8" />
+                              <CompanyLogo symbol={row.symbol} logoUrl={stock?.logoUrl ?? logoSources[row.symbol]?.logoUrl} website={stock?.website ?? logoSources[row.symbol]?.website} className="h-8 w-8" />
                               <div className="min-w-0">
                                 <div className="font-data-mono font-bold text-text-primary">{row.symbol}</div>
                                 <div className="max-w-40 truncate text-xs text-text-muted">{row.name ?? stock?.name ?? 'Şirket bilgisi yok'}</div>
@@ -696,17 +677,6 @@ function SnapshotTile({ icon, label, value }: { icon: React.ReactNode; label: st
   );
 }
 
-function StatusPill({ status, title }: { status: WatchlistResearchStatus; title?: string }) {
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-1 font-data-mono text-xs font-bold ${statusClass(status)}`}
-      title={title}
-    >
-      {statusLabel(status)}
-    </span>
-  );
-}
-
 function SelectedInstrumentPanel({
   row,
   stock,
@@ -746,6 +716,11 @@ function SelectedInstrumentPanel({
             <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-xs text-text-muted">
               Son gözlem {formatDateTime(row?.price.observedAt)}
             </span>
+            {price?.timestamp ? (
+              <span className="rounded-full border border-outline-variant bg-bg-base px-2 py-1 text-xs text-text-muted">
+                Fiyat zamanı {formatDateTime(price.timestamp)}
+              </span>
+            ) : null}
           </div>
         </div>
 

@@ -11,7 +11,6 @@ import com.ozkaslibasar.financeproject.adapter.outbound.client.tiingo.TiingoClie
 import com.ozkaslibasar.financeproject.adapter.outbound.client.tiingo.dto.TiingoNewsDto;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPositionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
-import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
 import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +42,7 @@ public class CategorizedNewsController {
     private final TiingoClient tiingoClient;
     private final PortfolioPositionPort portfolioPositionPort;
     private final PortfolioPort portfolioPort;
-    private final PortfolioTransactionPort portfolioTransactionPort;
+    private final PortfolioLedgerService ledger;
     private final WatchlistPort watchlistPort;
 
     @Operation(summary = "GET News endpoint", description = "Implements the GET operation for the News API described in SPEC.md sections 7 and 8.")
@@ -99,7 +98,6 @@ public class CategorizedNewsController {
     }
     private Set<String> ledgerSymbols(Long portfolioId) {
         Set<String> symbols = new LinkedHashSet<>();
-        PortfolioLedgerService ledger = new PortfolioLedgerService(portfolioTransactionPort);
         portfolioPort.findByUserId(DEFAULT_USER).stream()
                 .filter(portfolio -> portfolioId == null || portfolio.id().equals(portfolioId))
                 .forEach(portfolio -> ledger.calculateHoldings(portfolio.id(), DEFAULT_USER).forEach(holding -> symbols.add(holding.symbol().toUpperCase(Locale.ROOT))));

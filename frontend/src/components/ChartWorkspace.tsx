@@ -256,7 +256,7 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
 
           <div className="flex gap-1 bg-bg-base p-0.5 rounded border border-outline-variant/50">
             {chartRanges.map((tf) => (
-              <button
+              <button type="button"
                 key={tf}
                 onClick={() => setTimeframe(tf)}
                 aria-pressed={timeframe === tf}
@@ -278,7 +278,7 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
               ['line', ChartLine, 'Çizgi'],
               ['area', Layers, 'Alan'],
             ] as const).map(([mode, Icon, label]) => (
-              <button
+              <button type="button"
                 key={mode}
                 onClick={() => setChartMode(mode)}
                 disabled={(mode === 'candles' || mode === 'heikin') && !canRenderOhlc}
@@ -292,14 +292,14 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
             ))}
           </div>
 
-          <button
+          <button type="button"
             onClick={() => toggleOverlay('sma20')}
             aria-pressed={overlays.includes('sma20')}
             className={`px-2 py-1 text-xs rounded border font-label-caps font-bold ${overlays.includes('sma20') ? 'bg-amber-400/15 border-amber-400 text-amber-300' : 'bg-bg-base border-outline-variant/60 text-text-secondary'}`}
           >
             SMA 20
           </button>
-          <button
+          <button type="button"
             onClick={() => toggleOverlay('sma50')}
             aria-pressed={overlays.includes('sma50')}
             className={`px-2 py-1 text-xs rounded border font-label-caps font-bold ${overlays.includes('sma50') ? 'bg-teal-400/15 border-teal-400 text-teal-300' : 'bg-bg-base border-outline-variant/60 text-text-secondary'}`}
@@ -316,8 +316,8 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
             <div>
               <div className="flex items-baseline gap-2">
                 <span className="font-data-mono text-3xl font-bold text-text-primary">{activeStock ? `$${fmt(activeStock.price)}` : '—'}</span>
-                <span className={`font-data-mono text-sm font-bold ${(activeStock?.change ?? 0) >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
-                  {activeStock ? `${activeStock.change >= 0 ? '+' : ''}${fmt(activeStock.changePercent)}%` : '—'}
+                <span className={`font-data-mono text-sm font-bold ${activeStock?.change == null ? 'text-text-muted' : activeStock.change >= 0 ? 'text-bull-green' : 'text-bear-red'}`}>
+                  {activeStock && activeStock.change != null ? `${activeStock.change >= 0 ? '+' : ''}${fmt(activeStock.changePercent)}%` : '—'}
                 </span>
               </div>
               <div className="font-data-mono text-xs text-text-muted flex flex-wrap gap-3 mt-1 uppercase">
@@ -369,7 +369,7 @@ export default function ChartWorkspace({ stocks, onSelectStock, symbol }: ChartW
               {stocks.map((stock) => {
                 const isActive = activeStock?.symbol === stock.symbol;
                 return (
-                  <button
+                  <button type="button"
                     key={stock.symbol}
                     onClick={() => {
                       setActiveStock(stock);

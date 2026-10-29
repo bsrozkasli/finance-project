@@ -5,9 +5,14 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetDetailDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialHistoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceChartClientPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioCsvImportPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioLedgerLockPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioStatePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PriceRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioTransactionPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.ResearchDataPort;
@@ -21,16 +26,21 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
 import com.ozkaslibasar.financeproject.domain.service.AssetResearchDetailUseCase;
+import com.ozkaslibasar.financeproject.domain.service.FinancialHistoryService;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PriceIngestionService;
 import com.ozkaslibasar.financeproject.domain.service.PriceNormalizationService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioCsvImportService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
+import com.ozkaslibasar.financeproject.domain.service.PortfolioStateService;
 import com.ozkaslibasar.financeproject.domain.service.PriceRefreshService;
 import com.ozkaslibasar.financeproject.domain.service.ResearchEvidenceService;
 import com.ozkaslibasar.financeproject.domain.service.WatchlistResearchSnapshotUseCase;
 import com.ozkaslibasar.financeproject.domain.usecase.SmartReportUseCase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.time.Clock;
 
 /**
  * Configuration class to register pure domain services as Spring Beans.
@@ -96,12 +106,32 @@ public class DomainConfig {
 
     @Bean
     public ResearchEvidenceService researchEvidenceService(ResearchEvidencePort researchEvidencePort) {
-        return new ResearchEvidenceService(researchEvidencePort, () -> java.util.UUID.randomUUID().toString());
+        return new ResearchEvidenceService(researchEvidencePort, java.util.UUID::randomUUID);
     }
 
     @Bean
-    public PortfolioLedgerService portfolioLedgerService(PortfolioTransactionPort transactionPort) {
-        return new PortfolioLedgerService(transactionPort);
+    public PortfolioLedgerService portfolioLedgerService(PortfolioTransactionPort transactionPort,
+                                                         PortfolioLedgerLockPort ledgerLockPort) {
+        return new PortfolioLedgerService(transactionPort, ledgerLockPort);
+    }
+
+    @Bean
+    public PortfolioCsvImportService portfolioCsvImportService(PortfolioCsvImportPort csvImportPort,
+                                                               PortfolioTransactionPort transactionPort,
+                                                               PortfolioLedgerService portfolioLedgerService,
+                                                               Clock clock) {
+        return new PortfolioCsvImportService(csvImportPort, transactionPort, portfolioLedgerService, clock);
+    }
+
+    @Bean
+    public PortfolioStateService portfolioStateService(PortfolioTransactionPort transactionPort,
+                                                       PortfolioLedgerService portfolioLedgerService,
+                                                       PriceRepositoryPort priceRepositoryPort,
+                                                       AssetRepositoryPort assetRepositoryPort,
+                                                       PortfolioPort portfolioPort,
+                                                       PortfolioStatePort portfolioStatePort) {
+        return new PortfolioStateService(transactionPort, portfolioLedgerService, priceRepositoryPort,
+                assetRepositoryPort, portfolioPort, portfolioStatePort);
     }
 
     @Bean
@@ -133,5 +163,10 @@ public class DomainConfig {
             SmartReportScorePort smartReportScorePort,
             SmartReportMarketDataPort smartReportMarketDataPort) {
         return new SmartReportUseCase(smartReportScorePort, smartReportMarketDataPort);
+    }
+
+    @Bean
+    public FinancialHistoryService financialHistoryService(FinancialHistoryPort financialHistoryPort) {
+        return new FinancialHistoryService(financialHistoryPort);
     }
 }

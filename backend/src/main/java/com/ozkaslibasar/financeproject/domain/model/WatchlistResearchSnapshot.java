@@ -54,6 +54,11 @@ public record WatchlistResearchSnapshot(
             return new WatchlistResearchSection<>(WatchlistResearchStatus.EMPTY, source, null, message, observedAt);
         }
 
+        /** Data that exists but that a refresh could not confirm as current; the data stays with the section. */
+        public static <T> WatchlistResearchSection<T> stale(String source, T data, String message, Instant observedAt) {
+            return new WatchlistResearchSection<>(WatchlistResearchStatus.STALE, source, data, message, observedAt);
+        }
+
         public static <T> WatchlistResearchSection<T> failed(WatchlistResearchStatus status, String source, String message, Instant observedAt) {
             return new WatchlistResearchSection<>(status, source, null, message, observedAt);
         }

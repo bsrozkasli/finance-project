@@ -90,6 +90,15 @@ describe('ChartWorkspace', () => {
     expect(fitContent).toHaveBeenCalled();
   });
 
+  it('does not colour a missing price change as a gain', () => {
+    render(<ChartWorkspace stocks={[{ ...stock, change: null as never, changePercent: null as never }]} onSelectStock={vi.fn()} />);
+
+    const change = screen.getAllByText('—').find((element) => element.className.includes('text-sm'));
+    expect(change).toBeDefined();
+    expect(change?.className).not.toContain('text-bull-green');
+    expect(change?.className).toContain('text-text-muted');
+  });
+
   it('switches to Heikin Ashi mode without requiring mock candle data', async () => {
     render(<ChartWorkspace stocks={[stock]} onSelectStock={vi.fn()} />);
 

@@ -1,7 +1,7 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
-import com.ozkaslibasar.financeproject.domain.model.EvidenceField;
+import com.ozkaslibasar.financeproject.domain.model.ClassificationBasis;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceFreshness;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceGap;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceGapReason;
@@ -9,6 +9,9 @@ import com.ozkaslibasar.financeproject.domain.model.EvidenceMissingness;
 import com.ozkaslibasar.financeproject.domain.model.EvidencePolicy;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceStrength;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceStrengthResult;
+import com.ozkaslibasar.financeproject.domain.model.InstrumentIdentity;
+import com.ozkaslibasar.financeproject.domain.model.ListingStatus;
+import com.ozkaslibasar.financeproject.domain.model.ResearchEvidenceField;
 import com.ozkaslibasar.financeproject.domain.model.ResearchEvidenceSnapshot;
 import org.junit.jupiter.api.Test;
 
@@ -19,8 +22,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,6 +38,8 @@ class EvidenceStrengthServiceTest {
     private static final Instant EVAL = Instant.parse("2026-10-24T00:00:00Z");
     private static final Duration WINDOW = Duration.ofDays(7);
     private static final Instant FRESH_OBSERVED = EVAL.minus(Duration.ofDays(1));
+    /** Captured after EVAL so a fixture can hold an observation that postdates the evaluation instant. */
+    private static final Instant CAPTURED = EVAL.plus(Duration.ofHours(1));
 
     private final EvidenceStrengthService service = new EvidenceStrengthService();
 
@@ -54,42 +59,51 @@ class EvidenceStrengthServiceTest {
         return new EvidencePolicy(version, AssetType.STOCK, Set.of("price", "eps"), optional, windows);
     }
 
-    private static EvidenceField fresh(String name) {
+    private static ResearchEvidenceField fresh(String name) {
         return observed(name, FRESH_OBSERVED);
     }
 
-    private static EvidenceField observed(String name, Instant observedAt) {
-        return new EvidenceField(name, "1", EvidenceMissingness.NONE, "fixture", observedAt, EVAL, "TTM", "USD",
-                "v1", EvidenceFreshness.FRESH, false);
+    private static ResearchEvidenceField observed(String name, Instant observedAt) {
+        return field(name, "1", "fixture", "TTM", observedAt, EvidenceFreshness.FRESH, null);
     }
 
-    private static EvidenceField conflicted(String name) {
-        return new EvidenceField(name, "1", EvidenceMissingness.NONE, "fixture", FRESH_OBSERVED, EVAL, "TTM", "USD",
-                "v1", EvidenceFreshness.FRESH, true);
+    private static ResearchEvidenceField field(String name, String value, String source, String period,
+                                               Instant observedAt, EvidenceFreshness freshness, String conflictNote) {
+        return new ResearchEvidenceField(name, value, null, source, observedAt, CAPTURED, period, "USD", "v1",
+                freshness, conflictNote);
     }
 
-    private static EvidenceField flaggedStale(String name) {
-        return new EvidenceField(name, "1", EvidenceMissingness.NONE, "fixture", FRESH_OBSERVED, EVAL, "TTM", "USD",
-                "v1", EvidenceFreshness.STALE, false);
+    private static ResearchEvidenceField conflicted(String name) {
+        return field(name, "1", "fixture", "TTM", FRESH_OBSERVED, EvidenceFreshness.FRESH, "sources_disagree");
     }
 
-    private static EvidenceField failed(String name) {
-        return new EvidenceField(name, null, EvidenceMissingness.PROVIDER_FAILED, "fixture", null, EVAL, null, null,
-                null, EvidenceFreshness.UNKNOWN, false);
+    private static ResearchEvidenceField flaggedStale(String name) {
+        return field(name, "1", "fixture", "TTM", FRESH_OBSERVED, EvidenceFreshness.STALE, null);
     }
 
-    private static ResearchEvidenceSnapshot snapshot(EvidenceField... fields) {
-        return new ResearchEvidenceSnapshot("snap-1", "AAPL", 1, Optional.empty(), EVAL, List.of(fields));
+    private static ResearchEvidenceField failed(String name) {
+        return new ResearchEvidenceField(name, null, EvidenceMissingness.PROVIDER_FAILED, "fixture", null, CAPTURED,
+                null, null, null, EvidenceFreshness.UNKNOWN, null);
     }
 
-    private static EvidenceField[] mandatoryPlus(EvidenceField... others) {
-        List<EvidenceField> all = new ArrayList<>(List.of(fresh("price"), fresh("eps")));
+    private static ResearchEvidenceSnapshot snapshot(ResearchEvidenceField... fields) {
+        return snapshotOf(AssetType.STOCK, fields);
+    }
+
+    private static ResearchEvidenceSnapshot snapshotOf(AssetType type, ResearchEvidenceField... fields) {
+        InstrumentIdentity identity = new InstrumentIdentity("AAPL", type, ListingStatus.UNKNOWN,
+                ClassificationBasis.CURRENT_OBSERVATION, "fixture", EVAL);
+        return new ResearchEvidenceSnapshot(UUID.randomUUID(), null, 1, identity, CAPTURED, List.of(fields));
+    }
+
+    private static ResearchEvidenceField[] mandatoryPlus(ResearchEvidenceField... others) {
+        List<ResearchEvidenceField> all = new ArrayList<>(List.of(fresh("price"), fresh("eps")));
         all.addAll(List.of(others));
-        return all.toArray(new EvidenceField[0]);
+        return all.toArray(new ResearchEvidenceField[0]);
     }
 
     private EvidenceStrengthResult evaluate(EvidencePolicy policy, ResearchEvidenceSnapshot snapshot) {
-        return service.evaluate(snapshot, AssetType.STOCK, policy, EVAL);
+        return service.evaluate(snapshot, policy, EVAL);
     }
 
     // ---- weighted thresholds ------------------------------------------------------------------------------
@@ -124,13 +138,13 @@ class EvidenceStrengthServiceTest {
     void addingManyLowWeightFieldsCannotMaskAMissingMaterialField() {
         Map<String, BigDecimal> optional = new LinkedHashMap<>();
         optional.put("heavy", new BigDecimal("90"));
-        List<EvidenceField> present = new ArrayList<>(List.of(fresh("price"), fresh("eps")));
+        List<ResearchEvidenceField> present = new ArrayList<>(List.of(fresh("price"), fresh("eps")));
         for (int i = 1; i <= 10; i++) {
             optional.put("tiny" + i, BigDecimal.ONE);
             present.add(fresh("tiny" + i));
         }
 
-        EvidenceStrengthResult result = evaluate(policyOf("t1", optional), snapshot(present.toArray(new EvidenceField[0])));
+        EvidenceStrengthResult result = evaluate(policyOf("t1", optional), snapshot(present.toArray(new ResearchEvidenceField[0])));
 
         assertThat(result.level()).isEqualTo(EvidenceStrength.LOW);
         assertThat(result.weightedCoverage()).isEqualByComparingTo("0.1");
@@ -202,18 +216,6 @@ class EvidenceStrengthServiceTest {
     }
 
     @Test
-    void aMandatoryFieldWithoutAnObservationTimeIsInsufficientBecauseItsAgeIsUnknown() {
-        EvidenceField undated = new EvidenceField("price", "1", EvidenceMissingness.NONE, "fixture", null, EVAL,
-                "TTM", "USD", "v1", EvidenceFreshness.UNKNOWN, false);
-
-        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
-                snapshot(undated, fresh("eps"), fresh("a"), fresh("b")));
-
-        assertThat(result.level()).isEqualTo(EvidenceStrength.INSUFFICIENT);
-        assertThat(result.gaps()).containsExactly(new EvidenceGap("price", EvidenceGapReason.UNDATED));
-    }
-
-    @Test
     void aMandatoryFieldObservedAfterTheEvaluationInstantIsInsufficient() {
         EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
                 snapshot(observed("price", EVAL.plusSeconds(1)), fresh("eps"), fresh("a"), fresh("b")));
@@ -225,7 +227,7 @@ class EvidenceStrengthServiceTest {
     @Test
     void anUnresolvedInstrumentTypeIsInsufficientWhateverTheEvidence() {
         EvidenceStrengthResult result = service.evaluate(
-                snapshot(mandatoryPlus(fresh("a"), fresh("b"))), AssetType.UNRESOLVED, policy("t1", "60", "40"), EVAL);
+                snapshotOf(AssetType.UNRESOLVED, mandatoryPlus(fresh("a"), fresh("b"))), policy("t1", "60", "40"), EVAL);
 
         assertThat(result.level()).isEqualTo(EvidenceStrength.INSUFFICIENT);
         assertThat(result.gaps()).containsExactly(new EvidenceGap("instrument.type", EvidenceGapReason.UNRESOLVED_TYPE));
@@ -234,7 +236,7 @@ class EvidenceStrengthServiceTest {
     @Test
     void aPolicyForAnotherAssetTypeIsRejectedRatherThanApplied() {
         assertThatThrownBy(() -> service.evaluate(
-                snapshot(mandatoryPlus(fresh("a"), fresh("b"))), AssetType.ETF, policy("t1", "60", "40"), EVAL))
+                snapshotOf(AssetType.ETF, mandatoryPlus(fresh("a"), fresh("b"))), policy("t1", "60", "40"), EVAL))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("ETF");
     }
@@ -267,6 +269,97 @@ class EvidenceStrengthServiceTest {
         EvidenceStrengthResult result = evaluate(policy("t1", "50", "50"), snapshot(fresh("price")));
 
         assertThat(result.gaps()).extracting(EvidenceGap::field).containsExactly("a", "b", "eps");
+    }
+
+    // ---- several entries for one field: the latest period decides; disagreement there is a conflict --------
+    // Choosing between disagreeing sources is an OQ-3 conflict priority; until one is approved it is CONFLICTED.
+
+    @Test
+    void anOlderPeriodOfAFieldIsHistoryAndDoesNotMakeTheCurrentOneStale() {
+        ResearchEvidenceField lastYear = field("price", "0.9", "fixture", "FY2025", EVAL.minus(Duration.ofDays(300)),
+                EvidenceFreshness.STALE, null);
+
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(fresh("price"), lastYear, fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.level()).isEqualTo(EvidenceStrength.HIGH);
+    }
+
+    @Test
+    void anotherSourcesOlderPeriodIsNotComparedWithTheCurrentPeriod() {
+        ResearchEvidenceField otherSourceLastYear = field("price", "0.9", "other-fixture", "FY2025",
+                EVAL.minus(Duration.ofDays(300)), EvidenceFreshness.FRESH, null);
+
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(fresh("price"), otherSourceLastYear, fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.level()).isEqualTo(EvidenceStrength.HIGH);
+    }
+
+    @Test
+    void theMostRecentlyObservedPeriodIsJudgedSoAnEarlierCurrentValueCannotHideIt() {
+        ResearchEvidenceField latest = field("price", "1", "fixture", "Q4", EVAL.plusSeconds(1),
+                EvidenceFreshness.FRESH, null);
+        ResearchEvidenceField earlier = field("price", "1", "fixture", "Q3", FRESH_OBSERVED,
+                EvidenceFreshness.FRESH, null);
+
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(latest, earlier, fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.gaps()).containsExactly(new EvidenceGap("price", EvidenceGapReason.FUTURE_DATED));
+    }
+
+    @Test
+    void twoSourcesDisagreeingOnTheCurrentPeriodIsAConflictEvenWithoutANote() {
+        ResearchEvidenceField other = field("price", "1.05", "other-fixture", "TTM", FRESH_OBSERVED,
+                EvidenceFreshness.FRESH, null);
+
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(fresh("price"), other, fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.level()).isEqualTo(EvidenceStrength.INSUFFICIENT);
+        assertThat(result.gaps()).containsExactly(new EvidenceGap("price", EvidenceGapReason.CONFLICTED));
+    }
+
+    @Test
+    void aConflictNoteOnAnyCurrentEntryMakesTheFieldConflicted() {
+        ResearchEvidenceField flagged = field("price", "1", "other-fixture", "TTM", FRESH_OBSERVED.minusSeconds(60),
+                EvidenceFreshness.FRESH, "sources_disagree");
+
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(flagged, fresh("price"), fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.gaps()).containsExactly(new EvidenceGap("price", EvidenceGapReason.CONFLICTED));
+    }
+
+    @Test
+    void sourcesThatAgreeOnTheCurrentPeriodAreNotAConflict() {
+        ResearchEvidenceField other = field("price", "1", "other-fixture", "TTM", FRESH_OBSERVED.minusSeconds(60),
+                EvidenceFreshness.FRESH, null);
+
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(fresh("price"), other, fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.level()).isEqualTo(EvidenceStrength.HIGH);
+    }
+
+    @Test
+    void aSourceUpdatingItsOwnValueWithinAPeriodIsNotAConflict() {
+        ResearchEvidenceField earlier = field("price", "0.98", "fixture", "TTM", FRESH_OBSERVED.minusSeconds(3600),
+                EvidenceFreshness.FRESH, null);
+
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(earlier, fresh("price"), fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.level()).isEqualTo(EvidenceStrength.HIGH);
+    }
+
+    @Test
+    void aFailedSourceDoesNotHideAnotherSourcesCurrentValue() {
+        EvidenceStrengthResult result = evaluate(policy("t1", "60", "40"),
+                snapshot(fresh("price"), failed("price"), fresh("eps"), fresh("a"), fresh("b")));
+
+        assertThat(result.level()).isEqualTo(EvidenceStrength.HIGH);
     }
 
     // ---- policy validation ----------------------------------------------------------------------------------

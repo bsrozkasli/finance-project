@@ -1,14 +1,13 @@
 package com.ozkaslibasar.financeproject.domain.service;
 
 import com.ozkaslibasar.financeproject.domain.model.AssetType;
-import com.ozkaslibasar.financeproject.domain.model.EvidenceField;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceFreshness;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceGap;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceGapReason;
-import com.ozkaslibasar.financeproject.domain.model.EvidenceMissingness;
 import com.ozkaslibasar.financeproject.domain.model.EvidencePolicy;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceStrength;
 import com.ozkaslibasar.financeproject.domain.model.EvidenceStrengthResult;
+import com.ozkaslibasar.financeproject.domain.model.ResearchEvidenceField;
 import com.ozkaslibasar.financeproject.domain.model.ResearchEvidenceSnapshot;
 
 import java.math.BigDecimal;
@@ -25,9 +24,14 @@ import java.util.Optional;
 
 /**
  * Deterministic Evidence Strength (PRD-FR-008). Hard gates first: an unresolved type, or any mandatory field
- * that is missing, stale, undated, future-dated or conflicted, is Insufficient whatever else is covered. Past
+ * that is missing, stale, future-dated or conflicted, is Insufficient whatever else is covered. Past
  * the gates the level follows the weighted share of optional fields that are current: at least 90% is High,
  * at least 75% Medium, otherwise Low. Optional gaps lower the level but never make it Insufficient.
+ *
+ * <p>A field may hold several entries (periods, sources). The most recently observed entry decides; within its
+ * period, each source's latest entry must carry the same value and no conflict note, or the field is CONFLICTED.
+ * Choosing between disagreeing sources is an OQ-3 conflict priority, so none is chosen here. Older periods are
+ * history and are not judged.
  */
 public class EvidenceStrengthService {
 
@@ -35,12 +39,12 @@ public class EvidenceStrengthService {
     private static final BigDecimal MEDIUM_PERCENT = new BigDecimal("75");
     private static final BigDecimal HUNDRED = new BigDecimal("100");
 
-    public EvidenceStrengthResult evaluate(ResearchEvidenceSnapshot snapshot, AssetType assetType,
-                                           EvidencePolicy policy, Instant evaluationInstant) {
+    public EvidenceStrengthResult evaluate(ResearchEvidenceSnapshot snapshot, EvidencePolicy policy,
+                                           Instant evaluationInstant) {
         Objects.requireNonNull(snapshot, "snapshot must not be null");
-        Objects.requireNonNull(assetType, "assetType must not be null");
         Objects.requireNonNull(policy, "policy must not be null");
         Objects.requireNonNull(evaluationInstant, "evaluationInstant must not be null");
+        AssetType assetType = snapshot.identity().assetType();
 
         if (assetType == AssetType.UNRESOLVED) {
             return new EvidenceStrengthResult(EvidenceStrength.INSUFFICIENT, BigDecimal.ZERO, policy.version(),
@@ -51,13 +55,13 @@ public class EvidenceStrengthService {
                     "policy " + policy.version() + " is for " + policy.assetType() + ", not " + assetType);
         }
 
-        Map<String, EvidenceField> byName = new HashMap<>();
-        snapshot.fields().forEach(field -> byName.put(field.name(), field));
+        Map<String, List<ResearchEvidenceField>> byName = new HashMap<>();
+        snapshot.fields().forEach(field -> byName.computeIfAbsent(field.name(), name -> new ArrayList<>()).add(field));
 
         List<EvidenceGap> gaps = new ArrayList<>();
         boolean mandatoryGap = false;
         for (String name : policy.mandatoryFields()) {
-            Optional<EvidenceGapReason> reason = gapOf(byName.get(name), policy.maxAge().get(name), evaluationInstant);
+            Optional<EvidenceGapReason> reason = gapOf(byName.getOrDefault(name, List.of()), policy.maxAge().get(name), evaluationInstant);
             if (reason.isPresent()) {
                 mandatoryGap = true;
                 gaps.add(new EvidenceGap(name, reason.get()));
@@ -69,7 +73,8 @@ public class EvidenceStrengthService {
         for (Map.Entry<String, BigDecimal> optional : policy.optionalWeights().entrySet()) {
             totalWeight = totalWeight.add(optional.getValue());
             Optional<EvidenceGapReason> reason =
-                    gapOf(byName.get(optional.getKey()), policy.maxAge().get(optional.getKey()), evaluationInstant);
+                    gapOf(byName.getOrDefault(optional.getKey(), List.of()), policy.maxAge().get(optional.getKey()),
+                            evaluationInstant);
             if (reason.isPresent()) {
                 gaps.add(new EvidenceGap(optional.getKey(), reason.get()));
             } else {
@@ -97,18 +102,19 @@ public class EvidenceStrengthService {
         return EvidenceStrength.LOW;
     }
 
-    private static Optional<EvidenceGapReason> gapOf(EvidenceField field, Duration maxAge, Instant at) {
-        if (field == null || field.missingness() != EvidenceMissingness.NONE) {
+    private static Optional<EvidenceGapReason> gapOf(List<ResearchEvidenceField> entries, Duration maxAge, Instant at) {
+        List<ResearchEvidenceField> present = entries.stream().filter(entry -> entry.rawValue() != null).toList();
+        if (present.isEmpty()) {
             return Optional.of(EvidenceGapReason.MISSING);
         }
-        if (field.conflicted()) {
+        ResearchEvidenceField field = present.stream()
+                .max(Comparator.comparing(ResearchEvidenceField::observedAt))
+                .orElseThrow();
+        if (conflictedWithinPeriod(present, field)) {
             return Optional.of(EvidenceGapReason.CONFLICTED);
         }
         if (field.freshness() == EvidenceFreshness.STALE) {
             return Optional.of(EvidenceGapReason.STALE);
-        }
-        if (field.observedAt() == null) {
-            return Optional.of(EvidenceGapReason.UNDATED);
         }
         if (field.observedAt().isAfter(at)) {
             return Optional.of(EvidenceGapReason.FUTURE_DATED);
@@ -117,5 +123,18 @@ public class EvidenceStrengthService {
             return Optional.of(EvidenceGapReason.STALE);
         }
         return Optional.empty();
+    }
+
+    /** Compares every source's latest entry for the deciding entry's period; ties within a source count too. */
+    private static boolean conflictedWithinPeriod(List<ResearchEvidenceField> present, ResearchEvidenceField deciding) {
+        List<ResearchEvidenceField> samePeriod = present.stream()
+                .filter(entry -> Objects.equals(entry.period(), deciding.period()))
+                .toList();
+        Map<String, Instant> latestBySource = new HashMap<>();
+        samePeriod.forEach(entry -> latestBySource.merge(entry.source(), entry.observedAt(),
+                (a, b) -> a.isAfter(b) ? a : b));
+        return samePeriod.stream()
+                .filter(entry -> entry.observedAt().equals(latestBySource.get(entry.source())))
+                .anyMatch(entry -> entry.conflictNote() != null || !entry.rawValue().equals(deciding.rawValue()));
     }
 }

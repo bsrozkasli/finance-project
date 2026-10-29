@@ -1,6 +1,7 @@
 import { lazy, Suspense, useState, useEffect, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useParams, useLocation } from 'react-router-dom';
-import type { Stock, Trade, Watchlist, Portfolio } from './types';
+import type { Stock, Trade, Watchlist, Portfolio, CompanyLogoSource } from './types';
+import type { PriceStatus } from './api/types';
 import type { JournalTrade } from './api/client';
 import { createPortfolioTransaction, deleteInvestmentPortfolio, deletePortfolioTransaction } from './api/client';
 import { useAssets } from './hooks/useAssets';
@@ -65,7 +66,9 @@ function PortfolioRoute({
   onDeletePortfolio,
   onExecuteTrade,
   onOpenTradingJournal,
+  onLedgerChanged,
   stocks,
+  pricingStatus,
 }: {
   portfolios: Portfolio[];
   activePortfolioId: string;
@@ -74,7 +77,9 @@ function PortfolioRoute({
   onDeletePortfolio: (id: string) => Promise<void>;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => Promise<void>;
   onOpenTradingJournal: () => void;
+  onLedgerChanged: () => Promise<void>;
   stocks: Stock[];
+  pricingStatus?: PriceStatus | null;
 }) {
   const { portfolioId } = useParams();
   const navigate = useNavigate();
@@ -100,6 +105,8 @@ function PortfolioRoute({
       onSelectPortfolioId={handleSelectPortfolioId}
       onExecuteTrade={onExecuteTrade}
       onOpenTradingJournal={onOpenTradingJournal}
+      onLedgerChanged={onLedgerChanged}
+      pricingStatus={pricingStatus}
     />
   );
 }
@@ -132,6 +139,7 @@ export default function App() {
     createPortfolio: createApiPortfolio,
     setSelectedPortfolioId: setApiPortfolioId,
     reload: reloadInvestmentPortfolio,
+    summary: apiPortfolioSummary,
   } = useInvestmentPortfolio(numericPortfolioId(activePortfolioId) ?? null);
   const {
     watchlists: apiWatchlists,
@@ -147,14 +155,22 @@ export default function App() {
     apiWatchlists.forEach((watchlist) => watchlist.symbols?.forEach((symbol) => symbols.add(symbol.trim().toUpperCase())));
     return [...symbols].filter(Boolean).sort();
   }, [apiHoldings, apiWatchlists]);
-  const profileSymbols = useMemo(
-    () => assets.map((asset) => asset.symbol.trim().toUpperCase()).filter(Boolean).sort(),
-    [assets],
-  );
+  const profileSymbols = useMemo(() => [...new Set([
+    ...assets.map((asset) => asset.symbol.trim().toUpperCase()),
+    ...liveMarketSymbols,
+  ])].filter(Boolean).sort(), [assets, liveMarketSymbols]);
   const { quotes: liveQuoteSections, profiles: companyProfileSections } = useMarketOverviewData(
     liveMarketSymbols,
     profileSymbols,
   );
+  const logoSources = useMemo<Record<string, CompanyLogoSource>>(() => Object.fromEntries(
+    Object.entries(companyProfileSections)
+      .filter(([, section]) => section.data != null)
+      .map(([symbol, section]) => [symbol, {
+        logoUrl: section.data?.logoUrl,
+        website: section.data?.website,
+      }]),
+  ), [companyProfileSections]);
 
   const stocks = useMemo<Stock[]>(() => baseStocks.map((stock) => {
     const profile = companyProfileSections[stock.symbol]?.data;
@@ -167,6 +183,7 @@ export default function App() {
       sector: profile?.sector ?? stock.sector,
       industry: profile?.industry ?? stock.industry,
       logoUrl: profile?.logoUrl ?? stock.logoUrl,
+      website: profile?.website ?? stock.website,
       price: displayQuote?.price ?? stock.price,
       close: displayQuote?.price ?? stock.close,
       change: displayQuote?.change ?? stock.change,
@@ -310,6 +327,10 @@ export default function App() {
     }
     await reloadInvestmentPortfolio();
   };
+  const handleLedgerChanged = async () => {
+    await Promise.all([reloadInvestmentPortfolio(), reloadJournalTrades()]);
+  };
+
   // 5. Ledger & Transaction execution coordinates (API-backed journal)
   const handleExecuteTrade = async (newTrade: Omit<Trade, 'id' | 'date'>) => {
     const targetPortfolioId = newTrade.portfolioId || activePortfolioId;
@@ -324,7 +345,7 @@ export default function App() {
         quantity: newTrade.quantity,
         price: newTrade.price,
         tradeDate,
-        source: newTrade.source ?? 'MANUAL',
+        source: 'MANUAL',
         notes: newTrade.notes,
         journalNotes,
       });
@@ -386,6 +407,7 @@ export default function App() {
         focusMode={focusMode}
         onToggleFocus={() => setFocusMode(value => !value)}
         stocks={stocks}
+        logoSources={logoSources}
         assets={assets}
         onSelectStock={(s) => navigate(`/workspace/${encodeURIComponent(s.symbol)}`)}
         onSelectAsset={(asset) => navigate(`/workspace/${encodeURIComponent(asset.symbol)}`)}
@@ -400,6 +422,7 @@ export default function App() {
             <Route path="/dashboard" element={
               <DashboardHome
                 stocks={stocks}
+                logoSources={logoSources}
                 portfolios={portfolios}
                 activePortfolioId={activePortfolioId}
                 onSelectPortfolioId={saveActivePortfolioIdState}
@@ -434,6 +457,7 @@ export default function App() {
             <Route path="/watchlist" element={
               <WatchlistsView
                 stocks={stocks}
+                logoSources={logoSources}
                 watchlists={watchlists}
                 onAddStockToWatchlist={handleAddStockToWatchlist}
                 onRemoveStockFromWatchlist={handleRemoveStockFromWatchlist}
@@ -491,6 +515,8 @@ export default function App() {
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+                onLedgerChanged={handleLedgerChanged}
+                pricingStatus={apiPortfolioSummary?.pricingStatus}
               />
             } />
             <Route path="/portfolio/:portfolioId" element={
@@ -503,6 +529,8 @@ export default function App() {
                 onSelectPortfolioId={saveActivePortfolioIdState}
                 onExecuteTrade={handleExecuteTrade}
                 onOpenTradingJournal={() => setIsTradingJournalOpen(true)}
+                onLedgerChanged={handleLedgerChanged}
+                pricingStatus={apiPortfolioSummary?.pricingStatus}
               />
             } />
             <Route path="/portfolios" element={<Navigate to="/portfolio" replace />} />

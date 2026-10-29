@@ -12,6 +12,8 @@ import {
 import type { Stock, Portfolio, Trade } from '../types';
 import type { PortfolioPositionPerformance, PortfolioTransaction } from '../api/client';
 import { fetchPortfolioPositionsPerformance, fetchPortfolioTransactions } from '../api/client';
+import type { PriceStatus } from '../api/types';
+import PriceFreshness, { PricingStatusNote } from './PriceFreshness';
 
 const PortfolioCards = lazy(() => import('./portfolio/PortfolioCards'));
 const PortfolioPanels = lazy(() => import('./portfolio/PortfolioPanels'));
@@ -26,6 +28,10 @@ interface PortfolioManagerViewProps {
   onSelectPortfolioId: (id: string) => void;
   onExecuteTrade: (trade: Omit<Trade, 'id' | 'date'>) => void | Promise<void>;
   onOpenTradingJournal?: () => void;
+  /** Reloads application-level ledger data (holdings, journal trades) after a CSV accept. */
+  onLedgerChanged?: () => void | Promise<void>;
+  /** Worst price status of the API summary; STALE or FAILED adds one note next to the total. */
+  pricingStatus?: PriceStatus | null;
 }
 
 type AllocationMode = 'daily' | 'total' | 'allocation';
@@ -63,6 +69,9 @@ const numericPortfolioId = (id: string | undefined): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const PortfolioImportPanel = lazy(() => import('./portfolio/PortfolioImportPanel'));
+const PortfolioStatePanel = lazy(() => import('./portfolio/PortfolioStatePanel'));
+
 const monthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
 const parseDate = (value: string) => {
@@ -79,6 +88,8 @@ export default function PortfolioManagerView({
   activePortfolioId,
   onSelectPortfolioId,
   onOpenTradingJournal,
+  onLedgerChanged,
+  pricingStatus,
 }: PortfolioManagerViewProps) {
   const [allocationMode, setAllocationMode] = useState<AllocationMode>('daily');
   const [activeTab, setActiveTab] = useState<HoldingsTab>('holdings');
@@ -97,6 +108,7 @@ export default function PortfolioManagerView({
   const [isDeletingPortfolio, setIsDeletingPortfolio] = useState(false);
   const [isCreatePortfolioOpen, setIsCreatePortfolioOpen] = useState(false);
   const [isDeletePortfolioOpen, setIsDeletePortfolioOpen] = useState(false);
+  const [detailsReload, setDetailsReload] = useState(0);
 
   const activePortfolio = useMemo(() => {
     return portfolios.find((portfolio) => portfolio.id === activePortfolioId) || (!activePortfolioId ? portfolios[0] : null);
@@ -150,7 +162,7 @@ export default function PortfolioManagerView({
     return () => {
       cancelled = true;
     };
-  }, [activeInvestmentPortfolioId]);
+  }, [activeInvestmentPortfolioId, detailsReload]);
 
   const fallbackPositions = useMemo<LocalPositionPerformance[]>(() => {
     if (!activePortfolio) return [];
@@ -595,7 +607,10 @@ export default function PortfolioManagerView({
 
       {!portfolioSummary.complete && <p role="status" className="rounded-md border border-warning-amber/35 bg-warning-amber/10 p-4 text-sm text-warning-amber">{portfolioSummary.pricedCount}/{portfolioSummary.totalCount} pozisyonun fiyatı var. Toplam değer ve getiri hesaplanamıyor.</p>}
       <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <MetricCard label="Güncel değer" value={formatCurrency(portfolioSummary.totalValue)} tone="neutral" />
+        <div>
+          <MetricCard label="Güncel değer" value={formatCurrency(portfolioSummary.totalValue)} tone="neutral" />
+          <PricingStatusNote status={pricingStatus} />
+        </div>
         <MetricCard label="En yüksek getiri" value={healthMetrics.best ? `${healthMetrics.best.symbol} ${formatReturn(healthMetrics.best.totalReturn)}` : '-'} tone="positive" />
         <MetricCard label="En düşük getiri" value={healthMetrics.worst ? `${healthMetrics.worst.symbol} ${formatReturn(healthMetrics.worst.totalReturn)}` : '-'} tone="negative" />
         <MetricCard label="En büyük ağırlık" value={healthMetrics.largest ? `${healthMetrics.largest.symbol} ${healthMetrics.largest.weight.toFixed(1)}%` : '-'} tone={portfolioSummary.largestWeight > 25 ? 'warning' : 'neutral'} />
@@ -615,7 +630,7 @@ export default function PortfolioManagerView({
           </div>
           <div className="flex rounded-md border border-outline-variant/35 bg-bg-base p-1">
             {performanceRanges.map((range) => (
-              <button
+              <button type="button"
                 key={range}
                 onClick={() => setPerformanceRange(range)}
                 className={`min-w-16 rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${performanceRange === range ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
@@ -689,7 +704,7 @@ export default function PortfolioManagerView({
             </div>
             <div className="flex rounded-md border border-outline-variant/35 bg-bg-base p-1">
               {allocationModes.map((mode) => (
-                <button
+                <button type="button"
                   key={mode.id}
                   onClick={() => setAllocationMode(mode.id)}
                   className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${allocationMode === mode.id ? 'bg-primary/15 text-text-primary' : 'text-text-muted hover:text-text-primary'}`}
@@ -730,13 +745,13 @@ export default function PortfolioManagerView({
 
         <div className="bg-bg-card border border-outline-variant rounded-md overflow-hidden ">
           <div className="flex border-b border-outline-variant/30 bg-bg-card/45 px-5">
-            <button
+            <button type="button"
               onClick={() => setActiveTab('holdings')}
               className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'holdings' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
             >
               Pozisyonlar
             </button>
-            <button
+            <button type="button"
               onClick={() => setActiveTab('transactions')}
               className={`border-b-2 px-4 py-4 text-sm font-bold transition-colors ${activeTab === 'transactions' ? 'border-primary text-primary' : 'border-transparent text-text-secondary hover:text-text-primary'}`}
             >
@@ -751,6 +766,22 @@ export default function PortfolioManagerView({
           )}
         </div>
       </section>
+
+      {activeInvestmentPortfolioId !== undefined && (
+        <Suspense fallback={<p role="status">Paneller yükleniyor…</p>}>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <PortfolioImportPanel
+              key={`import-${activeInvestmentPortfolioId}`}
+              portfolioId={activeInvestmentPortfolioId}
+              onLedgerChanged={async () => {
+                setDetailsReload((value) => value + 1);
+                await onLedgerChanged?.();
+              }}
+            />
+            <PortfolioStatePanel key={`state-${activeInvestmentPortfolioId}`} portfolioId={activeInvestmentPortfolioId} />
+          </div>
+        </Suspense>
+      )}
 
       {healthMetrics.unpriced > 0 && (
         <div className="rounded-md border border-outline-variant/35 bg-bg-card px-4 py-3 text-xs text-text-muted">
@@ -899,7 +930,7 @@ export default function PortfolioManagerView({
                   {activePortfolio?.name || 'Portfolio'}
                 </span>
               </div>
-              <button onClick={() => setMonthlyModalOpen(false)} className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary">
+              <button type="button" onClick={() => setMonthlyModalOpen(false)} className="rounded-md bg-bg-base/60 p-2 text-text-secondary hover:text-text-primary">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1042,7 +1073,7 @@ function HoldingsTable({
                 </div>
               </td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(position.costPrice)}</td>
-              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(position.currentPrice)}</td>
+              <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(position.currentPrice)}<PriceFreshness status={position.priceStatus} asOf={position.priceAsOf} /></td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{position.weight == null ? '-' : `${position.weight.toFixed(2)}%`}</td>
               <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.dailyReturn)}`}>{formatReturn(position.dailyReturn)}</td>
               <td className={`px-4 py-3 text-right font-data-mono font-bold ${returnColor(position.weeklyReturn)}`}>{formatReturn(position.weeklyReturn)}</td>
@@ -1079,7 +1110,7 @@ function TransactionTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[900px] text-left text-xs">
+      <table className="w-full min-w-[1050px] text-left text-xs">
         <thead className="bg-bg-base/40 text-xs uppercase tracking-wider text-text-muted">
           <tr>
             <th className="px-4 py-3">Tarih</th>
@@ -1088,6 +1119,7 @@ function TransactionTable({
             <th className="px-4 py-3 text-right">İşlem tutarı</th>
             <th className="px-4 py-3 text-right">Ortalama maliyet</th>
             <th className="px-4 py-3 text-right">İşlem fiyatı</th>
+            <th className="px-4 py-3">Kaynak</th>
             <th className="px-4 py-3">Notlar</th>
           </tr>
         </thead>
@@ -1105,6 +1137,12 @@ function TransactionTable({
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(row.purchaseAmount)}</td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-secondary">{formatCurrency(row.averageCost)}</td>
               <td className="px-4 py-3 text-right font-data-mono font-bold text-text-primary">{formatCurrency(row.price)}</td>
+              <td className="px-4 py-3 text-text-secondary">
+                <div>{row.source === 'MANUAL' ? 'Elle' : row.source === 'CSV' ? 'CSV' : 'Kaynak bilinmiyor'}</div>
+                <div className="max-w-56 break-all font-data-mono text-[11px] text-text-muted">
+                  {row.originLocator?.trim() ? row.originLocator : 'Köken kaydı yok'}
+                </div>
+              </td>
               <td className="px-4 py-3 text-text-secondary">{row.notes || '-'}</td>
             </tr>
           ))}

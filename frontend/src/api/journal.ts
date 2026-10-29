@@ -2,6 +2,7 @@ import { apiClient } from './http';
 
 export type JournalTradeType = 'BUY' | 'SELL';
 export type JournalTradeStatus = 'OPEN' | 'CLOSED';
+export type JournalPriceStatus = 'OK' | 'STALE' | 'FAILED' | 'EMPTY';
 
 export interface JournalTrade {
   id: number;
@@ -24,6 +25,10 @@ export interface JournalTrade {
   holdingDays?: number;
   portfolioId?: number;
   transactionId?: number;
+  /** Time of the price used for an open trade; null/absent when unknown or closed. */
+  priceAsOf?: string | null;
+  /** Freshness of the price used; null/absent means unknown or closed (show nothing extra). */
+  priceStatus?: JournalPriceStatus | null;
 }
 
 export interface AddJournalTradeRequest {

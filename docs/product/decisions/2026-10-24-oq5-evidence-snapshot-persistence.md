@@ -44,3 +44,29 @@ If the shape of the retained evidence changes after OQ-3 fixes the field policy,
 
 - **Unchanged and still open:** OQ-2 (point-in-time master and use-specific data rights), OQ-3 (field weights, thresholds, mandatory fields) and the other OQ-5 contracts (CSV lineage, PEG, agent replay and vocabulary).
 - Retaining evidence does not authorize external display or redistribution; rights gating stays EPIC-001 Task 4.
+
+## Amendment (2026-10-25): identity-bound snapshot shape
+
+**Why:** `main` merged a separate in-memory snapshot model (#63, `7c0a9b3`) after this branch was cut. Both
+defined `ResearchEvidenceSnapshot`, with different shapes. The implementing agent proposed adopting `main`'s
+identity-bound shape and keeping this decision's append-only persistence; the product owner told it to proceed
+on 2026-10-25. This stays within the delegated Backend/Architecture Lead scope: still additive, no route, DTO or
+existing table changes.
+
+**What changes in V9** (never applied outside this branch; the local development database is at V8):
+
+- `research_evidence_snapshots.id` and `previous_id` (was `supersedes_id`) are `UUID`; `revision` is `BIGINT`.
+- The snapshot row stores the captured `InstrumentIdentity`: `asset_type`, `listing_status`,
+  `classification_basis`, `identity_source`, `identity_retrieved_at` (which cannot follow `captured_at`).
+  `created_at` is now `captured_at`.
+- `research_evidence_fields` uses `raw_value`, a nullable typed `missing_reason` and `conflict_note` (text)
+  in place of `value`, `missingness` and `conflicted`. The check is now value-xor-missing-reason; new checks
+  require an observation time for a present value and forbid an observation after its retrieval.
+- **Unique `(snapshot_id, name)` is dropped.** `main`'s model retains several periods and conflicting sources
+  for one field name. Choosing among them is a conflict priority that OQ-3 owns.
+
+**Tests:** `ResearchEvidenceRepositoryAdapterTest` replaces the duplicate-name test with one that retains
+several periods and sources and adds the two observation-time constraint tests. A mutation that removed both
+new checks failed exactly those two tests. `ResearchEvidenceRestartReplayTest` closes the recording
+application context and replays every version from a new one on the same database. It runs in one JVM, so it
+is a context restart, not a new OS process.

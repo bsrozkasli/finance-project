@@ -107,8 +107,6 @@ evidence or corrupts persistent portfolio history.
 
 - Will MongoDB receive an approved durable product responsibility, or should its
   configured Compose/application footprint be removed in a separate change?
-- Should an all-null valuation metric set return an unavailable grade instead of
-  the current `FAIR` default?
 - When will a follow-up to ADR-0006 extend `IMarketDataProvider` so the
   fundamental, factor, and valuation `.info`/statement reads leave direct
   yfinance, and should unreachable `portfolio_analytics_service.py` be removed?

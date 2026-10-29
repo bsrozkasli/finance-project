@@ -20,6 +20,8 @@ public interface RestMapper {
     List<AssetResponseDto> toAssetResponseDtoList(List<Asset> assets);
 
     @Mapping(target = "assetId", source = "symbol")
+    @Mapping(target = "priceAsOf", ignore = true)
+    @Mapping(target = "priceStatus", ignore = true)
     PriceResponseDto toPriceResponseDto(PriceHistory price);
 
     List<PriceResponseDto> toPriceResponseDtoList(List<PriceHistory> prices);
