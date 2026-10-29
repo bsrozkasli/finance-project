@@ -15,6 +15,7 @@ const installShellHandlers = () => {
     http.get(apiUrl('/assets'), () => HttpResponse.json([])),
     http.get(apiUrl('/fundamentals/:symbol'), () => new HttpResponse(null, { status: 503 })),
     http.get(apiUrl('/fundamentals/:symbol/ratios'), () => new HttpResponse(null, { status: 503 })),
+    http.get(apiUrl('/fundamentals/:symbol/history'), () => new HttpResponse(null, { status: 503 })),
     http.get(apiUrl('/news/:symbol'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolios'), () => HttpResponse.json([])),
     http.get(apiUrl('/portfolio/summary'), () => HttpResponse.json({ totalValue: 0, cashBalance: 0, dailyPnL: 0, dailyPnLPercent: 0, totalPnL: 0, totalReturn: 0 })),

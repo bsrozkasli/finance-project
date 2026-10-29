@@ -116,6 +116,14 @@ tests for success, empty response, provider failure, and fallback ordering.
 - Macro snapshot fields are independently nullable. The Spring endpoint returns
   503 when every macro field is unavailable.
 - FMP calendar failure or missing key returns empty lists, not fabricated events.
+- Financial history (`GET /api/v1/research/financial-history/{symbol}`) degrades per cell: missing
+  values are `null` and the status is `PARTIAL`. When no statement has data the response is a 200
+  with `status` `EMPTY` and empty lists; only when all three statement reads fail does it
+  return 503. No values are synthesised.
+- Spring financial history (`GET /api/v1/fundamentals/{symbol}/history`) is always HTTP 200. Data-service
+  timeout, refusal, 5xx, malformed JSON, unequal series lengths, or an unknown status become
+  `status` `UNAVAILABLE` with no points. `UNAVAILABLE` is never cached (`fundamentalCache`, 24 hours),
+  so recovery is visible on the next request; `AVAILABLE`, `PARTIAL` and `EMPTY` are cached.
 - Extended-hours quotes are provider-backed and nullable. The UI shows provider
   timestamps and delay state, and prefers `UNKNOWN` market state over a local
   market-hours guess. Batch quote/profile reads degrade per symbol; no paid logo

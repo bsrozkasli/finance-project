@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { server } from '../test/server';
+import type { FinancialHistory, FinancialHistoryPoint } from '../api/client';
 import { useAssets } from './useAssets';
 import { useAssetPrice } from './useAssetPrice';
 import { useInvestmentPortfolio } from './useInvestmentPortfolio';
@@ -11,6 +12,7 @@ import { useJournalTrades } from './useJournalTrades';
 import { useLivePrice } from './useLivePrice';
 import { useNewsFilters } from './useNewsFilters';
 import { useNotifications } from './useNotifications';
+import { useResearchEvidence } from './useResearchEvidence';
 import { useSparkline } from './useSparkline';
 import { useTechnicalAnalysis } from './useTechnicalAnalysis';
 import { useWatchlistResearch } from './useWatchlistResearch';
@@ -57,6 +59,18 @@ const postJson = (path: string, body: unknown, status = 200) => http.post(apiUrl
 const putJson = (path: string, body: unknown, status = 200) => http.put(apiUrl(path), () => HttpResponse.json(body, { status }));
 const delNoContent = (path: string) => http.delete(apiUrl(path), () => new HttpResponse(null, { status: 204 }));
 const failGet = (path: string, status = 500) => http.get(apiUrl(path), () => HttpResponse.json({ message: 'provider unavailable' }, { status }));
+
+
+const historyPoint = (fiscalYear: number): FinancialHistoryPoint => ({
+  fiscalYear, fiscalYearEnd: `${fiscalYear}-12-31`, revenue: 100, netIncome: 10, operatingCashFlow: 20, capitalExpenditure: 5,
+  freeCashFlow: 15, totalAssets: 200, totalLiabilities: 100, totalEquity: 100, totalDebt: 50, cash: 30, netDebt: 20,
+  debtToEquity: 0.5, currentRatio: 1.5, roe: 0.1, roa: 0.05, netMargin: 0.1, fcfMargin: 0.15, revenueGrowth: null,
+  netIncomeGrowth: null, notMeaningful: [],
+});
+const historyFor = (symbol: string, years: number[]): FinancialHistory => ({
+  symbol, status: 'AVAILABLE', currency: 'USD', periodType: 'annual', retrievedAt: '2026-10-28T00:00:00Z', points: years.map(historyPoint),
+});
+const fundamentalsBody = (symbol: string) => ({ symbol, revenue: [], netIncome: [], eps: [], freeCashFlow: [] });
 
 const waitUntilLoaded = async <T extends { loading: boolean }>(result: { current: T }) => {
   await waitFor(() => expect(result.current.loading).toBe(false));
@@ -296,6 +310,72 @@ describe('data hooks', () => {
     expect(result.current.data.threeMonth).toEqual(priceBars);
     expect(result.current.data.oneYear).toEqual(priceBars);
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe('useResearchEvidence history', () => {
+  it('exposes multi-year history alongside other evidence', async () => {
+    server.use(
+      json('/fundamentals/AAPL', fundamentalsBody('AAPL')),
+      json('/fundamentals/AAPL/ratios', { pe: 30 }),
+      json('/fundamentals/AAPL/history', historyFor('AAPL', [2023, 2024])),
+      json('/news/AAPL', []),
+    );
+    const { result } = renderHook(() => useResearchEvidence('AAPL', false));
+    await waitUntilLoaded(result);
+    expect(result.current.history?.points.length).toBe(2);
+    expect(result.current.failed).toEqual([]);
+  });
+
+  it('degrades a failing history route without losing fundamentals', async () => {
+    server.use(
+      json('/fundamentals/AAPL', fundamentalsBody('AAPL')),
+      json('/fundamentals/AAPL/ratios', { pe: 30 }),
+      failGet('/fundamentals/AAPL/history'),
+      json('/news/AAPL', []),
+    );
+    const { result } = renderHook(() => useResearchEvidence('AAPL', false));
+    await waitUntilLoaded(result);
+    expect(result.current.history).toBeNull();
+    expect(result.current.failed).toContain('Finansal geçmiş');
+    expect(result.current.fundamentals?.symbol).toBe('AAPL');
+  });
+
+  it('does not request history for funds', async () => {
+    let historyCalls = 0;
+    server.use(
+      http.get(apiUrl('/fundamentals/FUND/history'), () => {
+        historyCalls += 1;
+        return HttpResponse.json(historyFor('FUND', [2024]));
+      }),
+      json('/news/FUND', []),
+    );
+    const { result } = renderHook(() => useResearchEvidence('FUND', true));
+    await waitUntilLoaded(result);
+    expect(result.current.history).toBeNull();
+    expect(result.current.failed).toEqual([]);
+    expect(historyCalls).toBe(0);
+  });
+
+  it('never returns the previous symbol history after a symbol change', async () => {
+    server.use(
+      json('/fundamentals/AAPL', fundamentalsBody('AAPL')),
+      json('/fundamentals/AAPL/ratios', { pe: 30 }),
+      json('/fundamentals/AAPL/history', historyFor('AAPL', [2023, 2024])),
+      json('/news/AAPL', []),
+      json('/fundamentals/MSFT', fundamentalsBody('MSFT')),
+      json('/fundamentals/MSFT/ratios', { pe: 25 }),
+      json('/fundamentals/MSFT/history', historyFor('MSFT', [2022, 2023, 2024])),
+      json('/news/MSFT', []),
+    );
+    const { result, rerender } = renderHook(({ symbol }) => useResearchEvidence(symbol, false), { initialProps: { symbol: 'AAPL' } });
+    await waitUntilLoaded(result);
+    expect(result.current.history?.symbol).toBe('AAPL');
+    rerender({ symbol: 'MSFT' });
+    expect(result.current.history).toBeNull();
+    await waitUntilLoaded(result);
+    expect(result.current.history?.symbol).toBe('MSFT');
+    expect(result.current.history?.points.length).toBe(3);
   });
 });
 

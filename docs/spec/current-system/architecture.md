@@ -91,6 +91,7 @@ change together when API routing changes.
   (`/workspace`), İzleme Listem (`/watchlist`), Portföy (`/portfolio`), and
   Günlük (`/journal`). Existing deep links remain routable. Route views and
   larger dialogs load on demand through React `lazy` and `Suspense`.
+- The Finansallar tab composes the financial trends panel (`components/research/trends/`: `FinancialTrendsPanel`, `TrendChart`, `ValuationSnapshot`, pure `trendModel`) above the annual table. The panel loads as a lazy chunk, uses `desk-trend-*` styles, and draws hand-rolled SVG charts with no chart library because the bundle budget counts lazy chunks too. The frontend only formats backend `/fundamentals/{symbol}/history` figures and never recomputes financial figures.
 - `/workspace/:symbol` selects the requested symbol when priced history is
   available. A missing symbol or history produces an explicit empty state.
 - Araştır composes six tabs in a fixed order: Genel bakış, Grafik,

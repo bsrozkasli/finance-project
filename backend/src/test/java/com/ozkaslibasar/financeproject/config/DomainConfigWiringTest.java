@@ -5,6 +5,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.AgentAnalysisAiPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetDetailDataPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.AssetRepositoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialDataPort;
+import com.ozkaslibasar.financeproject.domain.port.outbound.FinancialHistoryPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.JournalTradePort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.MarketCalendarPort;
 import com.ozkaslibasar.financeproject.domain.port.outbound.PortfolioCsvImportPort;
@@ -24,6 +25,7 @@ import com.ozkaslibasar.financeproject.domain.port.outbound.TechnicalAnalysisPor
 import com.ozkaslibasar.financeproject.domain.port.outbound.WatchlistPort;
 import com.ozkaslibasar.financeproject.domain.service.AgentAnalysisUseCase;
 import com.ozkaslibasar.financeproject.domain.service.AssetResolutionService;
+import com.ozkaslibasar.financeproject.domain.service.FinancialHistoryService;
 import com.ozkaslibasar.financeproject.domain.service.JournalTradeService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioCsvImportService;
 import com.ozkaslibasar.financeproject.domain.service.PortfolioLedgerService;
@@ -233,6 +235,13 @@ class DomainConfigWiringTest {
     }
 
     @Test
+    void should_wireFinancialHistoryService_with_historyPort() {
+        FinancialHistoryService service = applicationContext.getBean(FinancialHistoryService.class);
+        assertThat(ReflectionTestUtils.getField(service, "port"))
+                .isSameAs(applicationContext.getBean(FinancialHistoryPort.class));
+    }
+
+    @Test
     void should_injectSameBeanOnMultipleCalls() {
         PriceIngestionService first = applicationContext.getBean(PriceIngestionService.class);
         PriceIngestionService second = applicationContext.getBean(PriceIngestionService.class);
@@ -366,6 +375,12 @@ class DomainConfigWiringTest {
         AgentAnalysisAiPort agentAnalysisAiPort() {
             // Mock rationale: AI inference gateway is external I/O.
             return mock(AgentAnalysisAiPort.class);
+        }
+
+        @Bean
+        FinancialHistoryPort financialHistoryPort() {
+            // Mock rationale: external financial-history provider is an I/O boundary.
+            return mock(FinancialHistoryPort.class);
         }
 
         @Bean

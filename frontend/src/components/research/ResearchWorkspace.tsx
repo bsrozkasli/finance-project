@@ -8,10 +8,12 @@ import ResearchFinancials from './ResearchFinancials';
 import {metric} from './formatResearchMetric';
 import {assetTypeLabel} from '../../utils/formatters';
 import ResearchSources from './ResearchSources';
-import ResearchHistoryChart from './ResearchHistoryChart';
+import {viewState} from './trends/trendModel';
 
 const ChartWorkspace = lazy(() => import('../ChartWorkspace'));
 const ResearchAgentReport = lazy(() => import('./ResearchAgentReport'));
+const FinancialTrendsPanel = lazy(() => import('./trends/FinancialTrendsPanel'));
+const TrendChart = lazy(() => import('./trends/TrendChart').then(module => ({default: module.TrendChart})));
 const tabs = [['overview', 'Genel bakış'], ['chart', 'Grafik'], ['financials', 'Finansallar'], ['risk', 'Risk'], ['news', 'Haberler'], ['ai', 'AI raporu']] as const;
 type Tab = typeof tabs[number][0];
 
@@ -86,6 +88,7 @@ export default function ResearchWorkspace({
         document.addEventListener('keydown', cancel);
         return () => document.removeEventListener('keydown', cancel);
     }, [sourceOpen, wide]);
+    const overviewState = viewState(evidence.history, evidence.loading);
     const latest = evidence.fundamentals?.revenue?.filter(point => point.value != null && Number.isFinite(point.value)).slice().sort((a, b) => b.year - a.year)[0];
     return <div className="desk-page research-desk">
         <div className="desk-company">
@@ -173,8 +176,16 @@ export default function ResearchWorkspace({
                                                 <span>Özkaynak kârlılığı</span><strong>{metric(evidence.ratios?.roe)}</strong><small>Sağlayıcı
                                                 değeri</small></div>
                                         </div>
-                                        {!evidence.loading && <ResearchHistoryChart data={evidence.fundamentals}/>}<p
-                                        className="desk-footnote">Birim ve para birimi bildirilmedi. Şirket finansalları
+                                        {overviewState === 'ready' && evidence.history ?
+                                            <Suspense fallback={<p role="status">Finansal grafikler yükleniyor…</p>}><TrendChart
+                                                title="Gelir ve net kâr" basis="Yıllık, raporlanan değerler."
+                                                kind="bar" unit="money" history={evidence.history}
+                                                series={[{key: 'revenue', label: 'Gelir'}, {key: 'netIncome', label: 'Net kâr'}]}/></Suspense> :
+                                            overviewState === 'unavailable' ?
+                                                <p className="desk-empty">Finansal geçmiş şu an alınamıyor. Lütfen daha sonra yeniden deneyin.</p> :
+                                                overviewState === 'empty' ?
+                                                    <p className="desk-empty">Grafik için raporlanan finansal dönem bulunamadı.</p> : null}<p
+                                        className="desk-footnote">{overviewState === 'ready' ? 'Grafikteki para birimi sağlayıcı yanıtından alınır; özet metriklerin birimi bildirilmedi.' : 'Birim ve para birimi bildirilmedi.'} Şirket finansalları
                                         kaynaklı değerlerdir; fiyat veya portföy getirisi değildir.</p>
                                         <button type="button" className="desk-button desk-text-button"
                                                 onClick={() => setTab('financials')}>Finansalları aç →
@@ -196,8 +207,14 @@ export default function ResearchWorkspace({
                                         </div>
                                     </section>
                                 </div> : tab === 'financials' ?
-                                    <ResearchFinancials data={evidence.fundamentals} loading={evidence.loading}
-                                                        isFund={isFund}/> : tab === 'chart' ?
+                                    <>
+                                        <Suspense fallback={<p role="status">Finansal grafikler yükleniyor…</p>}><FinancialTrendsPanel
+                                            history={evidence.history} ratios={evidence.ratios}
+                                            fundamentals={evidence.fundamentals} loading={evidence.loading}
+                                            isFund={isFund}/></Suspense>
+                                        <ResearchFinancials data={evidence.fundamentals} history={evidence.history}
+                                                            loading={evidence.loading} isFund={isFund}/>
+                                    </> : tab === 'chart' ?
                                         <Suspense fallback={<p role="status">Grafik yükleniyor…</p>}><ChartWorkspace
                                             stocks={stock ? [stock] : []} symbol={effectiveSymbol}
                                             onSelectStock={onSelectStock}/></Suspense> : tab === 'risk' ?
