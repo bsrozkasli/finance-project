@@ -1,0 +1,2159 @@
+openapi: 3.0.3
+info:
+  title: Finance Project - UI Redesign v2 (proposed endpoints)
+  version: 0.1.0-proposed
+  description: |
+    PROPOSED target contract for the UI redesign v2. Nothing in this file is
+    implemented. It is additive to the implemented API described in
+    docs/spec/current-system/contracts.md and the generated docs/openapi.yaml.
+    Requirements, rules and open questions: docs/spec/proposed/ui-redesign-v2.md.
+
+    Conventions (X-1..X-9 in the requirements document):
+    - Every path is relative to /api/v1 and is additive; no existing path or DTO field changes.
+    - Every analytic response has `status`, `asOf` and, where money appears, `currency`.
+      Missing evidence is null or an empty collection plus a status, never 0 or an estimate.
+    - Returns are time-weighted with external cash flows applied at the start of the day.
+    - Outputs are informational; no endpoint creates or routes an order.
+    - A path whose data source is not approved answers 200 with `status: UNAVAILABLE`
+      (never an estimate). 404/501 from a not-yet-built endpoint must be tolerated by the UI.
+  license:
+    name: Proprietary
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local backend
+tags:
+  - name: Portfolio analytics
+  - name: Risk and stops
+  - name: Comparison
+  - name: Earnings analytics
+  - name: Transactions
+  - name: News and calendar
+  - name: Watchlists
+  - name: Company analysis
+  - name: Reports
+
+paths:
+  /benchmarks:
+    get:
+      tags: [Comparison]
+      summary: List benchmarks that have an approved data source
+      operationId: listBenchmarks
+      responses:
+        '200':
+          description: Benchmarks (BIST100, SPX, GOLD, USDTRY when sourced)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, asOf, items]
+                properties:
+                  status: {$ref: '#/components/schemas/DataStatus'}
+                  asOf: {type: string, format: date-time}
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/Benchmark'}
+
+  /portfolios/overview:
+    get:
+      tags: [Portfolio analytics]
+      summary: Paged portfolio cards plus an aggregate (up to 100 portfolios)
+      operationId: portfolioOverview
+      parameters:
+        - {$ref: '#/components/parameters/Market'}
+        - {name: pinned, in: query, schema: {type: boolean}, description: Only pinned portfolios}
+        - {name: riskLevel, in: query, schema: {$ref: '#/components/schemas/RiskLevel'}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Offset'}
+      responses:
+        '200':
+          description: Overview
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PortfolioOverview'}
+
+  /portfolios/{portfolioId}/pin:
+    put:
+      tags: [Portfolio analytics]
+      summary: Pin or unpin a portfolio
+      operationId: pinPortfolio
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pinned]
+              properties:
+                pinned: {type: boolean}
+      responses:
+        '200':
+          description: Updated pin state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [portfolioId, pinned]
+                properties:
+                  portfolioId: {type: integer, format: int64}
+                  pinned: {type: boolean}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /portfolios/{portfolioId}/summary:
+    get:
+      tags: [Portfolio analytics]
+      summary: KPI row for one portfolio
+      operationId: portfolioSummary
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PortfolioSummary'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /portfolios/{portfolioId}/allocation:
+    get:
+      tags: [Portfolio analytics]
+      summary: Allocation by holding or sector (cash included)
+      operationId: portfolioAllocation
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+        - name: by
+          in: query
+          required: true
+          schema: {type: string, enum: [HOLDING, SECTOR]}
+      responses:
+        '200':
+          description: Slices; `value`/`weight` are null for slices whose price is unavailable (never cost based)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Allocation'}
+
+  /portfolios/{portfolioId}/gains:
+    get:
+      tags: [Portfolio analytics]
+      summary: Unrealized profit or loss per position
+      operationId: portfolioGains
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+      responses:
+        '200':
+          description: Gains
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Gains'}
+
+  /portfolios/{portfolioId}/monthly-returns:
+    get:
+      tags: [Portfolio analytics]
+      summary: Time-weighted monthly returns
+      operationId: portfolioMonthlyReturns
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+        - {name: months, in: query, schema: {type: integer, minimum: 1, maximum: 60, default: 12}}
+      responses:
+        '200':
+          description: Monthly returns, oldest first
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MonthlyReturns'}
+
+  /portfolios/{portfolioId}/holdings/analysis:
+    get:
+      tags: [Portfolio analytics]
+      summary: Holdings with weights, weight change and window returns (table and treemap)
+      operationId: holdingsAnalysis
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+        - {name: sort, in: query, schema: {type: string, enum: [WEIGHT, DAY_CHANGE, PNL], default: WEIGHT}}
+      responses:
+        '200':
+          description: Holdings analysis
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/HoldingsAnalysis'}
+
+  /portfolios/{portfolioId}/composition-history:
+    get:
+      tags: [Portfolio analytics]
+      summary: Position values over time (top N plus others)
+      operationId: compositionHistory
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+        - {name: months, in: query, schema: {type: integer, minimum: 1, maximum: 36, default: 6}}
+        - {name: top, in: query, schema: {type: integer, minimum: 1, maximum: 10, default: 5}}
+      responses:
+        '200':
+          description: Series per holding plus `OTHERS`
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CompositionHistory'}
+
+  /returns/heatmap:
+    get:
+      tags: [Comparison]
+      summary: Window returns for portfolios and benchmarks
+      operationId: returnsHeatmap
+      parameters:
+        - name: refs
+          in: query
+          required: true
+          description: Comma separated `PORTFOLIO:<id>`, `ALL`, `BENCHMARK:<code>`
+          schema: {type: string}
+        - name: windows
+          in: query
+          schema: {type: string, default: '1D,1W,1M,3M,1Y'}
+      responses:
+        '200':
+          description: One row per ref; a window without enough history is null
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReturnsHeatmap'}
+
+  /portfolios/{portfolioId}/stop-levels:
+    get:
+      tags: [Risk and stops]
+      summary: Stop-loss and take-profit levels with distance and status
+      operationId: listStopLevels
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+      responses:
+        '200':
+          description: Levels, nearest first
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StopLevels'}
+
+  /portfolios/{portfolioId}/positions/{symbol}/stop-levels:
+    parameters:
+      - {$ref: '#/components/parameters/PortfolioId'}
+      - {name: symbol, in: path, required: true, schema: {type: string}}
+    put:
+      tags: [Risk and stops]
+      summary: Set stop-loss and/or take-profit level for an open position
+      operationId: putStopLevels
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                stopLoss: {type: number, nullable: true, exclusiveMinimum: true, minimum: 0}
+                takeProfit: {type: number, nullable: true, exclusiveMinimum: true, minimum: 0}
+      responses:
+        '200':
+          description: Stored levels
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StopLevel'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+    delete:
+      tags: [Risk and stops]
+      summary: Remove both levels
+      operationId: deleteStopLevels
+      responses:
+        '204': {description: Removed}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /stop-levels/upcoming:
+    get:
+      tags: [Risk and stops]
+      summary: Nearest levels across portfolios (Panel risk panel)
+      operationId: upcomingStopLevels
+      parameters:
+        - {name: pinned, in: query, schema: {type: boolean, default: true}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 8}}
+      responses:
+        '200':
+          description: Levels with portfolio name
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/StopLevels'}
+
+  /portfolios/{portfolioId}/risk-alerts:
+    get:
+      tags: [Risk and stops]
+      summary: Rule-based risk alerts (concentration, stops, beta, cash, earnings)
+      operationId: riskAlerts
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+        - {name: severity, in: query, schema: {$ref: '#/components/schemas/AlertSeverity'}}
+      responses:
+        '200':
+          description: Alerts sorted CRITICAL, WARNING, INFO
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RiskAlerts'}
+
+  /portfolios/{portfolioId}/target-weights:
+    get:
+      tags: [Risk and stops]
+      summary: Target weights (default equal weight plus cash target)
+      operationId: getTargetWeights
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+      responses:
+        '200':
+          description: Targets
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TargetWeights'}
+    put:
+      tags: [Risk and stops]
+      summary: Replace target weights (must sum to 1 within 0.0001)
+      operationId: putTargetWeights
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TargetWeightsWrite'}
+      responses:
+        '200':
+          description: Stored targets
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TargetWeights'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /portfolios/{portfolioId}/rebalance-suggestions:
+    get:
+      tags: [Risk and stops]
+      summary: Informational gaps to target weights (no orders, no quantities)
+      operationId: rebalanceSuggestions
+      parameters:
+        - {$ref: '#/components/parameters/PortfolioId'}
+        - {name: thresholdPp, in: query, schema: {type: number, default: 5}, description: Deviation in percentage points}
+      responses:
+        '200':
+          description: Suggestions
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RebalanceSuggestions'}
+
+  /comparison/metrics:
+    get:
+      tags: [Comparison]
+      summary: Risk and return metrics for two entities
+      operationId: comparisonMetrics
+      parameters:
+        - {name: a, in: query, required: true, schema: {type: string}, description: 'ComparableRef, e.g. PORTFOLIO:12, ALL, BENCHMARK:BIST100'}
+        - {name: b, in: query, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/Period'}
+      responses:
+        '200':
+          description: Metrics
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ComparisonMetrics'}
+
+  /comparison/correlation-matrix:
+    get:
+      tags: [Comparison]
+      summary: Pearson correlation of daily returns (last 1 year)
+      operationId: correlationMatrix
+      parameters:
+        - {name: refs, in: query, required: true, schema: {type: string}}
+      responses:
+        '200':
+          description: Square matrix, diagonal 1
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CorrelationMatrix'}
+
+  /comparison/risk-return:
+    get:
+      tags: [Comparison]
+      summary: Annualised volatility versus period return per entity
+      operationId: riskReturn
+      parameters:
+        - {name: refs, in: query, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/Period'}
+      responses:
+        '200':
+          description: Points
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RiskReturn'}
+
+  /analytics/earnings/summary:
+    get:
+      tags: [Earnings analytics]
+      summary: Gain per period with realized / unrealized / dividend split
+      operationId: earningsSummary
+      parameters:
+        - {$ref: '#/components/parameters/EarningsScope'}
+        - {name: periods, in: query, schema: {type: string, default: 'M1,M3,YTD,Y1'}}
+      responses:
+        '200':
+          description: One card per period
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EarningsSummary'}
+
+  /analytics/earnings/monthly:
+    get:
+      tags: [Earnings analytics]
+      summary: Monthly gain amounts and cumulative gain
+      operationId: earningsMonthly
+      parameters:
+        - {$ref: '#/components/parameters/EarningsScope'}
+        - {name: months, in: query, schema: {type: integer, minimum: 1, maximum: 60, default: 12}}
+      responses:
+        '200':
+          description: Months
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EarningsMonthly'}
+
+  /analytics/earnings/sources:
+    get:
+      tags: [Earnings analytics]
+      summary: Gain decomposition for a period
+      operationId: earningsSources
+      parameters:
+        - {$ref: '#/components/parameters/EarningsScope'}
+        - {name: period, in: query, schema: {type: string, enum: [M1, M3, YTD, Y1, ALL], default: YTD}}
+      responses:
+        '200':
+          description: Components that satisfy realized + unrealized + dividends - fees = gain
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EarningsSources'}
+
+  /analytics/earnings/yearly:
+    get:
+      tags: [Earnings analytics]
+      summary: Per-year start value, net flow, gain, time-weighted return and benchmark
+      operationId: earningsYearly
+      parameters:
+        - {$ref: '#/components/parameters/EarningsScope'}
+      responses:
+        '200':
+          description: Years, newest first
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EarningsYearly'}
+
+  /analytics/earnings/contributors:
+    get:
+      tags: [Earnings analytics]
+      summary: Top winners or losers by contribution
+      operationId: earningsContributors
+      parameters:
+        - {$ref: '#/components/parameters/EarningsScope'}
+        - {name: period, in: query, schema: {type: string, enum: [M1, M3, YTD, Y1, ALL], default: YTD}}
+        - {name: direction, in: query, required: true, schema: {type: string, enum: [WINNERS, LOSERS]}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 50, default: 5}}
+      responses:
+        '200':
+          description: Contributors
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Contributors'}
+
+  /analytics/earnings/by-portfolio:
+    get:
+      tags: [Earnings analytics]
+      summary: Gain ranking across portfolios (paged)
+      operationId: earningsByPortfolio
+      parameters:
+        - {name: period, in: query, schema: {type: string, enum: [M1, M3, YTD, Y1, ALL], default: YTD}}
+        - {name: sort, in: query, schema: {type: string, enum: [GAIN, RETURN, VALUE], default: GAIN}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Offset'}
+      responses:
+        '200':
+          description: Ranked rows
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/EarningsByPortfolio'}
+
+  /transactions/parse:
+    post:
+      tags: [Transactions]
+      summary: Dry-run parse of pasted lines; writes nothing
+      operationId: parseTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, defaultPortfolioId]
+              properties:
+                text: {type: string, maxLength: 200000}
+                defaultPortfolioId: {type: integer, format: int64}
+      responses:
+        '200':
+          description: One row per non-blank line
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ParsedTransactions'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+
+  /transactions/bulk:
+    post:
+      tags: [Transactions]
+      summary: Save the accepted rows atomically
+      operationId: bulkCreateTransactions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rows]
+              properties:
+                rows:
+                  type: array
+                  maxItems: 5000
+                  items: {$ref: '#/components/schemas/TransactionDraft'}
+      responses:
+        '201':
+          description: Batch created; every created transaction carries the batch id
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BulkResult'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /transactions/imports:
+    post:
+      tags: [Transactions]
+      summary: Stage a CSV or XLSX file; detects column mapping and duplicates, writes nothing
+      operationId: stageImport
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, portfolioId]
+              properties:
+                file: {type: string, format: binary, description: '.csv or .xlsx, at most 5000 rows'}
+                portfolioId: {type: integer, format: int64}
+                mapping:
+                  type: string
+                  description: Optional JSON object overriding the detected column mapping
+      responses:
+        '201':
+          description: Staged batch
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ImportPreview'}
+        '413': {$ref: '#/components/responses/TooLarge'}
+        '415': {description: Unsupported file type}
+
+  /transactions/imports/{importId}/commit:
+    post:
+      tags: [Transactions]
+      summary: Commit valid rows of a staged batch (atomic)
+      operationId: commitImport
+      parameters:
+        - {$ref: '#/components/parameters/ImportId'}
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/BulkResult'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /transactions/imports/{importId}/undo:
+    post:
+      tags: [Transactions]
+      summary: Remove exactly the transactions of this batch
+      operationId: undoImport
+      parameters:
+        - {$ref: '#/components/parameters/ImportId'}
+      responses:
+        '200':
+          description: Number of transactions removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removed]
+                properties:
+                  removed: {type: integer}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409':
+          description: IMPORT_NOT_UNDOABLE - a later transaction depends on this batch
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Problem'}
+
+  /transactions/import-template:
+    get:
+      tags: [Transactions]
+      summary: Download the CSV template
+      operationId: importTemplate
+      responses:
+        '200':
+          description: CSV
+          content:
+            text/csv:
+              schema: {type: string}
+
+  /transactions/recent:
+    get:
+      tags: [Transactions]
+      summary: Latest transactions across portfolios with realized P&L on sells
+      operationId: recentTransactions
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+        - {name: portfolioId, in: query, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: Transactions, newest first
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RecentTransactions'}
+
+  /journal/decisions:
+    get:
+      tags: [Transactions]
+      summary: Transactions that carry a note, with outcome
+      operationId: journalDecisions
+      parameters:
+        - {name: result, in: query, schema: {type: string, enum: [GAIN, LOSS, OPEN]}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Offset'}
+      responses:
+        '200':
+          description: Decisions
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/JournalDecisions'}
+
+  /calendar/events:
+    get:
+      tags: [News and calendar]
+      summary: Calendar with category, importance and portfolio relevance (supersedes use of GET /calendar for the Panel; GET /calendar is unchanged)
+      operationId: calendarEvents
+      parameters:
+        - {name: category, in: query, schema: {type: string, enum: [CENTRAL_BANK, EARNINGS, MACRO]}}
+        - {name: importance, in: query, schema: {type: string, enum: [HIGH, MEDIUM, LOW]}}
+        - {name: portfolioId, in: query, schema: {type: integer, format: int64}, description: Restrict earnings to holdings of this portfolio}
+        - {name: from, in: query, schema: {type: string, format: date}}
+        - {name: to, in: query, schema: {type: string, format: date}}
+      responses:
+        '200':
+          description: Events ascending by date
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CalendarEvents'}
+
+  /news/items:
+    get:
+      tags: [News and calendar]
+      summary: News with impact metadata (GET /news is unchanged)
+      operationId: newsItems
+      parameters:
+        - {name: category, in: query, schema: {type: string, enum: [GEOPOLITICS, MACRO, SECTOR, COMPANY]}}
+        - {name: scope, in: query, schema: {type: string, enum: [ALL, PORTFOLIO], default: ALL}}
+        - {name: impact, in: query, schema: {type: string, enum: [HIGH, MEDIUM, LOW]}}
+        - {name: q, in: query, schema: {type: string, maxLength: 80}}
+        - {name: symbols, in: query, schema: {type: string}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Offset'}
+      responses:
+        '200':
+          description: Items with category counts
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/NewsItems'}
+
+  /news/portfolio-impact:
+    get:
+      tags: [News and calendar]
+      summary: Holdings touched by news in the last 24 hours
+      operationId: newsPortfolioImpact
+      parameters:
+        - {name: portfolioId, in: query, schema: {type: integer, format: int64}}
+      responses:
+        '200':
+          description: Impact per holding
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PortfolioNewsImpact'}
+
+  /news/sector-impact:
+    get:
+      tags: [News and calendar]
+      summary: Net effect of news per sector
+      operationId: newsSectorImpact
+      responses:
+        '200':
+          description: Sectors with net score in [-1, 1]
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/SectorImpact'}
+
+  /news/topics:
+    get:
+      tags: [News and calendar]
+      summary: Most frequent topics
+      operationId: newsTopics
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 30, default: 10}}
+      responses:
+        '200':
+          description: Topics
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Topics'}
+
+  /watchlists/{watchlistId}:
+    put:
+      tags: [Watchlists]
+      summary: Rename a watchlist and set symbol order
+      operationId: updateWatchlist
+      parameters:
+        - {name: watchlistId, in: path, required: true, schema: {type: integer, format: int64}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: {type: string, minLength: 1, maxLength: 60}
+                symbols: {type: array, items: {type: string}, description: Full ordered list; unknown symbols rejected}
+      responses:
+        '200': {description: Updated}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /watchlists/{watchlistId}/performance:
+    get:
+      tags: [Watchlists]
+      summary: Window returns, sparkline, breadth and averages for a list
+      operationId: watchlistPerformance
+      parameters:
+        - {name: watchlistId, in: path, required: true, schema: {type: integer, format: int64}}
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Offset'}
+      responses:
+        '200':
+          description: Performance
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/WatchlistPerformance'}
+
+  /companies/{symbol}/analysis:
+    get:
+      tags: [Company analysis]
+      summary: Valuation and profitability versus sector, plus health score
+      operationId: companyAnalysis
+      description: UNAVAILABLE until a sector-data provider path and a health-score policy are approved (UI2-Q1, UI2-Q2).
+      parameters:
+        - {$ref: '#/components/parameters/Symbol'}
+      responses:
+        '200':
+          description: Analysis
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CompanyAnalysis'}
+
+  /companies/{symbol}/ratio-history:
+    get:
+      tags: [Company analysis]
+      summary: Quarterly ratio history with sector line
+      operationId: ratioHistory
+      parameters:
+        - {$ref: '#/components/parameters/Symbol'}
+        - {name: metric, in: query, required: true, schema: {type: string, enum: [PE, PB, EV_EBITDA, ROE, NET_MARGIN]}}
+        - {name: quarters, in: query, schema: {type: integer, minimum: 1, maximum: 20, default: 9}}
+      responses:
+        '200':
+          description: Series; UNAVAILABLE until point-in-time inputs exist (no reconstruction from today's price)
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RatioHistory'}
+
+  /companies/{symbol}/quarterly-trend:
+    get:
+      tags: [Company analysis]
+      summary: Revenue, net income and net margin per quarter
+      operationId: quarterlyTrend
+      parameters:
+        - {$ref: '#/components/parameters/Symbol'}
+        - {name: quarters, in: query, schema: {type: integer, minimum: 1, maximum: 20, default: 12}}
+      responses:
+        '200':
+          description: Quarters oldest first; null values preserved
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/QuarterlyTrend'}
+
+  /companies/{symbol}/statements:
+    get:
+      tags: [Company analysis]
+      summary: Statement lines per quarter with year-over-year change
+      operationId: companyStatements
+      parameters:
+        - {$ref: '#/components/parameters/Symbol'}
+        - {name: type, in: query, required: true, schema: {type: string, enum: [INCOME, BALANCE, CASH_FLOW]}}
+        - {name: periods, in: query, schema: {type: integer, minimum: 1, maximum: 12, default: 5}}
+      responses:
+        '200':
+          description: Statement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/CompanyStatements'}
+
+  /companies/{symbol}/peers:
+    get:
+      tags: [Company analysis]
+      summary: Peer comparison on TTM ratios
+      operationId: companyPeers
+      parameters:
+        - {$ref: '#/components/parameters/Symbol'}
+      responses:
+        '200':
+          description: Selected company first, then peers
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Peers'}
+
+  /report-templates:
+    get:
+      tags: [Reports]
+      summary: Report catalogue and delivery capabilities
+      operationId: reportTemplates
+      responses:
+        '200':
+          description: Templates
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReportTemplates'}
+
+  /report-runs/performance:
+    get:
+      tags: [Reports]
+      summary: Performance report data (KPIs, value bridge, sector contribution, risk and trade summary)
+      operationId: reportPerformance
+      parameters:
+        - {$ref: '#/components/parameters/ReportScope'}
+        - {$ref: '#/components/parameters/ReportPeriod'}
+      responses:
+        '200':
+          description: Report data
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/PerformanceReport'}
+
+  /report-runs/realized-pnl:
+    get:
+      tags: [Reports]
+      summary: Realized profit or loss statement for a calendar year (average cost)
+      operationId: reportRealizedPnl
+      parameters:
+        - {$ref: '#/components/parameters/ReportScope'}
+        - {name: year, in: query, required: true, schema: {type: integer, minimum: 2000, maximum: 2100}}
+      responses:
+        '200':
+          description: Statement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/RealizedPnlReport'}
+
+  /report-runs/dividends:
+    get:
+      tags: [Reports]
+      summary: Dividend income statement for a calendar year
+      operationId: reportDividends
+      parameters:
+        - {$ref: '#/components/parameters/ReportScope'}
+        - {name: year, in: query, required: true, schema: {type: integer, minimum: 2000, maximum: 2100}}
+      responses:
+        '200':
+          description: Statement
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/DividendReport'}
+
+  /report-runs:
+    get:
+      tags: [Reports]
+      summary: Report history
+      operationId: listReportRuns
+      parameters:
+        - {$ref: '#/components/parameters/Limit'}
+        - {$ref: '#/components/parameters/Offset'}
+      responses:
+        '200':
+          description: Runs, newest first
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReportRuns'}
+    post:
+      tags: [Reports]
+      summary: Create a report run (freezes the data object used by preview and downloads)
+      operationId: createReportRun
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReportRunRequest'}
+      responses:
+        '201':
+          description: Run
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReportRun'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+
+  /report-runs/{runId}:
+    get:
+      tags: [Reports]
+      summary: Run metadata
+      operationId: getReportRun
+      parameters:
+        - {$ref: '#/components/parameters/RunId'}
+      responses:
+        '200':
+          description: Run
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReportRun'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /report-runs/{runId}/download:
+    get:
+      tags: [Reports]
+      summary: Render the frozen data object as PDF or Excel
+      operationId: downloadReportRun
+      parameters:
+        - {$ref: '#/components/parameters/RunId'}
+        - {name: format, in: query, required: true, schema: {type: string, enum: [pdf, xlsx]}}
+      responses:
+        '200':
+          description: File
+          content:
+            application/pdf:
+              schema: {type: string, format: binary}
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: {type: string, format: binary}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /report-runs/{runId}/email:
+    post:
+      tags: [Reports]
+      summary: E-mail a run (needs a configured mail provider)
+      operationId: emailReportRun
+      parameters:
+        - {$ref: '#/components/parameters/RunId'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [format]
+              properties:
+                format: {type: string, enum: [pdf, xlsx]}
+      responses:
+        '202': {description: Accepted}
+        '501':
+          description: DELIVERY_NOT_CONFIGURED
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Problem'}
+
+  /report-schedules:
+    get:
+      tags: [Reports]
+      summary: List scheduled deliveries
+      operationId: listReportSchedules
+      responses:
+        '200':
+          description: Schedules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: '#/components/schemas/ReportSchedule'}
+    post:
+      tags: [Reports]
+      summary: Create a scheduled delivery
+      operationId: createReportSchedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ReportScheduleWrite'}
+      responses:
+        '201':
+          description: Schedule
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReportSchedule'}
+        '501':
+          description: DELIVERY_NOT_CONFIGURED
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Problem'}
+
+  /report-schedules/{scheduleId}:
+    delete:
+      tags: [Reports]
+      summary: Delete a schedule
+      operationId: deleteReportSchedule
+      parameters:
+        - {name: scheduleId, in: path, required: true, schema: {type: integer, format: int64}}
+      responses:
+        '204': {description: Deleted}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+components:
+  parameters:
+    Market:
+      name: market
+      in: query
+      schema: {type: string, enum: [ALL, BIST, US], default: ALL}
+    PortfolioId:
+      name: portfolioId
+      in: path
+      required: true
+      schema: {type: integer, format: int64}
+    Symbol:
+      name: symbol
+      in: path
+      required: true
+      schema: {type: string}
+    ImportId:
+      name: importId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    RunId:
+      name: runId
+      in: path
+      required: true
+      schema: {type: string, format: uuid}
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 200, default: 50}
+    Offset:
+      name: offset
+      in: query
+      schema: {type: integer, minimum: 0, default: 0}
+    Period:
+      name: period
+      in: query
+      schema: {type: string, enum: [1M, 3M, 6M, 1Y], default: 1Y}
+    EarningsScope:
+      name: scope
+      in: query
+      description: ALL or PORTFOLIO:<id>
+      schema: {type: string, default: ALL}
+    ReportScope:
+      name: scope
+      in: query
+      description: ALL or PORTFOLIO:<id>
+      schema: {type: string, default: ALL}
+    ReportPeriod:
+      name: period
+      in: query
+      description: 'Month `2026-10`, quarter `2026-Q3` or year `2026`'
+      required: true
+      schema: {type: string}
+
+  responses:
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Conflict:
+      description: Conflict
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    Unprocessable:
+      description: Validation failed
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Problem'}
+    TooLarge:
+      description: More than 5000 rows or body too large
+      content:
+        application/json:
+          schema: {$ref: '#/components/schemas/Problem'}
+
+  schemas:
+    Problem:
+      type: object
+      description: Same shape as the existing error body (docs/contracts/fixtures/error-response.json), plus an optional machine code
+      required: [timestamp, status, error, message, path]
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        message: {type: string}
+        path: {type: string}
+        code: {type: string, description: 'e.g. IMPORT_NOT_UNDOABLE, DELIVERY_NOT_CONFIGURED'}
+
+    DataStatus:
+      type: string
+      enum: [AVAILABLE, PARTIAL, EMPTY, UNAVAILABLE]
+    RiskLevel:
+      type: string
+      enum: [LOW, MEDIUM, HIGH]
+    AlertSeverity:
+      type: string
+      enum: [CRITICAL, WARNING, INFO]
+    StopStatus:
+      type: string
+      enum: [BREACHED, AT_RISK, NEAR, SAFE, NA]
+    Meta:
+      type: object
+      required: [status, asOf]
+      properties:
+        status: {$ref: '#/components/schemas/DataStatus'}
+        asOf: {type: string, format: date-time}
+        currency: {type: string, minLength: 3, maxLength: 3, nullable: true}
+        notes:
+          type: array
+          description: Human-readable degradation reasons (e.g. which symbols had no price)
+          items: {type: string}
+    Window:
+      type: string
+      enum: ['1D', '1W', '1M', '3M', '6M', '1Y', YTD]
+    Fraction:
+      type: number
+      nullable: true
+      description: Ratio, 0.25 = 25 percent; null when unavailable
+
+    Benchmark:
+      type: object
+      required: [code, name, kind]
+      properties:
+        code: {type: string, example: BIST100}
+        name: {type: string}
+        kind: {type: string, enum: [INDEX, COMMODITY, FX]}
+        currency: {type: string}
+        source: {type: string}
+
+    PortfolioCard:
+      type: object
+      required: [portfolioId, name, pinned, positionCount]
+      properties:
+        portfolioId: {type: integer, format: int64}
+        name: {type: string}
+        pinned: {type: boolean}
+        positionCount: {type: integer}
+        market: {type: string, enum: [BIST, US, MIXED]}
+        value: {type: number, nullable: true}
+        dayChange: {type: number, nullable: true}
+        dayChangePct: {$ref: '#/components/schemas/Fraction'}
+        returnPct: {$ref: '#/components/schemas/Fraction'}
+        riskScore: {type: integer, minimum: 0, maximum: 100, nullable: true}
+        riskLevel:
+          allOf: [{$ref: '#/components/schemas/RiskLevel'}]
+          nullable: true
+        pricingComplete: {type: boolean}
+    PortfolioOverview:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items, total, aggregate]
+          properties:
+            total: {type: integer}
+            items:
+              type: array
+              items: {$ref: '#/components/schemas/PortfolioCard'}
+            aggregate:
+              type: object
+              properties:
+                portfolioCount: {type: integer}
+                value: {type: number, nullable: true}
+                dayChange: {type: number, nullable: true}
+                dayChangePct: {$ref: '#/components/schemas/Fraction'}
+                criticalRiskCount: {type: integer}
+    PortfolioSummary:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          properties:
+            portfolioId: {type: integer, format: int64}
+            value: {type: number, nullable: true}
+            cash: {type: number, nullable: true}
+            dayChange: {type: number, nullable: true}
+            dayChangePct: {$ref: '#/components/schemas/Fraction'}
+            unrealizedPnl: {type: number, nullable: true}
+            unrealizedPnlPct: {$ref: '#/components/schemas/Fraction'}
+            realizedPnlYtd: {type: number, nullable: true}
+            pricingComplete: {type: boolean}
+            unpricedSymbols:
+              type: array
+              items: {type: string}
+    Allocation:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [slices]
+          properties:
+            total: {type: number, nullable: true}
+            limitWeight: {$ref: '#/components/schemas/Fraction'}
+            slices:
+              type: array
+              items:
+                type: object
+                required: [key, label]
+                properties:
+                  key: {type: string, description: 'Symbol, sector name or CASH'}
+                  label: {type: string}
+                  value: {type: number, nullable: true}
+                  weight: {$ref: '#/components/schemas/Fraction'}
+    Gains:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            winners: {type: integer}
+            losers: {type: integer}
+            net: {type: number, nullable: true}
+            items:
+              type: array
+              items:
+                type: object
+                required: [symbol]
+                properties:
+                  symbol: {type: string}
+                  pnl: {type: number, nullable: true}
+                  pnlPct: {$ref: '#/components/schemas/Fraction'}
+    MonthlyReturns:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            positiveMonths: {type: integer}
+            best:
+              type: object
+              nullable: true
+              properties: {month: {type: string, example: '2026-03'}, value: {type: number}}
+            worst:
+              type: object
+              nullable: true
+              properties: {month: {type: string}, value: {type: number}}
+            items:
+              type: array
+              items:
+                type: object
+                required: [month]
+                properties:
+                  month: {type: string, example: '2026-10'}
+                  returnPct: {$ref: '#/components/schemas/Fraction'}
+    HoldingRow:
+      type: object
+      required: [symbol]
+      properties:
+        symbol: {type: string}
+        name: {type: string, nullable: true}
+        sector: {type: string, nullable: true}
+        quantity: {type: number}
+        avgCost: {type: number, nullable: true}
+        price: {type: number, nullable: true}
+        value: {type: number, nullable: true}
+        weight: {$ref: '#/components/schemas/Fraction'}
+        weightDelta1M: {type: number, nullable: true, description: Percentage points}
+        return1D: {$ref: '#/components/schemas/Fraction'}
+        return1W: {$ref: '#/components/schemas/Fraction'}
+        return1M: {$ref: '#/components/schemas/Fraction'}
+        pnl: {type: number, nullable: true}
+        pnlPct: {$ref: '#/components/schemas/Fraction'}
+    HoldingsAnalysis:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            cashWeight: {$ref: '#/components/schemas/Fraction'}
+            items:
+              type: array
+              items: {$ref: '#/components/schemas/HoldingRow'}
+    CompositionHistory:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [dates, series]
+          properties:
+            dates:
+              type: array
+              items: {type: string, format: date}
+            series:
+              type: array
+              items:
+                type: object
+                required: [key, values]
+                properties:
+                  key: {type: string, description: 'Symbol or OTHERS'}
+                  values:
+                    type: array
+                    description: Same length as dates; null where no valuation exists
+                    items: {type: number, nullable: true}
+    ReturnsHeatmap:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [windows, rows]
+          properties:
+            windows:
+              type: array
+              items: {$ref: '#/components/schemas/Window'}
+            rows:
+              type: array
+              items:
+                type: object
+                required: [ref, label, values]
+                properties:
+                  ref: {type: string}
+                  label: {type: string}
+                  values:
+                    type: array
+                    description: Aligned with windows
+                    items: {$ref: '#/components/schemas/Fraction'}
+
+    StopLevel:
+      type: object
+      required: [symbol, portfolioId]
+      properties:
+        portfolioId: {type: integer, format: int64}
+        portfolioName: {type: string}
+        symbol: {type: string}
+        type: {type: string, enum: [STOP_LOSS, TAKE_PROFIT]}
+        price: {type: number, nullable: true}
+        level: {type: number, nullable: true}
+        distance: {$ref: '#/components/schemas/Fraction'}
+        status: {$ref: '#/components/schemas/StopStatus'}
+    StopLevels:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            thresholds:
+              type: object
+              properties:
+                atRisk: {type: number, example: 0.03}
+                near: {type: number, example: 0.07}
+            items:
+              type: array
+              items: {$ref: '#/components/schemas/StopLevel'}
+    RiskAlerts:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items, counts]
+          properties:
+            riskScore: {type: integer, minimum: 0, maximum: 100, nullable: true}
+            riskLevel:
+              allOf: [{$ref: '#/components/schemas/RiskLevel'}]
+              nullable: true
+            policyVersion: {type: string, nullable: true}
+            counts:
+              type: object
+              properties:
+                critical: {type: integer}
+                warning: {type: integer}
+                info: {type: integer}
+            items:
+              type: array
+              items:
+                type: object
+                required: [code, severity, title, message]
+                properties:
+                  code:
+                    type: string
+                    enum: [STOP_BREACHED, STOP_AT_RISK, HOLDING_CONCENTRATION, SECTOR_CONCENTRATION, DEEP_LOSS, HIGH_BETA, LOW_CASH, IDLE_CASH, UPCOMING_EARNINGS]
+                  severity: {$ref: '#/components/schemas/AlertSeverity'}
+                  title: {type: string}
+                  message: {type: string}
+                  symbol: {type: string, nullable: true}
+                  observed: {type: number, nullable: true}
+                  limit: {type: number, nullable: true}
+                  action: {type: string, enum: [REVIEW, VIEW_STOP, ADD_NOTE, VIEW_CALENDAR, NONE]}
+            skipped:
+              type: array
+              description: Holdings or rules that could not be evaluated, with reason (missing evidence is not a pass)
+              items:
+                type: object
+                properties:
+                  symbol: {type: string, nullable: true}
+                  rule: {type: string}
+                  reason: {type: string}
+    TargetWeightsWrite:
+      type: object
+      required: [targets]
+      properties:
+        targets:
+          type: array
+          items:
+            type: object
+            required: [key, weight]
+            properties:
+              key: {type: string, description: 'Symbol or CASH'}
+              weight: {type: number, minimum: 0, maximum: 1}
+    TargetWeights:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - $ref: '#/components/schemas/TargetWeightsWrite'
+        - type: object
+          properties:
+            isDefault:
+              type: boolean
+              description: True while no user targets are stored (equal weight with 5 percent cash)
+    RebalanceSuggestions:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            thresholdPp: {type: number}
+            items:
+              type: array
+              items:
+                type: object
+                required: [key]
+                properties:
+                  key: {type: string}
+                  target: {$ref: '#/components/schemas/Fraction'}
+                  current: {$ref: '#/components/schemas/Fraction'}
+                  gapPp: {type: number, nullable: true}
+                  direction: {type: string, enum: [INCREASE, REDUCE, NONE], nullable: true}
+                  notionalToClose: {type: number, nullable: true}
+
+    ComparisonMetrics:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [a, b]
+          properties:
+            riskFreeRate: {type: number, nullable: true}
+            riskFreeSource: {type: string, nullable: true}
+            correlation: {type: number, nullable: true, minimum: -1, maximum: 1}
+            a: {$ref: '#/components/schemas/EntityMetrics'}
+            b: {$ref: '#/components/schemas/EntityMetrics'}
+            better:
+              type: object
+              description: Per metric key, which side is better
+              additionalProperties:
+                type: string
+                enum: [A, B, NONE]
+    EntityMetrics:
+      type: object
+      required: [ref, label]
+      properties:
+        ref: {type: string}
+        label: {type: string}
+        periodReturn: {$ref: '#/components/schemas/Fraction'}
+        volatility: {$ref: '#/components/schemas/Fraction'}
+        sharpe: {type: number, nullable: true}
+        maxDrawdown: {$ref: '#/components/schemas/Fraction'}
+        beta: {type: number, nullable: true}
+        bestDay: {$ref: '#/components/schemas/Fraction'}
+        worstDay: {$ref: '#/components/schemas/Fraction'}
+        positiveDayRatio: {$ref: '#/components/schemas/Fraction'}
+    CorrelationMatrix:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [labels, matrix]
+          properties:
+            labels:
+              type: array
+              items: {type: string}
+            matrix:
+              type: array
+              items:
+                type: array
+                items: {type: number, nullable: true, minimum: -1, maximum: 1}
+    RiskReturn:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [points]
+          properties:
+            points:
+              type: array
+              items:
+                type: object
+                required: [ref, label]
+                properties:
+                  ref: {type: string}
+                  label: {type: string}
+                  volatility: {$ref: '#/components/schemas/Fraction'}
+                  periodReturn: {$ref: '#/components/schemas/Fraction'}
+
+    EarningsSummary:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [period]
+                properties:
+                  period: {type: string, enum: [M1, M3, YTD, Y1, ALL]}
+                  gain: {type: number, nullable: true}
+                  returnPct: {$ref: '#/components/schemas/Fraction'}
+                  benchmarkReturnPct: {$ref: '#/components/schemas/Fraction'}
+                  realized: {type: number, nullable: true}
+                  unrealized: {type: number, nullable: true}
+                  dividends: {type: number, nullable: true}
+                  fees: {type: number, nullable: true}
+    EarningsMonthly:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            positiveMonths: {type: integer}
+            items:
+              type: array
+              items:
+                type: object
+                required: [month]
+                properties:
+                  month: {type: string}
+                  gain: {type: number, nullable: true}
+                  cumulative: {type: number, nullable: true}
+    EarningsSources:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          properties:
+            gain: {type: number, nullable: true}
+            realized: {type: number, nullable: true}
+            unrealized: {type: number, nullable: true}
+            dividends: {type: number, nullable: true}
+            fees: {type: number, nullable: true}
+            residual: {type: number, nullable: true, description: Non-zero residual forces status PARTIAL}
+    EarningsYearly:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [year]
+                properties:
+                  year: {type: integer}
+                  startValue: {type: number, nullable: true}
+                  netFlow: {type: number, nullable: true}
+                  gain: {type: number, nullable: true}
+                  returnPct: {$ref: '#/components/schemas/Fraction'}
+                  benchmarkReturnPct: {$ref: '#/components/schemas/Fraction'}
+                  differencePp: {type: number, nullable: true}
+    Contributors:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [symbol]
+                properties:
+                  symbol: {type: string}
+                  contribution: {type: number, nullable: true}
+    EarningsByPortfolio:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items, total]
+          properties:
+            total: {type: integer}
+            items:
+              type: array
+              items:
+                type: object
+                required: [rank, portfolioId, name]
+                properties:
+                  rank: {type: integer}
+                  portfolioId: {type: integer, format: int64}
+                  name: {type: string}
+                  value: {type: number, nullable: true}
+                  gain: {type: number, nullable: true}
+                  returnPct: {$ref: '#/components/schemas/Fraction'}
+                  benchmarkDifferencePp: {type: number, nullable: true}
+
+    TransactionDraft:
+      type: object
+      required: [portfolioId, side, symbol, quantity, price]
+      properties:
+        portfolioId: {type: integer, format: int64}
+        side: {type: string, enum: [BUY, SELL]}
+        symbol: {type: string}
+        quantity: {type: number, exclusiveMinimum: true, minimum: 0}
+        price: {type: number, exclusiveMinimum: true, minimum: 0}
+        date: {type: string, format: date}
+        fee: {type: number, minimum: 0, nullable: true}
+        note: {type: string, maxLength: 500, nullable: true}
+    ParsedRow:
+      type: object
+      required: [line, status]
+      properties:
+        line: {type: integer}
+        status: {type: string, enum: [VALID, DUPLICATE, INVALID]}
+        code:
+          type: string
+          nullable: true
+          enum: [SIDE_INVALID, TICKER_NOT_FOUND, QUANTITY_INVALID, PRICE_INVALID, PORTFOLIO_NOT_FOUND, SELL_EXCEEDS_HOLDING, DATE_INVALID]
+        draft:
+          allOf: [{$ref: '#/components/schemas/TransactionDraft'}]
+          nullable: true
+        amount: {type: number, nullable: true}
+    ParsedTransactions:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [rows]
+          properties:
+            validCount: {type: integer}
+            invalidCount: {type: integer}
+            duplicateCount: {type: integer}
+            totalAmount: {type: number, nullable: true}
+            rows:
+              type: array
+              items: {$ref: '#/components/schemas/ParsedRow'}
+    BulkResult:
+      type: object
+      required: [batchId, created]
+      properties:
+        batchId: {type: string, format: uuid}
+        created: {type: integer}
+        skipped: {type: integer}
+        transactionIds:
+          type: array
+          items: {type: integer, format: int64}
+    ImportPreview:
+      allOf:
+        - $ref: '#/components/schemas/ParsedTransactions'
+        - type: object
+          required: [importId, detectedMapping]
+          properties:
+            importId: {type: string, format: uuid}
+            fileName: {type: string}
+            detectedMapping:
+              type: array
+              items:
+                type: object
+                required: [column]
+                properties:
+                  column: {type: string}
+                  field: {type: string, nullable: true, enum: [DATE, SIDE, SYMBOL, QUANTITY, PRICE, FEE, NOTE, IGNORED]}
+    RecentTransactions:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [transactionId, date, side, symbol, portfolioId]
+                properties:
+                  transactionId: {type: integer, format: int64}
+                  date: {type: string, format: date}
+                  side: {type: string, enum: [BUY, SELL, DIVIDEND, FEE]}
+                  symbol: {type: string, nullable: true}
+                  portfolioId: {type: integer, format: int64}
+                  portfolioName: {type: string}
+                  quantity: {type: number, nullable: true}
+                  price: {type: number, nullable: true}
+                  amount: {type: number, nullable: true}
+                  realizedPnl: {type: number, nullable: true, description: Only on SELL; average cost}
+                  note: {type: string, nullable: true}
+                  importBatchId: {type: string, format: uuid, nullable: true}
+    JournalDecisions:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items, total]
+          properties:
+            total: {type: integer}
+            items:
+              type: array
+              items:
+                type: object
+                required: [transactionId, symbol, side, date, note]
+                properties:
+                  transactionId: {type: integer, format: int64}
+                  symbol: {type: string}
+                  side: {type: string, enum: [BUY, SELL]}
+                  date: {type: string, format: date}
+                  note: {type: string}
+                  result: {type: string, enum: [GAIN, LOSS, OPEN]}
+                  resultPct: {$ref: '#/components/schemas/Fraction'}
+
+    CalendarEvents:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [date, title, category]
+                properties:
+                  date: {type: string, format: date}
+                  time: {type: string, nullable: true, description: 'HH:mm Europe/Istanbul'}
+                  title: {type: string}
+                  description: {type: string, nullable: true}
+                  category: {type: string, enum: [CENTRAL_BANK, EARNINGS, MACRO]}
+                  importance: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true}
+                  symbol: {type: string, nullable: true}
+                  portfolioIds:
+                    type: array
+                    items: {type: integer, format: int64}
+                  daysUntil: {type: integer}
+                  source: {type: string}
+    NewsImpact:
+      type: object
+      properties:
+        level: {type: string, enum: [HIGH, MEDIUM, LOW], nullable: true}
+        source: {type: string, enum: [PROVIDER, RULE, MODEL], nullable: true}
+        classifierVersion: {type: string, nullable: true}
+    NewsItems:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items, total]
+          properties:
+            total: {type: integer}
+            counts:
+              type: object
+              additionalProperties: {type: integer}
+              description: Per category, for the filter chips
+            items:
+              type: array
+              items:
+                type: object
+                required: [id, title, category, publishedAt]
+                properties:
+                  id: {type: string}
+                  title: {type: string}
+                  summary: {type: string, nullable: true}
+                  url: {type: string, nullable: true}
+                  source: {type: string}
+                  publishedAt: {type: string, format: date-time}
+                  category: {type: string, enum: [GEOPOLITICS, MACRO, SECTOR, COMPANY]}
+                  scopeLabel: {type: string, nullable: true}
+                  impact: {$ref: '#/components/schemas/NewsImpact'}
+                  affected:
+                    type: array
+                    description: Empty until a classifier is approved
+                    items:
+                      type: object
+                      required: [symbol, direction]
+                      properties:
+                        symbol: {type: string}
+                        direction: {type: string, enum: [POSITIVE, NEGATIVE, NEUTRAL]}
+                        inPortfolio: {type: boolean}
+                  topics:
+                    type: array
+                    items: {type: string}
+    PortfolioNewsImpact:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            newsCount: {type: integer}
+            affectedHoldings: {type: integer}
+            items:
+              type: array
+              items:
+                type: object
+                required: [symbol, newsCount]
+                properties:
+                  symbol: {type: string}
+                  newsCount: {type: integer}
+                  net: {type: number, nullable: true, minimum: -1, maximum: 1}
+    SectorImpact:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [sector]
+                properties:
+                  sector: {type: string}
+                  net: {type: number, nullable: true, minimum: -1, maximum: 1}
+                  newsCount: {type: integer}
+    Topics:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [label, count]
+                properties:
+                  label: {type: string}
+                  count: {type: integer}
+
+    WatchlistPerformance:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            total: {type: integer}
+            averages:
+              type: object
+              additionalProperties: {$ref: '#/components/schemas/Fraction'}
+              description: Equal-weighted mean per window over symbols with data
+            breadth:
+              type: object
+              properties:
+                up: {type: integer}
+                down: {type: integer}
+                bestSymbol1M: {type: string, nullable: true}
+                worstSymbol1M: {type: string, nullable: true}
+            items:
+              type: array
+              items:
+                type: object
+                required: [symbol]
+                properties:
+                  symbol: {type: string}
+                  name: {type: string, nullable: true}
+                  sector: {type: string, nullable: true}
+                  price: {type: number, nullable: true}
+                  returns:
+                    type: object
+                    additionalProperties: {$ref: '#/components/schemas/Fraction'}
+                    description: 'Keys 1D, 1W, 1M, 3M, 6M, 1Y'
+                  sparkline3M:
+                    type: array
+                    items: {type: number}
+                  peRatio: {type: number, nullable: true}
+                  volume: {type: number, nullable: true}
+                  dataStatus: {$ref: '#/components/schemas/DataStatus'}
+
+    SectorComparable:
+      type: object
+      properties:
+        value: {type: number, nullable: true}
+        sectorAverage: {type: number, nullable: true}
+        verdict:
+          type: string
+          nullable: true
+          enum: [CHEAPER, SIMILAR, MORE_EXPENSIVE, STRONGER, WEAKER]
+    CompanyAnalysis:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          properties:
+            symbol: {type: string}
+            sector: {type: string, nullable: true}
+            ttm:
+              type: object
+              description: 'Keys pe, pb, evEbitda, roe, netMargin, debtToEquity ...'
+              additionalProperties: {$ref: '#/components/schemas/SectorComparable'}
+            healthScore: {type: integer, minimum: 0, maximum: 100, nullable: true}
+            policyVersion: {type: string, nullable: true}
+            healthComponents:
+              type: array
+              items:
+                type: object
+                properties:
+                  name: {type: string, enum: [PROFITABILITY, GROWTH, LEVERAGE, VALUATION, DIVIDEND]}
+                  score: {type: integer, minimum: 0, maximum: 100, nullable: true}
+    RatioHistory:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [points]
+          properties:
+            metric: {type: string}
+            current: {type: number, nullable: true}
+            mean: {type: number, nullable: true}
+            sectorAverage: {type: number, nullable: true}
+            points:
+              type: array
+              items:
+                type: object
+                required: [periodEnd]
+                properties:
+                  periodEnd: {type: string, format: date}
+                  value: {type: number, nullable: true}
+                  sectorValue: {type: number, nullable: true}
+    QuarterlyTrend:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [points]
+          properties:
+            points:
+              type: array
+              items:
+                type: object
+                required: [periodEnd]
+                properties:
+                  periodEnd: {type: string, format: date}
+                  revenue: {type: number, nullable: true}
+                  netIncome: {type: number, nullable: true}
+                  netMargin: {$ref: '#/components/schemas/Fraction'}
+    CompanyStatements:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [periods, lines]
+          properties:
+            statementType: {type: string, enum: [INCOME, BALANCE, CASH_FLOW]}
+            periods:
+              type: array
+              items: {type: string, format: date}
+            lines:
+              type: array
+              items:
+                type: object
+                required: [key, values]
+                properties:
+                  key: {type: string}
+                  label: {type: string}
+                  values:
+                    type: array
+                    items: {type: number, nullable: true}
+                  yoyChange: {$ref: '#/components/schemas/Fraction'}
+    Peers:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                required: [symbol]
+                properties:
+                  symbol: {type: string}
+                  name: {type: string, nullable: true}
+                  sector: {type: string, nullable: true}
+                  isSelected: {type: boolean}
+                  pe: {type: number, nullable: true}
+                  pb: {type: number, nullable: true}
+                  evEbitda: {type: number, nullable: true}
+                  roe: {$ref: '#/components/schemas/Fraction'}
+                  netMargin: {$ref: '#/components/schemas/Fraction'}
+                  return1Y: {$ref: '#/components/schemas/Fraction'}
+
+    ReportTemplates:
+      type: object
+      required: [items, delivery]
+      properties:
+        delivery:
+          type: object
+          required: [email, pdf, xlsx]
+          properties:
+            email: {type: boolean}
+            pdf: {type: boolean}
+            xlsx: {type: boolean}
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id: {type: string, enum: [PERFORMANCE, REALIZED_PNL, DIVIDENDS, STOCK_ANALYSIS]}
+              name: {type: string}
+              description: {type: string}
+              requiresSymbol: {type: boolean}
+              externalUseGate: {type: string, nullable: true, description: 'Open gate that blocks external release, e.g. OQ-1'}
+    ReportRunRequest:
+      type: object
+      required: [templateId, scope]
+      properties:
+        templateId: {type: string, enum: [PERFORMANCE, REALIZED_PNL, DIVIDENDS, STOCK_ANALYSIS]}
+        scope: {type: string, description: 'ALL or PORTFOLIO:<id>', default: ALL}
+        period: {type: string, description: 'Month, quarter or year'}
+        year: {type: integer}
+        symbol: {type: string, nullable: true}
+    ReportRun:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [runId, templateId, createdAt]
+          properties:
+            runId: {type: string, format: uuid}
+            templateId: {type: string}
+            title: {type: string}
+            scope: {type: string}
+            period: {type: string, nullable: true}
+            createdAt: {type: string, format: date-time}
+    ReportRuns:
+      type: object
+      required: [items, total]
+      properties:
+        total: {type: integer}
+        items:
+          type: array
+          items: {$ref: '#/components/schemas/ReportRun'}
+    PerformanceReport:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          properties:
+            kpis:
+              type: array
+              items:
+                type: object
+                required: [key]
+                properties:
+                  key: {type: string}
+                  value: {type: number, nullable: true}
+            valueBridge:
+              type: object
+              description: start + sum(steps) + netFlow + rounding = end, exactly
+              properties:
+                start: {type: number, nullable: true}
+                end: {type: number, nullable: true}
+                netFlow: {type: number, nullable: true}
+                rounding: {type: number, nullable: true}
+                steps:
+                  type: array
+                  items:
+                    type: object
+                    required: [symbol]
+                    properties:
+                      symbol: {type: string}
+                      contribution: {type: number, nullable: true}
+            sectorContribution:
+              type: array
+              items:
+                type: object
+                required: [sector]
+                properties:
+                  sector: {type: string}
+                  averageWeight: {$ref: '#/components/schemas/Fraction'}
+                  sectorReturn: {$ref: '#/components/schemas/Fraction'}
+                  contribution: {type: number, nullable: true}
+            riskSummary:
+              type: object
+              nullable: true
+              properties:
+                volatility: {$ref: '#/components/schemas/Fraction'}
+                maxDrawdown: {$ref: '#/components/schemas/Fraction'}
+                beta: {type: number, nullable: true}
+                tradeCount: {type: integer}
+                turnover: {$ref: '#/components/schemas/Fraction'}
+    RealizedPnlReport:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [costMethod, disclaimer, rows]
+          properties:
+            year: {type: integer}
+            costMethod: {type: string, enum: [AVERAGE_COST]}
+            disclaimer:
+              type: string
+              description: Fixed text - an aid for preparing a filing and not tax advice
+            totals:
+              type: object
+              properties:
+                proceeds: {type: number, nullable: true}
+                cost: {type: number, nullable: true}
+                realizedPnl: {type: number, nullable: true}
+                fees: {type: number, nullable: true}
+            rows:
+              type: array
+              items:
+                type: object
+                required: [saleDate, symbol]
+                properties:
+                  saleDate: {type: string, format: date}
+                  symbol: {type: string}
+                  quantity: {type: number}
+                  cost: {type: number, nullable: true}
+                  proceeds: {type: number, nullable: true}
+                  realizedPnl: {type: number, nullable: true}
+                  holdingDays: {type: integer, nullable: true}
+    DividendReport:
+      allOf:
+        - $ref: '#/components/schemas/Meta'
+        - type: object
+          required: [disclaimer, rows]
+          properties:
+            year: {type: integer}
+            disclaimer: {type: string}
+            totals:
+              type: object
+              properties:
+                gross: {type: number, nullable: true}
+                withholding: {type: number, nullable: true}
+                net: {type: number, nullable: true}
+            byYear:
+              type: array
+              items:
+                type: object
+                properties:
+                  year: {type: integer}
+                  net: {type: number, nullable: true}
+            rows:
+              type: array
+              items:
+                type: object
+                required: [paymentDate, symbol]
+                properties:
+                  paymentDate: {type: string, format: date}
+                  symbol: {type: string}
+                  quantity: {type: number, nullable: true}
+                  gross: {type: number, nullable: true}
+                  withholding: {type: number, nullable: true, description: Only when recorded on the ledger transaction; never assumed}
+                  net: {type: number, nullable: true}
+    ReportScheduleWrite:
+      type: object
+      required: [templateId, frequency, format]
+      properties:
+        templateId: {type: string}
+        scope: {type: string, default: ALL}
+        frequency: {type: string, enum: [WEEKLY, MONTHLY, QUARTERLY]}
+        format: {type: string, enum: [pdf, xlsx]}
+    ReportSchedule:
+      allOf:
+        - $ref: '#/components/schemas/ReportScheduleWrite'
+        - type: object
+          required: [scheduleId]
+          properties:
+            scheduleId: {type: integer, format: int64}
+            nextRunAt: {type: string, format: date-time, nullable: true}

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Haberler</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:#0E1015;color:#E7E9F0}
+a{color:#60A5FA}a:hover{color:#93C5FD}
+.app{display:flex;flex-wrap:wrap;min-height:900px}
+.side{flex:1 1 232px;background:#12141A;border-right:1px solid #1E222C;padding:18px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;padding:2px 10px 8px;color:#fff}
+.mark{width:32px;height:32px;border-radius:9px;background:#2563EB;display:flex;align-items:center;justify-content:center;flex:none}
+.grp{font-size:11px;font-weight:800;letter-spacing:.07em;color:#E7E9F0;padding:16px 12px 6px;text-transform:uppercase}
+.side a{display:flex;align-items:center;gap:12px;color:#B4BACB;text-decoration:none;padding:0 12px;min-height:44px;border-radius:10px;font-size:14px;font-weight:500}
+.side a:hover{background:#1A1E28;color:#fff}
+.side a.on{background:#172238;color:#60A5FA;font-weight:700}
+.side svg{width:19px;height:19px;flex:none}
+.body{flex:999 1 560px;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid #1E222C;background:#0E1015}
+.srch{display:flex;align-items:center;gap:10px;flex:0 1 380px;min-width:220px;min-height:44px;padding:0 14px;border:1px solid #232734;border-radius:12px;background:#12141A;color:#9097A8;box-sizing:border-box}
+.srch input{flex:1;min-width:0;border:0;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;outline:none;min-height:42px}
+.srch input::placeholder{color:#7C8395}
+.mkt{display:inline-flex;background:#12141A;border:1px solid #232734;border-radius:999px;padding:2px}
+.mkt button{min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:#9097A8;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.mkt button.on{background:#232A3B;color:#fff}
+.ib{position:relative;width:44px;height:44px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.ib svg{width:19px;height:19px}
+.badge{position:absolute;top:5px;right:5px;min-width:16px;height:16px;border-radius:8px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.av{width:44px;height:44px;border-radius:50%;border:0;background:#2563EB;color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.main{padding:28px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:#161922;border:1px solid #232734;border-radius:16px;padding:20px;box-sizing:border-box}
+.card h2{margin:0;font-size:16px;font-weight:700}
+.sub{font-size:13px;color:#9097A8;margin-top:4px}
+.lbl{font-size:12px;color:#9097A8;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:0 16px;border-radius:12px;border:1px solid #2A2F3D;background:#1A1E28;color:#E7E9F0;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#222736;color:#fff}
+.seg{display:inline-flex;flex-wrap:wrap;background:#12141A;border:1px solid #232734;border-radius:12px;padding:3px;gap:2px}
+.seg button{min-height:40px;min-width:44px;padding:0 14px;border:0;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:#9097A8;cursor:pointer}
+.seg button.on{background:#232A3B;color:#fff}
+.ct{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.ct:hover{background:#1A1E28;color:#fff}
+.ct.on{background:#172238;border-color:#3B82F6;color:#fff}
+.ct .n{font-size:12px;font-weight:700;color:#9097A8;background:#1C1F29;border-radius:999px;padding:1px 8px}
+.ct.on .n{color:#93C5FD;background:#1E2A44}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid #2A2F3D;background:#12141A;font:inherit;font-size:13px;font-weight:700;color:#B4BACB;cursor:pointer;box-sizing:border-box}
+.chip:hover{color:#fff}
+.chip.on{border-color:#3B82F6;background:#172238;color:#fff}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.up{color:#4ADE80;background:rgba(34,197,94,.14)}.dn{color:#F87171;background:rgba(248,113,113,.14)}.wr{color:#FBBF24;background:rgba(251,191,36,.14)}.nt{color:#B4BACB;background:#232734}.pu{color:#93C5FD;background:rgba(96,165,250,.14)}.tl{color:#5EEAD4;background:rgba(45,212,191,.14)}.pk{color:#F9A8D4;background:rgba(244,114,182,.14)}.vi{color:#C4B5FD;background:rgba(167,139,250,.14)}
+.tk{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:800;padding:4px 9px;border-radius:8px;text-decoration:none;white-space:nowrap}
+.item{display:flex;gap:16px;padding:18px 0;border-bottom:1px solid #1F2330}
+.ico{flex:none;width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.ico svg{width:20px;height:20px}
+.fld{min-height:44px;padding:0 14px;border:1px solid #2A2F3D;border-radius:12px;background:#12141A;color:#E7E9F0;font:inherit;font-size:14px;box-sizing:border-box}
+.fld::placeholder{color:#7C8395}
+.bf{display:grid;grid-template-columns:1fr 92px 1fr;gap:8px;align-items:center;font-size:13px;padding:5px 0}
+.bf i{display:block;height:12px;border-radius:4px}
+.demo{font-size:12px;color:#9097A8;background:#1A1E28;border:1px solid #232734;padding:4px 10px;border-radius:999px}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Ana menü">
+<div class="brand"><span class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 3 7-8"/></svg></span>Finans Paneli</div>
+<div class="grp">Genel</div>
+<a href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Panel</a>
+<a href="Compare.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V10M11 20V4M17 20v-7M21 20H3"/></svg>Karşılaştırma</a>
+<div class="grp">Piyasa</div>
+<a class="on" href="News.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>Haberler</a>
+<a href="Watchlist.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>İzleme Listeleri</a>
+<div class="grp">Hisseler</div>
+<a href="Workspace.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15M9 21v-4h6v4M8 9h2M14 9h2M8 13h2M14 13h2"/></svg>Şirket Analizi</a>
+<a href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h5"/></svg>Raporlar</a>
+<div class="grp">Portföy</div>
+<a href="Portfolio.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>Portföylerim</a>
+<a href="Journal.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>İşlem Ekle</a>
+<a href="Transactions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9"/><path d="M15 6h5v5"/></svg>Kazanç Analizi</a>
+</nav>
+<div class="body">
+<header class="top">
+<label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Hisse, ticker veya portföy ara" placeholder="Hisse, ticker veya portföy ara"></label>
+<div style="display:flex;gap:10px;align-items:center">
+<div class="mkt" role="group" aria-label="Piyasa"><button type="button" class="on" aria-pressed="true">BIST</button><button type="button" aria-pressed="false">ABD</button></div>
+<button type="button" class="ib" aria-label="Bildirimler, 3 yeni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg><span class="badge">3</span></button>
+<button type="button" class="av" aria-label="Hesap">B</button>
+</div>
+</header>
+<main class="main">
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+<div><h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">Haberler</h1>
+<div style="color:#9097A8;font-size:14px;margin-top:4px">Jeopolitik, makro, sektör ve şirket haberleri; hangi hisseyi nasıl etkilediğiyle birlikte</div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="demo">Örnek veri</span><div class="seg" role="group" aria-label="Kapsam"><sc-for list="{{scopeTabs}}" as="t" hint-placeholder-count="2"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div>
+</div>
+
+<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px" role="group" aria-label="Haber kategorisi">
+<sc-for list="{{cats}}" as="c" hint-placeholder-count="5"><button type="button" class="{{c.cls}}" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}">{{c.label}} <span class="n">{{c.n}}</span></button></sc-for>
+</div>
+
+<section class="card" style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<label class="srch" style="flex:1 1 320px;max-width:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Haberlerde ara" placeholder="Ticker (HSA) ya da kelime ara: petrol, faiz, temettü…" value="{{q}}" onChange="{{onQ}}"></label>
+<div class="seg" role="group" aria-label="Etki düzeyi"><sc-for list="{{impTabs}}" as="t" hint-placeholder-count="2"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div>
+<sc-if value="{{hasQ}}" hint-placeholder-val="{{false}}"><button type="button" class="btn" onClick="{{clearQ}}">Temizle</button></sc-if>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"><span class="lbl" style="margin-right:4px">Portföyündeki hisseler:</span><sc-for list="{{qChips}}" as="c" hint-placeholder-count="9"><button type="button" class="{{c.cls}}" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}">{{c.code}}</button></sc-for></div>
+</section>
+
+<section style="display:flex;flex-wrap:wrap;gap:16px">
+<div class="card" style="flex:2 1 560px;min-width:0;padding-top:4px;padding-bottom:4px">
+<sc-for list="{{news}}" as="n" hint-placeholder-count="6"><article class="item">
+<div class="ico" style="{{n.icoStyle}}" aria-hidden="true"><sc-if value="{{n.isGeo}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18"/></svg></sc-if><sc-if value="{{n.isMac}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 10l8-6 8 6M5 10v9M19 10v9M9 10v9M15 10v9M3 21h18"/></svg></sc-if><sc-if value="{{n.isSec}}" hint-placeholder-val="{{false}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></sc-if><sc-if value="{{n.isCo}}" hint-placeholder-val="{{true}}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21V6l8-3 8 3v15M9 21v-4h6v4"/></svg></sc-if></div>
+<div style="flex:1;min-width:0">
+<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="tag {{n.catCls}}">{{n.cat}}</span><span class="tag nt">{{n.scope}}</span><span class="tag {{n.impCls}}">{{n.imp}}</span><span style="font-size:12px;color:#9097A8">[Kaynak] · {{n.time}}</span></div>
+<a href="News.dc.html" style="display:block;margin-top:8px;font-size:16px;font-weight:700;color:#fff;text-decoration:none;line-height:1.35">{{n.title}}</a>
+<div style="font-size:14px;color:#9097A8;margin-top:4px;line-height:1.5">{{n.sum}}</div>
+<sc-if value="{{n.hasTk}}" hint-placeholder-val="{{true}}"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px"><span class="lbl">Etkilenen:</span><sc-for list="{{n.tks}}" as="t" hint-placeholder-count="2"><a href="Workspace.dc.html" class="tk" style="{{t.style}}">{{t.arrow}} {{t.code}}{{t.mine}}</a></sc-for></div></sc-if>
+</div>
+</article></sc-for>
+<sc-if value="{{empty}}" hint-placeholder-val="{{false}}"><div style="padding:24px 0;color:#9097A8;font-size:14px">Bu filtrelerle eşleşen haber yok.</div></sc-if>
+</div>
+
+<aside style="flex:1 1 300px;min-width:0;align-self:flex-start;display:flex;flex-direction:column;gap:16px">
+<div class="card"><h2>Portföyüne etkisi</h2><div class="sub">Son 24 saat · portföyündeki hisselere dokunan haberler</div>
+<div style="display:flex;gap:16px;margin-top:14px"><div><div style="font-size:24px;font-weight:800">{{mine.n}}</div><div class="sub" style="margin:0">haber</div></div><div><div style="font-size:24px;font-weight:800">{{mine.k}}</div><div class="sub" style="margin:0">hisse etkileniyor</div></div></div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-top:14px"><sc-for list="{{mine.rows}}" as="r" hint-placeholder-count="5"><div style="display:flex;justify-content:space-between;align-items:center;font-size:14px"><span><b>{{r.code}}</b> <span style="color:#9097A8;font-size:12px">{{r.n}} haber</span></span><span class="tag {{r.cls}}">{{r.net}}</span></div></sc-for></div>
+</div>
+<div class="card"><h2>Sektör etki haritası</h2><div class="sub">Haberlerin sektörlere net etkisi (olumsuz ← → olumlu)</div>
+<div style="margin-top:12px"><sc-for list="{{secs}}" as="s" hint-placeholder-count="6"><div class="bf"><span style="display:flex;justify-content:flex-end"><i style="{{s.neg}}"></i></span><span style="text-align:center;font-weight:700;font-size:12px">{{s.name}}</span><span><i style="{{s.pos}}"></i></span></div></sc-for></div>
+</div>
+<div class="card"><h2>Gündem</h2><div class="sub">Haberlerde en sık geçen konular</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px"><sc-for list="{{topics}}" as="t" hint-placeholder-count="6"><button type="button" class="chip" onClick="{{t.pick}}">#{{t.label}}</button></sc-for></div>
+</div>
+</aside>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1700}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const cat = st.cat || 'all';
+    const q = st.q || '';
+    const scope = st.scope || 'all';
+    const imp = st.imp || 'all';
+    const set = (o) => () => this.setState(o);
+    const tabs = (list, cur, key) => list.map((x) => ({ label: x[1], cls: x[0] === cur ? 'on' : '', pressed: x[0] === cur ? 'true' : 'false', pick: set({ [key]: x[0] }) }));
+    const MINE = ['HSA', 'HSB', 'HSC', 'HSD', 'HSE', 'HSF', 'HSG', 'HSH', 'HSI'];
+    const SEC = { HSA: 'Teknoloji', HSB: 'Bankacılık', HSC: 'Enerji', HSD: 'Teknoloji', HSE: 'Sanayi', HSF: 'Bankacılık', HSG: 'Perakende', HSH: 'Enerji', HSL: 'Bankacılık', HSN: 'Teknoloji', HSO: 'Savunma' };
+    const NEWS = [
+      { c: 'geo', imp: 'h', scope: 'Piyasa geneli', time: '25 dk önce', title: 'Bölgesel gerilim nedeniyle Brent petrolde sert yükseliş', sum: 'Arz endişesiyle petrol fiyatı gün içinde belirgin şekilde arttı; enerji hisseleri pozitif, yakıt maliyeti yüksek sektörler baskı altında.', tk: [['HSC', 1], ['HSH', 1], ['HSO', 1], ['HSG', -1]], tags: ['petrol', 'jeopolitik'] },
+      { c: 'mac', imp: 'h', scope: 'Küresel', time: '1 sa önce', title: 'BoJ kararı öncesi yen ve küresel tahvil faizleri dalgalı', sum: 'Japonya Merkez Bankası’nın yarın açıklayacağı karar öncesi küresel risk iştahı temkinli seyrediyor.', tk: [], tags: ['faiz', 'merkez bankası'] },
+      { c: 'co', imp: 'h', scope: 'Hisse', time: '1 sa önce', title: 'Hisse D yeni ihracat sözleşmesi imzaladığını KAP’a bildirdi', sum: 'Şirket açıklamasına göre sözleşme önümüzdeki iki yıla yayılacak; tutar son yıllık gelirin önemli bir kısmına denk geliyor.', tk: [['HSD', 1]], tags: ['KAP'] },
+      { c: 'sec', imp: 'h', scope: 'Sektör: Bankacılık', time: '2 sa önce', title: 'Bankacılık sektöründe kredi büyümesine ilişkin yeni düzenleme', sum: 'Düzenleme, ticari ve bireysel kredilerde büyüme sınırlarını güncelliyor; kısa vadede kârlılık üzerinde baskı beklentisi var.', tk: [['HSB', -1], ['HSF', -1], ['HSL', -1]], tags: ['düzenleme', 'faiz'] },
+      { c: 'mac', imp: 'm', scope: 'Türkiye', time: '3 sa önce', title: 'Enflasyon Raporu öncesi piyasa katılımcıları anketi yayımlandı', sum: 'Yıl sonu enflasyon ve politika faizi beklentileri güncellendi; bankacılık ve perakende hisseleri yakından izleniyor.', tk: [['HSB', 1], ['HSF', 1]], tags: ['enflasyon', 'faiz'] },
+      { c: 'co', imp: 'm', scope: 'Hisse', time: '4 sa önce', title: 'Hisse E temettü politikasını güncelledi', sum: 'Yönetim kurulu, dağıtılabilir kârın daha yüksek bir oranının nakit temettü olarak ödenmesini önerdi.', tk: [['HSE', 1]], tags: ['temettü', 'KAP'] },
+      { c: 'geo', imp: 'm', scope: 'Küresel', time: '5 sa önce', title: 'Ticaret yollarındaki aksama navlun maliyetlerini artırıyor', sum: 'Deniz taşımacılığındaki gecikmeler ithal girdi ve lojistik maliyetlerini yükseltiyor.', tk: [['HSE', -1], ['HSG', -1]], tags: ['jeopolitik', 'lojistik'] },
+      { c: 'mac', imp: 'm', scope: 'Küresel', time: '6 sa önce', title: 'ABD istihdam verisi beklentilerin üzerinde geldi', sum: 'Güçlü veri, faiz indirimlerinin ertelenebileceği beklentisini artırdı; büyüme hisselerinde satış görüldü.', tk: [['HSN', -1], ['HSA', -1]], tags: ['faiz', 'kur'] },
+      { c: 'co', imp: 'm', scope: 'Hisse', time: '7 sa önce', title: 'Hisse H üretim tesisinde planlı bakım duruşu', sum: 'Şirket, bakım çalışmaları nedeniyle üretime iki hafta ara verileceğini açıkladı.', tk: [['HSH', -1]], tags: ['KAP'] },
+      { c: 'sec', imp: 'l', scope: 'Sektör: Savunma', time: '8 sa önce', title: 'Savunma sanayiinde yeni ihale takvimi açıklandı', sum: 'Önümüzdeki çeyrekte açılacak ihaleler sektör şirketlerinin sipariş defterini destekleyebilir.', tk: [['HSO', 1]], tags: ['ihale'] },
+      { c: 'co', imp: 'l', scope: 'Hisse', time: '9 sa önce', title: 'Hisse A 3. çeyrek bilanço tarihini duyurdu', sum: 'Şirket, finansal sonuçlarını 5 Kasım’da açıklayacak.', tk: [['HSA', 0]], tags: ['bilanço'] },
+      { c: 'geo', imp: 'l', scope: 'Küresel', time: '11 sa önce', title: 'Enerji arz görüşmelerinde ilerleme sinyali', sum: 'Görüşmelerdeki olumlu açıklamalar petrol fiyatındaki yükselişi kısmen sınırlayabilir.', tk: [['HSC', -1], ['HSH', -1]], tags: ['petrol', 'jeopolitik'] }
+    ];
+    const CAT = { geo: ['Jeopolitik', 'pk', 'background:rgba(244,114,182,.14);color:#F9A8D4'], mac: ['Makro & merkez bankası', 'pu', 'background:rgba(96,165,250,.14);color:#93C5FD'], sec: ['Sektör', 'vi', 'background:rgba(167,139,250,.14);color:#C4B5FD'], co: ['Şirket', 'tl', 'background:rgba(45,212,191,.14);color:#5EEAD4'] };
+    const IMP = { h: ['Yüksek etki', 'wr'], m: ['Orta etki', 'nt'], l: ['Düşük etki', 'nt'] };
+    const ql = q.trim().toLocaleLowerCase('tr');
+    const isMine = (n) => n.tk.some((t) => MINE.indexOf(t[0]) >= 0);
+    const base = NEWS.filter((n) => (scope === 'all' || isMine(n)) && (imp === 'all' || n.imp === 'h') && (!ql || n.title.toLocaleLowerCase('tr').indexOf(ql) >= 0 || n.sum.toLocaleLowerCase('tr').indexOf(ql) >= 0 || n.tk.some((t) => t[0].toLocaleLowerCase('tr') === ql) || n.tags.some((g) => g.toLocaleLowerCase('tr').indexOf(ql) >= 0)));
+    const count = (c) => base.filter((n) => c === 'all' || n.c === c).length;
+    const cats = [['all', 'Tümü'], ['geo', 'Jeopolitik'], ['mac', 'Makro & merkez bankası'], ['sec', 'Sektör'], ['co', 'Şirket / hisse']].map((x) => ({ label: x[1], n: count(x[0]), cls: x[0] === cat ? 'ct on' : 'ct', pressed: x[0] === cat ? 'true' : 'false', pick: set({ cat: x[0] }) }));
+    const list = base.filter((n) => cat === 'all' || n.c === cat);
+    const news = list.map((n) => ({
+      cat: CAT[n.c][0], catCls: CAT[n.c][1], icoStyle: CAT[n.c][2], isGeo: n.c === 'geo', isMac: n.c === 'mac', isSec: n.c === 'sec', isCo: n.c === 'co',
+      scope: n.scope, imp: IMP[n.imp][0], impCls: IMP[n.imp][1], time: n.time, title: n.title, sum: n.sum, hasTk: n.tk.length > 0,
+      tks: n.tk.map((t) => ({ code: t[0], arrow: t[1] > 0 ? '▲' : t[1] < 0 ? '▼' : '●', mine: MINE.indexOf(t[0]) >= 0 ? ' · portföyde' : '', style: t[1] > 0 ? 'background:rgba(34,197,94,.14);color:#4ADE80' : t[1] < 0 ? 'background:rgba(248,113,113,.14);color:#F87171' : 'background:#232734;color:#B4BACB' }))
+    }));
+
+    const per = {};
+    NEWS.forEach((n) => n.tk.forEach((t) => { if (MINE.indexOf(t[0]) >= 0) { per[t[0]] = per[t[0]] || { n: 0, s: 0 }; per[t[0]].n++; per[t[0]].s += t[1]; } }));
+    const mineRows = Object.keys(per).sort((a, b) => per[b].n - per[a].n || a.localeCompare(b)).slice(0, 6).map((c) => ({ code: c, n: per[c].n, net: per[c].s > 0 ? 'Net olumlu' : per[c].s < 0 ? 'Net olumsuz' : 'Nötr', cls: per[c].s > 0 ? 'up' : per[c].s < 0 ? 'dn' : 'nt' }));
+    const mine = { n: NEWS.filter(isMine).length, k: Object.keys(per).length, rows: mineRows };
+
+    const sec = {};
+    NEWS.forEach((n) => n.tk.forEach((t) => { const s = SEC[t[0]]; if (s) sec[s] = (sec[s] || 0) + t[1]; }));
+    const smax = Math.max.apply(null, Object.keys(sec).map((k) => Math.abs(sec[k]))) || 1;
+    const secs = Object.keys(sec).sort((a, b) => sec[b] - sec[a]).map((k) => ({ name: k, pos: 'width:' + (sec[k] > 0 ? sec[k] / smax * 100 : 0) + '%;background:#22C55E', neg: 'width:' + (sec[k] < 0 ? -sec[k] / smax * 100 : 0) + '%;background:#EF4444' }));
+
+    const topics = ['faiz', 'petrol', 'jeopolitik', 'enflasyon', 'temettü', 'KAP', 'bilanço'].map((t) => ({ label: t, pick: set({ q: t }) }));
+    const qChips = MINE.map((c) => ({ code: c, cls: ql === c.toLocaleLowerCase('tr') ? 'chip on' : 'chip', pressed: ql === c.toLocaleLowerCase('tr') ? 'true' : 'false', pick: set({ q: ql === c.toLocaleLowerCase('tr') ? '' : c }) }));
+
+    return {
+      scopeTabs: tabs([['all', 'Tüm haberler'], ['mine', 'Portföyümü etkileyen']], scope, 'scope'),
+      impTabs: tabs([['all', 'Tüm etkiler'], ['h', 'Yüksek etki']], imp, 'imp'),
+      cats: cats, news: news, empty: news.length === 0,
+      q: q, hasQ: !!q, onQ: (e) => this.setState({ q: e.target.value }), clearQ: set({ q: '' }),
+      qChips: qChips, mine: mine, secs: secs, topics: topics
+    };
+  }
+}
+</script>
+</body>
+</html>

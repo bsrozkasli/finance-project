@@ -1,0 +1,517 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:#0E1015;color:#E7E9F0}
+a{color:#60A5FA}a:hover{color:#93C5FD}
+.app{display:flex;flex-wrap:wrap;min-height:900px}
+.side{flex:1 1 232px;background:#12141A;border-right:1px solid #1E222C;padding:18px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;padding:2px 10px 8px;color:#fff}
+.mark{width:32px;height:32px;border-radius:9px;background:#2563EB;display:flex;align-items:center;justify-content:center;flex:none}
+.grp{font-size:11px;font-weight:800;letter-spacing:.07em;color:#E7E9F0;padding:16px 12px 6px;text-transform:uppercase}
+.side a{display:flex;align-items:center;gap:12px;color:#B4BACB;text-decoration:none;padding:0 12px;min-height:44px;border-radius:10px;font-size:14px;font-weight:500}
+.side a:hover{background:#1A1E28;color:#fff}
+.side a.on{background:#172238;color:#60A5FA;font-weight:700}
+.side svg{width:19px;height:19px;flex:none}
+.body{flex:999 1 560px;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid #1E222C;background:#0E1015}
+.srch{display:flex;align-items:center;gap:10px;flex:0 1 380px;min-width:220px;min-height:44px;padding:0 14px;border:1px solid #232734;border-radius:12px;background:#12141A;color:#9097A8;box-sizing:border-box}
+.srch input{flex:1;min-width:0;border:0;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;outline:none;min-height:42px}
+.srch input::placeholder{color:#7C8395}
+.mkt{display:inline-flex;background:#12141A;border:1px solid #232734;border-radius:999px;padding:2px}
+.mkt button{min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:#9097A8;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.mkt button.on{background:#232A3B;color:#fff}
+.ib{position:relative;width:44px;height:44px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.ib svg{width:19px;height:19px}
+.badge{position:absolute;top:5px;right:5px;min-width:16px;height:16px;border-radius:8px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.av{width:44px;height:44px;border-radius:50%;border:0;background:#2563EB;color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.main{padding:28px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:#161922;border:1px solid #232734;border-radius:16px;padding:20px;box-sizing:border-box}
+.card h2{margin:0;font-size:16px;font-weight:700}
+.sub{font-size:13px;color:#9097A8;margin-top:4px}
+.hd{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start}
+.lbl{font-size:12px;color:#9097A8;font-weight:600}
+.big{font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:0 16px;border-radius:12px;border:1px solid #2A2F3D;background:#1A1E28;color:#E7E9F0;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#222736;color:#fff}
+.btn.pri{background:#2563EB;border-color:#2563EB;color:#fff}
+.btn.pri:hover{background:#1D4ED8}
+.seg{display:inline-flex;flex-wrap:wrap;background:#12141A;border:1px solid #232734;border-radius:12px;padding:3px;gap:2px}
+.seg button{min-height:40px;min-width:44px;padding:0 14px;border:0;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:#9097A8;cursor:pointer}
+.seg button.on{background:#232A3B;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid #2A2F3D;background:#12141A;font:inherit;font-size:13px;font-weight:600;color:#9097A8;cursor:pointer;box-sizing:border-box}
+.chip.on{border-color:#3B82F6;background:#172238;color:#E7E9F0}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.up{color:#4ADE80;background:rgba(34,197,94,.14)}.dn{color:#F87171;background:rgba(248,113,113,.14)}.wr{color:#FBBF24;background:rgba(251,191,36,.14)}.nt{color:#B4BACB;background:#232734}.na{color:#9097A8;background:#1C1F29}.pu{color:#93C5FD;background:rgba(96,165,250,.14)}.tl{color:#5EEAD4;background:rgba(45,212,191,.14)}
+.t-up{color:#4ADE80;font-weight:600}.t-dn{color:#F87171;font-weight:600}.t-na{color:#9097A8;font-weight:500}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.fld{min-height:44px;padding:0 14px;border:1px solid #2A2F3D;border-radius:12px;background:#12141A;color:#E7E9F0;font:inherit;font-size:14px;box-sizing:border-box}
+.fld::placeholder{color:#7C8395}
+.pop{position:absolute;top:52px;left:0;z-index:20;width:320px;max-width:calc(100vw - 48px);background:#161922;border:1px solid #2A2F3D;border-radius:14px;padding:12px;box-shadow:0 16px 40px rgba(0,0,0,.5);box-sizing:border-box}
+.popi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+.popi:hover{background:#1C2030}
+.popi.on{background:#172238;color:#93C5FD;font-weight:700}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+.row2{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.ylab{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:#9097A8;text-align:right;width:58px;flex:none}
+.gt{overflow-x:auto}
+.gr{display:grid;grid-template-columns:var(--cols);gap:10px;align-items:center;padding:12px;border-bottom:1px solid #1F2330;font-size:14px}
+.gh{background:#12141A;font-size:12px;font-weight:700;color:#9097A8;padding:10px 12px;border-bottom:0;border-radius:10px}
+.hmr{display:grid;grid-template-columns:1.4fr repeat(5,minmax(0,1fr));gap:5px;align-items:center;padding:3px 6px;font-size:13px;border-radius:10px}
+.hmh{font-size:12px;color:#9097A8;font-weight:700;padding-bottom:6px}
+.hmh span{text-align:center}.hmh span:first-child{text-align:left}
+.hc{display:block;text-align:center;padding:8px 2px;border-radius:8px;font-size:13px;font-weight:700}
+.ev{display:flex;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid #1F2330}
+.date{flex:none;width:54px;height:58px;border-radius:12px;background:#172238;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.date b{font-size:19px;line-height:1;color:#fff}
+.date span{font-size:11px;color:#93C5FD;font-weight:800;text-transform:uppercase}
+.bar{height:8px;background:#232734;border-radius:6px;overflow:hidden;display:block}
+.bar i{display:block;height:100%;border-radius:6px}
+.tile{border-radius:12px;padding:12px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:space-between;min-width:0;overflow:hidden}
+.mcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.mhalf{height:78px;width:100%;display:flex;justify-content:center}
+.bp{display:block;background:#22C55E;width:70%;max-width:26px;border-radius:5px 5px 0 0}
+.bn{display:block;background:#EF4444;width:70%;max-width:26px;border-radius:0 0 5px 5px}
+.leg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 14px;margin-top:16px}
+.legi{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 10px;border-radius:10px;background:#12141A}
+.demo{font-size:12px;color:#9097A8;background:#1A1E28;border:1px solid #232734;padding:4px 10px;border-radius:999px}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Ana menü">
+<div class="brand"><span class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 3 7-8"/></svg></span>Finans Paneli</div>
+<div class="grp">Genel</div>
+<a class="on" href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Panel</a>
+<a href="Compare.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V10M11 20V4M17 20v-7M21 20H3"/></svg>Karşılaştırma</a>
+<div class="grp">Piyasa</div>
+<a href="News.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>Haberler</a>
+<a href="Watchlist.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>İzleme Listeleri</a>
+<div class="grp">Hisseler</div>
+<a href="Workspace.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15M9 21v-4h6v4M8 9h2M14 9h2M8 13h2M14 13h2"/></svg>Şirket Analizi</a>
+<a href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h5"/></svg>Raporlar</a>
+<div class="grp">Portföy</div>
+<a href="Portfolio.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>Portföylerim</a>
+<a href="Journal.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>İşlem Ekle</a>
+<a href="Transactions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9"/><path d="M15 6h5v5"/></svg>Kazanç Analizi</a>
+</nav>
+<div class="body">
+<header class="top">
+<label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Hisse, ticker veya portföy ara" placeholder="Hisse, ticker veya portföy ara"></label>
+<div style="display:flex;gap:10px;align-items:center">
+<div class="mkt" role="group" aria-label="Piyasa"><button type="button" class="on" aria-pressed="true">BIST</button><button type="button" aria-pressed="false">ABD</button></div>
+<button type="button" class="ib" aria-label="Bildirimler, 3 yeni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg><span class="badge">3</span></button>
+<button type="button" class="av" aria-label="Hesap">B</button>
+</div>
+</header>
+<main class="main">
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+<div><h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">Genel bakış</h1>
+<div style="color:#9097A8;font-size:14px;margin-top:4px">29 Ekim 2026 itibarıyla portföylerinin durumu</div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+<span class="demo">Örnek veri</span>
+<div style="position:relative">
+<button type="button" class="btn" aria-expanded="{{pk.expanded}}" onClick="{{pk.toggle}}"><span style="color:#9097A8;font-weight:500">Portföy:</span> {{pfName}} <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<sc-if value="{{pk.open}}" hint-placeholder-val="{{false}}"><div class="pop" style="left:auto;right:0">
+<input class="fld" style="width:100%" aria-label="Portföy ara" placeholder="Portföy ara" value="{{pk.q}}" onChange="{{pk.onQ}}">
+<div class="lbl" style="margin:12px 6px 6px">Sabitlenmiş portföyler</div>
+<sc-for list="{{pk.items}}" as="it" hint-placeholder-count="4"><button type="button" class="{{it.cls}}" onClick="{{it.pick}}"><span>{{it.name}}</span><span style="font-size:12px;color:#9097A8">{{it.val}}</span></button></sc-for>
+<div style="border-top:1px solid #232734;margin-top:8px;padding-top:8px"><a href="Portfolio.dc.html" style="display:flex;align-items:center;min-height:44px;padding:0 10px;font-size:14px;font-weight:600;text-decoration:none">100 portföyün tamamı → Portföylerim</a></div>
+</div></sc-if>
+</div>
+<a class="btn" href="Compare.dc.html">Karşılaştır</a><a class="btn pri" href="Journal.dc.html">+ İşlem ekle</a></div>
+</div>
+
+<section class="kpis" aria-label="Özet">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="6"><div class="card"><div class="lbl">{{k.lbl}}</div><div class="big">{{k.val}}</div><div style="margin-top:8px"><span class="tag {{k.cls}}">{{k.sub}}</span></div></div></sc-for>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:3 1 560px;min-width:0">
+<div class="hd"><div><h2>Performans ve benchmark</h2><div class="sub">Dönem başı = 100 · BIST 100’e göre fark: <b class="{{perf.alphaCls}}">{{perf.alpha}}</b></div></div>
+<div class="seg" role="group" aria-label="Dönem"><sc-for list="{{periods}}" as="p" hint-placeholder-count="5"><button type="button" class="{{p.cls}}" aria-pressed="{{p.pressed}}" onClick="{{p.pick}}">{{p.label}}</button></sc-for></div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+<span class="chip on" style="cursor:default"><span class="sw" style="background:#60A5FA"></span>{{perf.pfName}} <b class="{{perf.pfCls}}">{{perf.pfRet}}</b></span>
+<sc-for list="{{bmChips}}" as="c" hint-placeholder-count="3"><button type="button" class="{{c.cls}}" aria-pressed="{{c.pressed}}" onClick="{{c.toggle}}"><span class="sw" style="{{c.sw}}"></span>{{c.name}} <b class="{{c.rcls}}">{{c.ret}}</b></button></sc-for>
+</div>
+<div style="display:flex;gap:8px;margin-top:16px">
+<div class="ylab" style="height:260px"><span>{{perf.yTop}}</span><span>{{perf.yMid}}</span><span>{{perf.yBot}}</span></div>
+<svg viewBox="0 0 640 260" preserveAspectRatio="none" style="flex:1;min-width:0;height:260px" role="img" aria-label="Portföy ve seçili benchmarkların dönem başı 100 kabul edilerek çizilmiş performans grafiği">
+<g stroke="#232734"><line x1="0" y1="1" x2="640" y2="1" vector-effect="non-scaling-stroke"/><line x1="0" y1="130" x2="640" y2="130" vector-effect="non-scaling-stroke"/><line x1="0" y1="259" x2="640" y2="259" vector-effect="non-scaling-stroke"/></g>
+<line x1="0" y1="{{perf.y100}}" x2="640" y2="{{perf.y100}}" stroke="#3A4052" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+<path d="{{perf.area}}" fill="#3B82F6" fill-opacity=".12"/>
+<path d="{{perf.gold}}" fill="none" stroke="#9CA3AF" stroke-width="2" stroke-dasharray="6 4" vector-effect="non-scaling-stroke"/>
+<path d="{{perf.spx}}" fill="none" stroke="#2DD4BF" stroke-width="2" vector-effect="non-scaling-stroke"/>
+<path d="{{perf.bist}}" fill="none" stroke="#F59E0B" stroke-width="2" vector-effect="non-scaling-stroke"/>
+<path d="{{perf.p}}" fill="none" stroke="#60A5FA" stroke-width="3" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
+</svg></div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#9097A8;margin:6px 0 0 66px"><span>{{perf.startTxt}}</span><span>Bugün</span></div>
+</div>
+
+<div class="card" style="flex:2 1 400px;min-width:0">
+<h2>Getiri ısı haritası</h2><div class="sub">Portföyler ve benchmarklar: günlük, haftalık, aylık değişim</div>
+<div class="gt" style="margin-top:14px"><div style="min-width:400px">
+<div class="hmr hmh"><span>Varlık</span><span>1G</span><span>1H</span><span>1A</span><span>3A</span><span>1Y</span></div>
+<sc-for list="{{heat}}" as="r" hint-placeholder-count="8"><div class="hmr" style="{{r.style}}"><span>{{r.name}}</span><sc-for list="{{r.cells}}" as="c" hint-placeholder-count="5"><span class="hc" style="{{c.style}}">{{c.txt}}</span></sc-for></div></sc-for>
+</div></div>
+<div class="sub" style="margin-top:12px">1G günlük · 1H haftalık · 1A aylık · 3A üç aylık · 1Y yıllık</div>
+</div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:1 1 440px;min-width:0">
+<h2>Takvim: kararlar ve bilançolar</h2><div class="sub">Merkez bankası kararları, makro raporlar ve portföyündeki şirketlerin bilanço günleri</div>
+<div class="seg" style="margin-top:14px" role="group" aria-label="Etkinlik türü"><sc-for list="{{evTabs}}" as="t" hint-placeholder-count="4"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div>
+<div style="margin-top:6px">
+<sc-for list="{{events}}" as="e" hint-placeholder-count="6"><div class="ev"><div class="date"><b>{{e.d}}</b><span>{{e.mo}}</span></div><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">{{e.title}}</div><div class="sub" style="margin-top:2px">{{e.dow}} · {{e.sub}}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="tag {{e.catCls}}">{{e.cat}}</span><span class="tag {{e.impCls}}">{{e.imp}}</span></div></div><div style="text-align:right;flex:none;min-width:56px"><div style="font-weight:800;font-size:14px">{{e.left}}</div><div class="sub" style="margin-top:0">{{e.leftSub}}</div></div></div></sc-for>
+<sc-if value="{{noEvents}}" hint-placeholder-val="{{false}}"><div class="sub" style="padding:16px 0">Bu filtrede yaklaşan etkinlik yok.</div></sc-if>
+</div>
+</div>
+
+<div class="card" style="flex:1 1 440px;min-width:0">
+<div class="hd"><div><h2>Yaklaşan stoplar</h2><div class="sub">Fiyatın zarar kes / kâr al seviyesine uzaklığı, en yakından uzağa</div></div><a class="btn" href="Portfolio.dc.html">Risk paneli</a></div>
+<div class="gt" style="margin-top:14px"><div style="min-width:540px">
+<div class="gr gh" style="--cols:1.4fr .9fr .9fr 1.5fr 1fr"><span>Hisse</span><span>Fiyat</span><span>Seviye</span><span>Mesafe</span><span>Durum</span></div>
+<sc-for list="{{stops}}" as="s" hint-placeholder-count="6"><div class="gr" style="--cols:1.4fr .9fr .9fr 1.5fr 1fr"><span><b>{{s.name}}</b><span class="sub" style="display:block;margin-top:2px">{{s.pf}} · {{s.type}}</span></span><span>{{s.price}}</span><span>{{s.stop}}</span><span style="display:flex;align-items:center;gap:8px"><span class="bar" style="flex:1"><i style="{{s.bar}}"></i></span><b style="font-size:13px;min-width:48px;text-align:right">{{s.dist}}</b></span><span><span class="tag {{s.stCls}}">{{s.status}}</span></span></div></sc-for>
+</div></div>
+<div class="sub" style="margin-top:12px">Çubuk dolduğunda fiyat seviyeye yaklaşıyor demektir.</div>
+</div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:1 1 320px;min-width:0">
+<h2>Portföylere göre dağılım</h2><div class="sub">Sabitlenmiş portföyler · toplam {{alloc.total}}</div>
+<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:18px">
+<div role="img" aria-label="Portföylere göre dağılım halka grafiği" style="{{alloc.ring}}"><div style="position:absolute;inset:24px;background:#161922;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center"><b style="font-size:20px">3</b><span style="font-size:12px;color:#9097A8">portföy</span></div></div>
+<div style="flex:1 1 150px;display:flex;flex-direction:column;gap:12px">
+<sc-for list="{{alloc.items}}" as="a" hint-placeholder-count="3"><div><div style="{{a.rowStyle}}"><span class="sw" style="{{a.sw}}"></span><span style="flex:1">{{a.name}}</span><b>{{a.pct}}</b></div><div class="sub" style="margin:2px 0 0 18px">{{a.val}}</div></div></sc-for>
+</div></div>
+</div>
+
+<div class="card" style="flex:1 1 320px;min-width:0">
+<h2>Sektör dağılımı</h2><div class="sub">{{pfName}} · nakit dahil</div>
+<div style="display:flex;flex-direction:column;gap:14px;margin-top:18px">
+<sc-for list="{{sectors}}" as="x" hint-placeholder-count="6"><div><div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px"><span>{{x.name}}</span><span><b>{{x.pct}}</b> <span style="color:#9097A8;font-size:12px">{{x.val}}</span></span></div><span class="bar" style="height:10px"><i style="{{x.bar}}"></i></span></div></sc-for>
+</div>
+</div>
+
+<div class="card" style="flex:1 1 320px;min-width:0">
+<h2>Aylık getiriler</h2><div class="sub">{{pfName}} · son 12 ay, %</div>
+<div style="display:flex;gap:2px;margin-top:18px">
+<sc-for list="{{months}}" as="m" hint-placeholder-count="12"><div class="mcol"><div class="mhalf" style="align-items:flex-end"><i class="bp" style="{{m.pos}}"></i></div><div class="mhalf" style="align-items:flex-start;border-top:1px solid #2A2F3D"><i class="bn" style="{{m.neg}}"></i></div><span style="font-size:10px" class="{{m.tcls}}">{{m.v}}</span><span style="font-size:11px;color:#9097A8">{{m.l}}</span></div></sc-for>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:14px"><span class="tag nt">{{mSum.pos}}</span><span class="tag up">{{mSum.best}}</span><span class="tag dn">{{mSum.worst}}</span></div>
+</div>
+</section>
+
+<section class="card">
+<div class="hd"><div><h2>Hisse dağılımı</h2><div class="sub">Kutu büyüklüğü = pozisyon değeri, renk = günlük değişim (nakit hariç)</div></div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:12px"><span class="hc" style="background:#5C1D24;color:#FECACA;padding:4px 8px">≤ −5</span><span class="hc" style="background:#2A1619;color:#FCA5A5;padding:4px 8px">−2…0</span><span class="hc" style="background:#13261D;color:#4ADE80;padding:4px 8px">0…+2</span><span class="hc" style="background:#14532D;color:#BBF7D0;padding:4px 8px">≥ +5</span></div></div>
+<div style="display:flex;flex-direction:column;gap:6px;margin-top:16px">
+<sc-for list="{{treemap}}" as="row" hint-placeholder-count="2"><div style="{{row.style}}"><sc-for list="{{row.tiles}}" as="tl" hint-placeholder-count="4"><div class="tile" style="{{tl.style}}"><div style="font-weight:800;font-size:15px">{{tl.name}}</div><div><div style="font-size:20px;font-weight:800">{{tl.w}}</div><div style="font-size:12px;font-weight:700">{{tl.chg}} bugün</div></div></div></sc-for></div></sc-for>
+</div>
+</section>
+
+<section class="card">
+<div class="hd"><div><h2>Pozisyonlar ve ağırlıklar</h2><div class="sub">Hangi hisseden ne kadar var, portföydeki ağırlığı ve son bir aydaki ağırlık değişimi</div></div>
+<div class="seg" role="group" aria-label="Sırala"><sc-for list="{{sortTabs}}" as="t" hint-placeholder-count="3"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div>
+<div class="gt" style="margin-top:14px"><div style="min-width:1080px">
+<div class="gr gh" style="--cols:1.5fr 1fr .6fr .9fr 1fr 1.6fr 1fr .75fr .75fr .75fr .8fr"><span>Hisse</span><span>Sektör</span><span>Adet</span><span>Fiyat</span><span>Değer</span><span>Ağırlık</span><span>Ağırlık Δ 1A</span><span>1G</span><span>1H</span><span>1A</span><span>K/Z</span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="9"><div class="gr" style="--cols:1.5fr 1fr .6fr .9fr 1fr 1.6fr 1fr .75fr .75fr .75fr .8fr"><span style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:10px;background:#172238;color:#93C5FD;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex:none">{{r.code}}</span><span><b>{{r.name}}</b><span class="sub" style="display:block;margin-top:1px;font-size:12px">{{r.sub}}</span></span></span><span>{{r.sector}}</span><span>{{r.qty}}</span><span class="{{r.priceCls}}">{{r.price}}</span><span class="{{r.priceCls}}" style="font-weight:700">{{r.value}}</span><span style="display:flex;align-items:center;gap:8px"><span class="bar" style="flex:1"><i style="{{r.wBar}}"></i></span><b style="font-size:13px;min-width:44px;text-align:right" class="{{r.wCls}}">{{r.wTxt}}</b></span><span class="{{r.dWc}}">{{r.dW}}</span><span class="{{r.r1c}}">{{r.r1}}</span><span class="{{r.r5c}}">{{r.r5}}</span><span class="{{r.r21c}}">{{r.r21}}</span><span><span class="tag {{r.plc}}">{{r.pl}}</span></span></div></sc-for>
+</div></div>
+</section>
+
+<section class="card">
+<div class="hd"><div><h2>Pozisyonların zaman içindeki değişimi</h2><div class="sub">{{pfName}} · son 6 ay · en büyük 5 pozisyon ve diğerleri</div></div>
+<div class="seg" role="group" aria-label="Görünüm"><sc-for list="{{areaTabs}}" as="t" hint-placeholder-count="2"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div>
+<div style="display:flex;gap:8px;margin-top:16px">
+<div class="ylab" style="height:240px"><span>{{area.yTop}}</span><span>{{area.yMid}}</span><span>{{area.yBot}}</span></div>
+<svg viewBox="0 0 640 240" preserveAspectRatio="none" style="flex:1;min-width:0;height:240px" role="img" aria-label="Pozisyon değerlerinin son altı aydaki yığılmış alan grafiği">
+<path d="{{area.a5}}" fill="#4B5368" stroke="#161922" stroke-width="1" vector-effect="non-scaling-stroke"/>
+<path d="{{area.a4}}" fill="#4ADE80" stroke="#161922" stroke-width="1" vector-effect="non-scaling-stroke"/>
+<path d="{{area.a3}}" fill="#F472B6" stroke="#161922" stroke-width="1" vector-effect="non-scaling-stroke"/>
+<path d="{{area.a2}}" fill="#F59E0B" stroke="#161922" stroke-width="1" vector-effect="non-scaling-stroke"/>
+<path d="{{area.a1}}" fill="#2DD4BF" stroke="#161922" stroke-width="1" vector-effect="non-scaling-stroke"/>
+<path d="{{area.a0}}" fill="#3B82F6" stroke="#161922" stroke-width="1" vector-effect="non-scaling-stroke"/>
+</svg></div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#9097A8;margin:6px 0 0 66px"><span>May</span><span>Haz</span><span>Tem</span><span>Ağu</span><span>Eyl</span><span>Eki</span></div>
+<div class="leg">
+<sc-for list="{{areaLeg}}" as="l" hint-placeholder-count="6"><div class="legi"><span class="sw" style="{{l.sw}}"></span><span style="flex:1;min-width:0"><b>{{l.name}}</b><span style="display:block;color:#9097A8;font-size:12px">6 ay önce {{l.ago}} → şimdi {{l.now}}</span></span><span class="tag {{l.dc}}">{{l.d}}</span></div></sc-for>
+</div>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":3000}}'>
+class Component extends DCLogic {
+  model() {
+    if (this._m) return this._m;
+    const N = 253;
+    const rng = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+    const walk = (seed, mu, sd, end) => { const r = rng(seed); const p = [1]; for (let i = 1; i < N; i++) { const u1 = r() || 1e-9; const u2 = r(); const g = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); p.push(p[i - 1] * (1 + mu + sd * g)); } const k = end / p[N - 1]; return p.map((v) => v * k); };
+    const H = [
+      { code: 'HSA', name: 'Hisse A', pf: 'uv', sector: 'Teknoloji', qty: 1200, cost: 148, end: 182.4, mu: 0.0011, sd: 0.019, seed: 11 },
+      { code: 'HSB', name: 'Hisse B', pf: 'uv', sector: 'Finans', qty: 3000, cost: 41.2, end: 46.1, mu: 0.0006, sd: 0.017, seed: 12 },
+      { code: 'HSC', name: 'Hisse C', pf: 'uv', sector: 'Enerji', qty: 1500, cost: 88, end: 96.1, mu: 0.0004, sd: 0.021, seed: 13 },
+      { code: 'HSD', name: 'Hisse D', pf: 'tr', sector: 'Teknoloji', qty: 400, cost: 284, end: 310.5, mu: 0.0013, sd: 0.026, seed: 14 },
+      { code: 'HSE', name: 'Hisse E', pf: 'tm', sector: 'Sanayi', qty: 5000, cost: 25.9, end: 28.04, mu: 0.0004, sd: 0.014, seed: 15 },
+      { code: 'HSF', name: 'Hisse F', pf: 'tm', sector: 'Finans', qty: 2200, cost: 49.5, end: 54.2, mu: 0.0005, sd: 0.013, seed: 16 },
+      { code: 'HSG', name: 'Hisse G', pf: 'tm', sector: 'Tüketim', qty: 900, cost: 118, end: 120.8, mu: 0.0002, sd: 0.012, seed: 17 },
+      { code: 'HSH', name: 'Hisse H', pf: 'tr', sector: 'Enerji', qty: 2600, cost: 35.1, end: 33.2, mu: -0.0002, sd: 0.024, seed: 18 },
+      { code: 'HSI', name: 'Hisse I', pf: 'tr', sector: 'Sağlık', qty: 700, cost: 41, end: null, mu: 0, sd: 0, seed: 19 }
+    ];
+    H.forEach((h) => { h.px = h.end == null ? null : walk(h.seed, h.mu, h.sd, h.end); });
+    const cash = { uv: 41000, tm: 23000, tr: 16000 };
+    const pfSer = (id) => { const s = new Array(N).fill(id === 'all' ? cash.uv + cash.tm + cash.tr : cash[id]); H.forEach((h) => { if (h.px && (id === 'all' || h.pf === id)) { for (let i = 0; i < N; i++) s[i] += h.qty * h.px[i]; } }); return s; };
+    const ser = { all: pfSer('all'), uv: pfSer('uv'), tm: pfSer('tm'), tr: pfSer('tr'), bist: walk(101, 0.0012, 0.016, 100), spx: walk(202, 0.0006, 0.011, 100), gold: walk(303, 0.0009, 0.01, 100), usd: walk(404, 0.001, 0.004, 100) };
+    this._m = { N: N, H: H, cash: cash, ser: ser };
+    return this._m;
+  }
+
+  renderVals() {
+    const md = this.model();
+    const N = md.N, H = md.H, cash = md.cash, ser = md.ser;
+    const st = this.state || {};
+    const pf = st.pf || 'all';
+    const period = st.period || '3A';
+    const sort = st.sort || 'w';
+    const evf = st.evf || 'all';
+    const view = st.view || 'val';
+    const bm = st.bm || { bist: true, spx: true, gold: false };
+    const set = (o) => () => this.setState(o);
+    const PFN = { all: 'Tüm portföyler', uv: 'Uzun Vade', tm: 'Temettü', tr: 'Trade' };
+
+    const ok = (v) => v != null && isFinite(v);
+    const th = (n) => String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const tl = (v) => '₺' + th(v);
+    const stl = (v) => (v >= 0 ? '+' : '−') + '₺' + th(v);
+    const pct = (v) => ok(v) ? (v >= 0 ? '+' : '−') + '%' + Math.abs(v * 100).toFixed(1).replace('.', ',') : 'N/A';
+    const pctU = (v) => ok(v) ? '%' + (v * 100).toFixed(1).replace('.', ',') : 'N/A';
+    const money = (v) => ok(v) ? '₺' + v.toFixed(2).replace('.', ',') : 'N/A';
+    const arrow = (v) => ok(v) ? (v >= 0 ? '▲ ' : '▼ ') : '';
+    const tagCls = (v) => ok(v) ? (v >= 0 ? 'up' : 'dn') : 'na';
+    const txtCls = (v) => ok(v) ? (v >= 0 ? 't-up' : 't-dn') : 't-na';
+    const heat = (v) => {
+      if (!ok(v)) return 'background:#1C1F29;color:#9097A8';
+      const a = v * 100;
+      if (a >= 5) return 'background:#14532D;color:#BBF7D0';
+      if (a >= 2) return 'background:#173D2A;color:#86EFAC';
+      if (a >= 0) return 'background:#13261D;color:#4ADE80';
+      if (a > -2) return 'background:#2A1619;color:#FCA5A5';
+      if (a > -5) return 'background:#3F1A1F;color:#FCA5A5';
+      return 'background:#5C1D24;color:#FECACA';
+    };
+    const ret = (s, k) => s[N - 1] / s[N - 1 - k] - 1;
+    const tabs = (list, cur, key) => list.map((x) => ({ label: x[1], cls: x[0] === cur ? 'on' : '', pressed: x[0] === cur ? 'true' : 'false', pick: set({ [key]: x[0] }) }));
+
+    const pq = st.pq || '';
+    const pk = {
+      open: !!st.pkOpen, expanded: st.pkOpen ? 'true' : 'false', q: pq,
+      toggle: set({ pkOpen: !st.pkOpen }),
+      onQ: (e) => this.setState({ pq: e.target.value }),
+      items: ['all', 'uv', 'tm', 'tr'].filter((id) => PFN[id].toLocaleLowerCase('tr').indexOf(pq.toLocaleLowerCase('tr')) >= 0).map((id) => ({ name: PFN[id], val: tl(ser[id][N - 1]), cls: id === pf ? 'popi on' : 'popi', pick: set({ pf: id, pkOpen: false }) }))
+    };
+
+    const s = ser[pf];
+    const Hf = H.filter((h) => pf === 'all' || h.pf === pf);
+    const priced = Hf.filter((h) => h.px);
+    const total = s[N - 1];
+    const cashV = pf === 'all' ? cash.uv + cash.tm + cash.tr : cash[pf];
+    let pnl = 0, costSum = 0;
+    priced.forEach((h) => { pnl += (h.end - h.cost) * h.qty; costSum += h.cost * h.qty; });
+    const d1 = ret(s, 1), w1 = ret(s, 5), m1 = ret(s, 21);
+    const y1 = ret(s, 252), yb = ret(ser.bist, 252);
+
+    const kpis = [
+      { lbl: 'Toplam değer', val: tl(total), sub: Hf.length + ' pozisyon · nakit ' + tl(cashV), cls: 'nt' },
+      { lbl: 'Günlük değişim', val: stl(s[N - 1] - s[N - 2]), sub: arrow(d1) + pct(d1), cls: tagCls(d1) },
+      { lbl: 'Haftalık değişim', val: stl(s[N - 1] - s[N - 6]), sub: arrow(w1) + pct(w1), cls: tagCls(w1) },
+      { lbl: 'Aylık değişim', val: stl(s[N - 1] - s[N - 22]), sub: arrow(m1) + pct(m1), cls: tagCls(m1) },
+      { lbl: 'Gerçekleşmemiş K/Z', val: stl(pnl), sub: arrow(pnl) + pct(pnl / costSum) + ' maliyete göre', cls: tagCls(pnl) },
+      { lbl: 'BIST 100’e göre fark (1Y)', val: pct(y1 - yb), sub: 'Portföy ' + pct(y1) + ' · Endeks ' + pct(yb), cls: tagCls(y1 - yb) }
+    ];
+
+    const K = { '1H': 5, '1A': 21, '3A': 63, '6A': 126, '1Y': 252 }[period];
+    const START = { '1H': '1 hafta önce', '1A': '1 ay önce', '3A': '3 ay önce', '6A': '6 ay önce', '1Y': '1 yıl önce' }[period];
+    const norm = (arr) => { const a = arr.slice(N - 1 - K); return a.map((v) => v / a[0] * 100); };
+    const L = [
+      { id: 'p', name: pf === 'all' ? 'Toplam portföy' : PFN[pf], s: s, color: '#60A5FA', on: true },
+      { id: 'bist', name: 'BIST 100', s: ser.bist, color: '#F59E0B', on: !!bm.bist },
+      { id: 'spx', name: 'S&P 500', s: ser.spx, color: '#2DD4BF', on: !!bm.spx },
+      { id: 'gold', name: 'Altın', s: ser.gold, color: '#9CA3AF', on: !!bm.gold }
+    ];
+    L.forEach((l) => { l.n = norm(l.s); l.r = l.n[l.n.length - 1] / 100 - 1; });
+    let mn = Infinity, mx = -Infinity;
+    L.filter((l) => l.on).forEach((l) => l.n.forEach((v) => { if (v < mn) mn = v; if (v > mx) mx = v; }));
+    const pad = (mx - mn) * 0.08 || 1;
+    const hi = mx + pad, lo = mn - pad;
+    const yOf = (v) => ((hi - v) / (hi - lo) * 260).toFixed(1);
+    const line = (a) => a.map((v, i) => (i ? 'L' : 'M') + (i / (a.length - 1) * 640).toFixed(1) + ' ' + yOf(v)).join(' ');
+    const pLine = line(L[0].n);
+    const perf = {
+      p: pLine, area: pLine + ' L640 260 L0 260 Z',
+      bist: L[1].on ? line(L[1].n) : '', spx: L[2].on ? line(L[2].n) : '', gold: L[3].on ? line(L[3].n) : '',
+      y100: yOf(100), yTop: pct(hi / 100 - 1), yMid: pct((hi + lo) / 200 - 1), yBot: pct(lo / 100 - 1),
+      pfName: L[0].name, pfRet: pct(L[0].r), pfCls: txtCls(L[0].r), startTxt: START,
+      alpha: pct(L[0].r - L[1].r), alphaCls: txtCls(L[0].r - L[1].r)
+    };
+    const bmChips = L.slice(1).map((l) => ({ name: l.name, sw: 'background:' + l.color, ret: pct(l.r), rcls: txtCls(l.r), cls: l.on ? 'chip on' : 'chip', pressed: l.on ? 'true' : 'false', toggle: set({ bm: Object.assign({}, bm, { [l.id]: !l.on }) }) }));
+
+    const HR = [['all', 'Toplam'], ['uv', 'Uzun Vade'], ['tm', 'Temettü'], ['tr', 'Trade'], ['bist', 'BIST 100'], ['spx', 'S&P 500'], ['gold', 'Altın'], ['usd', 'USD/TRY']];
+    const heatRows = HR.map((x) => ({
+      name: x[1],
+      style: (x[0] === pf ? 'background:#172238;font-weight:800;' : '') + (x[0] === 'bist' ? 'margin-top:8px;' : ''),
+      cells: [1, 5, 21, 63, 252].map((k) => { const v = ret(ser[x[0]], k); return { txt: pct(v), style: heat(v) }; })
+    }));
+
+    const EV = [
+      { d: '30', mo: 'Eki', dow: 'Cuma', title: 'BoJ faiz kararı', sub: 'Japonya Merkez Bankası para politikası toplantısı', cat: 'cb', days: 1, imp: 'h' },
+      { d: '3', mo: 'Kas', dow: 'Salı', title: 'Hisse D · 3. çeyrek bilançosu', sub: 'Trade portföyünde', cat: 'er', pf: 'tr', days: 5, imp: 'm' },
+      { d: '5', mo: 'Kas', dow: 'Perşembe', title: 'Hisse A · 3. çeyrek bilançosu', sub: 'Uzun Vade portföyünde, en büyük pozisyon', cat: 'er', pf: 'uv', days: 7, imp: 'h' },
+      { d: '12', mo: 'Kas', dow: 'Perşembe', title: 'TCMB Enflasyon Raporu', sub: 'Yılın son Enflasyon Raporu sunumu', cat: 'mk', days: 14, imp: 'm' },
+      { d: '13', mo: 'Kas', dow: 'Cuma', title: 'Hisse E · 3. çeyrek bilançosu', sub: 'Temettü portföyünde', cat: 'er', pf: 'tm', days: 15, imp: 'm' },
+      { d: '19', mo: 'Kas', dow: 'Perşembe', title: 'Hisse F · 3. çeyrek bilançosu', sub: 'Temettü portföyünde', cat: 'er', pf: 'tm', days: 21, imp: 'l' },
+      { d: '27', mo: 'Kas', dow: 'Cuma', title: 'TCMB Finansal İstikrar Raporu', sub: 'Yarıyıllık rapor', cat: 'mk', days: 29, imp: 'l' },
+      { d: '9', mo: 'Ara', dow: 'Çarşamba', title: 'FED (FOMC) faiz kararı', sub: 'Karar 22:00, basın toplantısı 22:30 (TSİ)', cat: 'cb', days: 41, imp: 'h' },
+      { d: '10', mo: 'Ara', dow: 'Perşembe', title: 'TCMB PPK faiz kararı', sub: 'Para Politikası Kurulu toplantısı', cat: 'cb', days: 42, imp: 'h' },
+      { d: '18', mo: 'Ara', dow: 'Cuma', title: 'BoJ faiz kararı', sub: 'Yılın son toplantısı', cat: 'cb', days: 50, imp: 'h' }
+    ];
+    const CAT = { cb: ['Merkez bankası', 'pu'], er: ['Bilanço', 'tl'], mk: ['Makro rapor', 'nt'] };
+    const IMP = { h: ['Yüksek etki', 'wr'], m: ['Orta etki', 'nt'], l: ['Düşük etki', 'nt'] };
+    const events = EV.filter((e) => (evf === 'all' || e.cat === evf) && (!e.pf || pf === 'all' || e.pf === pf)).map((e) => ({
+      d: e.d, mo: e.mo, dow: e.dow, title: e.title, sub: e.sub, cat: CAT[e.cat][0], catCls: CAT[e.cat][1], imp: IMP[e.imp][0], impCls: IMP[e.imp][1],
+      left: e.days === 1 ? 'Yarın' : e.days + ' gün', leftSub: e.days === 1 ? '' : 'kaldı'
+    }));
+    const evTabs = tabs([['all', 'Tümü'], ['cb', 'Merkez bankası'], ['er', 'Bilanço'], ['mk', 'Makro']], evf, 'evf');
+
+    const SD = [
+      { code: 'HSA', lvl: 175, type: 'Zarar kes' }, { code: 'HSD', lvl: 300, type: 'Zarar kes' }, { code: 'HSH', lvl: 32, type: 'Zarar kes' },
+      { code: 'HSC', lvl: 100, type: 'Kâr al' }, { code: 'HSB', lvl: 40, type: 'Zarar kes' }, { code: 'HSE', lvl: 26.5, type: 'Zarar kes' },
+      { code: 'HSI', lvl: 38, type: 'Zarar kes' }
+    ];
+    const byCode = {}; H.forEach((h) => { byCode[h.code] = h; });
+    const stops = SD.map((x) => {
+      const h = byCode[x.code];
+      const d = h.end == null ? null : (x.type === 'Kâr al' ? (x.lvl - h.end) / h.end : (h.end - x.lvl) / h.end);
+      return { h: h, x: x, d: d };
+    }).filter((o) => pf === 'all' || o.h.pf === pf).sort((a, b) => (a.d == null) - (b.d == null) || a.d - b.d).map((o) => {
+      const d = o.d;
+      const close = d == null ? 0 : Math.max(0.06, Math.min(1, 1 - d / 0.15));
+      const col = d == null ? '#2A2F3D' : d < 0.035 ? '#F59E0B' : d < 0.08 ? '#3B82F6' : '#22C55E';
+      const stt = d == null ? ['N/A', 'na'] : d < 0.035 ? ['Çok yakın', 'wr'] : d < 0.08 ? ['Yakın', 'nt'] : ['Güvenli', 'up'];
+      return { name: o.h.name, pf: PFN[o.h.pf], type: o.x.type, price: money(o.h.end), stop: money(o.x.lvl), dist: d == null ? 'N/A' : pctU(d), bar: 'width:' + (close * 100).toFixed(0) + '%;background:' + col, status: stt[0], stCls: stt[1] };
+    });
+
+    const pv = { uv: ser.uv[N - 1], tm: ser.tm[N - 1], tr: ser.tr[N - 1] };
+    const tot = pv.uv + pv.tm + pv.tr;
+    const PC = { uv: '#3B82F6', tm: '#2DD4BF', tr: '#F59E0B' };
+    let acc = 0; const cg = [];
+    ['uv', 'tm', 'tr'].forEach((id) => { const a0 = acc / tot * 100; acc += pv[id]; const b0 = acc / tot * 100; cg.push(PC[id] + ' ' + a0.toFixed(2) + '% ' + b0.toFixed(2) + '%'); });
+    const alloc = {
+      total: tl(tot),
+      ring: 'width:150px;height:150px;border-radius:50%;position:relative;flex:none;background:conic-gradient(' + cg.join(',') + ')',
+      items: ['uv', 'tm', 'tr'].map((id) => ({ name: PFN[id], sw: 'background:' + PC[id], pct: pctU(pv[id] / tot), val: tl(pv[id]) + ' · 1A ' + pct(ret(ser[id], 21)), rowStyle: 'display:flex;align-items:center;gap:8px;font-size:14px' + (pf === id ? ';font-weight:800' : '') }))
+    };
+
+    const SC = { Teknoloji: '#3B82F6', Finans: '#2DD4BF', Enerji: '#F59E0B', Sanayi: '#F472B6', 'Tüketim': '#4ADE80', 'Sağlık': '#A78BFA', Nakit: '#4B5368' };
+    const secMap = {};
+    priced.forEach((h) => { secMap[h.sector] = (secMap[h.sector] || 0) + h.qty * h.end; });
+    secMap.Nakit = cashV;
+    const secList = Object.keys(secMap).map((k) => ({ name: k, v: secMap[k] })).sort((a, b) => b.v - a.v);
+    const secMax = secList.length ? secList[0].v : 1;
+    const sectors = secList.map((x) => ({ name: x.name, pct: pctU(x.v / total), val: tl(x.v), bar: 'width:' + (x.v / secMax * 100).toFixed(1) + '%;background:' + SC[x.name] }));
+
+    const tv = priced.map((h) => ({ h: h, v: h.qty * h.end, d1: h.px[N - 1] / h.px[N - 2] - 1 })).sort((a, b) => b.v - a.v);
+    const tsum = tv.reduce((a, x) => a + x.v, 0);
+    const r1 = [], r2 = []; let cc = 0;
+    tv.forEach((x) => { if (r1.length === 0 || cc / tsum < 0.5) { r1.push(x); cc += x.v; } else { r2.push(x); } });
+    const rowH = (arr) => Math.max(110, Math.round(arr.reduce((a, x) => a + x.v, 0) / tsum * 320));
+    const treemap = [r1, r2].filter((r) => r.length).map((r) => ({
+      style: 'display:flex;gap:6px;height:' + rowH(r) + 'px',
+      tiles: r.map((x) => ({ name: x.h.name, w: pctU(x.v / tsum), chg: pct(x.d1), style: 'flex:' + Math.round(x.v) + ' 1 0;' + heat(x.d1) }))
+    }));
+
+    const sAgo = s[N - 22];
+    const rows = Hf.map((h) => {
+      const p = h.px;
+      const v = p ? h.qty * h.end : null;
+      const w = p ? v / total : null;
+      const wAgo = p ? h.qty * p[N - 22] / sAgo : null;
+      const q1 = p ? p[N - 1] / p[N - 2] - 1 : null;
+      const q5 = p ? p[N - 1] / p[N - 6] - 1 : null;
+      const q21 = p ? p[N - 1] / p[N - 22] - 1 : null;
+      const pl = p ? h.end / h.cost - 1 : null;
+      const dw = p ? w - wAgo : null;
+      return {
+        _w: w, _d: q1, _p: pl,
+        code: h.code, name: h.name, sub: PFN[h.pf], sector: h.sector, qty: th(h.qty),
+        price: money(h.end), priceCls: p ? '' : 't-na', value: v == null ? 'N/A' : tl(v),
+        wTxt: pctU(w), wCls: p ? '' : 't-na', wBar: 'width:0',
+        dW: ok(dw) ? (dw >= 0 ? '+' : '−') + Math.abs(dw * 100).toFixed(1).replace('.', ',') + ' puan' : 'N/A', dWc: txtCls(dw),
+        r1: pct(q1), r1c: txtCls(q1), r5: pct(q5), r5c: txtCls(q5), r21: pct(q21), r21c: txtCls(q21),
+        pl: arrow(pl) + pct(pl), plc: tagCls(pl)
+      };
+    });
+    const wMax = Math.max.apply(null, rows.map((r) => r._w || 0)) || 1;
+    rows.forEach((r) => { r.wBar = 'width:' + ((r._w || 0) / wMax * 100).toFixed(1) + '%;background:#3B82F6'; });
+    const key = sort === 'd' ? '_d' : sort === 'p' ? '_p' : '_w';
+    rows.sort((a, b) => (a[key] == null) - (b[key] == null) || b[key] - a[key]);
+    const sortTabs = tabs([['w', 'Ağırlık'], ['d', 'Günlük'], ['p', 'Kâr/Zarar']], sort, 'sort');
+
+    const AC = ['#3B82F6', '#2DD4BF', '#F59E0B', '#F472B6', '#4ADE80', '#4B5368'];
+    const top = tv.slice(0, 5).map((x) => x.h);
+    const idx = []; for (let i = N - 127; i <= N - 1; i += 3) idx.push(i);
+    const layers = top.map((h) => idx.map((i) => h.qty * h.px[i]));
+    layers.push(idx.map((i, j) => s[i] - layers.reduce((a, l2) => a + l2[j], 0)));
+    const totals = idx.map((i) => s[i]);
+    const vals = view === 'pct' ? layers.map((l2) => l2.map((v, j) => v / totals[j])) : layers;
+    const amax = view === 'pct' ? 1 : Math.max.apply(null, totals) * 1.08;
+    const X = (j) => (j / (idx.length - 1) * 640).toFixed(1);
+    const Y = (v) => (240 - v / amax * 240).toFixed(1);
+    let prev = idx.map(() => 0);
+    const apaths = vals.map((l2) => {
+      const nx = prev.map((v, j) => v + l2[j]);
+      const d = 'M' + nx.map((v, j) => X(j) + ' ' + Y(v)).join(' L') + ' L' + prev.map((v, j) => X(j) + ' ' + Y(v)).reverse().join(' L') + ' Z';
+      prev = nx; return d;
+    });
+    const area = { a0: '', a1: '', a2: '', a3: '', a4: '', a5: apaths[apaths.length - 1] };
+    top.forEach((h, i) => { area['a' + i] = apaths[i]; });
+    area.yTop = view === 'pct' ? '%100' : tl(amax);
+    area.yMid = view === 'pct' ? '%50' : tl(amax / 2);
+    area.yBot = view === 'pct' ? '%0' : '₺0';
+    const legOf = (name, color, nowV, agoV) => { const dd = nowV - agoV; return { name: name, sw: 'background:' + color, now: pctU(nowV), ago: pctU(agoV), d: (dd >= 0 ? '+' : '−') + Math.abs(dd * 100).toFixed(1).replace('.', ',') + ' puan', dc: dd >= 0 ? 'up' : 'dn' }; };
+    const s0 = N - 127;
+    const areaLeg = top.map((h, i) => legOf(h.name, AC[i], h.qty * h.end / total, h.qty * h.px[s0] / s[s0]));
+    const topNow = top.reduce((a, h) => a + h.qty * h.end, 0) / total;
+    const topAgo = top.reduce((a, h) => a + h.qty * h.px[s0], 0) / s[s0];
+    areaLeg.push(legOf('Diğer + nakit', AC[5], 1 - topNow, 1 - topAgo));
+    const areaTabs = tabs([['val', 'Değer'], ['pct', 'Ağırlık %']], view, 'view');
+
+    const ML = ['Kas', 'Ara', 'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki'];
+    const mr = ML.map((l, m) => s[N - 1 - 21 * (11 - m)] / s[N - 1 - 21 * (12 - m)] - 1);
+    const mmax = Math.max.apply(null, mr.map(Math.abs)) || 1;
+    const months = mr.map((v, m) => ({ l: ML[m], v: (v >= 0 ? '+' : '−') + Math.abs(v * 100).toFixed(1).replace('.', ','), tcls: txtCls(v), pos: 'height:' + (v > 0 ? v / mmax * 74 : 0).toFixed(0) + 'px', neg: 'height:' + (v < 0 ? -v / mmax * 74 : 0).toFixed(0) + 'px' }));
+    let bi = 0, wi = 0; mr.forEach((v, i) => { if (v > mr[bi]) bi = i; if (v < mr[wi]) wi = i; });
+    const mSum = { pos: 'Pozitif ay: ' + mr.filter((v) => v > 0).length + '/12', best: 'En iyi: ' + ML[bi] + ' ' + pct(mr[bi]), worst: 'En kötü: ' + ML[wi] + ' ' + pct(mr[wi]) };
+
+    return {
+      pk: pk, pfName: PFN[pf], kpis: kpis, perf: perf, bmChips: bmChips,
+      periods: tabs([['1H', '1H'], ['1A', '1A'], ['3A', '3A'], ['6A', '6A'], ['1Y', '1Y']], period, 'period'),
+      heat: heatRows, events: events, noEvents: events.length === 0, evTabs: evTabs, stops: stops,
+      alloc: alloc, sectors: sectors, treemap: treemap, rows: rows, sortTabs: sortTabs,
+      area: area, areaLeg: areaLeg, areaTabs: areaTabs, months: months, mSum: mSum
+    };
+  }
+}
+</script>
+</body>
+</html>

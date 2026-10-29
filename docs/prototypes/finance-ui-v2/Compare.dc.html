@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Karşılaştırma</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:#0E1015;color:#E7E9F0}
+a{color:#60A5FA}a:hover{color:#93C5FD}
+.app{display:flex;flex-wrap:wrap;min-height:900px}
+.side{flex:1 1 232px;background:#12141A;border-right:1px solid #1E222C;padding:18px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;padding:2px 10px 8px;color:#fff}
+.mark{width:32px;height:32px;border-radius:9px;background:#2563EB;display:flex;align-items:center;justify-content:center;flex:none}
+.grp{font-size:11px;font-weight:800;letter-spacing:.07em;color:#E7E9F0;padding:16px 12px 6px;text-transform:uppercase}
+.side a{display:flex;align-items:center;gap:12px;color:#B4BACB;text-decoration:none;padding:0 12px;min-height:44px;border-radius:10px;font-size:14px;font-weight:500}
+.side a:hover{background:#1A1E28;color:#fff}
+.side a.on{background:#172238;color:#60A5FA;font-weight:700}
+.side svg{width:19px;height:19px;flex:none}
+.body{flex:999 1 560px;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid #1E222C;background:#0E1015}
+.srch{display:flex;align-items:center;gap:10px;flex:0 1 380px;min-width:220px;min-height:44px;padding:0 14px;border:1px solid #232734;border-radius:12px;background:#12141A;color:#9097A8;box-sizing:border-box}
+.srch input{flex:1;min-width:0;border:0;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;outline:none;min-height:42px}
+.srch input::placeholder{color:#7C8395}
+.mkt{display:inline-flex;background:#12141A;border:1px solid #232734;border-radius:999px;padding:2px}
+.mkt button{min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:#9097A8;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.mkt button.on{background:#232A3B;color:#fff}
+.ib{position:relative;width:44px;height:44px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.ib svg{width:19px;height:19px}
+.badge{position:absolute;top:5px;right:5px;min-width:16px;height:16px;border-radius:8px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.av{width:44px;height:44px;border-radius:50%;border:0;background:#2563EB;color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.main{padding:28px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:#161922;border:1px solid #232734;border-radius:16px;padding:20px;box-sizing:border-box}
+.card h2{margin:0;font-size:16px;font-weight:700}
+.sub{font-size:13px;color:#9097A8;margin-top:4px}
+.lbl{font-size:12px;color:#9097A8;font-weight:600}
+.big{font-size:25px;font-weight:800;letter-spacing:-.02em;margin-top:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:0 16px;border-radius:12px;border:1px solid #2A2F3D;background:#1A1E28;color:#E7E9F0;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#222736;color:#fff}
+.seg{display:inline-flex;flex-wrap:wrap;background:#12141A;border:1px solid #232734;border-radius:12px;padding:3px;gap:2px}
+.seg button{min-height:40px;min-width:44px;padding:0 14px;border:0;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:#9097A8;cursor:pointer}
+.seg button.on{background:#232A3B;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid #2A2F3D;background:#12141A;font:inherit;font-size:13px;font-weight:600;color:#B4BACB;cursor:pointer;box-sizing:border-box}
+.chip.a{border-color:#2563EB;background:#2563EB;color:#fff}
+.chip.b{border-color:#B45309;background:#B45309;color:#fff}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none}
+.t-up{color:#4ADE80}.t-dn{color:#F87171}.t-na{color:#9097A8;font-weight:500}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.nt{color:#B4BACB;background:#232734}
+.row2{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.ylab{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:#9097A8;text-align:right;width:58px;flex:none}
+.gt{overflow-x:auto}
+.mr{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid #1F2330;font-size:14px}
+.mh{background:#12141A;font-size:12px;font-weight:700;color:#9097A8;padding:10px 12px;border-bottom:0;border-radius:10px}
+.cell{padding:6px 10px;border-radius:8px;display:flex;align-items:center;justify-content:space-between;gap:6px}
+.cell.win{background:#172238;font-weight:800;color:#fff}
+.bf{display:grid;grid-template-columns:1fr 110px 1fr;gap:10px;align-items:center;font-size:13px;padding:6px 0}
+.bfl{display:flex;justify-content:flex-end;align-items:center;gap:8px}
+.bfr{display:flex;align-items:center;gap:8px}
+.bfl i,.bfr i{display:block;height:14px;border-radius:4px}
+.cm{display:grid;grid-template-columns:72px repeat(8,minmax(44px,1fr));gap:3px;font-size:12px}
+.cm span{display:flex;align-items:center;justify-content:center;height:38px;border-radius:6px;font-weight:700}
+.cm .rl{justify-content:flex-start;color:#B4BACB}
+.cm .cl{color:#9097A8;font-size:11px;height:28px}
+.mcol{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.mhalf{height:78px;width:100%;display:flex;justify-content:center;gap:2px}
+.demo{font-size:12px;color:#9097A8;background:#1A1E28;border:1px solid #232734;padding:4px 10px;border-radius:999px}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Ana menü">
+<div class="brand"><span class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 3 7-8"/></svg></span>Finans Paneli</div>
+<div class="grp">Genel</div>
+<a href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Panel</a>
+<a class="on" href="Compare.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V10M11 20V4M17 20v-7M21 20H3"/></svg>Karşılaştırma</a>
+<div class="grp">Piyasa</div>
+<a href="News.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>Haberler</a>
+<a href="Watchlist.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>İzleme Listeleri</a>
+<div class="grp">Hisseler</div>
+<a href="Workspace.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15M9 21v-4h6v4M8 9h2M14 9h2M8 13h2M14 13h2"/></svg>Şirket Analizi</a>
+<a href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h5"/></svg>Raporlar</a>
+<div class="grp">Portföy</div>
+<a href="Portfolio.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>Portföylerim</a>
+<a href="Journal.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>İşlem Ekle</a>
+<a href="Transactions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9"/><path d="M15 6h5v5"/></svg>Kazanç Analizi</a>
+</nav>
+<div class="body">
+<header class="top">
+<label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Hisse, ticker veya portföy ara" placeholder="Hisse, ticker veya portföy ara"></label>
+<div style="display:flex;gap:10px;align-items:center">
+<div class="mkt" role="group" aria-label="Piyasa"><button type="button" class="on" aria-pressed="true">BIST</button><button type="button" aria-pressed="false">ABD</button></div>
+<button type="button" class="ib" aria-label="Bildirimler, 3 yeni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg><span class="badge">3</span></button>
+<button type="button" class="av" aria-label="Hesap">B</button>
+</div>
+</header>
+<main class="main">
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+<div><h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">Karşılaştırma</h1>
+<div style="color:#9097A8;font-size:14px;margin-top:4px">İki portföyü ya da bir portföyü benchmark ile yan yana incele</div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="demo">Örnek veri</span><button class="btn" type="button" onClick="{{swap}}">⇄ Yer değiştir</button></div>
+</div>
+
+<section class="card" style="display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><span style="width:28px;font-weight:800;color:#60A5FA">A</span><div style="display:flex;flex-wrap:wrap;gap:6px" role="group" aria-label="A tarafı"><sc-for list="{{aOpts}}" as="o" hint-placeholder-count="8"><button type="button" class="{{o.cls}}" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div></div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><span style="width:28px;font-weight:800;color:#F59E0B">B</span><div style="display:flex;flex-wrap:wrap;gap:6px" role="group" aria-label="B tarafı"><sc-for list="{{bOpts}}" as="o" hint-placeholder-count="8"><button type="button" class="{{o.cls}}" aria-pressed="{{o.pressed}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div></div>
+<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center"><span class="lbl">Dönem</span><div class="seg" role="group" aria-label="Dönem"><sc-for list="{{periods}}" as="p" hint-placeholder-count="4"><button type="button" class="{{p.cls}}" aria-pressed="{{p.pressed}}" onClick="{{p.pick}}">{{p.label}}</button></sc-for></div></div>
+</section>
+
+<section class="kpis">
+<div class="card"><div class="lbl">{{aName}} getirisi</div><div class="big {{k.aCls}}">{{k.aRet}}</div><div class="sub">{{periodTxt}}</div></div>
+<div class="card"><div class="lbl">{{bName}} getirisi</div><div class="big {{k.bCls}}">{{k.bRet}}</div><div class="sub">{{periodTxt}}</div></div>
+<div class="card"><div class="lbl">Fark (A − B)</div><div class="big {{k.dCls}}">{{k.diff}}</div><div class="sub">{{k.diffTxt}}</div></div>
+<div class="card"><div class="lbl">Korelasyon (A, B)</div><div class="big">{{k.corr}}</div><div class="sub">{{k.corrTxt}}</div></div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:3 1 560px;min-width:0">
+<h2>Göreli performans</h2><div class="sub">Dönem başı = 100</div>
+<div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px"><span style="display:flex;align-items:center;gap:6px"><span class="sw" style="background:#60A5FA"></span>A · {{aName}}</span><span style="display:flex;align-items:center;gap:6px"><span class="sw" style="background:#F59E0B"></span>B · {{bName}}</span></div>
+<div style="display:flex;gap:8px;margin-top:14px">
+<div class="ylab" style="height:280px"><span>{{ch.yTop}}</span><span>{{ch.yMid}}</span><span>{{ch.yBot}}</span></div>
+<svg viewBox="0 0 640 280" preserveAspectRatio="none" style="flex:1;min-width:0;height:280px" role="img" aria-label="A ve B'nin dönem başı 100 kabul edilerek çizilmiş göreli performans grafiği">
+<g stroke="#232734"><line x1="0" y1="1" x2="640" y2="1" vector-effect="non-scaling-stroke"/><line x1="0" y1="140" x2="640" y2="140" vector-effect="non-scaling-stroke"/><line x1="0" y1="279" x2="640" y2="279" vector-effect="non-scaling-stroke"/></g>
+<line x1="0" y1="{{ch.y100}}" x2="640" y2="{{ch.y100}}" stroke="#3A4052" stroke-dasharray="4 4" vector-effect="non-scaling-stroke"/>
+<path d="{{ch.gap}}" fill="#3B82F6" fill-opacity=".10"/>
+<path d="{{ch.b}}" fill="none" stroke="#F59E0B" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+<path d="{{ch.a}}" fill="none" stroke="#60A5FA" stroke-width="3" vector-effect="non-scaling-stroke"/>
+</svg></div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#9097A8;margin:6px 0 0 66px"><span>{{periodStart}}</span><span>Bugün</span></div>
+</div>
+
+<div class="card" style="flex:2 1 400px;min-width:0">
+<h2>Risk ve getiri metrikleri</h2><div class="sub">Vurgulu hücre o metrikte daha iyi olan taraf</div>
+<div class="gt" style="margin-top:14px"><div style="min-width:380px">
+<div class="mr mh"><span>Metrik</span><span style="color:#93C5FD">A · {{aName}}</span><span style="color:#FBBF24">B · {{bName}}</span></div>
+<sc-for list="{{metrics}}" as="m" hint-placeholder-count="8"><div class="mr"><span>{{m.label}}</span><span class="{{m.aCls}}"><span>{{m.a}}</span><span>{{m.aMark}}</span></span><span class="{{m.bCls}}"><span>{{m.b}}</span><span>{{m.bMark}}</span></span></div></sc-for>
+</div></div>
+</div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:1 1 440px;min-width:0">
+<h2>Sektör ağırlıkları</h2><div class="sub">Sol A, sağ B · nakit dahil</div>
+<div style="margin-top:14px">
+<div class="bf" style="font-size:12px;font-weight:700;color:#9097A8"><span style="text-align:right">A · {{aName}}</span><span style="text-align:center">Sektör</span><span>B · {{bName}}</span></div>
+<sc-for list="{{secs}}" as="x" hint-placeholder-count="6"><div class="bf"><span class="bfl"><b class="{{x.aCls}}">{{x.a}}</b><i style="{{x.aBar}}"></i></span><span style="text-align:center;font-weight:700">{{x.name}}</span><span class="bfr"><i style="{{x.bBar}}"></i><b class="{{x.bCls}}">{{x.b}}</b></span></div></sc-for>
+</div>
+</div>
+
+<div class="card" style="flex:1 1 440px;min-width:0">
+<h2>Risk / getiri haritası</h2><div class="sub">Yatay: yıllık volatilite · dikey: {{periodTxt}} getiri</div>
+<div style="position:relative;height:280px;margin-top:14px;border-left:1px solid #2A2F3D;border-bottom:1px solid #2A2F3D;background:#12141A;border-radius:0 10px 0 0">
+<div style="{{sc.zero}}"></div>
+<sc-for list="{{sc.dots}}" as="d" hint-placeholder-count="8"><div style="{{d.style}}"><span style="{{d.dot}}"></span><span style="{{d.lblStyle}}">{{d.label}}</span></div></sc-for>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:#9097A8;margin-top:6px"><span>{{sc.xMin}}</span><span>Daha riskli →</span><span>{{sc.xMax}}</span></div>
+</div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:1 1 440px;min-width:0">
+<h2>Aylık getiriler</h2><div class="sub">Son 12 ay · A ve B yan yana</div>
+<div style="display:flex;gap:2px;margin-top:18px">
+<sc-for list="{{months}}" as="m" hint-placeholder-count="12"><div class="mcol"><div class="mhalf" style="align-items:flex-end"><i style="{{m.aPos}}"></i><i style="{{m.bPos}}"></i></div><div class="mhalf" style="align-items:flex-start;border-top:1px solid #2A2F3D"><i style="{{m.aNeg}}"></i><i style="{{m.bNeg}}"></i></div><span style="font-size:11px;color:#9097A8">{{m.l}}</span></div></sc-for>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:14px"><span class="tag nt">{{mSum.a}}</span><span class="tag nt">{{mSum.b}}</span><span class="tag nt">{{mSum.beat}}</span></div>
+</div>
+
+<div class="card" style="flex:1 1 440px;min-width:0">
+<h2>Korelasyon matrisi</h2><div class="sub">Son 1 yılın günlük getirileri · 1’e yakın = birlikte hareket</div>
+<div class="gt" style="margin-top:14px"><div class="cm" style="min-width:470px">
+<span></span><sc-for list="{{cmHead}}" as="h" hint-placeholder-count="8"><span class="cl">{{h}}</span></sc-for>
+<sc-for list="{{cm}}" as="r" hint-placeholder-count="8"><span class="rl">{{r.name}}</span><sc-for list="{{r.cells}}" as="c" hint-placeholder-count="8"><span style="{{c.style}}">{{c.txt}}</span></sc-for></sc-for>
+</div></div>
+</div>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":2000}}'>
+class Component extends DCLogic {
+  model() {
+    if (this._m) return this._m;
+    const N = 253;
+    const rng = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+    const walk = (seed, mu, sd, end) => { const r = rng(seed); const p = [1]; for (let i = 1; i < N; i++) { const u1 = r() || 1e-9; const u2 = r(); const g = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); p.push(p[i - 1] * (1 + mu + sd * g)); } const k = end / p[N - 1]; return p.map((v) => v * k); };
+    const H = [
+      { pf: 'uv', sector: 'Teknoloji', qty: 1200, end: 182.4, mu: 0.0011, sd: 0.019, seed: 11 },
+      { pf: 'uv', sector: 'Finans', qty: 3000, end: 46.1, mu: 0.0006, sd: 0.017, seed: 12 },
+      { pf: 'uv', sector: 'Enerji', qty: 1500, end: 96.1, mu: 0.0004, sd: 0.021, seed: 13 },
+      { pf: 'tr', sector: 'Teknoloji', qty: 400, end: 310.5, mu: 0.0013, sd: 0.026, seed: 14 },
+      { pf: 'tm', sector: 'Sanayi', qty: 5000, end: 28.04, mu: 0.0004, sd: 0.014, seed: 15 },
+      { pf: 'tm', sector: 'Finans', qty: 2200, end: 54.2, mu: 0.0005, sd: 0.013, seed: 16 },
+      { pf: 'tm', sector: 'Tüketim', qty: 900, end: 120.8, mu: 0.0002, sd: 0.012, seed: 17 },
+      { pf: 'tr', sector: 'Enerji', qty: 2600, end: 33.2, mu: -0.0002, sd: 0.024, seed: 18 },
+      { pf: 'tr', sector: 'Sağlık', qty: 700, end: null, mu: 0, sd: 0, seed: 19 }
+    ];
+    H.forEach((h) => { h.px = h.end == null ? null : walk(h.seed, h.mu, h.sd, h.end); });
+    const cash = { uv: 41000, tm: 23000, tr: 16000 };
+    const pfSer = (id) => { const s = new Array(N).fill(id === 'all' ? cash.uv + cash.tm + cash.tr : cash[id]); H.forEach((h) => { if (h.px && (id === 'all' || h.pf === id)) { for (let i = 0; i < N; i++) s[i] += h.qty * h.px[i]; } }); return s; };
+    const ser = { all: pfSer('all'), uv: pfSer('uv'), tm: pfSer('tm'), tr: pfSer('tr'), bist: walk(101, 0.0012, 0.016, 100), spx: walk(202, 0.0006, 0.011, 100), gold: walk(303, 0.0009, 0.01, 100), usd: walk(404, 0.001, 0.004, 100) };
+    this._m = { N: N, H: H, cash: cash, ser: ser };
+    return this._m;
+  }
+
+  renderVals() {
+    const md = this.model();
+    const N = md.N, H = md.H, cash = md.cash, ser = md.ser;
+    const st = this.state || {};
+    const A = st.a || 'uv';
+    const B = st.b || 'bist';
+    const period = st.period || '1Y';
+    const set = (o) => () => this.setState(o);
+    const OPT = [['all', 'Toplam portföy'], ['uv', 'Uzun Vade'], ['tm', 'Temettü'], ['tr', 'Trade'], ['bist', 'BIST 100'], ['spx', 'S&P 500'], ['gold', 'Altın'], ['usd', 'USD/TRY']];
+    const SHORT = { all: 'Toplam', uv: 'U.Vade', tm: 'Temettü', tr: 'Trade', bist: 'BIST', spx: 'S&P', gold: 'Altın', usd: 'USD' };
+    const NAME = {}; OPT.forEach((o) => { NAME[o[0]] = o[1]; });
+    const isPf = (id) => id === 'all' || id === 'uv' || id === 'tm' || id === 'tr';
+
+    const ok = (v) => v != null && isFinite(v);
+    const pct = (v) => ok(v) ? (v >= 0 ? '+' : '−') + '%' + Math.abs(v * 100).toFixed(1).replace('.', ',') : 'N/A';
+    const pctU = (v) => ok(v) ? '%' + (v * 100).toFixed(1).replace('.', ',') : 'N/A';
+    const num = (v) => ok(v) ? v.toFixed(2).replace('.', ',').replace('-', '−') : 'N/A';
+    const txtCls = (v) => ok(v) ? (v >= 0 ? 't-up' : 't-dn') : 't-na';
+
+    const K = { '1A': 21, '3A': 63, '6A': 126, '1Y': 252 }[period];
+    const PT = { '1A': 'Son 1 ay', '3A': 'Son 3 ay', '6A': 'Son 6 ay', '1Y': 'Son 1 yıl' }[period];
+    const PS = { '1A': '1 ay önce', '3A': '3 ay önce', '6A': '6 ay önce', '1Y': '1 yıl önce' }[period];
+
+    const rets = (s, k) => { const r = []; for (let i = N - k; i < N; i++) r.push(s[i] / s[i - 1] - 1); return r; };
+    const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+    const cov = (x, y) => { const mx = mean(x), my = mean(y); let c = 0; for (let i = 0; i < x.length; i++) c += (x[i] - mx) * (y[i] - my); return c / (x.length - 1); };
+    const sd = (a) => Math.sqrt(cov(a, a));
+    const corr = (x, y) => cov(x, y) / (sd(x) * sd(y));
+    const mdd = (s) => { let peak = -Infinity, dd = 0; for (let i = N - 1 - K; i < N; i++) { peak = Math.max(peak, s[i]); dd = Math.min(dd, s[i] / peak - 1); } return dd; };
+    const stats = (id) => {
+      const s = ser[id], r = rets(s, K), rb = rets(ser.bist, K);
+      const vol = sd(r) * Math.sqrt(252);
+      return { ret: s[N - 1] / s[N - 1 - K] - 1, vol: vol, sharpe: mean(r) * 252 / vol, dd: mdd(s), beta: cov(r, rb) / cov(rb, rb), best: Math.max.apply(null, r), worst: Math.min.apply(null, r), posd: r.filter((x) => x > 0).length / r.length, r: r };
+    };
+    const sa = stats(A), sb = stats(B);
+    const cAB = A === B ? 1 : corr(sa.r, sb.r);
+
+    const opts = (cur, key, cls) => OPT.map((o) => ({ label: o[1], cls: o[0] === cur ? 'chip ' + cls : 'chip', pressed: o[0] === cur ? 'true' : 'false', pick: set({ [key]: o[0] }) }));
+
+    const diff = sa.ret - sb.ret;
+    const k = {
+      aRet: pct(sa.ret), aCls: txtCls(sa.ret), bRet: pct(sb.ret), bCls: txtCls(sb.ret),
+      diff: pct(diff), dCls: txtCls(diff),
+      diffTxt: diff >= 0 ? 'A, B’nin önünde' : 'A, B’nin gerisinde',
+      corr: num(cAB),
+      corrTxt: cAB > 0.7 ? 'Güçlü birlikte hareket' : cAB > 0.3 ? 'Orta düzey ilişki' : cAB > -0.3 ? 'Zayıf ilişki, çeşitlendirme etkisi' : 'Ters yönlü hareket'
+    };
+
+    const na = (arr) => { const a = arr.slice(N - 1 - K); return a.map((v) => v / a[0] * 100); };
+    const nA = na(ser[A]), nB = na(ser[B]);
+    let mn = Infinity, mx = -Infinity; nA.concat(nB).forEach((v) => { if (v < mn) mn = v; if (v > mx) mx = v; });
+    const pad = (mx - mn) * 0.08 || 1; const hi = mx + pad, lo = mn - pad;
+    const yOf = (v) => ((hi - v) / (hi - lo) * 280).toFixed(1);
+    const xOf = (i, n) => (i / (n - 1) * 640).toFixed(1);
+    const pts = (a) => a.map((v, i) => xOf(i, a.length) + ' ' + yOf(v));
+    const pa = pts(nA), pb = pts(nB);
+    const ch = {
+      a: 'M' + pa.join(' L'), b: 'M' + pb.join(' L'),
+      gap: 'M' + pa.join(' L') + ' L' + pb.slice().reverse().join(' L') + ' Z',
+      y100: yOf(100), yTop: pct(hi / 100 - 1), yMid: pct((hi + lo) / 200 - 1), yBot: pct(lo / 100 - 1)
+    };
+
+    const MD = [
+      ['Dönem getirisi', 'ret', pct, 'hi'], ['Yıllık volatilite', 'vol', pctU, 'lo'], ['Getiri / risk (Sharpe)', 'sharpe', num, 'hi'],
+      ['Maksimum düşüş', 'dd', pct, 'hi'], ['Beta (BIST 100’e göre)', 'beta', num, null], ['En iyi gün', 'best', pct, 'hi'],
+      ['En kötü gün', 'worst', pct, 'hi'], ['Pozitif gün oranı', 'posd', pctU, 'hi']
+    ];
+    const metrics = MD.map((m) => {
+      const av = sa[m[1]], bv = sb[m[1]];
+      let aw = false, bw = false;
+      if (m[3] && A !== B && ok(av) && ok(bv)) { if (m[3] === 'hi') { aw = av > bv; bw = bv > av; } else { aw = av < bv; bw = bv < av; } }
+      return { label: m[0], a: m[2](av), b: m[2](bv), aCls: aw ? 'cell win' : 'cell', bCls: bw ? 'cell win' : 'cell', aMark: aw ? '✓' : '', bMark: bw ? '✓' : '' };
+    });
+
+    const secOf = (id) => {
+      if (!isPf(id)) return null;
+      const m = {}; const c0 = id === 'all' ? cash.uv + cash.tm + cash.tr : cash[id]; let t = c0;
+      H.forEach((h) => { if (h.px && (id === 'all' || h.pf === id)) { m[h.sector] = (m[h.sector] || 0) + h.qty * h.end; t += h.qty * h.end; } });
+      m.Nakit = c0;
+      const w = {}; Object.keys(m).forEach((x) => { w[x] = m[x] / t; }); return w;
+    };
+    const wa = secOf(A), wb = secOf(B);
+    const SN = ['Teknoloji', 'Finans', 'Enerji', 'Sanayi', 'Tüketim', 'Nakit'];
+    const wmax = Math.max.apply(null, SN.map((x) => Math.max(wa && wa[x] || 0, wb && wb[x] || 0))) || 1;
+    const secs = SN.map((x) => {
+      const av = wa ? (wa[x] || 0) : null, bv = wb ? (wb[x] || 0) : null;
+      return {
+        name: x, a: pctU(av), b: pctU(bv), aCls: av == null ? 't-na' : '', bCls: bv == null ? 't-na' : '',
+        aBar: 'background:#3B82F6;width:' + ((av || 0) / wmax * 100).toFixed(1) + '%', bBar: 'background:#F59E0B;width:' + ((bv || 0) / wmax * 100).toFixed(1) + '%'
+      };
+    });
+
+    const all = OPT.map((o) => { const s0 = o[0] === A ? sa : o[0] === B ? sb : stats(o[0]); return { id: o[0], vol: s0.vol, ret: s0.ret }; });
+    const vMin = Math.min.apply(null, all.map((x) => x.vol)), vMax = Math.max.apply(null, all.map((x) => x.vol));
+    const rMin = Math.min(0, Math.min.apply(null, all.map((x) => x.ret))), rMax = Math.max(0, Math.max.apply(null, all.map((x) => x.ret)));
+    const px = (v) => 6 + (v - vMin) / ((vMax - vMin) || 1) * 78;
+    const py = (v) => 8 + (v - rMin) / ((rMax - rMin) || 1) * 80;
+    const sc = {
+      zero: 'position:absolute;left:0;right:0;bottom:' + py(0).toFixed(1) + '%;border-top:1px dashed #3A4052',
+      xMin: pctU(vMin), xMax: pctU(vMax),
+      dots: all.map((x) => {
+        const isA = x.id === A, isB = x.id === B;
+        const col = isA ? '#60A5FA' : isB ? '#F59E0B' : '#4B5368';
+        const sz = isA || isB ? 16 : 10;
+        return {
+          label: SHORT[x.id] + ' ' + pct(x.ret),
+          style: 'position:absolute;left:' + px(x.vol).toFixed(1) + '%;bottom:' + py(x.ret).toFixed(1) + '%;display:flex;align-items:center;gap:6px;transform:translate(-' + (sz / 2) + 'px,' + (sz / 2) + 'px)',
+          dot: 'width:' + sz + 'px;height:' + sz + 'px;border-radius:50%;background:' + col + ';border:2px solid #12141A;box-shadow:0 0 0 1px ' + col + ';flex:none',
+          lblStyle: 'font-size:12px;white-space:nowrap;font-weight:' + (isA || isB ? '800' : '500') + ';color:' + (isA || isB ? '#fff' : '#9097A8')
+        };
+      })
+    };
+
+    const ML = ['Kas', 'Ara', 'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki'];
+    const mrt = (s) => ML.map((l, m) => s[N - 1 - 21 * (11 - m)] / s[N - 1 - 21 * (12 - m)] - 1);
+    const ma = mrt(ser[A]), mb = mrt(ser[B]);
+    const mm = Math.max.apply(null, ma.concat(mb).map(Math.abs)) || 1;
+    const bar = (v, col, up) => 'display:block;width:40%;max-width:14px;background:' + col + ';border-radius:' + (up ? '4px 4px 0 0' : '0 0 4px 4px') + ';height:' + ((up ? Math.max(v, 0) : Math.max(-v, 0)) / mm * 74).toFixed(0) + 'px';
+    const months = ML.map((l, i) => ({ l: l, aPos: bar(ma[i], '#60A5FA', true), bPos: bar(mb[i], '#F59E0B', true), aNeg: bar(ma[i], '#60A5FA', false), bNeg: bar(mb[i], '#F59E0B', false) }));
+    const beat = ma.filter((v, i) => v > mb[i]).length;
+    const mSum = { a: 'A pozitif ay: ' + ma.filter((v) => v > 0).length + '/12', b: 'B pozitif ay: ' + mb.filter((v) => v > 0).length + '/12', beat: 'A, B’yi ' + beat + ' ayda geçti' };
+
+    const ids = OPT.map((o) => o[0]);
+    const R = {}; ids.forEach((id) => { R[id] = rets(ser[id], 252); });
+    const cColor = (c) => c >= 0.7 ? 'background:#2563EB;color:#fff' : c >= 0.4 ? 'background:#1E3A8A;color:#DBEAFE' : c >= 0.1 ? 'background:#172238;color:#93C5FD' : c > -0.1 ? 'background:#1C1F29;color:#9097A8' : 'background:#3F1A1F;color:#FCA5A5';
+    const cm = ids.map((i) => ({
+      name: SHORT[i],
+      cells: ids.map((j) => { const c = i === j ? 1 : corr(R[i], R[j]); const hit = (i === A && j === B) || (i === B && j === A); return { txt: num(c), style: cColor(c) + (hit ? ';outline:2px solid #FBBF24;outline-offset:-2px' : '') }; })
+    }));
+
+    return {
+      aOpts: opts(A, 'a', 'a'), bOpts: opts(B, 'b', 'b'),
+      periods: [['1A', '1A'], ['3A', '3A'], ['6A', '6A'], ['1Y', '1Y']].map((x) => ({ label: x[1], cls: x[0] === period ? 'on' : '', pressed: x[0] === period ? 'true' : 'false', pick: set({ period: x[0] }) })),
+      swap: set({ a: B, b: A }),
+      aName: NAME[A], bName: NAME[B], periodTxt: PT, periodStart: PS,
+      k: k, ch: ch, metrics: metrics, secs: secs, sc: sc, months: months, mSum: mSum,
+      cmHead: ids.map((i) => SHORT[i]), cm: cm
+    };
+  }
+}
+</script>
+</body>
+</html>

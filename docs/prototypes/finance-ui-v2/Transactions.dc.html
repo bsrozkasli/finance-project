@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>Kazanç Analizi</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:#0E1015;color:#E7E9F0}
+a{color:#60A5FA}a:hover{color:#93C5FD}
+.app{display:flex;flex-wrap:wrap;min-height:900px}
+.side{flex:1 1 232px;background:#12141A;border-right:1px solid #1E222C;padding:18px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;padding:2px 10px 8px;color:#fff}
+.mark{width:32px;height:32px;border-radius:9px;background:#2563EB;display:flex;align-items:center;justify-content:center;flex:none}
+.grp{font-size:11px;font-weight:800;letter-spacing:.07em;color:#E7E9F0;padding:16px 12px 6px;text-transform:uppercase}
+.side a{display:flex;align-items:center;gap:12px;color:#B4BACB;text-decoration:none;padding:0 12px;min-height:44px;border-radius:10px;font-size:14px;font-weight:500}
+.side a:hover{background:#1A1E28;color:#fff}
+.side a.on{background:#172238;color:#60A5FA;font-weight:700}
+.side svg{width:19px;height:19px;flex:none}
+.body{flex:999 1 560px;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid #1E222C;background:#0E1015}
+.srch{display:flex;align-items:center;gap:10px;flex:0 1 380px;min-width:220px;min-height:44px;padding:0 14px;border:1px solid #232734;border-radius:12px;background:#12141A;color:#9097A8;box-sizing:border-box}
+.srch input{flex:1;min-width:0;border:0;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;outline:none;min-height:42px}
+.srch input::placeholder{color:#7C8395}
+.mkt{display:inline-flex;background:#12141A;border:1px solid #232734;border-radius:999px;padding:2px}
+.mkt button{min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:#9097A8;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.mkt button.on{background:#232A3B;color:#fff}
+.ib{position:relative;width:44px;height:44px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.ib svg{width:19px;height:19px}
+.badge{position:absolute;top:5px;right:5px;min-width:16px;height:16px;border-radius:8px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.av{width:44px;height:44px;border-radius:50%;border:0;background:#2563EB;color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.main{padding:28px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:#161922;border:1px solid #232734;border-radius:16px;padding:20px;box-sizing:border-box}
+.card h2{margin:0;font-size:16px;font-weight:700}
+.sub{font-size:13px;color:#9097A8;margin-top:4px}
+.hd{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start}
+.lbl{font-size:12px;color:#9097A8;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:0 16px;border-radius:12px;border:1px solid #2A2F3D;background:#1A1E28;color:#E7E9F0;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#222736;color:#fff}
+.btn.pri{background:#2563EB;border-color:#2563EB;color:#fff}
+.btn.pri:hover{background:#1D4ED8}
+.btn[disabled]{opacity:.45;cursor:default}
+.seg{display:inline-flex;flex-wrap:wrap;background:#12141A;border:1px solid #232734;border-radius:12px;padding:3px;gap:2px}
+.seg button{min-height:40px;min-width:44px;padding:0 14px;border:0;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:#9097A8;cursor:pointer}
+.seg button.on{background:#232A3B;color:#fff}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.up{color:#4ADE80;background:rgba(34,197,94,.14)}.dn{color:#F87171;background:rgba(248,113,113,.14)}.wr{color:#FBBF24;background:rgba(251,191,36,.14)}.nt{color:#B4BACB;background:#232734}.pu{color:#93C5FD;background:rgba(96,165,250,.14)}
+.t-up{color:#4ADE80;font-weight:700}.t-dn{color:#F87171;font-weight:700}.t-na{color:#9097A8;font-weight:500}
+.fld{min-height:44px;padding:0 14px;border:1px solid #2A2F3D;border-radius:12px;background:#12141A;color:#E7E9F0;font:inherit;font-size:14px;box-sizing:border-box}
+.fld::placeholder{color:#7C8395}
+.pop{position:absolute;top:52px;left:0;z-index:20;width:340px;max-width:calc(100vw - 48px);background:#161922;border:1px solid #2A2F3D;border-radius:14px;padding:12px;box-shadow:0 16px 40px rgba(0,0,0,.55);box-sizing:border-box}
+.plist{max-height:300px;overflow:auto;margin-top:8px;display:flex;flex-direction:column;gap:2px}
+.popi{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 10px;border:0;border-radius:10px;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;cursor:pointer;text-align:left}
+.popi:hover{background:#1C2030}
+.popi.on{background:#172238;color:#fff;font-weight:700}
+.pc{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.pcard{display:block;width:100%;text-align:left;background:#161922;border:1px solid #232734;border-radius:16px;padding:18px;cursor:pointer;color:#E7E9F0;font:inherit;box-sizing:border-box}
+.pcard:hover{border-color:#3A4052}
+.pcard.on{border-color:#3B82F6;background:#172238}
+.row2{display:flex;flex-wrap:wrap;gap:16px;align-items:stretch}
+.gt{overflow-x:auto}
+.gr{display:grid;grid-template-columns:var(--cols);gap:10px;align-items:center;padding:12px;border-bottom:1px solid #1F2330;font-size:14px}
+.gh{background:#12141A;font-size:12px;font-weight:700;color:#9097A8;padding:10px 12px;border-bottom:0;border-radius:10px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.ylab{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:#9097A8;text-align:right;width:64px;flex:none}
+.mcol{flex:1;display:flex;flex-direction:column;min-width:0;height:100%}
+.mh{flex:1;display:flex;justify-content:center}
+.lr{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #1F2330;font-size:14px}
+.demo{font-size:12px;color:#9097A8;background:#1A1E28;border:1px solid #232734;padding:4px 10px;border-radius:999px}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Ana menü">
+<div class="brand"><span class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 3 7-8"/></svg></span>Finans Paneli</div>
+<div class="grp">Genel</div>
+<a href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Panel</a>
+<a href="Compare.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V10M11 20V4M17 20v-7M21 20H3"/></svg>Karşılaştırma</a>
+<div class="grp">Piyasa</div>
+<a href="News.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>Haberler</a>
+<a href="Watchlist.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>İzleme Listeleri</a>
+<div class="grp">Hisseler</div>
+<a href="Workspace.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15M9 21v-4h6v4M8 9h2M14 9h2M8 13h2M14 13h2"/></svg>Şirket Analizi</a>
+<a href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h5"/></svg>Raporlar</a>
+<div class="grp">Portföy</div>
+<a href="Portfolio.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>Portföylerim</a>
+<a href="Journal.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>İşlem Ekle</a>
+<a class="on" href="Transactions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9"/><path d="M15 6h5v5"/></svg>Kazanç Analizi</a>
+</nav>
+<div class="body">
+<header class="top">
+<label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Hisse, ticker veya portföy ara" placeholder="Hisse, ticker veya portföy ara"></label>
+<div style="display:flex;gap:10px;align-items:center">
+<div class="mkt" role="group" aria-label="Piyasa"><button type="button" class="on" aria-pressed="true">BIST</button><button type="button" aria-pressed="false">ABD</button></div>
+<button type="button" class="ib" aria-label="Bildirimler, 3 yeni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg><span class="badge">3</span></button>
+<button type="button" class="av" aria-label="Hesap">B</button>
+</div>
+</header>
+<main class="main">
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+<div><h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">Kazanç Analizi</h1>
+<div style="color:#9097A8;font-size:14px;margin-top:4px">Bu ay, 3 ayda, yılbaşından beri ve 1 yılda ne kadar kazandın: gerçekleşen, gerçekleşmemiş ve temettü ayrımıyla</div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="demo">Örnek veri</span>
+<div class="seg" role="group" aria-label="Kapsam"><sc-for list="{{scopeTabs}}" as="t" hint-placeholder-count="2"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div>
+<sc-if value="{{isOne}}" hint-placeholder-val="{{false}}"><div style="position:relative">
+<button type="button" class="btn" aria-expanded="{{pk.expanded}}" onClick="{{pk.toggle}}"><b>{{pk.cur}}</b><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+<sc-if value="{{pk.open}}" hint-placeholder-val="{{false}}"><div class="pop" style="left:auto;right:0"><input class="fld" style="width:100%" aria-label="Portföy ara" placeholder="100 portföy içinde ara" value="{{pk.q}}" onChange="{{pk.onQ}}"><div class="plist"><sc-for list="{{pk.items}}" as="it" hint-placeholder-count="8"><button type="button" class="{{it.cls}}" onClick="{{it.pick}}"><span>{{it.name}}</span><span style="font-size:12px;color:#9097A8">{{it.val}}</span></button></sc-for></div></div></sc-if>
+</div></sc-if>
+<a class="btn pri" href="Journal.dc.html">+ İşlem ekle</a></div>
+</div>
+
+<section class="pc" aria-label="Dönemsel kazanç">
+<sc-for list="{{pcards}}" as="c" hint-placeholder-count="5"><button type="button" class="{{c.cls}}" aria-pressed="{{c.pressed}}" onClick="{{c.pick}}"><div class="lbl">{{c.lbl}}</div><div style="font-size:24px;font-weight:800;margin-top:8px;letter-spacing:-.02em" class="{{c.vCls}}">{{c.val}}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><span class="tag {{c.pCls}}">{{c.pct}}</span><span class="tag nt">BIST {{c.bm}}</span></div><div style="font-size:12px;color:#9097A8;margin-top:10px;line-height:1.5">{{c.split}}</div></button></sc-for>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:3 1 560px;min-width:0">
+<div class="hd"><div><h2>Aylık kazanç</h2><div class="sub">{{scopeName}} · çubuk aylık ₺ kazanç, çizgi kümülatif</div></div>
+<div class="seg" role="group" aria-label="Aralık"><sc-for list="{{mTabs}}" as="t" hint-placeholder-count="3"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div>
+<div style="display:flex;gap:8px;margin-top:16px">
+<div class="ylab" style="height:240px"><span>{{mc.top}}</span><span>₺0</span><span>{{mc.bot}}</span></div>
+<div style="position:relative;flex:1;min-width:0;height:240px">
+<div style="display:flex;gap:2px;height:240px">
+<sc-for list="{{mc.cols}}" as="m" hint-placeholder-count="24"><div class="mcol"><div class="mh" style="align-items:flex-end;border-bottom:1px solid #2A2F3D"><i style="{{m.pos}}"></i></div><div class="mh" style="align-items:flex-start"><i style="{{m.neg}}"></i></div></div></sc-for>
+</div>
+<svg viewBox="0 0 100 240" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:240px;pointer-events:none" aria-hidden="true"><path d="{{mc.cum}}" fill="none" stroke="#FBBF24" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg>
+</div></div>
+<div style="display:flex;justify-content:space-between;font-size:11px;color:#9097A8;margin:6px 0 0 72px"><span>{{mc.first}}</span><span>{{mc.mid}}</span><span>{{mc.last}}</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><span class="tag up">{{mc.pos}}</span><span class="tag nt">{{mc.best}}</span><span class="tag dn">{{mc.worst}}</span><span class="tag wr">Kümülatif {{mc.cumTxt}}</span></div>
+</div>
+
+<div class="card" style="flex:2 1 380px;min-width:0">
+<h2>Kazanç kaynakları</h2><div class="sub">{{selLbl}} · {{scopeName}}</div>
+<div style="display:flex;height:22px;border-radius:8px;overflow:hidden;margin-top:18px;background:#232734"><sc-for list="{{src.bar}}" as="b" hint-placeholder-count="3"><span style="{{b.style}}"></span></sc-for></div>
+<div style="display:flex;flex-direction:column;margin-top:10px">
+<sc-for list="{{src.rows}}" as="r" hint-placeholder-count="5"><div class="lr"><span style="{{r.sw}}"></span><span style="flex:1">{{r.name}}<span style="display:block;font-size:12px;color:#9097A8">{{r.hint}}</span></span><b class="{{r.cls}}">{{r.v}}</b></div></sc-for>
+</div>
+</div>
+</section>
+
+<section class="card">
+<h2>Yıllık özet</h2><div class="sub">{{scopeName}} · getiri zaman ağırlıklı (para giriş-çıkışlarından arındırılmış)</div>
+<div class="gt" style="margin-top:14px"><div style="min-width:860px">
+<div class="gr gh" style="--cols:1fr 1.1fr 1fr 1.1fr .9fr .9fr .9fr"><span>Yıl</span><span class="num">Başlangıç değeri</span><span class="num">Net para girişi</span><span class="num">Kazanç</span><span class="num">Getiri</span><span class="num">BIST 100</span><span class="num">Fark</span></div>
+<sc-for list="{{years}}" as="y" hint-placeholder-count="4"><div class="gr" style="--cols:1fr 1.1fr 1fr 1.1fr .9fr .9fr .9fr"><b>{{y.y}}</b><span class="num">{{y.start}}</span><span class="num">{{y.flow}}</span><span class="num {{y.gCls}}">{{y.gain}}</span><span class="num {{y.gCls}}">{{y.ret}}</span><span class="num">{{y.bm}}</span><span class="num"><span class="tag {{y.aCls}}">{{y.alpha}}</span></span></div></sc-for>
+</div></div>
+</section>
+
+<section class="row2">
+<div class="card" style="flex:1 1 380px;min-width:0">
+<h2>En çok kazandıranlar</h2><div class="sub">{{selLbl}} · hisse bazında katkı</div>
+<div style="margin-top:8px"><sc-for list="{{winners}}" as="w" hint-placeholder-count="5"><div class="lr"><b style="width:52px">{{w.code}}</b><span style="flex:1"><span style="display:block;height:10px;border-radius:5px;background:#232734;overflow:hidden"><span style="{{w.bar}}"></span></span></span><b class="t-up" style="min-width:96px;text-align:right">{{w.v}}</b></div></sc-for></div>
+</div>
+<div class="card" style="flex:1 1 380px;min-width:0">
+<h2>En çok kaybettirenler</h2><div class="sub">{{selLbl}} · hisse bazında katkı</div>
+<div style="margin-top:8px"><sc-for list="{{losers}}" as="w" hint-placeholder-count="5"><div class="lr"><b style="width:52px">{{w.code}}</b><span style="flex:1"><span style="display:block;height:10px;border-radius:5px;background:#232734;overflow:hidden"><span style="{{w.bar}}"></span></span></span><b class="t-dn" style="min-width:96px;text-align:right">{{w.v}}</b></div></sc-for></div>
+</div>
+</section>
+
+<sc-if value="{{isAll}}" hint-placeholder-val="{{true}}">
+<section class="card">
+<div class="hd"><div><h2>Portföy bazında kazanç</h2><div class="sub">{{selLbl}} · 100 portföy · satıra tıklayarak tek portföye geç</div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input class="fld" style="width:220px;max-width:100%" aria-label="Portföy ara" placeholder="Portföy ara" value="{{tbl.q}}" onChange="{{tbl.onQ}}"><div class="seg" role="group" aria-label="Sırala"><sc-for list="{{tbl.sortTabs}}" as="t" hint-placeholder-count="3"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div></div>
+<div class="gt" style="margin-top:14px"><div style="min-width:760px">
+<div class="gr gh" style="--cols:40px 1.6fr 1fr 1.1fr .8fr .8fr"><span>#</span><span>Portföy</span><span class="num">Değer</span><span class="num">Kazanç</span><span class="num">Getiri</span><span class="num">BIST farkı</span></div>
+<sc-for list="{{tbl.rows}}" as="r" hint-placeholder-count="10"><button type="button" class="gr" style="--cols:40px 1.6fr 1fr 1.1fr .8fr .8fr;width:100%;background:transparent;border:0;border-bottom:1px solid #1F2330;color:#E7E9F0;font:inherit;text-align:left;cursor:pointer" onClick="{{r.pick}}"><span style="color:#9097A8">{{r.rank}}</span><b>{{r.name}}</b><span class="num">{{r.val}}</span><span class="num {{r.gCls}}">{{r.gain}}</span><span class="num {{r.gCls}}">{{r.ret}}</span><span class="num {{r.aCls}}">{{r.alpha}}</span></button></sc-for>
+</div></div>
+<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px;font-size:13px;color:#9097A8"><span>{{tbl.range}}</span><span style="display:flex;gap:8px"><button type="button" class="btn" onClick="{{tbl.prev}}" disabled="{{tbl.noPrev}}">← Önceki</button><button type="button" class="btn" onClick="{{tbl.next}}" disabled="{{tbl.noNext}}">Sonraki →</button></span></div>
+</section>
+</sc-if>
+
+<section class="card">
+<div class="hd"><div><h2>Son işlemler</h2><div class="sub">Satışlarda gerçekleşen kâr/zarar ortalama maliyete göre</div></div><a class="btn" href="Journal.dc.html">Tüm işlemler / ekle</a></div>
+<div class="gt" style="margin-top:14px"><div style="min-width:820px">
+<div class="gr gh" style="--cols:1fr 70px .8fr 1.2fr .7fr .9fr 1fr 1fr"><span>Tarih</span><span>Yön</span><span>Ticker</span><span>Portföy</span><span class="num">Adet</span><span class="num">Fiyat</span><span class="num">Tutar</span><span class="num">Gerçekleşen K/Z</span></div>
+<sc-for list="{{tx}}" as="t" hint-placeholder-count="8"><div class="gr" style="--cols:1fr 70px .8fr 1.2fr .7fr .9fr 1fr 1fr"><span>{{t.dt}}</span><span><span class="tag {{t.dCls}}">{{t.dir}}</span></span><b>{{t.tk}}</b><span>{{t.pf}}</span><span class="num">{{t.qty}}</span><span class="num">{{t.px}}</span><span class="num">{{t.amt}}</span><span class="num {{t.rCls}}">{{t.real}}</span></div></sc-for>
+</div></div>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":2300}}'>
+class Component extends DCLogic {
+  model() {
+    if (this._m) return this._m;
+    const M = 36;
+    const rng = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+    const gs = (r) => { const u1 = r() || 1e-9, u2 = r(); return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2); };
+    const MN = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+    const months = []; for (let m = 0; m < M; m++) { const k = 10 + m; months.push({ mi: k % 12, y: 2023 + Math.floor(k / 12), l: MN[k % 12] + ' ' + String(2023 + Math.floor(k / 12)).slice(2) }); }
+    const TH = ['Uzun Vade', 'Temettü', 'Trade', 'Emeklilik', 'Büyüme', 'Değer', 'Bankacılık', 'Teknoloji', 'Enerji', 'Halka Arz', 'Döviz Koruma', 'Eğitim Fonu', 'Kısa Vade', 'Swing', 'Momentum', 'Sanayi', 'Savunma', 'Gıda', 'Ulaştırma', 'Sağlık'];
+    const SUF = ['', ' II', ' III', ' 2025', ' (Ortak)'];
+    const rb = rng(9); const bm = []; for (let m = 0; m < M; m++) bm.push(0.022 + 0.07 * gs(rb));
+    const P = [];
+    for (let i = 0; i < 100; i++) {
+      const r = rng(5000 + i * 17);
+      let S = 30000 + Math.pow(r(), 2) * 700000;
+      const mu = 0.012 + r() * 0.02, vol = 0.04 + r() * 0.05, rr = 0.2 + r() * 0.4;
+      const ms = [];
+      for (let m = 0; m < M; m++) {
+        const ret = mu + vol * gs(r);
+        const g = S * ret;
+        const div = (months[m].mi === 5 || months[m].mi === 6) ? S * (0.003 + r() * 0.006) : 0;
+        const real = (g - div) * rr * (0.5 + r());
+        const fee = S * 0.0004;
+        const flow = r() < 0.25 ? S * (0.04 + r() * 0.1) : r() < 0.05 ? -S * 0.08 : 0;
+        ms.push({ start: S, ret: ret, gain: g, div: div, real: real, unreal: g - div - real, fee: fee, flow: flow });
+        S = S + g + flow;
+      }
+      P.push({ id: i, name: TH[i % 20] + SUF[Math.floor(i / 20)], ms: ms, val: S });
+    }
+    const agg = [];
+    for (let m = 0; m < M; m++) {
+      const o = { start: 0, gain: 0, div: 0, real: 0, unreal: 0, fee: 0, flow: 0 };
+      P.forEach((p) => { const x = p.ms[m]; o.start += x.start; o.gain += x.gain; o.div += x.div; o.real += x.real; o.unreal += x.unreal; o.fee += x.fee; o.flow += x.flow; });
+      o.ret = o.gain / o.start; agg.push(o);
+    }
+    this._m = { M: M, months: months, P: P, agg: agg, aggVal: P.reduce((a, p) => a + p.val, 0), bm: bm, rng: rng, gs: gs };
+    return this._m;
+  }
+
+  renderVals() {
+    const md = this.model();
+    const M = md.M, months = md.months, P = md.P, bm = md.bm;
+    const st = this.state || {};
+    const scope = st.scope || 'all';
+    const sid = st.sid == null ? 0 : st.sid;
+    const per = st.per || 'ytd';
+    const mr = st.mr || 24;
+    const tq = st.tq || '';
+    const tsort = st.tsort || 'g';
+    const page = st.page || 0;
+    const set = (o) => () => this.setState(o);
+    const tabs = (list, cur, key) => list.map((x) => ({ label: x[1], cls: x[0] === cur ? 'on' : '', pressed: x[0] === cur ? 'true' : 'false', pick: set({ [key]: x[0] }) }));
+    const ok = (v) => v != null && isFinite(v);
+    const th = (n) => String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const tl = (v) => '₺' + th(v);
+    const stl = (v) => ok(v) ? (v >= 0 ? '+' : '−') + '₺' + th(v) : 'N/A';
+    const pct = (v) => ok(v) ? (v >= 0 ? '+' : '−') + '%' + Math.abs(v * 100).toFixed(1).replace('.', ',') : 'N/A';
+    const tCls = (v) => ok(v) ? (v >= 0 ? 't-up' : 't-dn') : 't-na';
+    const gCls = (v) => ok(v) ? (v >= 0 ? 'up' : 'dn') : 'na';
+    const kfmt = (v) => (v < 0 ? '−' : '') + '₺' + (Math.abs(v) >= 1e6 ? (Math.abs(v) / 1e6).toFixed(1).replace('.', ',') + ' mn' : th(Math.abs(v) / 1000) + 'B');
+
+    const ms = scope === 'all' ? md.agg : P[sid].ms.map((x) => x);
+    const curVal = scope === 'all' ? md.aggVal : P[sid].val;
+    const scopeName = scope === 'all' ? 'Tüm portföyler (100)' : P[sid].name;
+    const PER = [['m1', 'Bu ay (Ekim)', 1], ['m3', 'Son 3 ay', 3], ['ytd', 'Yılbaşından beri', 10], ['y1', 'Son 12 ay', 12], ['all', 'Tüm zamanlar (3 yıl)', 36]];
+    const agg = (arr, K) => { const sl = arr.slice(M - K); const o = { gain: 0, div: 0, real: 0, unreal: 0, fee: 0, flow: 0, twr: 1 }; sl.forEach((x) => { o.gain += x.gain; o.div += x.div; o.real += x.real; o.unreal += x.unreal; o.fee += x.fee; o.flow += x.flow; o.twr *= 1 + (x.ret != null ? x.ret : x.gain / x.start); }); o.twr -= 1; return o; };
+    const bmRet = (K) => bm.slice(M - K).reduce((a, r) => a * (1 + r), 1) - 1;
+    const pcards = PER.map((p) => { const a = agg(ms, p[2]); return { lbl: p[1], val: stl(a.gain), vCls: tCls(a.gain), pct: pct(a.twr), pCls: gCls(a.twr), bm: pct(bmRet(p[2])), split: 'Gerçekleşen ' + stl(a.real) + ' · Temettü ' + tl(a.div), cls: p[0] === per ? 'pcard on' : 'pcard', pressed: p[0] === per ? 'true' : 'false', pick: set({ per: p[0] }) }; });
+    const sel = PER.filter((p) => p[0] === per)[0];
+    const A = agg(ms, sel[2]);
+
+    const sl = ms.slice(M - mr);
+    const gmax = Math.max.apply(null, sl.map((x) => Math.abs(x.gain))) || 1;
+    let cum = 0; const cums = sl.map((x) => { cum += x.gain; return cum; });
+    const cmin = Math.min(0, Math.min.apply(null, cums)), cmax = Math.max(0, Math.max.apply(null, cums)) || 1;
+    const lab = months.slice(M - mr);
+    let pc = 0, bi = 0, wi = 0; sl.forEach((x, i) => { if (x.gain > 0) pc++; if (x.gain > sl[bi].gain) bi = i; if (x.gain < sl[wi].gain) wi = i; });
+    const mc = {
+      top: kfmt(gmax), bot: kfmt(-gmax),
+      cols: sl.map((x) => ({ pos: 'display:block;width:70%;max-width:22px;border-radius:4px 4px 0 0;background:#22C55E;height:' + (x.gain > 0 ? x.gain / gmax * 100 : 0).toFixed(1) + '%', neg: 'display:block;width:70%;max-width:22px;border-radius:0 0 4px 4px;background:#EF4444;height:' + (x.gain < 0 ? -x.gain / gmax * 100 : 0).toFixed(1) + '%' })),
+      cum: cums.map((v, i) => (i ? 'L' : 'M') + ((i + 0.5) / mr * 100).toFixed(2) + ' ' + (8 + (cmax - v) / (cmax - cmin) * 224).toFixed(1)).join(' '),
+      first: lab[0].l, mid: lab[Math.floor(mr / 2)].l, last: lab[mr - 1].l,
+      pos: 'Kârlı ay: ' + pc + '/' + mr, best: 'En iyi: ' + lab[bi].l + ' ' + stl(sl[bi].gain), worst: 'En kötü: ' + lab[wi].l + ' ' + stl(sl[wi].gain), cumTxt: stl(cum)
+    };
+
+    const pos = [['Gerçekleşmemiş', A.unreal, '#3B82F6', 'Açık pozisyonlardaki değer değişimi'], ['Gerçekleşen', A.real, '#2DD4BF', 'Satışlardan elde edilen kâr/zarar'], ['Temettü', A.div, '#F59E0B', 'Nakit temettü gelirleri']];
+    const posSum = pos.reduce((a, x) => a + Math.max(0, x[1]), 0) || 1;
+    const src = {
+      bar: pos.filter((x) => x[1] > 0).map((x) => ({ style: 'display:block;height:100%;background:' + x[2] + ';width:' + (x[1] / posSum * 100).toFixed(1) + '%' })),
+      rows: pos.map((x) => ({ name: x[0], hint: x[3], v: stl(x[1]), cls: tCls(x[1]), sw: 'width:12px;height:12px;border-radius:3px;flex:none;background:' + x[2] })).concat([
+        { name: 'Komisyon ve masraflar', hint: 'Tahmini işlem maliyetleri', v: stl(-A.fee), cls: 't-dn', sw: 'width:12px;height:12px;border-radius:3px;flex:none;background:#4B5368' },
+        { name: 'Net kazanç', hint: 'Para giriş-çıkışları hariç · net giriş ' + stl(A.flow), v: stl(A.gain - A.fee), cls: tCls(A.gain - A.fee), sw: 'width:12px;height:12px;border-radius:3px;flex:none;background:transparent' }
+      ])
+    };
+
+    const YR = [[2023, 'Kas–Ara 2023'], [2024, '2024'], [2025, '2025'], [2026, '2026 (YB)']];
+    const years = YR.map((y) => {
+      const idx = months.map((m, i) => m.y === y[0] ? i : -1).filter((i) => i >= 0);
+      const start = ms[idx[0]].start; let gain = 0, flow = 0, tw = 1, bt = 1;
+      idx.forEach((i) => { gain += ms[i].gain; flow += ms[i].flow; tw *= 1 + ms[i].gain / ms[i].start; bt *= 1 + bm[i]; });
+      const al = (tw - 1) - (bt - 1);
+      return { y: y[1], start: tl(start), flow: stl(flow), gain: stl(gain), ret: pct(tw - 1), gCls: tCls(gain), bm: pct(bt - 1), alpha: pct(al), aCls: gCls(al) };
+    });
+
+    const CODES = ['HSA', 'HSB', 'HSC', 'HSD', 'HSE', 'HSF', 'HSG', 'HSH', 'HSJ', 'HSK', 'HSL', 'HSO'];
+    const rc = md.rng((scope === 'all' ? 999 : sid * 31) + sel[2] * 7);
+    const base = (Math.abs(A.gain) + curVal * 0.02) / 8;
+    const contrib = CODES.slice(0, 11).map((c) => ({ c: c, v: base * (md.gs(rc) * 1.1 + 0.35) }));
+    contrib.push({ c: CODES[11], v: A.gain - contrib.reduce((a, x) => a + x.v, 0) });
+    const sorted = contrib.slice().sort((a, b) => b.v - a.v);
+    const cmaxAbs = Math.max.apply(null, contrib.map((x) => Math.abs(x.v))) || 1;
+    const winners = sorted.filter((x) => x.v > 0).slice(0, 5).map((x) => ({ code: x.c, v: stl(x.v), bar: 'display:block;height:100%;background:#22C55E;width:' + (x.v / cmaxAbs * 100).toFixed(1) + '%' }));
+    const losers = sorted.filter((x) => x.v < 0).reverse().slice(0, 5).map((x) => ({ code: x.c, v: stl(x.v), bar: 'display:block;height:100%;background:#EF4444;width:' + (-x.v / cmaxAbs * 100).toFixed(1) + '%' }));
+
+    const bK = bmRet(sel[2]);
+    const tql = tq.toLocaleLowerCase('tr');
+    const prow = P.filter((p) => !tql || p.name.toLocaleLowerCase('tr').indexOf(tql) >= 0).map((p) => { const a = agg(p.ms, sel[2]); return { p: p, g: a.gain, r: a.twr }; });
+    prow.sort((a, b) => tsort === 'r' ? b.r - a.r : tsort === 'v' ? b.p.val - a.p.val : b.g - a.g);
+    const PS = 10, pages = Math.max(1, Math.ceil(prow.length / PS)), pg = Math.min(page, pages - 1);
+    const tbl = {
+      q: tq, onQ: (e) => this.setState({ tq: e.target.value, page: 0 }),
+      sortTabs: tabs([['g', 'Kazanç ₺'], ['r', 'Getiri %'], ['v', 'Değer']], tsort, 'tsort'),
+      rows: prow.slice(pg * PS, pg * PS + PS).map((x, i) => ({ rank: pg * PS + i + 1, name: x.p.name, val: tl(x.p.val), gain: stl(x.g), ret: pct(x.r), gCls: tCls(x.g), alpha: pct(x.r - bK), aCls: tCls(x.r - bK), pick: set({ scope: 'one', sid: x.p.id }) })),
+      range: prow.length ? (pg * PS + 1) + '–' + Math.min(prow.length, pg * PS + PS) + ' / ' + prow.length + ' portföy' : 'Eşleşen portföy yok',
+      prev: set({ page: Math.max(0, pg - 1) }), next: set({ page: Math.min(pages - 1, pg + 1) }), noPrev: pg === 0, noNext: pg >= pages - 1
+    };
+
+    const pq = st.pq || '';
+    const pql = pq.toLocaleLowerCase('tr');
+    const pk = {
+      open: !!st.open, expanded: st.open ? 'true' : 'false', cur: P[sid].name, q: pq, onQ: (e) => this.setState({ pq: e.target.value }), toggle: set({ open: !st.open }),
+      items: P.filter((p) => !pql || p.name.toLocaleLowerCase('tr').indexOf(pql) >= 0).map((p) => ({ name: p.name, val: tl(p.val), cls: p.id === sid ? 'popi on' : 'popi', pick: set({ sid: p.id, open: false }) }))
+    };
+
+    const TX = [
+      ['29.10.2026', 'AL', 'HSF', 'Temettü', 200, 54.1, null], ['29.10.2026', 'SAT', 'HSH', 'Trade', 300, 33.4, -510], ['28.10.2026', 'AL', 'HSA', 'Uzun Vade', 50, 181.9, null],
+      ['24.10.2026', 'SAT', 'HSD', 'Trade', 40, 305.2, 848], ['21.10.2026', 'AL', 'HSF', 'Temettü', 400, 53.6, null], ['17.10.2026', 'SAT', 'HSC', 'Enerji', 120, 97.8, 1176],
+      ['14.10.2026', 'AL', 'HSE', 'Temettü', 2000, 27.1, null], ['08.10.2026', 'SAT', 'HSH', 'Trade', 500, 34.8, -150]
+    ];
+    const tx = TX.map((t) => ({ dt: t[0], dir: t[1], dCls: t[1] === 'AL' ? 'up' : 'dn', tk: t[2], pf: t[3], qty: th(t[4]), px: '₺' + t[5].toFixed(2).replace('.', ','), amt: tl(t[4] * t[5]), real: t[6] == null ? '—' : stl(t[6]), rCls: t[6] == null ? 't-na' : tCls(t[6]) }));
+
+    return {
+      scopeTabs: tabs([['all', 'Tüm portföyler'], ['one', 'Tek portföy']], scope, 'scope'),
+      isOne: scope === 'one', isAll: scope === 'all', pk: pk, scopeName: scopeName,
+      pcards: pcards, selLbl: sel[1],
+      mTabs: [[12, '12 ay'], [24, '24 ay'], [36, '36 ay']].map((x) => ({ label: x[1], cls: x[0] === mr ? 'on' : '', pressed: x[0] === mr ? 'true' : 'false', pick: set({ mr: x[0] }) })),
+      mc: mc, src: src, years: years, winners: winners, losers: losers, tbl: tbl, tx: tx
+    };
+  }
+}
+</script>
+</body>
+</html>

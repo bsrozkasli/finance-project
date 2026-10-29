@@ -15,6 +15,18 @@ directly in `../AGENTS.md`; no task should require another index hop.
 | `agent/verification.md` | Tests, smoke scenarios, bug reporting, CI, PR, and release evidence |
 | `openapi.yaml` | Generated/supporting backend OpenAPI artifact |
 
+## Target Specs (proposed, not implemented)
+
+| Document | Owns |
+|---|---|
+| `spec/proposed/ui-redesign-v2.md` | Screen-by-screen requirements, rules and open questions for UI redesign v2 |
+| `spec/proposed/ui-redesign-v2.openapi.yaml` | Proposed additive backend endpoints (OpenAPI 3.0.3); not the generated `openapi.yaml` |
+| `product/decisions/2026-10-29-ui-redesign-v2.md` | Decisions taken for the redesign, with cost-if-wrong |
+| `prototypes/finance-ui-v2/` | Design reference (nine artboards); sample numbers are not evidence |
+
+Target specs never override the current-system contract. A slice moves into
+`spec/current-system/` only when it is implemented and verified.
+
 ## Product Definition and Delivery
 
 | Document | Owns |

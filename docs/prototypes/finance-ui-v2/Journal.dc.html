@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<title>İşlem Ekle</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:#0E1015;color:#E7E9F0}
+a{color:#60A5FA}a:hover{color:#93C5FD}
+.app{display:flex;flex-wrap:wrap;min-height:900px}
+.side{flex:1 1 232px;background:#12141A;border-right:1px solid #1E222C;padding:18px 12px 24px;box-sizing:border-box;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;padding:2px 10px 8px;color:#fff}
+.mark{width:32px;height:32px;border-radius:9px;background:#2563EB;display:flex;align-items:center;justify-content:center;flex:none}
+.grp{font-size:11px;font-weight:800;letter-spacing:.07em;color:#E7E9F0;padding:16px 12px 6px;text-transform:uppercase}
+.side a{display:flex;align-items:center;gap:12px;color:#B4BACB;text-decoration:none;padding:0 12px;min-height:44px;border-radius:10px;font-size:14px;font-weight:500}
+.side a:hover{background:#1A1E28;color:#fff}
+.side a.on{background:#172238;color:#60A5FA;font-weight:700}
+.side svg{width:19px;height:19px;flex:none}
+.body{flex:999 1 560px;min-width:0;display:flex;flex-direction:column}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px 28px;border-bottom:1px solid #1E222C;background:#0E1015}
+.srch{display:flex;align-items:center;gap:10px;flex:0 1 380px;min-width:220px;min-height:44px;padding:0 14px;border:1px solid #232734;border-radius:12px;background:#12141A;color:#9097A8;box-sizing:border-box}
+.srch input{flex:1;min-width:0;border:0;background:transparent;color:#E7E9F0;font:inherit;font-size:14px;outline:none;min-height:42px}
+.srch input::placeholder{color:#7C8395}
+.mkt{display:inline-flex;background:#12141A;border:1px solid #232734;border-radius:999px;padding:2px}
+.mkt button{min-height:44px;padding:0 16px;border:0;border-radius:999px;background:transparent;color:#9097A8;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.mkt button.on{background:#232A3B;color:#fff}
+.ib{position:relative;width:44px;height:44px;border-radius:12px;border:1px solid #232734;background:#12141A;color:#B4BACB;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+.ib svg{width:19px;height:19px}
+.badge{position:absolute;top:5px;right:5px;min-width:16px;height:16px;border-radius:8px;background:#DC2626;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;padding:0 3px;box-sizing:border-box}
+.av{width:44px;height:44px;border-radius:50%;border:0;background:#2563EB;color:#fff;font:inherit;font-weight:800;font-size:15px;cursor:pointer}
+.main{padding:28px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.card{background:#161922;border:1px solid #232734;border-radius:16px;padding:20px;box-sizing:border-box}
+.card h2{margin:0;font-size:16px;font-weight:700}
+.sub{font-size:13px;color:#9097A8;margin-top:4px}
+.hd{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-start}
+.lbl{font-size:12px;color:#9097A8;font-weight:700;display:block;margin-bottom:6px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;min-width:44px;padding:0 16px;border-radius:12px;border:1px solid #2A2F3D;background:#1A1E28;color:#E7E9F0;font:inherit;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;box-sizing:border-box}
+.btn:hover{background:#222736;color:#fff}
+.btn.pri{background:#2563EB;border-color:#2563EB;color:#fff}
+.btn.pri:hover{background:#1D4ED8}
+.seg{display:inline-flex;flex-wrap:wrap;background:#12141A;border:1px solid #232734;border-radius:12px;padding:3px;gap:2px}
+.seg button{min-height:40px;min-width:44px;padding:0 14px;border:0;background:transparent;border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:#9097A8;cursor:pointer}
+.seg button.on{background:#232A3B;color:#fff}
+.dir{display:flex;background:#12141A;border:1px solid #232734;border-radius:12px;padding:3px;gap:3px}
+.dir button{flex:1;min-height:40px;border:0;border-radius:9px;background:transparent;color:#9097A8;font:inherit;font-size:14px;font-weight:800;cursor:pointer}
+.dir button.buy{background:#15803D;color:#fff}
+.dir button.sell{background:#B91C1C;color:#fff}
+.chip{display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 12px;border-radius:999px;border:1px solid #2A2F3D;background:#12141A;font:inherit;font-size:12px;font-weight:700;color:#B4BACB;cursor:pointer}
+.chip:hover{color:#fff;border-color:#3B82F6}
+.tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.up{color:#4ADE80;background:rgba(34,197,94,.14)}.dn{color:#F87171;background:rgba(248,113,113,.14)}.wr{color:#FBBF24;background:rgba(251,191,36,.14)}.nt{color:#B4BACB;background:#232734}.pu{color:#93C5FD;background:rgba(96,165,250,.14)}
+.fld{width:100%;min-height:44px;padding:0 14px;border:1px solid #2A2F3D;border-radius:12px;background:#12141A;color:#E7E9F0;font:inherit;font-size:14px;box-sizing:border-box;color-scheme:dark}
+.fld::placeholder{color:#7C8395}
+.fld:focus{outline:2px solid #3B82F6;outline-offset:0;border-color:#3B82F6}
+textarea.fld{padding:12px 14px;line-height:1.7;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;resize:vertical}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.gt{overflow-x:auto}
+.gr{display:grid;grid-template-columns:var(--cols);gap:10px;align-items:center;padding:10px 12px;border-bottom:1px solid #1F2330;font-size:14px}
+.gh{background:#12141A;font-size:12px;font-weight:700;color:#9097A8;border-bottom:0;border-radius:10px}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.ent{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #1F2330}
+.drop{border:2px dashed #2A2F3D;border-radius:16px;padding:28px;text-align:center;background:#12141A}
+.kbd{font-size:11px;font-weight:700;color:#B4BACB;background:#232734;border:1px solid #2A2F3D;border-radius:6px;padding:1px 6px}
+.demo{font-size:12px;color:#9097A8;background:#1A1E28;border:1px solid #232734;padding:4px 10px;border-radius:999px}
+</style>
+</helmet>
+<div class="app">
+<nav class="side" aria-label="Ana menü">
+<div class="brand"><span class="mark"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 16l5-5 4 3 7-8"/></svg></span>Finans Paneli</div>
+<div class="grp">Genel</div>
+<a href="Main.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="2"/><rect x="14" y="3" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/></svg>Panel</a>
+<a href="Compare.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 20V10M11 20V4M17 20v-7M21 20H3"/></svg>Karşılaştırma</a>
+<div class="grp">Piyasa</div>
+<a href="News.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h10M7 13h10M7 17h6"/></svg>Haberler</a>
+<a href="Watchlist.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/></svg>İzleme Listeleri</a>
+<div class="grp">Hisseler</div>
+<a href="Workspace.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15M9 21v-4h6v4M8 9h2M14 9h2M8 13h2M14 13h2"/></svg>Şirket Analizi</a>
+<a href="Reports.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M9 13h7M9 17h5"/></svg>Raporlar</a>
+<div class="grp">Portföy</div>
+<a href="Portfolio.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 012-2h2a2 2 0 012 2v2"/></svg>Portföylerim</a>
+<a class="on" href="Journal.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>İşlem Ekle</a>
+<a href="Transactions.dc.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 17l5-6 4 4 8-9"/><path d="M15 6h5v5"/></svg>Kazanç Analizi</a>
+</nav>
+<div class="body">
+<header class="top">
+<label class="srch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input aria-label="Hisse, ticker veya portföy ara" placeholder="Hisse, ticker veya portföy ara"></label>
+<div style="display:flex;gap:10px;align-items:center">
+<div class="mkt" role="group" aria-label="Piyasa"><button type="button" class="on" aria-pressed="true">BIST</button><button type="button" aria-pressed="false">ABD</button></div>
+<button type="button" class="ib" aria-label="Bildirimler, 3 yeni"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 16v-5a6 6 0 0112 0v5l2 2H4z"/><path d="M10 20a2 2 0 004 0"/></svg><span class="badge">3</span></button>
+<button type="button" class="av" aria-label="Hesap">B</button>
+</div>
+</header>
+<main class="main">
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;justify-content:space-between">
+<div><h1 style="margin:0;font-size:26px;font-weight:800;letter-spacing:-.02em">İşlem Ekle</h1>
+<div style="color:#9097A8;font-size:14px;margin-top:4px">Tek tek, toplu metinle ya da CSV / aracı kurum ekstresiyle saniyeler içinde</div></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="demo">Örnek veri</span><div class="seg" role="group" aria-label="Ekleme yöntemi"><sc-for list="{{modes}}" as="t" hint-placeholder-count="3"><button type="button" class="{{t.cls}}" aria-pressed="{{t.pressed}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div></div>
+</div>
+
+<sc-if value="{{flash.show}}" hint-placeholder-val="{{false}}"><div role="status" style="display:flex;gap:10px;align-items:center;padding:12px 16px;border-radius:12px;background:rgba(34,197,94,.12);border:1px solid #166534;color:#86EFAC;font-size:14px;font-weight:600">✓ {{flash.msg}}</div></sc-if>
+
+<section style="display:flex;flex-wrap:wrap;gap:16px">
+<div style="flex:2 1 560px;min-width:0;display:flex;flex-direction:column;gap:16px">
+
+<sc-if value="{{isForm}}" hint-placeholder-val="{{true}}">
+<form class="card" onSubmit="{{submit}}">
+<div class="hd"><div><h2>Hızlı işlem</h2><div class="sub">Zorunlu alanlar: yön, ticker, adet, fiyat. Kalanı otomatik dolar.</div></div><span class="sub" style="margin:0">Kaydetmek için <span class="kbd">Enter</span></span></div>
+<div class="fg" style="margin-top:16px">
+<div><label class="lbl" for="f-pf">Portföy</label><select class="fld" id="f-pf" value="{{f.pf}}" onChange="{{on.pf}}"><option value="Uzun Vade">Uzun Vade</option><option value="Temettü">Temettü</option><option value="Trade">Trade</option><option value="Emeklilik">Emeklilik</option><option value="Büyüme">Büyüme</option><option value="Değer">Değer</option><option value="Bankacılık">Bankacılık</option><option value="Teknoloji">Teknoloji</option></select></div>
+<div><span class="lbl">Yön</span><div class="dir" role="group" aria-label="İşlem yönü"><button type="button" class="{{f.buyCls}}" aria-pressed="{{f.buyP}}" onClick="{{on.buy}}">AL</button><button type="button" class="{{f.sellCls}}" aria-pressed="{{f.sellP}}" onClick="{{on.sell}}">SAT</button></div></div>
+<div><label class="lbl" for="f-tk">Ticker</label><input class="fld" id="f-tk" style="text-transform:uppercase;font-weight:700" placeholder="HSA" value="{{f.tk}}" onChange="{{on.tk}}" autocomplete="off"></div>
+<div><label class="lbl" for="f-q">Adet</label><input class="fld" id="f-q" inputmode="numeric" placeholder="100" value="{{f.qty}}" onChange="{{on.qty}}"></div>
+<div><label class="lbl" for="f-p">Fiyat (₺)</label><div style="display:flex;gap:6px"><input class="fld" id="f-p" inputmode="decimal" placeholder="182,40" value="{{f.px}}" onChange="{{on.px}}"><button type="button" class="btn" style="padding:0 10px;white-space:nowrap" onClick="{{on.last}}">Son fiyat</button></div></div>
+<div><label class="lbl" for="f-d">Tarih</label><input class="fld" id="f-d" type="date" value="{{f.dt}}" onChange="{{on.dt}}"></div>
+<div><label class="lbl" for="f-fee">Komisyon (₺, opsiyonel)</label><input class="fld" id="f-fee" inputmode="decimal" placeholder="{{f.feeHint}}" value="{{f.fee}}" onChange="{{on.fee}}"></div>
+<div style="grid-column:span 2;min-width:0"><label class="lbl" for="f-n">Gerekçe / not (opsiyonel, günlüğe yazılır)</label><input class="fld" id="f-n" placeholder="Neden aldın / sattın? Çıkış koşulun ne?" value="{{f.note}}" onChange="{{on.note}}"></div>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px"><span class="sub" style="margin:0 4px 0 0">Son kullanılanlar:</span><sc-for list="{{recentTk}}" as="r" hint-placeholder-count="5"><button type="button" class="chip" onClick="{{r.pick}}">{{r.code}} · {{r.px}}</button></sc-for></div>
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:1px solid #232734">
+<div style="font-size:14px"><span style="color:#9097A8">Tutar:</span> <b style="font-size:18px">{{f.total}}</b> <span style="color:#9097A8;font-size:13px">{{f.totalSub}}</span></div>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><sc-if value="{{f.hasErr}}" hint-placeholder-val="{{false}}"><span class="tag dn">{{f.err}}</span></sc-if><button type="button" class="btn" onClick="{{on.clear}}">Temizle</button><button type="submit" class="btn pri">İşlemi ekle</button></div>
+</div>
+</form>
+</sc-if>
+
+<sc-if value="{{isText}}" hint-placeholder-val="{{false}}">
+<div class="card">
+<div class="hd"><div><h2>Toplu metin</h2><div class="sub">Her satır bir işlem: <b style="color:#E7E9F0">YÖN TICKER ADET FİYAT [TARİH] [PORTFÖY]</b></div></div>
+<div style="min-width:220px"><label class="lbl" for="b-pf">Portföy belirtilmeyen satırlar için</label><select class="fld" id="b-pf" value="{{bulk.pf}}" onChange="{{on.bpf}}"><option value="Uzun Vade">Uzun Vade</option><option value="Temettü">Temettü</option><option value="Trade">Trade</option><option value="Emeklilik">Emeklilik</option><option value="Büyüme">Büyüme</option><option value="Değer">Değer</option><option value="Bankacılık">Bankacılık</option><option value="Teknoloji">Teknoloji</option></select></div></div>
+<label class="lbl" for="b-t" style="margin-top:14px">İşlemler (Excel’den ya da notlarından yapıştır)</label>
+<textarea class="fld" id="b-t" rows="8" value="{{bulk.text}}" onChange="{{on.text}}"></textarea>
+<div class="sub">Örnek: <b style="color:#E7E9F0">AL HSA 100 182,40</b> · <b style="color:#E7E9F0">SAT HSB 250 46,10 28.10.2026 Temettü</b> · Tarih yoksa bugün kabul edilir.</div>
+<div class="gt" style="margin-top:16px"><div style="min-width:820px">
+<div class="gr gh" style="--cols:40px 70px .8fr .7fr .9fr 1fr 1.1fr 1fr 1.5fr"><span>#</span><span>Yön</span><span>Ticker</span><span class="num">Adet</span><span class="num">Fiyat</span><span>Tarih</span><span>Portföy</span><span class="num">Tutar</span><span>Durum</span></div>
+<sc-for list="{{bulk.rows}}" as="r" hint-placeholder-count="6"><div class="gr" style="--cols:40px 70px .8fr .7fr .9fr 1fr 1.1fr 1fr 1.5fr"><span style="color:#9097A8">{{r.n}}</span><span><span class="tag {{r.dCls}}">{{r.dir}}</span></span><b>{{r.tk}}</b><span class="num">{{r.qty}}</span><span class="num">{{r.px}}</span><span>{{r.dt}}</span><span>{{r.pf}}</span><span class="num">{{r.amt}}</span><span><span class="tag {{r.sCls}}">{{r.status}}</span></span></div></sc-for>
+</div></div>
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:16px">
+<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="tag up">{{bulk.okN}} geçerli</span><span class="tag dn">{{bulk.badN}} hatalı</span><span class="tag nt">Toplam {{bulk.sum}}</span></div>
+<button type="button" class="btn pri" onClick="{{on.bulkAdd}}">{{bulk.btn}}</button>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isCsv}}" hint-placeholder-val="{{false}}">
+<div class="card">
+<div class="hd"><div><h2>CSV veya aracı kurum ekstresi</h2><div class="sub">CSV, XLSX ya da aracı kurumdan indirdiğin işlem dökümü</div></div><button type="button" class="btn">Şablonu indir (.csv)</button></div>
+<div class="drop" style="margin-top:16px"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#60A5FA" stroke-width="2" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg><div style="font-weight:800;margin-top:8px">Dosyayı buraya sürükle</div><div class="sub">ya da</div><button type="button" class="btn pri" style="margin-top:10px">Dosya seç</button><div class="sub" style="margin-top:10px">Desteklenen: .csv, .xlsx · en fazla 5.000 satır</div></div>
+<div style="margin-top:18px"><span class="lbl">Sütun eşleştirme · islemler_ekim.csv (otomatik algılandı)</span>
+<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="tag pu">Tarih → Tarih</span><span class="tag pu">İşlem Tipi → Yön</span><span class="tag pu">Menkul → Ticker</span><span class="tag pu">Miktar → Adet</span><span class="tag pu">Fiyat → Fiyat</span><span class="tag pu">Komisyon → Komisyon</span><span class="tag nt">Hesap No → yok sayılıyor</span></div></div>
+<div class="gt" style="margin-top:14px"><div style="min-width:720px">
+<div class="gr gh" style="--cols:40px 1fr 70px .8fr .7fr .9fr .8fr 1.6fr"><span>#</span><span>Tarih</span><span>Yön</span><span>Ticker</span><span class="num">Adet</span><span class="num">Fiyat</span><span class="num">Kom.</span><span>Durum</span></div>
+<sc-for list="{{csvRows}}" as="r" hint-placeholder-count="6"><div class="gr" style="--cols:40px 1fr 70px .8fr .7fr .9fr .8fr 1.6fr"><span style="color:#9097A8">{{r.n}}</span><span>{{r.dt}}</span><span><span class="tag {{r.dCls}}">{{r.dir}}</span></span><b>{{r.tk}}</b><span class="num">{{r.qty}}</span><span class="num">{{r.px}}</span><span class="num">{{r.fee}}</span><span><span class="tag {{r.sCls}}">{{r.st}}</span></span></div></sc-for>
+</div></div>
+<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-top:16px">
+<div style="display:flex;gap:6px;flex-wrap:wrap"><span class="tag nt">42 satır</span><span class="tag up">40 geçerli</span><span class="tag wr">1 mükerrer (atlanacak)</span><span class="tag dn">1 hatalı</span></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap"><label class="lbl" for="c-pf" style="position:absolute;left:-9999px">Hedef portföy</label><select class="fld" id="c-pf" style="width:200px"><option>Uzun Vade</option><option>Temettü</option><option>Trade</option><option>Emeklilik</option><option>Büyüme</option><option>Değer</option><option>Bankacılık</option><option>Teknoloji</option></select><button type="button" class="btn pri">40 işlemi içe aktar</button></div>
+</div>
+</div>
+</sc-if>
+</div>
+
+<aside style="flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:16px;align-self:flex-start">
+<div class="card">
+<div class="hd"><div><h2>Son eklenenler</h2><div class="sub">Bu oturum · geri alınabilir</div></div><span class="tag pu">{{added.n}}</span></div>
+<div style="margin-top:6px">
+<sc-for list="{{added.items}}" as="a" hint-placeholder-count="4"><div class="ent"><span class="tag {{a.dCls}}">{{a.dir}}</span><div style="flex:1;min-width:0"><div style="font-weight:700;font-size:14px">{{a.line}}</div><div class="sub" style="margin-top:2px">{{a.meta}}</div></div><button type="button" class="btn" style="padding:0 10px;font-size:13px" onClick="{{a.undo}}">Geri al</button></div></sc-for>
+<sc-if value="{{added.empty}}" hint-placeholder-val="{{false}}"><div class="sub" style="padding:16px 0">Henüz işlem eklenmedi.</div></sc-if>
+</div>
+<a class="btn" href="Transactions.dc.html" style="width:100%;margin-top:12px">Kazanç analizine git →</a>
+</div>
+<div class="card">
+<h2>Karar günlüğü</h2><div class="sub">Notlu işlemler; geriye dönüp kararlarını değerlendir</div>
+<div style="margin-top:6px"><sc-for list="{{journal}}" as="j" hint-placeholder-count="3"><div class="ent" style="align-items:flex-start"><span class="tag {{j.dCls}}">{{j.dir}}</span><div style="flex:1;min-width:0"><div style="font-size:14px"><b>{{j.tk}}</b> <span style="color:#9097A8;font-size:12px">{{j.dt}}</span></div><div style="font-size:13px;color:#B4BACB;margin-top:4px;line-height:1.5">{{j.note}}</div><div style="margin-top:6px"><span class="tag {{j.rCls}}">{{j.res}}</span></div></div></div></sc-for></div>
+</div>
+</aside>
+</section>
+</main>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1360,"height":1500}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const st = this.state || {};
+    const LAST = { HSA: 182.4, HSB: 46.1, HSC: 96.1, HSD: 310.5, HSE: 28.04, HSF: 54.2, HSG: 120.8, HSH: 33.2, HSJ: 72.6, HSK: 145.3, HSL: 18.92, HSM: 64.5, HSN: 41.7, HSO: 88.9, HSP: 236.0, HSI: null };
+    const PFS = ['Uzun Vade', 'Temettü', 'Trade', 'Emeklilik', 'Büyüme', 'Değer', 'Bankacılık', 'Teknoloji'];
+    const mode = st.mode || 'form';
+    const f = {
+      pf: st.pf || 'Uzun Vade', dir: st.dir || 'AL', tk: st.tk == null ? '' : st.tk, qty: st.qty == null ? '' : st.qty, px: st.px == null ? '' : st.px,
+      dt: st.dt || '2026-10-29', fee: st.fee == null ? '' : st.fee, note: st.note == null ? '' : st.note
+    };
+    const DEF_TEXT = 'AL HSA 100 182,40\nSAT HSB 250 46,10 28.10.2026 Temettü\nAL HSD 20 310,5 Trade\nal hsk 15 145,30\nSAT HSZ 10 12\nAL HSE yüz 28,04';
+    const text = st.text == null ? DEF_TEXT : st.text;
+    const bpf = st.bpf || 'Uzun Vade';
+    const added = st.added || [
+      { id: 1, dir: 'AL', tk: 'HSF', qty: 200, px: 54.1, pf: 'Temettü', dt: '29.10.2026', src: 'Form' },
+      { id: 2, dir: 'SAT', tk: 'HSH', qty: 300, px: 33.4, pf: 'Trade', dt: '29.10.2026', src: 'Metin' },
+      { id: 3, dir: 'AL', tk: 'HSA', qty: 50, px: 181.9, pf: 'Uzun Vade', dt: '28.10.2026', src: 'CSV' }
+    ];
+    const set = (o) => () => this.setState(o);
+    const fld = (k, up) => (e) => this.setState({ [k]: up ? e.target.value.toLocaleUpperCase('tr') : e.target.value, err: null, flash: null });
+    const tabs = (list, cur, key) => list.map((x) => ({ label: x[1], cls: x[0] === cur ? 'on' : '', pressed: x[0] === cur ? 'true' : 'false', pick: set({ [key]: x[0], flash: null }) }));
+    const th = (n) => String(Math.round(Math.abs(n))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    const money = (v) => v != null && isFinite(v) ? '₺' + v.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.') : 'N/A';
+    const tl = (v) => '₺' + th(v);
+    const num = (s) => { if (s == null) return NaN; s = String(s).trim(); if (!s) return NaN; if (s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.'); return /^\d+(\.\d+)?$/.test(s) ? parseFloat(s) : NaN; };
+    const trDate = (iso) => { const p = iso.split('-'); return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : iso; };
+
+    const q = num(f.qty), p = num(f.px);
+    const amt = isFinite(q) && isFinite(p) ? q * p : null;
+    const feeAuto = amt != null ? amt * 0.0002 : null;
+    const fee = f.fee ? num(f.fee) : feeAuto;
+    const validate = () => {
+      const tk = f.tk.trim().toLocaleUpperCase('tr');
+      if (!tk) return 'Ticker gir';
+      if (!(tk in LAST)) return tk + ' bulunamadı';
+      if (!isFinite(q) || q <= 0 || Math.floor(q) !== q) return 'Adet pozitif tam sayı olmalı';
+      if (!isFinite(p) || p <= 0) return 'Fiyat geçersiz';
+      return null;
+    };
+    const err = st.err || null;
+    const doAdd = () => {
+      const e0 = validate();
+      if (e0) { this.setState({ err: e0, flash: null }); return; }
+      const tk = f.tk.trim().toLocaleUpperCase('tr');
+      const row = { id: Date.now(), dir: f.dir, tk: tk, qty: q, px: p, pf: f.pf, dt: trDate(f.dt), src: 'Form', note: f.note };
+      this.setState({ added: [row].concat(added), tk: '', qty: '', px: '', fee: '', note: '', err: null, flash: tk + ' · ' + (f.dir === 'AL' ? 'alış' : 'satış') + ' ' + th(q) + ' adet ' + f.pf + ' portföyüne eklendi' });
+    };
+
+    const recent = ['HSA', 'HSB', 'HSD', 'HSE', 'HSF'].map((c) => ({ code: c, px: money(LAST[c]), pick: set({ tk: c, px: String(LAST[c]).replace('.', ','), err: null }) }));
+
+    const lines = text.split('\n').map((l) => l.trim()).filter((l) => l);
+    const known = PFS.map((x) => x.toLocaleLowerCase('tr'));
+    const rows = lines.map((l, i) => {
+      const t = l.split(/\s+/);
+      const out = { n: i + 1, dir: '?', dCls: 'nt', tk: (t[1] || '').toLocaleUpperCase('tr'), qty: t[2] || '', px: t[3] || '', dt: 'Bugün', pf: bpf, amt: '—', status: 'Geçerli', sCls: 'up', ok: false };
+      const d = (t[0] || '').toLocaleUpperCase('tr');
+      if (d === 'AL' || d === 'BUY') { out.dir = 'AL'; out.dCls = 'up'; } else if (d === 'SAT' || d === 'SELL') { out.dir = 'SAT'; out.dCls = 'dn'; } else { out.status = 'Yön AL/SAT olmalı'; out.sCls = 'dn'; return out; }
+      if (!(out.tk in LAST)) { out.status = out.tk + ' bulunamadı'; out.sCls = 'dn'; return out; }
+      const qq = num(t[2]), pp = num(t[3]);
+      if (!isFinite(qq) || qq <= 0) { out.status = 'Adet sayı olmalı'; out.sCls = 'dn'; return out; }
+      if (!isFinite(pp) || pp <= 0) { out.status = 'Fiyat geçersiz'; out.sCls = 'dn'; return out; }
+      let rest = t.slice(4);
+      if (rest[0] && /^\d{1,2}[./]\d{1,2}[./]\d{4}$/.test(rest[0])) { out.dt = rest[0].replace(/\//g, '.'); rest = rest.slice(1); }
+      if (rest.length) { const nm = rest.join(' '); const ix = known.indexOf(nm.toLocaleLowerCase('tr')); if (ix < 0) { out.status = '“' + nm + '” portföyü yok'; out.sCls = 'dn'; return out; } out.pf = PFS[ix]; }
+      out.qty = th(qq); out.px = money(pp); out.amt = tl(qq * pp); out.ok = true; out._q = qq; out._p = pp;
+      return out;
+    });
+    const good = rows.filter((r) => r.ok);
+    const bulkSum = good.reduce((a, r) => a + r._q * r._p, 0);
+    const bulkAdd = () => {
+      if (!good.length) return;
+      const now = Date.now();
+      const nw = good.map((r, i) => ({ id: now + i, dir: r.dir, tk: r.tk, qty: r._q, px: r._p, pf: r.pf, dt: r.dt === 'Bugün' ? '29.10.2026' : r.dt, src: 'Metin' }));
+      const badLines = rows.filter((r) => !r.ok).map((r) => lines[r.n - 1]).join('\n');
+      this.setState({ added: nw.concat(added), text: badLines, flash: good.length + ' işlem eklendi' + (badLines ? '; hatalı satırlar düzeltmen için bırakıldı' : '') });
+    };
+
+    const CSV = [
+      ['01.10.2026', 'AL', 'HSA', '120', '176,20', '4,23', 'Geçerli', 'up'],
+      ['03.10.2026', 'AL', 'HSE', '2.000', '27,10', '10,84', 'Geçerli', 'up'],
+      ['08.10.2026', 'SAT', 'HSH', '500', '34,80', '3,48', 'Geçerli', 'up'],
+      ['08.10.2026', 'SAT', 'HSH', '500', '34,80', '3,48', 'Mükerrer, atlanacak', 'wr'],
+      ['14.10.2026', 'AL', 'HSX', '300', '12,40', '0,74', 'Ticker bulunamadı', 'dn'],
+      ['21.10.2026', 'AL', 'HSF', '400', '53,60', '4,29', 'Geçerli', 'up']
+    ];
+    const csvRows = CSV.map((c, i) => ({ n: i + 1, dt: c[0], dir: c[1], dCls: c[1] === 'AL' ? 'up' : 'dn', tk: c[2], qty: c[3], px: '₺' + c[4], fee: '₺' + c[5], st: c[6], sCls: c[7] }));
+
+    const JR = [
+      { dir: 'AL', tk: 'HSA', dt: '12.09.2026', note: 'Bulut gelirlerinde hızlanma; çeyreklik büyüme sektörün üstünde. Çıkış: 165 altı kapanış.', res: 'O günden beri +%14,8', rCls: 'up' },
+      { dir: 'SAT', tk: 'HSH', dt: '02.10.2026', note: 'Marjlarda daralma ve bakım duruşu riski. Pozisyonun yarısı satıldı.', res: 'O günden beri −%6,1 (doğru karar)', rCls: 'up' },
+      { dir: 'AL', tk: 'HSC', dt: '18.08.2026', note: 'Temettü verimi ve petrol fiyatı desteği.', res: 'O günden beri −%2,3', rCls: 'dn' }
+    ];
+
+    return {
+      modes: tabs([['form', 'Hızlı form'], ['text', 'Toplu metin'], ['csv', 'CSV / ekstre']], mode, 'mode'),
+      isForm: mode === 'form', isText: mode === 'text', isCsv: mode === 'csv',
+      flash: { show: !!st.flash, msg: st.flash || '' },
+      pfOpts: PFS,
+      f: {
+        pf: f.pf, tk: f.tk, qty: f.qty, px: f.px, dt: f.dt, fee: f.fee, note: f.note,
+        buyCls: f.dir === 'AL' ? 'buy' : '', sellCls: f.dir === 'SAT' ? 'sell' : '', buyP: f.dir === 'AL' ? 'true' : 'false', sellP: f.dir === 'SAT' ? 'true' : 'false',
+        feeHint: feeAuto != null ? 'Otomatik: ' + money(feeAuto) : 'Otomatik hesaplanır',
+        total: amt != null ? money(amt) : '₺0,00', totalSub: amt != null ? '+ komisyon ' + money(fee) : '',
+        hasErr: !!err, err: err || ''
+      },
+      on: {
+        pf: fld('pf'), tk: fld('tk', true), qty: fld('qty'), px: fld('px'), dt: fld('dt'), fee: fld('fee'), note: fld('note'), bpf: fld('bpf'), text: fld('text'),
+        buy: set({ dir: 'AL' }), sell: set({ dir: 'SAT' }),
+        last: () => { const tk = f.tk.trim().toLocaleUpperCase('tr'); if (LAST[tk] != null) this.setState({ px: String(LAST[tk]).replace('.', ','), err: null }); else this.setState({ err: tk ? tk + ' için son fiyat N/A' : 'Önce ticker gir' }); },
+        clear: set({ tk: '', qty: '', px: '', fee: '', note: '', err: null, flash: null }),
+        bulkAdd: bulkAdd
+      },
+      submit: (e) => { if (e && e.preventDefault) e.preventDefault(); doAdd(); },
+      recentTk: recent,
+      bulk: { pf: bpf, text: text, rows: rows, okN: good.length, badN: rows.length - good.length, sum: tl(bulkSum), btn: good.length ? good.length + ' geçerli işlemi ekle' : 'Geçerli satır yok' },
+      csvRows: csvRows,
+      added: {
+        n: added.length, empty: added.length === 0,
+        items: added.slice(0, 8).map((a) => ({ dir: a.dir, dCls: a.dir === 'AL' ? 'up' : 'dn', line: a.tk + ' · ' + th(a.qty) + ' × ' + money(a.px) + ' = ' + tl(a.qty * a.px), meta: a.pf + ' · ' + a.dt + ' · ' + a.src, undo: () => this.setState({ added: added.filter((x) => x.id !== a.id), flash: a.tk + ' işlemi geri alındı' }) }))
+      },
+      journal: JR.map((j) => ({ dir: j.dir, dCls: j.dir === 'AL' ? 'up' : 'dn', tk: j.tk, dt: j.dt, note: j.note, res: j.res, rCls: j.rCls }))
+    };
+  }
+}
+</script>
+</body>
+</html>
